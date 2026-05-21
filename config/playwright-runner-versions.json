@@ -1,0 +1,14 @@
+{
+  "defaultTag": "v1.59.0-jammy",
+  "versions": [
+    {
+      "tag": "v1.59.0-jammy",
+      "label": "v1.59.0",
+      "publishAsLatest": true
+    },
+    {
+      "tag": "v1.58.0-jammy",
+      "label": "v1.58.0"
+    }
+  ]
+}

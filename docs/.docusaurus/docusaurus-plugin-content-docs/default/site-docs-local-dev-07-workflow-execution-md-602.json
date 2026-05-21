@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/workflow-execution",
+  "title": "Workflow Execution Flow",
+  "description": "Local development only. This describes the full journey of a workflow run from the moment you click \"Run\" in the editor.",
+  "source": "@site/docs/local-dev/07-workflow-execution.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/workflow-execution",
+  "permalink": "/central-station/docs/local-dev/workflow-execution",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/07-workflow-execution.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 7,
+  "frontMatter": {
+    "sidebar_position": 7,
+    "title": "Workflow Execution Flow"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Docker Images",
+    "permalink": "/central-station/docs/local-dev/docker-images"
+  },
+  "next": {
+    "title": "Firebase & Data Storage",
+    "permalink": "/central-station/docs/local-dev/firebase-and-data"
+  }
+}

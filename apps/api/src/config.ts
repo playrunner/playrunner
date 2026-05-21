@@ -1,0 +1,10 @@
+export const ORCHESTRATOR_PORT = parseInt(process.env.ORCHESTRATOR_PORT || '3002', 10);
+export const ORCHESTRATOR_IMAGE = process.env.ORCHESTRATOR_IMAGE || 'playrunner-orchestrator';
+export const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || `http://localhost:${ORCHESTRATOR_PORT}`;
+export const PUBSUB_EMULATOR_HOST_DOCKER = process.env.PUBSUB_EMULATOR_HOST_DOCKER || 'host.docker.internal:8085';
+export const PUBSUB_PROJECT_ID = process.env.PUBSUB_PROJECT_ID || 'local-dev';
+export const GCP_PROJECT = process.env.GCP_PROJECT || 'local-dev';
+export const EDITOR_API_URL_DOCKER = process.env.EDITOR_API_URL_DOCKER || `http://host.docker.internal:${process.env.PORT || 3001}`;
+export const PORT = process.env.PORT || 3001;
+export const PUBSUB_TOPIC = process.env.PUBSUB_TOPIC || 'orchestrator-logs';
+export const PUBSUB_SUBSCRIPTION = process.env.PUBSUB_SUBSCRIPTION || 'orchestrator-logs-sub';

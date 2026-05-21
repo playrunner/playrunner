@@ -1,0 +1,32 @@
+/**
+ * Playrunner — Docusaurus custom theme
+ * Colours tuned to the product mark and docs readability.
+ */
+
+:root {
+  --ifm-color-primary: #0f766e;
+  --ifm-color-primary-dark: #0d695f;
+  --ifm-color-primary-darker: #0b5b53;
+  --ifm-color-primary-darkest: #084841;
+  --ifm-color-primary-light: #13867c;
+  --ifm-color-primary-lighter: #1aa193;
+  --ifm-color-primary-lightest: #6ed4c8;
+  --ifm-code-font-size: 94%;
+  --docusaurus-highlighted-code-line-bg: rgba(15, 118, 110, 0.08);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #5eead4;
+  --ifm-color-primary-dark: #2dd4bf;
+  --ifm-color-primary-darker: #22c7b3;
+  --ifm-color-primary-darkest: #19ad9b;
+  --ifm-color-primary-light: #7ef0de;
+  --ifm-color-primary-lighter: #98f5e7;
+  --ifm-color-primary-lightest: #c7fbf4;
+  --docusaurus-highlighted-code-line-bg: rgba(94, 234, 212, 0.12);
+}
+
+/* Navbar logo: preserve the SVG's authored colours in both themes */
+.navbar__logo img {
+  filter: none;
+}

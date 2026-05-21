@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+  --color-subtle: var(--border);
+  --color-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-control: var(--control-bg);
+  --color-node-bg: var(--node-bg);
+  --color-node-border: var(--node-border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-error: var(--error);
+  --color-success: var(--success);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #09090b;
+  --surface: #f4f4f5;
+  --surface-hover: #e4e4e7;
+  --surface-active: #d4d4d8;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --muted: #71717a;
+  --control-bg: #ffffff;
+  --node-bg: #ffffff;
+  --node-border: #3e444d;
+  --accent: #09090b; /* Sleek black for primary actions */
+  --accent-hover: #27272a;
+  --accent-foreground: #fafafa;
+  --error: #ef4444;
+  --success: #10b981;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --surface: #121212;
+  --surface-hover: #27272a;
+  --surface-active: #3f3f46;
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --muted: #a1a1aa;
+  --control-bg: #000000;
+  --node-bg: #1b1e24;
+  --node-border: #3e444d;
+  --accent: #ffffff; /* Sleek white for primary actions */
+  --accent-hover: #e4e4e7;
+  --accent-foreground: #09090b;
+  --error: #ef4444;
+  --success: #10b981;
+}
+
+/* Base Table, links, buttons */
+button,
+a,
+[role="button"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+/* Base Form Element Styles */
+input, textarea, select {
+  background-color: var(--control-bg);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+}
+
+.running-border-wrapper {
+  position: absolute;
+  inset: -1px;
+  border-radius: 13px;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  overflow: hidden;
+  z-index: -1;
+}
+
+@keyframes flow {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-flow {
+  animation: flow 0.5s linear infinite;
+}

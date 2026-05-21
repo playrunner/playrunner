@@ -1,0 +1,28 @@
+{
+  "id": "environment-variables",
+  "title": "Environment Variables",
+  "description": "Local development only. Each service reads its configuration from environment variables. Defaults are designed to work out-of-the-box for local dev.",
+  "source": "@site/docs/05-environment-variables.md",
+  "sourceDirName": ".",
+  "slug": "/environment-variables",
+  "permalink": "/central-station/docs/environment-variables",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/05-environment-variables.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "title": "Environment Variables"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Services & Ports",
+    "permalink": "/central-station/docs/services-and-ports"
+  },
+  "next": {
+    "title": "Docker Images",
+    "permalink": "/central-station/docs/docker-images"
+  }
+}

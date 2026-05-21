@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/firebase-and-data",
+  "title": "Firebase & Data Storage",
+  "description": "Local development only. The app uses a live (remote) Firebase project even during local development — there is no local Firebase emulator configured.",
+  "source": "@site/docs/local-dev/08-firebase-and-data.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/firebase-and-data",
+  "permalink": "/central-station/docs/local-dev/firebase-and-data",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/08-firebase-and-data.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "Firebase & Data Storage"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Workflow Execution Flow",
+    "permalink": "/central-station/docs/local-dev/workflow-execution"
+  },
+  "next": {
+    "title": "Troubleshooting",
+    "permalink": "/central-station/docs/local-dev/troubleshooting"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "quick-start",
+  "title": "Quick Start",
+  "description": "Local development only. This gets all services running with a single script.",
+  "source": "@site/docs/03-quick-start.md",
+  "sourceDirName": ".",
+  "slug": "/quick-start",
+  "permalink": "/central-station/docs/quick-start",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/03-quick-start.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Quick Start"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Prerequisites",
+    "permalink": "/central-station/docs/prerequisites"
+  },
+  "next": {
+    "title": "Services & Ports",
+    "permalink": "/central-station/docs/services-and-ports"
+  }
+}

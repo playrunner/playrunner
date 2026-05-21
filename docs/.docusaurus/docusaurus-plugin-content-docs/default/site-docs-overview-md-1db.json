@@ -1,0 +1,24 @@
+{
+  "id": "overview",
+  "title": "Overview",
+  "description": "Playrunner is a visual workflow orchestration platform for running automated Playwright test pipelines. Connect triggers, integrations, and test runners by dragging nodes on a canvas — no glue code required.",
+  "source": "@site/docs/overview.md",
+  "sourceDirName": ".",
+  "slug": "/overview",
+  "permalink": "/central-station/docs/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/overview.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "next": {
+    "title": "GCP Cloud Architecture",
+    "permalink": "/central-station/docs/gcp-architecture"
+  }
+}

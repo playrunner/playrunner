@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/connecting-integrations",
+  "title": "Connecting Integrations",
+  "description": "OAuth Integrations",
+  "source": "@site/docs/local-dev/connecting-integrations.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/connecting-integrations",
+  "permalink": "/central-station/docs/local-dev/connecting-integrations",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/connecting-integrations.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Connecting Integrations"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/central-station/docs/local-dev/"
+  },
+  "next": {
+    "title": "Services & Ports",
+    "permalink": "/central-station/docs/local-dev/services-and-ports"
+  }
+}

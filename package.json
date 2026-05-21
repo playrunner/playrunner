@@ -1,0 +1,12 @@
+{
+  "name": "central-station",
+  "private": true,
+  "scripts": {
+    "dev:oss": "./start-local.sh",
+    "dev:premium": "./start-premium.sh",
+    "dev:oss:setup": "./start-local.sh --setup",
+    "dev:premium:setup": "./start-premium.sh --setup",
+    "build:oss": "ENABLE_PREMIUM=false npm run build --prefix apps/web && npm run build --prefix apps/runners/orchestrator",
+    "build:premium": "ENABLE_PREMIUM=true npm run build --prefix apps/web && npm run build --prefix apps/runners/orchestrator"
+  }
+}

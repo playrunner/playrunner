@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isDocOwner(docData) {
+      return isSignedIn() && docData.userId == request.auth.uid;
+    }
+
+    function isDocIdOwner(id) {
+      return isSignedIn() && id.matches(request.auth.uid + '.*');
+    }
+
+    match /workflows/{id} {
+      allow get, delete: if isDocIdOwner(id);
+      allow list: if isDocOwner(resource.data);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+
+    match /projects/{id} {
+      allow get, delete: if isDocIdOwner(id);
+      allow list: if isDocOwner(resource.data);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+
+    match /integrations/{id} {
+      allow get, delete: if isDocIdOwner(id);
+      allow list: if isDocOwner(resource.data);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+
+    match /cloud_credentials/{id} {
+      allow get, delete: if isDocIdOwner(id);
+      allow list: if isDocOwner(resource.data);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+
+    match /secrets/{id} {
+      allow get: if isDocIdOwner(id) || isDocOwner(resource.data);
+      allow list: if isDocOwner(resource.data);
+      allow delete: if isDocIdOwner(id);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+
+    match /environments/{id} {
+      allow get, delete: if isDocIdOwner(id);
+      allow list: if isDocOwner(resource.data);
+      allow create: if isDocIdOwner(id) && isDocOwner(request.resource.data);
+      allow update: if isDocIdOwner(id) && isDocOwner(resource.data) && isDocOwner(request.resource.data);
+    }
+  }
+}

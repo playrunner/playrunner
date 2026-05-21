@@ -1,0 +1,24 @@
+{
+  "id": "agents-connection-nodes",
+  "title": "Connection Nodes",
+  "description": "Connection State Rules",
+  "source": "@site/docs/agents-connection-nodes.md",
+  "sourceDirName": ".",
+  "slug": "/agents-connection-nodes",
+  "permalink": "/central-station/docs/agents-connection-nodes",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/agents-connection-nodes.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Connection Nodes"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Troubleshooting",
+    "permalink": "/central-station/docs/local-dev/troubleshooting"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "docker-images",
+  "title": "Docker Images",
+  "description": "Local development only. Both the Orchestrator and Playwright runner run as Docker images that must be built on your local machine before use.",
+  "source": "@site/docs/06-docker-images.md",
+  "sourceDirName": ".",
+  "slug": "/docker-images",
+  "permalink": "/central-station/docs/docker-images",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/06-docker-images.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Docker Images"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Environment Variables",
+    "permalink": "/central-station/docs/environment-variables"
+  },
+  "next": {
+    "title": "Workflow Execution Flow",
+    "permalink": "/central-station/docs/workflow-execution"
+  }
+}

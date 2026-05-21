@@ -1,0 +1,28 @@
+{
+  "id": "tutorials/index",
+  "title": "Tutorials",
+  "description": "Welcome to the Playrunner tutorials. These step-by-step guides take you from zero to running your first automated Playwright workflow.",
+  "source": "@site/docs/tutorials/index.md",
+  "sourceDirName": "tutorials",
+  "slug": "/tutorials/",
+  "permalink": "/central-station/docs/tutorials/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/index.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Tutorials"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "GCP Cloud Architecture",
+    "permalink": "/central-station/docs/gcp-architecture"
+  },
+  "next": {
+    "title": "Getting Started",
+    "permalink": "/central-station/docs/tutorials/getting-started"
+  }
+}

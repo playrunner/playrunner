@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/connection-nodes",
+  "title": "Connection Nodes",
+  "description": "Connection State Rules",
+  "source": "@site/docs/local-dev/connection-nodes.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/connection-nodes",
+  "permalink": "/central-station/docs/local-dev/connection-nodes",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/connection-nodes.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Connection Nodes"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Services & Ports",
+    "permalink": "/central-station/docs/local-dev/services-and-ports"
+  },
+  "next": {
+    "title": "Environment Variables",
+    "permalink": "/central-station/docs/local-dev/environment-variables"
+  }
+}

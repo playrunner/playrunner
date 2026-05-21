@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/index",
+  "title": "Overview",
+  "description": "This documentation covers local development only.",
+  "source": "@site/docs/local-dev/index.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/",
+  "permalink": "/central-station/docs/local-dev/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/index.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Understanding Test Reports",
+    "permalink": "/central-station/docs/tutorials/understanding-reports"
+  },
+  "next": {
+    "title": "Connecting Integrations",
+    "permalink": "/central-station/docs/local-dev/connecting-integrations"
+  }
+}

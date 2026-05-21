@@ -1,0 +1,24 @@
+{
+  "id": "local-dev/troubleshooting",
+  "title": "Troubleshooting",
+  "description": "Local development only. Common issues and how to resolve them.",
+  "source": "@site/docs/local-dev/09-troubleshooting.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/troubleshooting",
+  "permalink": "/central-station/docs/local-dev/troubleshooting",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/09-troubleshooting.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 9,
+  "frontMatter": {
+    "sidebar_position": 9,
+    "title": "Troubleshooting"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Firebase & Data Storage",
+    "permalink": "/central-station/docs/local-dev/firebase-and-data"
+  }
+}

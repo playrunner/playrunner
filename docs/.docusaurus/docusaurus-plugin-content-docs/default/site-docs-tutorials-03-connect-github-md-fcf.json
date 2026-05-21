@@ -1,0 +1,28 @@
+{
+  "id": "tutorials/connect-github",
+  "title": "Connect GitHub",
+  "description": "Playrunner uses GitHub OAuth to clone your private test repositories. This tutorial shows you how to authenticate, select a repository, and set a target branch.",
+  "source": "@site/docs/tutorials/03-connect-github.md",
+  "sourceDirName": "tutorials",
+  "slug": "/tutorials/connect-github",
+  "permalink": "/central-station/docs/tutorials/connect-github",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/03-connect-github.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Connect GitHub"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Create Your First Workflow",
+    "permalink": "/central-station/docs/tutorials/create-your-first-workflow"
+  },
+  "next": {
+    "title": "Run Your First Test",
+    "permalink": "/central-station/docs/tutorials/run-your-first-test"
+  }
+}

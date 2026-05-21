@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/services-and-ports",
+  "title": "Services & Ports",
+  "description": "Local development only. Each service runs on a fixed port and communicates over localhost or host.docker.internal.",
+  "source": "@site/docs/local-dev/04-services-and-ports.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/services-and-ports",
+  "permalink": "/central-station/docs/local-dev/services-and-ports",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/04-services-and-ports.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Services & Ports"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Connecting Integrations",
+    "permalink": "/central-station/docs/local-dev/connecting-integrations"
+  },
+  "next": {
+    "title": "Connection Nodes",
+    "permalink": "/central-station/docs/local-dev/connection-nodes"
+  }
+}
