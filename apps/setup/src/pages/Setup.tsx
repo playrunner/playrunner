@@ -328,6 +328,16 @@ export default function Setup() {
             capture the project details, then generate the Firebase files needed by the product
             app.
           </p>
+          <div className="mt-6 max-w-xl rounded-2xl border border-white/10 bg-white/6 p-4">
+            <p className="text-sm font-medium">Before you continue</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              Copy <code>apps/api/.env.example</code> to <code>apps/api/.env</code> so the API
+              can start when setup is complete.
+            </p>
+            <pre className="mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-slate-100">
+              <code>cp apps/api/.env.example apps/api/.env</code>
+            </pre>
+          </div>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/6 p-4">
