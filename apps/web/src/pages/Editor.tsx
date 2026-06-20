@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, MouseEvent as ReactMouseEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Plus, Maximize, Trash2, MousePointer2, Move, CopySlash, Menu, Play, Square, Loader2, CheckCircle2, Route, Activity, Cloud, ChevronDown, Code2, MoreHorizontal, X, Sparkles, Power, Settings, AlertTriangle, PanelLeft, XCircle, Save, Copy, Check, Paperclip, ZoomIn, ZoomOut, Paintbrush, ArrowLeft, Monitor, Layers } from "lucide-react";
+import { Plus, Maximize, Trash2, MousePointer2, Move, CopySlash, Menu, Play, Square, Loader2, CheckCircle2, Route, Activity, Cloud, ChevronDown, Code2, MoreHorizontal, X, Sparkles, Power, Settings, AlertTriangle, PanelLeft, XCircle, Save, Copy, Check, Paperclip, ZoomIn, ZoomOut, Paintbrush, ArrowLeft, Monitor } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useHeader } from "../components/PageLayout";
 
@@ -1284,30 +1284,6 @@ export default function Editor() {
           providers={availableCloudProviders}
         />
         <div className="h-4 w-px bg-strong mx-1" />
-        <div className="relative group/concurrency">
-          <button className="flex items-center gap-1.5 px-2 py-1 rounded-md text-sm font-medium text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors">
-            <Layers className="w-4 h-4" />
-            <span>{concurrency}</span>
-            <ChevronDown className="w-3 h-3 opacity-50" />
-          </button>
-          <div className="absolute top-full mt-1 left-0 w-32 bg-surface border border-strong rounded-lg shadow-xl opacity-0 invisible group-hover/concurrency:opacity-100 group-hover/concurrency:visible transition-all z-50 py-1">
-            <div className="px-3 py-1.5 text-xs font-semibold text-muted border-b border-subtle mb-1">Max Concurrency</div>
-            {[1, 2, 3, 4, 5, 10, 20].map(n => (
-              <button
-                key={n}
-                onClick={() => setConcurrency(n)}
-                className={cn(
-                  "w-full text-left px-3 py-1.5 text-sm hover:bg-surface-hover transition-colors flex items-center justify-between",
-                  concurrency === n ? "text-blue-400 bg-blue-500/10" : "text-[var(--foreground)]"
-                )}
-              >
-                <span>{n}</span>
-                {concurrency === n && <CheckCircle2 className="w-3.5 h-3.5" />}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="h-4 w-px bg-strong mx-1" />
         <button 
           onClick={handleAddNode}
           className="flex items-center justify-center w-8 h-8 rounded-md text-sm font-medium text-[var(--foreground)] hover:bg-surface-hover transition-colors"
@@ -1358,7 +1334,7 @@ export default function Editor() {
       </div>
     );
     return () => setHeaderCenter(null);
-  }, [cloudProvider, connectedCloudIds, concurrency, isSaving, simulationState, setHeaderCenter, handleCloudProviderChange, handleSaveWorkflow, handlePlay, handleStop, handleAddNode]);
+  }, [cloudProvider, connectedCloudIds, isSaving, simulationState, setHeaderCenter, handleCloudProviderChange, handleSaveWorkflow, handlePlay, handleStop, handleAddNode]);
 
   if (!isOrchestratorReady) {
     return (

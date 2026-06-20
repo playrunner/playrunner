@@ -8,6 +8,7 @@ import { workflowsRouter } from './routes/workflows';
 import { outputsRouter } from './routes/outputs';
 import { systemRouter } from './routes/system';
 import { authRouter } from './routes/auth';
+import { gcpRouter } from './routes/integrations/gcp';
 import { jiraRouter } from './routes/integrations/jira';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
@@ -33,6 +34,7 @@ app.use('/api/outputs', outputsRouter);
 
 app.use('/api', requireAuth);
 app.use('/api/github', githubRouter);
+app.use('/api/gcp', gcpRouter);
 app.use('/api/jira', jiraRouter);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);

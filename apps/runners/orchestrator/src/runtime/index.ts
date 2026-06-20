@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import type { OrchestratorRuntimeContribution, PlaywrightExecutionBackend, PlaywrightExecutionRequest } from './contracts';
+import { GcpPlaywrightExecutionBackend } from './playwright-gcp';
 import { LocalPlaywrightExecutionBackend } from './playwright-local';
 
 class PlaywrightExecutionRegistry {
@@ -24,6 +25,7 @@ class PlaywrightExecutionRegistry {
 
 const playwrightExecution = new PlaywrightExecutionRegistry([
   new LocalPlaywrightExecutionBackend(),
+  new GcpPlaywrightExecutionBackend(),
 ]);
 
 function isPremiumEnabled(): boolean {

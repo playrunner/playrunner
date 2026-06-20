@@ -26,6 +26,11 @@ Copy from `apps/api/.env.example`.
 | `ORCHESTRATOR_IMAGE` | `playrunner-orchestrator` | Docker image name for the Orchestrator (built by `start-local.sh`) |
 | `PUBSUB_EMULATOR_HOST_DOCKER` | `host.docker.internal:8085` | Pub/Sub emulator address **as seen from inside Docker containers** |
 | `EDITOR_API_URL_DOCKER` | `http://host.docker.internal:3001` | API server URL **as seen from inside Docker containers** (passed to the Orchestrator container so it can heartbeat back) |
+| `GCS_BUCKET_PREFIX` | _(required for GCP)_ | Prefix used when creating per-workflow GCS output buckets |
+| `GCS_PROJECT_ID` | _(required for GCP)_ | GCP project used by GCS clients when a selected project is not passed |
+| `GCP_CLOUD_RUN_LOCATION` | _(required for GCP)_ | Cloud Run region for the GCP orchestrator service |
+| `GCP_ORCHESTRATOR_SERVICE_NAME` | _(required for GCP)_ | Cloud Run service name for the remote orchestrator |
+| `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` | _(required for GCP)_ | Orchestrator container image URI template; supports `{projectId}` |
 
 > **Why two Pub/Sub host variables?**  
 > `PUBSUB_EMULATOR_HOST` is for the API process running on the host (`localhost:8085`).  
@@ -62,6 +67,10 @@ This file is **not used** when the Orchestrator runs as a Docker container (all 
 | `GCP_PROJECT` | `local-dev` | Alias for `PUBSUB_PROJECT_ID` |
 | `PLAYWRIGHT_IMAGE_BASE` | `playrunner-playwright-runner` | Base Docker image prefix for Playwright runner containers; the orchestrator appends `-typescript` or `-python` |
 | `PUBSUB_EMULATOR_HOST_DOCKER` | `host.docker.internal:8085` | Pub/Sub emulator address passed into spawned Playwright containers |
+| `GCP_CLOUD_RUN_API_BASE_URL` | _(required for GCP)_ | Cloud Run API base URL used to create/run Playwright jobs |
+| `GCP_CLOUD_RUN_LOCATION` | _(required for GCP)_ | Cloud Run region for GCP Playwright jobs |
+| `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` | _(required for GCP)_ | Playwright runner image URI template; supports `{projectId}`, `{runtime}`, and `{version}` |
+| `GCP_PLAYWRIGHT_JOB_NAME_TEMPLATE` | _(required for GCP)_ | Cloud Run job name template; supports `{runtime}`, `{version}`, `{cpu}`, and `{memory}` |
 
 ---
 

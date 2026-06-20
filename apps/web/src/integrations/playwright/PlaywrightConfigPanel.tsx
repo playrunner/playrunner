@@ -8,6 +8,8 @@ import { playwrightRunnerConfig } from "../../config/playwrightRunnerConfig";
 
 const DEFAULT_PLAYWRIGHT_VERSION = playwrightRunnerConfig.defaultTag;
 const PLAYWRIGHT_VERSION_OPTIONS = playwrightRunnerConfig.versions;
+const DEFAULT_CPU = 2;
+const DEFAULT_MEMORY = 4;
 
 function inferPlaywrightRuntime(config: Record<string, any>): "typescript" | "python" {
   if (config.action === "upload" || config.action === "run") {
@@ -59,6 +61,16 @@ test.describe('navigation', () => {
       shouldUpdate = true;
     }
 
+    if (!config.cpu) {
+      updates.cpu = DEFAULT_CPU;
+      shouldUpdate = true;
+    }
+
+    if (!config.memory) {
+      updates.memory = DEFAULT_MEMORY;
+      shouldUpdate = true;
+    }
+
     const inferredRuntime = inferPlaywrightRuntime(config);
     if (config.testLanguage !== inferredRuntime) {
       updates.testLanguage = inferredRuntime;
@@ -68,7 +80,7 @@ test.describe('navigation', () => {
     if (shouldUpdate) {
       onChange(nodeId, { ...config, ...updates });
     }
-  }, [config.action, config.testScript, config.playwrightVersion, config.testLanguage, nodeId, onChange]);
+  }, [config.action, config.cpu, config.memory, config.testScript, config.playwrightVersion, config.testLanguage, nodeId, onChange]);
 
   useEffect(() => {
     async function fetchRepos() {
@@ -484,7 +496,7 @@ test.describe('navigation', () => {
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">CPU</label>
               <Select 
-                value={config.cpu || 2}
+                value={config.cpu || DEFAULT_CPU}
                 onChange={(e) => onChange(nodeId, { ...config, cpu: parseInt(e.target.value) })}
                 className="bg-[var(--background)] border-subtle text-sm"
               >
@@ -497,7 +509,7 @@ test.describe('navigation', () => {
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">Memory</label>
               <Select 
-                value={config.memory || 4}
+                value={config.memory || DEFAULT_MEMORY}
                 onChange={(e) => onChange(nodeId, { ...config, memory: parseFloat(e.target.value) })}
                 className="bg-[var(--background)] border-subtle text-sm"
               >

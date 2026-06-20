@@ -12,13 +12,19 @@ import type {
   WorkflowExecutionResult,
 } from './contracts';
 import { PubSubLogTransport } from './log-transport';
+import { GcpOutputProxyBackend } from './gcp-output-proxy';
+import { GcpOutputSyncBackend } from './gcp-output-sync';
+import { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
 import { NoopOutputProxyBackend } from './output-proxy';
 import { NoopOutputSyncBackend } from './output-sync';
 import { LocalDockerRunnerProvisioner } from './runner-provisioning';
 import { LocalWorkflowExecutionBackend } from './workflow-execution';
 
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
-  constructor(private readonly providers = [{ id: 'LOCAL-DEV', label: 'Local Dev' }]) {}
+  constructor(private readonly providers = [
+    { id: 'LOCAL-DEV', label: 'Local Dev' },
+    { id: 'GCP', label: 'GCP Runner' },
+  ]) {}
 
   list() {
     return [...this.providers];
@@ -89,12 +95,15 @@ const logTransport = new PubSubLogTransport();
 const cloudProviders = new StaticCloudProviderRegistry();
 const outputProxy = new OutputProxyRegistry([
   new NoopOutputProxyBackend(),
+  new GcpOutputProxyBackend(),
 ]);
 const outputSync = new OutputSyncRegistry([
   new NoopOutputSyncBackend(),
+  new GcpOutputSyncBackend(),
 ]);
 const workflowExecution = new WorkflowExecutionRegistry([
   new LocalWorkflowExecutionBackend(logTransport),
+  new GcpWorkflowExecutionBackend(logTransport),
 ]);
 
 function isPremiumEnabled(): boolean {
