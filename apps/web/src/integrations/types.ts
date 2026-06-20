@@ -29,7 +29,10 @@ export interface Integration {
     config: Record<string, any>;
     onChange: (nodeId: string, newConfig: Record<string, any>) => void;
     nodeId: string;
+    nodeLabel?: string;
     isConnected: boolean;
-    onConnectOAuth?: () => void;
+    onConnectOAuth?: (providerId?: string) => void;
+    integrationData?: any;
+    onLabelChange?: (newLabel: string) => void;
   }>;
 }

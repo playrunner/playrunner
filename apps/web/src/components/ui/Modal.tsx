@@ -54,6 +54,9 @@ export function Modal({
               )}
               <div className="py-0.5">
                 <h2 className="text-xs font-semibold text-[var(--foreground)] leading-none">{title}</h2>
+                {subtitle ? (
+                  <div className="mt-1 text-[11px] leading-snug text-muted">{subtitle}</div>
+                ) : null}
               </div>
             </div>
             <button 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Select } from "../../components/ui/Select";
 import { Textarea } from "../../components/ui/Textarea";
 import { Input } from "../../components/ui/Input";
@@ -13,6 +13,11 @@ export const JiraConfigPanel: React.FC<{
 }> = ({ config, onChange, nodeId, isConnected, integrationData }) => {
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const latestConfigRef = useRef(config);
+
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -31,7 +36,7 @@ export const JiraConfigPanel: React.FC<{
         const data = await res.json();
         
         if (data.cloudId && data.projects) {
-          onChange(nodeId, { ...config, cloudId: data.cloudId });
+          onChange(nodeId, { ...latestConfigRef.current, cloudId: data.cloudId });
           setProjects(data.projects);
         }
       } catch (err) {
@@ -41,7 +46,7 @@ export const JiraConfigPanel: React.FC<{
       }
     }
     fetchProjects();
-  }, [integrationData?.accessToken]);
+  }, [integrationData?.accessToken, nodeId, onChange]);
 
   const selectedProject = projects.find(p => p.id === config.projectId);
   const issueTypes = selectedProject?.issueTypes || [];

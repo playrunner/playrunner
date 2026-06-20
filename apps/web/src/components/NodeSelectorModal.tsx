@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { Search, Settings } from "lucide-react";
+import { useState, useRef } from "react";
+import { Search } from "lucide-react";
 import { cn } from "../lib/utils";
 import { INTEGRATIONS } from "../integrations/registry";
 

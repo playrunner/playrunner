@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { cn } from "../../lib/utils";
-import { Plus, Trash2, MoreHorizontal, Upload, Search, Unlink } from "lucide-react";
+import { Upload, Search, ChevronDown } from "lucide-react";
 import { auth } from "../../lib/firebase";
 import { DbAPI } from "../../lib/db";
-import { Input } from "../../components/ui/Input";
-import { Select } from "../../components/ui/Select";
-import { ChevronDown } from "lucide-react";
 import type { EnvVar, SavedEnvironment } from "./types";
 import { VariablesTable } from "./VariablesTable";
 
@@ -48,11 +45,12 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const [dropdownEnvId, setDropdownEnvId] = useState<string>(config.environmentId || "__create_new__");
   const [isLoadingEnvs, setIsLoadingEnvs] = useState(false);
   const initializedRef = useRef(false);
+  const currentUserId = auth.currentUser?.uid;
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!currentUserId) return;
     setIsLoadingEnvs(true);
-    DbAPI.getEnvironments(auth.currentUser.uid)
+    DbAPI.getEnvironments(currentUserId)
       .then((envs) => {
         setSavedEnvironments(envs);
         const linkedEnv = envs.find((e) => e.id === config.environmentId);
@@ -62,7 +60,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       })
       .catch(console.error)
       .finally(() => setIsLoadingEnvs(false));
-  }, [auth.currentUser]);
+  }, [config.environmentId, currentUserId]);
 
   useEffect(() => {
     if (linkedEnvId && savedEnvironments.length > 0 && !initializedRef.current) {
@@ -94,7 +92,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       updatedConfig["environmentId"] = null;
     }
     onChange(nodeId, updatedConfig);
-  }, [variables, linkedEnvId]);
+  }, [variables, linkedEnvId, nodeId, onChange]);
 
   useEffect(() => {
     const lastVar = variables[variables.length - 1];
@@ -235,7 +233,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       if (line.trim().startsWith('#') || !line.trim()) continue;
       const match = line.match(/^([^=]+)=(.*)$/);
       if (match) {
-        let key = match[1].trim();
+        const key = match[1].trim();
         let value = match[2].trim();
         if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
           value = value.slice(1, -1);
@@ -321,7 +319,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       });
 
       setVariables(prev => {
-        const next = prev.map(v => v.id === id ? { ...v, type: 'secret', currentValue: '********', initialValue: '********' } : v);
+        const next: EnvVar[] = prev.map(v => v.id === id ? { ...v, type: 'secret' as const, currentValue: '********', initialValue: '********' } : v);
         if (linkedEnvId) syncToSavedEnvironment(next);
         return next;
       });

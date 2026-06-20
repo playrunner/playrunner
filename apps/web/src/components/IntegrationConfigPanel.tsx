@@ -41,6 +41,11 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [leftWidth, setLeftWidth] = useState(33.33);
   const [rightWidth, setRightWidth] = useState(33.33);
   const containerRef = useRef<HTMLDivElement>(null);
+  const latestConfigRef = useRef(config);
+
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
 
   const startResize = (e: React.PointerEvent, side: 'left' | 'right') => {
     e.preventDefault();
@@ -75,11 +80,12 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   };
 
   const currentIntegration = INTEGRATIONS.find(i => i.id === nodeType);
+  const authProvider = config?.authProvider;
 
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    let integrationId = config?.authProvider || currentIntegration?.authProviderId || currentIntegration?.id;
+    const integrationId = authProvider || currentIntegration?.authProviderId || currentIntegration?.id;
 
     if (!integrationId) {
       if (currentIntegration?.authProviders) {
@@ -89,10 +95,12 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             try {
               const integration = await DbAPI.getIntegration(auth.currentUser.uid, provider.id);
               if (integration) {
-                onChange(nodeId, { ...config, authProvider: provider.id });
+                onChange(nodeId, { ...latestConfigRef.current, authProvider: provider.id });
                 return;
               }
-            } catch (e) { }
+            } catch {
+              continue;
+            }
           }
         };
         checkProviders();
@@ -108,7 +116,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     });
 
     return () => unsubscribe();
-  }, [nodeType, currentIntegration, config?.authProvider]);
+  }, [authProvider, currentIntegration, nodeId, onChange]);
 
   return (
     <div

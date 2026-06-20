@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Github, Loader2 } from "lucide-react";
-import { cn } from "../lib/utils";
+import { Github } from "lucide-react";
 import { Button } from "../components/ui";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../lib/firebase";

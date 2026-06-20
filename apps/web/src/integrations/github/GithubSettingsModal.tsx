@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { Check, ChevronRight, Loader2, Copy } from "lucide-react";
-import { cn } from "../../lib/utils";
 import { Input } from "../../components/ui/Input";
-import { doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "../../lib/firebase";
+import { auth } from "../../lib/firebase";
 import { DbAPI } from "../../lib/db";
 import { Modal } from "../../components/ui/Modal";
 
@@ -19,7 +17,6 @@ export function GithubSettingsModal({ isOpen, onClose }: GithubSettingsModalProp
   const [githubAppSlug, setGithubAppSlug] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
-  const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
 
@@ -35,7 +32,6 @@ export function GithubSettingsModal({ isOpen, onClose }: GithubSettingsModalProp
     let isMounted = true;
     const fetchCredentials = async () => {
       if (isOpen && auth.currentUser) {
-        setIsFetchingCredentials(true);
         try {
           const data = await DbAPI.getIntegration(auth.currentUser.uid, "github");
           if (data && isMounted) {
@@ -54,8 +50,6 @@ export function GithubSettingsModal({ isOpen, onClose }: GithubSettingsModalProp
           }
         } catch (error) {
           console.error("Failed to fetch Github credentials", error);
-        } finally {
-          if (isMounted) setIsFetchingCredentials(false);
         }
       }
     };

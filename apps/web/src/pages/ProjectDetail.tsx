@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, GitMerge, Settings, Play, Loader2, Calendar, Plus, Cloud, Trash2, MoreHorizontal, Monitor } from "lucide-react";
+import { ArrowLeft, GitMerge, Settings, Loader2, Plus, Cloud, Trash2, MoreHorizontal, Monitor } from "lucide-react";
 import { Button, Badge } from "../components/ui";
 import { useHeader } from "../components/PageLayout";
 import { auth } from "../lib/firebase";
@@ -29,6 +29,22 @@ export default function ProjectDetail() {
   const [editedTitle, setEditedTitle] = useState("");
 
   const { setHeaderLeft } = useHeader();
+  const handleSaveTitle = useCallback(async () => {
+    setIsEditingTitle(false);
+    if (!auth.currentUser || !project || !editedTitle.trim()) {
+      setEditedTitle(project?.title || "Untitled Project");
+      return;
+    }
+
+    if (editedTitle.trim() !== project.title) {
+      try {
+        await DbAPI.saveProject(auth.currentUser.uid, project.id, { title: editedTitle.trim() });
+        setProject((prev: any) => ({ ...prev, title: editedTitle.trim() }));
+      } catch (err) {
+        console.error("Failed to update project title:", err);
+      }
+    }
+  }, [editedTitle, project]);
 
   useEffect(() => {
     setHeaderLeft(
@@ -75,7 +91,7 @@ export default function ProjectDetail() {
       </>
     );
     return () => setHeaderLeft(null);
-  }, [project?.title, isEditingTitle, editedTitle, setHeaderLeft, navigate]);
+  }, [editedTitle, handleSaveTitle, isEditingTitle, navigate, project?.title, setHeaderLeft]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -102,23 +118,6 @@ export default function ProjectDetail() {
 
     return () => unsubscribe();
   }, [id, navigate]);
-
-  const handleSaveTitle = async () => {
-    setIsEditingTitle(false);
-    if (!auth.currentUser || !project || !editedTitle.trim()) {
-      setEditedTitle(project?.title || "Untitled Project");
-      return;
-    }
-    
-    if (editedTitle.trim() !== project.title) {
-      try {
-        await DbAPI.saveProject(auth.currentUser.uid, project.id, { title: editedTitle.trim() });
-        setProject((prev: any) => ({ ...prev, title: editedTitle.trim() }));
-      } catch (err) {
-        console.error("Failed to update project title:", err);
-      }
-    }
-  };
 
   const handleCreateWorkflow = async () => {
     if (!auth.currentUser || !project || isCreatingWorkflow) return;
@@ -180,7 +179,7 @@ export default function ProjectDetail() {
               <p className="text-sm text-muted">Manage all parts of your project from here.</p>
             </div>
             <div className="flex gap-3">
-               <Button variant="outline" className="gap-2">
+               <Button variant="secondary" className="gap-2">
                  <Settings className="w-4 h-4" />
                  Settings
                </Button>
@@ -190,7 +189,7 @@ export default function ProjectDetail() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="col-span-1 md:col-span-2 mb-2 mt-4 flex justify-between items-center">
                <h3 className="text-xl font-semibold text-[var(--foreground)]">Workflows</h3>
-               <Button variant="outline" className="gap-2" onClick={handleCreateWorkflow} disabled={isCreatingWorkflow}>
+               <Button variant="secondary" className="gap-2" onClick={handleCreateWorkflow} disabled={isCreatingWorkflow}>
                  {isCreatingWorkflow ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                  {isCreatingWorkflow ? "Creating..." : "New Workflow"}
                </Button>

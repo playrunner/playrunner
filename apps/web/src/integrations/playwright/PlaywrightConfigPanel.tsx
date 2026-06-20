@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { Select } from "../../components/ui/Select";
-import { Textarea } from "../../components/ui/Textarea";
 import { Input } from "../../components/ui/Input";
 import { cn } from "../../lib/utils";
 import { playwrightRunnerConfig } from "../../config/playwrightRunnerConfig";
@@ -26,7 +25,7 @@ export const PlaywrightConfigPanel: React.FC<{
   onChange: (nodeId: string, newConfig: Record<string, any>) => void;
   nodeId: string;
   isConnected: boolean;
-  onConnectOAuth?: () => void;
+  onConnectOAuth?: (providerId?: string) => void;
   integrationData?: any; // We might need to pass this or fetch it
 }> = ({ config, onChange, nodeId, isConnected, integrationData, onConnectOAuth }) => {
   const [repositories, setRepositories] = useState<{ id: string; full_name: string }[]>([]);
@@ -34,9 +33,14 @@ export const PlaywrightConfigPanel: React.FC<{
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [activeTab, setActiveTab] = useState<"config" | "env" | "resources">("config");
+  const latestConfigRef = useRef(config);
 
   useEffect(() => {
-    let updates: Record<string, any> = {};
+    latestConfigRef.current = config;
+  }, [config]);
+
+  useEffect(() => {
+    const updates: Record<string, any> = {};
     let shouldUpdate = false;
     
     if (config.action === "run" && !config.testScript) {
@@ -71,14 +75,14 @@ test.describe('navigation', () => {
       shouldUpdate = true;
     }
 
-    const inferredRuntime = inferPlaywrightRuntime(config);
+    const inferredRuntime = inferPlaywrightRuntime(latestConfigRef.current);
     if (config.testLanguage !== inferredRuntime) {
       updates.testLanguage = inferredRuntime;
       shouldUpdate = true;
     }
     
     if (shouldUpdate) {
-      onChange(nodeId, { ...config, ...updates });
+      onChange(nodeId, { ...latestConfigRef.current, ...updates });
     }
   }, [config.action, config.cpu, config.memory, config.testScript, config.playwrightVersion, config.testLanguage, nodeId, onChange]);
 
@@ -265,7 +269,6 @@ test.describe('navigation', () => {
                         onChange={(e) => {
                            if (e.target.value) {
                                onChange(nodeId, { ...config, authProvider: e.target.value });
-                               // @ts-ignore
                                onConnectOAuth?.(e.target.value);
                            }
                            e.target.value = "";

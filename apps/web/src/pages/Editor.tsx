@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, MouseEvent as ReactMouseEvent } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Plus, Maximize, Trash2, MousePointer2, Move, CopySlash, Menu, Play, Square, Loader2, CheckCircle2, Route, Activity, Cloud, ChevronDown, Code2, MoreHorizontal, X, Sparkles, Power, Settings, AlertTriangle, PanelLeft, XCircle, Save, Copy, Check, Paperclip, ZoomIn, ZoomOut, Paintbrush, ArrowLeft, Monitor } from "lucide-react";
+import { Plus, Maximize, Trash2, Play, Square, Loader2, CheckCircle2, Route, Activity, ChevronDown, Code2, MoreHorizontal, X, Sparkles, Power, Settings, AlertTriangle, XCircle, Save, Copy, Check, ZoomIn, ZoomOut, Paintbrush, ArrowLeft, Monitor } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useHeader } from "../components/PageLayout";
 
@@ -46,6 +46,9 @@ interface DrawingConnection {
   fixedPort: PortPosition;
   isForward: boolean; // true if drawing from source to target, false if drawing from target to source
 }
+
+const availableCloudProviders = CLOUD_PROVIDERS;
+const defaultCloudProvider = getDefaultCloudProviderId();
 
 function normalizeCloudProvider(raw: string): string {
   return raw.toUpperCase();
@@ -343,7 +346,9 @@ export default function Editor() {
             if (parsed.cloudProvider) setCloudProvider(normalizeCloudProvider(parsed.cloudProvider));
             else if (parsed.provider) setCloudProvider(normalizeCloudProvider(parsed.provider));
             loaded = true;
-          } catch(e) {}
+          } catch (error) {
+            console.error("Failed to parse local workflow from localStorage:", error);
+          }
         }
       }
       
@@ -367,12 +372,12 @@ export default function Editor() {
       }
     };
 
-    const unsubscribe = auth.onAuthStateChanged(user => {
+    const unsubscribe = auth.onAuthStateChanged(() => {
       loadWorkflow();
     });
     
     return () => unsubscribe();
-  }, [initialNodes, initialConnections]);
+  }, [activeWorkflowId, initialNodes, initialConnections]);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   
@@ -391,8 +396,6 @@ export default function Editor() {
 
   const [openNodeSettingsId, setOpenNodeSettingsId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, nodeId: string } | null>(null);
-  const availableCloudProviders = CLOUD_PROVIDERS;
-  const defaultCloudProvider = getDefaultCloudProviderId();
 
   const [cloudProvider, setCloudProvider] = useState<string>(defaultCloudProvider);
   const [cloudProjectId, setCloudProjectId] = useState<string>("");
@@ -460,9 +463,7 @@ export default function Editor() {
     });
     
     return () => unsubscribe();
-  }, [availableCloudProviders, isCloudSettingsOpen, cloudProvider]);
-
-  const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+  }, [cloudProvider, isCloudSettingsOpen]);
 
   const handlePlay = useCallback(async () => {
     if (isSimulationRunning.current) return;
@@ -511,7 +512,7 @@ export default function Editor() {
       isSimulationRunning.current = false;
       setSimulationState('idle');
     });
-  }, [getNodesWithParents, connections, activeWorkflowId, cloudProvider]);
+  }, [getNodesWithParents, connections, activeWorkflowId, cloudProvider, concurrency]);
 
   const handlePlayNode = async (nodeId: string) => {
     if (isSimulationRunning.current) return;
@@ -610,7 +611,7 @@ export default function Editor() {
       showToast("Failed to save workflow. Check console.", "error");
     }
     setIsSaving(false);
-  }, [getNodesWithParents, auth, activeWorkflowId, connections, workflowName, cloudProvider, concurrency]);
+  }, [getNodesWithParents, activeWorkflowId, connections, workflowName, cloudProvider, concurrency]);
 
   useEffect(() => {
     if (shouldAutoSave) {
@@ -782,9 +783,14 @@ export default function Editor() {
     e.stopPropagation();
     
     // Check if this port is a target of any connection (incoming)
-    const incomingConnectionIndex = connections.findLastIndex(c => 
-      c.targetId === nodeId && (c.targetPort || 'left') === portPos
-    );
+    let incomingConnectionIndex = -1;
+    for (let index = connections.length - 1; index >= 0; index -= 1) {
+      const connection = connections[index];
+      if (connection.targetId === nodeId && (connection.targetPort || 'left') === portPos) {
+        incomingConnectionIndex = index;
+        break;
+      }
+    }
     
     if (incomingConnectionIndex !== -1) {
       const conn = connections[incomingConnectionIndex];
@@ -1042,13 +1048,6 @@ export default function Editor() {
     setTimeout(handleFitView, 50);
   };
 
-  const handleClear = () => {
-    setNodes([]);
-    setConnections([]);
-    setSelectedNodeIds(new Set());
-    setSelectedConnectionIds(new Set());
-  };
-
   const getPortCoordinates = (node: NodeData, port: PortPosition, offset: number = 0) => {
     switch(port) {
       case 'top': return { x: node.x + node.width / 2, y: node.y - offset };
@@ -1156,7 +1155,7 @@ export default function Editor() {
       return path;
     }
 
-    const getControlPoint = (x: number, y: number, port: PortPosition, isSource: boolean) => {
+    const getControlPoint = (x: number, y: number, port: PortPosition) => {
       const offset = 80;
       switch(port) {
         case 'top': return { x, y: y - offset };
@@ -1166,8 +1165,8 @@ export default function Editor() {
       }
     };
     
-    const cp1 = getControlPoint(x1, y1, sourcePort, true);
-    const cp2 = getControlPoint(x2, y2, targetPort, false);
+    const cp1 = getControlPoint(x1, y1, sourcePort);
+    const cp2 = getControlPoint(x2, y2, targetPort);
     
     return `M ${x1} ${y1} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${x2} ${y2}`;
   };
@@ -1182,7 +1181,7 @@ export default function Editor() {
       return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
     }
 
-    const getControlPoint = (x: number, y: number, port: PortPosition, isSource: boolean) => {
+    const getControlPoint = (x: number, y: number, port: PortPosition) => {
       const offset = 80;
       switch(port) {
         case 'top': return { x, y: y - offset };
@@ -1192,8 +1191,8 @@ export default function Editor() {
       }
     };
     
-    const cp1 = getControlPoint(x1, y1, sourcePort, true);
-    const cp2 = getControlPoint(x2, y2, targetPort, false);
+    const cp1 = getControlPoint(x1, y1, sourcePort);
+    const cp2 = getControlPoint(x2, y2, targetPort);
     
     return {
       x: (x1 + 3 * cp1.x + 3 * cp2.x + x2) / 8,
@@ -1334,7 +1333,7 @@ export default function Editor() {
       </div>
     );
     return () => setHeaderCenter(null);
-  }, [cloudProvider, connectedCloudIds, isSaving, simulationState, setHeaderCenter, handleCloudProviderChange, handleSaveWorkflow, handlePlay, handleStop, handleAddNode]);
+  }, [cloudProjectId, cloudProvider, connectedCloudIds, isSaving, simulationState, setHeaderCenter, handleCloudProviderChange, handleSaveWorkflow, handlePlay, handleStop, handleAddNode]);
 
   if (!isOrchestratorReady) {
     return (
@@ -1530,10 +1529,6 @@ export default function Editor() {
               const endCoords = getPortCoordinates(tgt, tPort, 10);
               
               const isSelected = selectedConnectionIds.has(conn.id);
-              const midPoint = getCurveMidpoint(startCoords.x, startCoords.y, endCoords.x, endCoords.y, sPort, tPort, connectionStyle);
-              const isHovered = hoveredConnectionId === conn.id;
-              const isMenuOpen = connectionMenuId === conn.id;
-
               const isTargetRunning = nodeStatus[conn.targetId] === 'running';
 
               const strokeColor = isSelected ? "var(--accent)" : 

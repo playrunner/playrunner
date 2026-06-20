@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
-import { Button, Input, Badge } from "../components/ui";
+import { Button, Input } from "../components/ui";
 import { auth } from "../lib/firebase";
 import { DbAPI } from "../lib/db";
 import { CLOUD_PROVIDERS, getDefaultCloudProviderId } from "../runtime/cloudProviders";

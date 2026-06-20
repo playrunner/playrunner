@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { Check, ChevronRight, LayoutTemplate, Settings2, Loader2, Copy } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { Check, ChevronRight, Loader2, Copy } from "lucide-react";
 import { Input } from "../../components/ui/Input";
-import { doc, setDoc, getDoc, deleteDoc } from "firebase/firestore";
-import { auth, db } from "../../lib/firebase";
+import { auth } from "../../lib/firebase";
 import { DbAPI } from "../../lib/db";
 import { Modal } from "../../components/ui/Modal";
 
@@ -17,7 +15,6 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
   const [jiraClientSecret, setJiraClientSecret] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
-  const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
 
@@ -33,7 +30,6 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
     let isMounted = true;
     const fetchCredentials = async () => {
       if (isOpen && auth.currentUser) {
-        setIsFetchingCredentials(true);
         try {
           const data = await DbAPI.getIntegration(auth.currentUser.uid, "jira");
           if (data && isMounted) {
@@ -48,8 +44,6 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
           }
         } catch (error) {
           console.error("Failed to fetch Jira credentials", error);
-        } finally {
-          if (isMounted) setIsFetchingCredentials(false);
         }
       }
     };
@@ -298,4 +292,3 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
     </Modal>
   );
 }
-

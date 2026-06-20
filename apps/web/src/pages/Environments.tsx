@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Plus, Trash2, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button, Input, Badge } from "../components/ui";
 import { Modal } from "../components/ui/Modal";
 import { auth } from "../lib/firebase";
 import { DbAPI } from "../lib/db";
-import { cn } from "../lib/utils";
 import type { SavedEnvironment, EnvVar } from "../integrations/environment/types";
 import { VariablesTable } from "../integrations/environment/VariablesTable";
 
@@ -17,7 +15,6 @@ export default function Environments() {
   const [editingEnv, setEditingEnv] = useState<SavedEnvironment | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const loadEnvironments = async (userId: string) => {
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { cn } from "../../lib/utils";
 import { Clock, Calendar, CalendarDays, Timer, Repeat, Info } from "lucide-react";
 
@@ -78,10 +78,15 @@ export const ScheduleConfigPanel: React.FC<ScheduleConfigPanelProps> = ({
     ...DEFAULT_CONFIG,
     ...config.schedule,
   }));
+  const latestConfigRef = useRef(config);
 
   useEffect(() => {
-    onChange(nodeId, { ...config, schedule });
-  }, [schedule]);
+    latestConfigRef.current = config;
+  }, [config]);
+
+  useEffect(() => {
+    onChange(nodeId, { ...latestConfigRef.current, schedule });
+  }, [nodeId, onChange, schedule]);
 
   const updateSchedule = (updates: Partial<ScheduleConfig>) => {
     setSchedule(prev => ({ ...prev, ...updates }));

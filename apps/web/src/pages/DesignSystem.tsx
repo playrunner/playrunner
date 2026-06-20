@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Search, CheckCircle2, AlertCircle, Settings, Plus, Maximize, Trash2 } from "lucide-react";
+import { Search, CheckCircle2, AlertCircle, Settings, Plus, Maximize, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button, Input, Select, Textarea, Badge } from "../components/ui";
 
