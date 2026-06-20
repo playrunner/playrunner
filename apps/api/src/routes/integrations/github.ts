@@ -25,7 +25,7 @@ githubRouter.post('/token', async (req, res) => {
     try {
       const data = JSON.parse(text);
       res.json(data);
-    } catch (e) {
+    } catch {
       console.error('Token exchange failed. GitHub returned non-JSON:', text);
       res.status(500).json({ error: 'Failed to exchange token', details: text });
     }
@@ -59,7 +59,7 @@ githubRouter.post('/refresh', async (req, res) => {
     try {
       const data = JSON.parse(text);
       res.json(data);
-    } catch (e) {
+    } catch {
       console.error('Token refresh failed. GitHub returned non-JSON:', text);
       res.status(500).json({ error: 'Failed to refresh token', details: text });
     }

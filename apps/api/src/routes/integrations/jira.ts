@@ -30,7 +30,7 @@ jiraRouter.post('/token', async (req, res) => {
         return res.status(jRes.status).json(data);
       }
       res.json(data);
-    } catch (e) {
+    } catch {
       console.error('Token exchange failed. Jira returned non-JSON:', text);
       res.status(500).json({ error: 'Failed to exchange token', details: text });
     }
@@ -67,7 +67,7 @@ jiraRouter.post('/refresh', async (req, res) => {
         return res.status(jRes.status).json(data);
       }
       res.json(data);
-    } catch (e) {
+    } catch {
       console.error('Token refresh failed. Jira returned non-JSON:', text);
       res.status(500).json({ error: 'Failed to refresh token', details: text });
     }

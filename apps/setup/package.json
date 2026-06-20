@@ -1,0 +1,9 @@
+{
+  "name": "playrunner-setup",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "node ../web/node_modules/eslint/bin/eslint.js .",
+    "lint:fix": "node ../web/node_modules/eslint/bin/eslint.js . --fix"
+  }
+}

@@ -1,4 +1,4 @@
-import { ORCHESTRATOR_URL, PUBSUB_TOPIC } from '../config';
+import { ORCHESTRATOR_URL } from '../config';
 import { state } from '../state';
 import type { LogTransport, WorkflowExecutionBackend, WorkflowExecutionRequest, WorkflowExecutionResult } from './contracts';
 
@@ -42,7 +42,9 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
           cloudProvider: 'LOCAL-DEV',
           timestamp: new Date(),
         }));
-      } catch (error) {}
+      } catch {
+        // Ignore best-effort log transport failures.
+      }
 
       return {
         body: { message: `Workflow triggered on local runner successfully, testId: ${testId}` },

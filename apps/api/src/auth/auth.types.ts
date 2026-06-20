@@ -1,5 +1,3 @@
-import { Request } from 'express';
-
 export interface AuthUser {
   provider: 'firebase' | 'supabase' | 'auth0' | 'clerk' | string;
   providerUserId: string;
@@ -12,10 +10,8 @@ export interface TokenVerifier {
   verify(token: string): Promise<AuthUser>;
 }
 
-declare global {
-  namespace Express {
-    interface Request {
-      authUser?: AuthUser;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    authUser?: AuthUser;
   }
 }

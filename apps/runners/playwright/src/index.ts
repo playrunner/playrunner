@@ -1,5 +1,4 @@
 import { PubSub } from '@google-cloud/pubsub';
-import { chromium } from 'playwright';
 import { spawn } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';
@@ -15,7 +14,7 @@ async function publishLog(message: string, level: 'info' | 'error' = 'info') {
     const topic = pubsub.topic(topicName);
     await topic.publishMessage({ data: Buffer.from(payload) });
     console.log(message);
-  } catch (err) {
+  } catch {
     console.log(`[Local Fallback] ${message}`);
   }
 }
@@ -116,8 +115,10 @@ async function uploadOutputs(
       }
 
       await publishLog(`Uploading outputs directly to GCS bucket ${bucketName}...`);
-      const { Storage } = require('@google-cloud/storage');
-      const { OAuth2Client } = require('google-auth-library');
+      const [{ Storage }, { OAuth2Client }] = await Promise.all([
+        import('@google-cloud/storage'),
+        import('google-auth-library'),
+      ]);
       const oauth2Client = new OAuth2Client();
       oauth2Client.setCredentials({ access_token: accessToken });
       
@@ -214,7 +215,7 @@ async function run() {
   if (process.env.PAYLOAD) {
     try {
       payload = JSON.parse(process.env.PAYLOAD);
-    } catch (e) {
+    } catch {
       await publishLog('Failed to parse PAYLOAD environment variable.', 'error');
     }
   }

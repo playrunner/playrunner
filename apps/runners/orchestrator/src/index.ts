@@ -1,7 +1,6 @@
 import { spawn } from 'child_process';
 import express from 'express';
 import { PubSub } from '@google-cloud/pubsub';
-import { Storage } from '@google-cloud/storage';
 import { orchestratorRuntime } from './runtime';
 
 const app = express();
@@ -30,7 +29,7 @@ setInterval(async () => {
   try {
     const res = await fetch(`${EDITOR_API_URL}/api/heartbeat`);
     editorIsAlive = res.ok;
-  } catch (err) {
+  } catch {
     editorIsAlive = false;
   }
 
@@ -407,7 +406,7 @@ async function executeWorkflow(reqBody: any) {
       const hasConditionals = outgoing.some(c => c.type === 'success' || c.type === 'failure');
       const isSuccess = finalState === 'success' || finalState === 'warning';
       
-      const promises = outgoing.map(async conn => {
+      for (const conn of outgoing) {
         const connType = conn.type || 'sequential';
         let shouldTrigger = false;
         
@@ -430,7 +429,7 @@ async function executeWorkflow(reqBody: any) {
         if (shouldTrigger) {
           enqueueNode(conn.targetId);
         }
-      });
+      }
     };
 
     // Find starting nodes (nodes with no incoming connections)
@@ -494,7 +493,7 @@ async function start() {
 
   try {
     await pubsub.topic(PUBSUB_TOPIC).get({ autoCreate: true });
-  } catch (e) {
+  } catch {
     console.warn('Could not ensure Pub/Sub topic exists (Check GCP credentials)');
   }
 

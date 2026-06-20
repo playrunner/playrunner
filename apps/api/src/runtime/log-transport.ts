@@ -30,7 +30,7 @@ export class PubSubLogTransport implements LogTransport {
       subscription.on('error', (error) => {
         console.error('Pub/Sub Subscription Error:', error);
       });
-    } catch (error) {
+    } catch {
       console.warn('Could not connect to Pub/Sub (Check GCP credentials). Falling back to local logging.');
     }
   }
