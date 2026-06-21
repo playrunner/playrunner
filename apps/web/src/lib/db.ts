@@ -49,6 +49,10 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     | null;
 
   if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      await auth.signOut();
+    }
+
     const message =
       payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
         ? payload.error

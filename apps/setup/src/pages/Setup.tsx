@@ -13,16 +13,14 @@ import {cn} from '@web/lib/utils';
 import type {RuntimeSetupConfig} from '../lib/setup';
 import {getActiveSetupSessionToken} from '../lib/setup';
 
-type SetupStep = 'postgres' | 'prisma' | 'complete';
+type SetupStep = 'intro' | 'postgres' | 'complete';
 
-type SetupFormState = RuntimeSetupConfig & {
+type SetupFormState = Omit<RuntimeSetupConfig, 'directUrl' | 'shadowDatabaseUrl'> & {
   confirmPassword: string;
 };
 
 const EMPTY_SETUP_FORM: SetupFormState = {
   databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public',
-  directUrl: '',
-  shadowDatabaseUrl: '',
   username: 'admin',
   password: '',
   confirmPassword: '',
@@ -30,25 +28,25 @@ const EMPTY_SETUP_FORM: SetupFormState = {
 
 const STEP_SEQUENCE = [
   {
-    description: 'Write the datasource URLs and the first local username/password.',
-    id: 'postgres' as const,
+    description: 'See what setup changes before editing any runtime config.',
+    id: 'intro' as const,
     label: 'Step 1',
-    icon: Database,
-    title: 'Configure PostgreSQL',
-  },
-  {
-    description: 'Confirm which Prisma and runtime files setup wrote into apps/api.',
-    id: 'prisma' as const,
-    label: 'Step 2',
     icon: Sparkles,
-    title: 'Review Prisma scaffold',
+    title: 'Overview',
   },
   {
-    description: 'Finish the bootstrap and confirm the normal local startup path.',
+    description: 'Enter the database and first local login details.',
+    id: 'postgres' as const,
+    label: 'Step 2',
+    icon: Database,
+    title: 'Configuration',
+  },
+  {
+    description: 'Finish setup and return to the normal startup path.',
     id: 'complete' as const,
     label: 'Step 3',
     icon: CheckCircle2,
-    title: 'Finish local bootstrap',
+    title: 'Complete',
   },
 ];
 
@@ -60,10 +58,10 @@ const SECTION_LABEL_CLASS = 'text-xs font-semibold uppercase tracking-[0.24em] t
 
 function getStepTitle(step: SetupStep) {
   switch (step) {
+    case 'intro':
+      return 'Review the local install';
     case 'postgres':
       return 'Configure PostgreSQL';
-    case 'prisma':
-      return 'Review Prisma scaffold';
     case 'complete':
       return 'Finish local bootstrap';
     default:
@@ -83,15 +81,13 @@ function isValidPostgresUrl(value: string) {
 function normalizeSetupPayload(form: SetupFormState): RuntimeSetupConfig {
   return {
     databaseUrl: form.databaseUrl.trim(),
-    directUrl: form.directUrl?.trim() || undefined,
-    shadowDatabaseUrl: form.shadowDatabaseUrl?.trim() || undefined,
     username: form.username.trim(),
     password: form.password,
   };
 }
 
 export default function Setup() {
-  const [step, setStep] = useState<SetupStep>('postgres');
+  const [step, setStep] = useState<SetupStep>('intro');
   const [setupForm, setSetupForm] = useState<SetupFormState>(EMPTY_SETUP_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -118,29 +114,20 @@ export default function Setup() {
     if (setupForm.databaseUrl.trim() && !isValidPostgresUrl(setupForm.databaseUrl)) {
       fields.push('DATABASE_URL');
     }
-    if (setupForm.directUrl?.trim() && !isValidPostgresUrl(setupForm.directUrl)) {
-      fields.push('DIRECT_URL');
-    }
-    if (
-      setupForm.shadowDatabaseUrl?.trim() &&
-      !isValidPostgresUrl(setupForm.shadowDatabaseUrl)
-    ) {
-      fields.push('SHADOW_DATABASE_URL');
-    }
 
     return fields;
-  }, [setupForm.databaseUrl, setupForm.directUrl, setupForm.shadowDatabaseUrl]);
+  }, [setupForm.databaseUrl]);
 
   const handleBack = () => {
     setValidationError(null);
 
     if (step === 'complete') {
-      setStep('prisma');
+      setStep('postgres');
       return;
     }
 
-    if (step === 'prisma') {
-      setStep('postgres');
+    if (step === 'postgres') {
+      setStep('intro');
     }
   };
 
@@ -217,16 +204,16 @@ export default function Setup() {
     }
   };
 
+  const handleIntroContinue = () => {
+    setValidationError(null);
+    setStep('postgres');
+  };
+
   const handlePostgresContinue = async () => {
     const succeeded = await submitSetupStep('generate');
     if (succeeded) {
-      setStep('prisma');
+      setStep('complete');
     }
-  };
-
-  const handlePrismaContinue = () => {
-    setValidationError(null);
-    setStep('complete');
   };
 
   const handleSetupComplete = async () => {
@@ -238,113 +225,80 @@ export default function Setup() {
 
   return (
     <div className="min-h-screen bg-background text-[var(--foreground)] font-sans">
-      <div className="mx-auto max-w-6xl px-6 py-8 md:px-10 md:py-12">
+      <div className="mx-auto max-w-5xl px-5 py-8 md:px-8 md:py-12">
         <header className="border-b border-subtle pb-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-4">
-              <Badge variant="outline" className="w-fit gap-2 px-3 py-1">
-                <img
-                  src="/images/playrunner-icon.svg"
-                  alt="Playrunner"
-                  className="h-4 w-4 object-contain"
-                />
-                First-run setup
-              </Badge>
-              <div className="space-y-2">
-                <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-                  Point this workspace at PostgreSQL and seed the first local login.
-                </h1>
-                <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                  This explicit setup session writes PostgreSQL connection strings, the first local
-                  username/password pair, and the base Prisma scaffold into{' '}
-                  <code className="font-mono text-xs text-[var(--foreground)]">apps/api</code>.
-                </p>
-              </div>
-            </div>
-
-            <div className={cn(SURFACE_CARD_CLASS, 'w-full max-w-sm p-4')}>
-              <p className="text-sm font-medium text-[var(--foreground)]">What this installer changes</p>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                If{' '}
-                <code className="font-mono text-xs text-[var(--foreground)]">apps/api/.env</code>{' '}
-                is missing, setup creates it from{' '}
-                <code className="font-mono text-xs text-[var(--foreground)]">
-                  apps/api/.env.example
-                </code>
-                , then upserts the database, local auth, and Prisma runtime values.
+          <div className="space-y-4">
+            <Badge variant="outline" className="w-fit gap-2 px-3 py-1">
+              <img
+                src="/images/playrunner-icon.svg"
+                alt="Playrunner"
+                className="h-4 w-4 object-contain"
+              />
+              First-run setup
+            </Badge>
+            <div className="space-y-2">
+              <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+                Point this workspace at PostgreSQL and seed the first local login.
+              </h1>
+              <p className="max-w-3xl text-sm leading-relaxed text-muted">
+                Setup writes the local database, auth, and Prisma runtime values into{' '}
+                <code className="font-mono text-xs text-[var(--foreground)]">apps/api</code>.
               </p>
             </div>
           </div>
         </header>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.2fr]">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <aside className="space-y-6">
             <section className={cn(SURFACE_CARD_CLASS, 'p-6')}>
               <div className="border-b border-subtle pb-3">
-                <h2 className="mb-1 text-xl font-medium text-[var(--foreground)]">Install checklist</h2>
+                <h2 className="mb-1 text-xl font-medium text-[var(--foreground)]">Setup flow</h2>
                 <p className="text-sm text-muted">
-                  Keep the setup flow on the same surfaces, spacing, and form language as the rest
-                  of the app.
+                  Short overview first, then the form, then a final handoff back to normal local
+                  startup.
                 </p>
               </div>
 
               <div className="mt-5 grid gap-3">
-                <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
-                      <Database className="h-4 w-4 text-[var(--foreground)]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--foreground)]">PostgreSQL connection</p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Capture the Prisma datasource URL and any direct or shadow database
-                        overrides.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {STEP_SEQUENCE.map((item, index) => {
+                  const Icon = item.icon;
+                  const isCurrent = index === activeStepIndex;
+                  const isComplete = index < activeStepIndex;
 
-                <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
-                      <LockKeyhole className="h-4 w-4 text-[var(--foreground)]" />
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'rounded-xl border p-4 transition-colors',
+                        isCurrent
+                          ? 'border-[var(--border-strong)] bg-[var(--background)]'
+                          : 'border-[var(--border)] bg-[var(--surface-hover)]/60',
+                      )}
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
+                          <Icon className="h-4 w-4 text-[var(--foreground)]" />
+                        </div>
+                        <Badge variant={isComplete ? 'success' : isCurrent ? 'default' : 'outline'}>
+                          {isComplete ? 'Completed' : isCurrent ? 'Current' : item.label}
+                        </Badge>
+                      </div>
+                      <h3 className="text-sm font-medium text-[var(--foreground)]">{item.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Local login seed</p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Hash the first username/password pair and store the runtime auth settings
-                        in <code className="font-mono text-[11px] text-[var(--foreground)]">apps/api/.env</code>.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
-                      <FolderKanban className="h-4 w-4 text-[var(--foreground)]" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Automatic bootstrap</p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Normal local startup now brings up Postgres and runs Prisma bootstrap
-                        before the API comes online.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </section>
 
             <section className={cn(SURFACE_CARD_CLASS, 'p-6')}>
-              <p className={SECTION_LABEL_CLASS}>After setup</p>
+              <p className={SECTION_LABEL_CLASS}>Normal startup</p>
               <h2 className="mt-2 text-xl font-medium text-[var(--foreground)]">
-                Normal local startup
+                After setup
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                After the installer completes, stop the setup session and run the normal app. That
-                path starts Postgres, generates Prisma client code, and pushes the current schema
-                before the API boots.
+                The standard local path starts Postgres, generates the Prisma client, and pushes
+                the current schema before the API boots.
               </p>
               <pre className={cn(CODE_BLOCK_CLASS, 'mt-4')}>
                 <code>./start-local.sh</code>
@@ -359,12 +313,8 @@ export default function Setup() {
                 <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--foreground)]">
                   {getStepTitle(step)}
                 </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-                  Store the required runtime values, review the generated files, then finish the
-                  local bootstrap path.
-                </p>
               </div>
-              {step !== 'postgres' && (
+              {step !== 'intro' && (
                 <Button variant="secondary" onClick={handleBack} className="gap-2 self-start">
                   <ArrowLeft className="h-4 w-4" />
                   Back
@@ -372,194 +322,169 @@ export default function Setup() {
               )}
             </div>
 
-            <div className="mt-6 grid gap-3 md:grid-cols-3">
-              {STEP_SEQUENCE.map((item, index) => {
-                const isCurrent = index === activeStepIndex;
-                const isComplete = index < activeStepIndex;
-                const Icon = item.icon;
-
-                return (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      'rounded-xl border p-4 transition-colors',
-                      isCurrent
-                        ? 'border-[var(--border-strong)] bg-[var(--background)]'
-                        : 'border-[var(--border)] bg-[var(--surface-hover)]/60',
-                    )}
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
-                        <Icon className="h-4 w-4 text-[var(--foreground)]" />
-                      </div>
-                      <Badge variant={isComplete ? 'success' : isCurrent ? 'default' : 'outline'}>
-                        {isComplete ? 'Completed' : isCurrent ? 'Current' : item.label}
-                      </Badge>
-                    </div>
-                    <h3 className="text-sm font-medium text-[var(--foreground)]">{item.title}</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>
-                  </div>
-                );
-              })}
-            </div>
-
             <div className="mt-6">
-              {step === 'postgres' ? (
+              {step === 'intro' ? (
+                <div className="space-y-6">
+                  <div className={cn(INSET_CARD_CLASS, 'p-5')}>
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="mt-0.5 h-5 w-5 text-[var(--foreground)]" />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--foreground)]">
+                          If you are using the standard local stack, the defaults already point at
+                          the Docker-backed Postgres database.
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-muted">
+                          You only need to change the connection values if you want setup to target
+                          a different database or keep separate direct and shadow URLs.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
+                      <Database className="h-4 w-4 text-[var(--foreground)]" />
+                      <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
+                        Database runtime
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
+                        Save the Prisma datasource URL into the local API env file.
+                      </p>
+                    </div>
+
+                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
+                      <LockKeyhole className="h-4 w-4 text-[var(--foreground)]" />
+                      <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
+                        First login
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
+                        Create the first local username and password for the app login screen.
+                      </p>
+                    </div>
+
+                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
+                      <FolderKanban className="h-4 w-4 text-[var(--foreground)]" />
+                      <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
+                        Prisma scaffold
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
+                        Write the base runtime files into <code className="font-mono text-[11px] text-[var(--foreground)]">apps/api</code>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button variant="primary" onClick={handleIntroContinue} className="gap-2">
+                      Continue to configuration
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : step === 'postgres' ? (
                 <div className="space-y-6">
                   <div className={cn(INSET_CARD_CLASS, 'p-5')}>
                     <div className="flex items-start gap-3">
                       <Database className="mt-0.5 h-5 w-5 text-[var(--foreground)]" />
                       <div>
                         <p className="text-sm font-medium text-[var(--foreground)]">
-                          Paste the Prisma connection strings that should land in{' '}
-                          <code className="font-mono text-xs text-[var(--foreground)]">apps/api/.env</code>,
-                          then choose the first local login.
+                          Enter the main database URL and the first local login.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          <code className="font-mono text-xs text-[var(--foreground)]">DATABASE_URL</code>{' '}
-                          is required. Use{' '}
-                          <code className="font-mono text-xs text-[var(--foreground)]">DIRECT_URL</code>{' '}
-                          only when your runtime connection differs from the migration connection,
-                          and{' '}
-                          <code className="font-mono text-xs text-[var(--foreground)]">
-                            SHADOW_DATABASE_URL
-                          </code>{' '}
-                          when you keep a dedicated Prisma shadow database.
+                          Keep the default value for the local Docker-backed database, or replace it
+                          with your own PostgreSQL instance.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-6 xl:grid-cols-[1.15fr_0.9fr]">
-                    <div className={cn(INSET_CARD_CLASS, 'p-5')}>
-                      <div className="border-b border-subtle pb-3">
-                        <h3 className="text-sm font-medium text-[var(--foreground)]">
-                          Connection strings
-                        </h3>
-                        <p className="mt-1 text-sm text-muted">
-                          Store the runtime datasource first, then add direct or shadow URLs only
-                          if your environment needs them.
+                  <div className={cn(INSET_CARD_CLASS, 'p-5')}>
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-[var(--foreground)]">
+                          Database URL
+                        </label>
+                        <p className="text-xs text-muted">
+                          <code className="font-mono text-[11px] text-[var(--foreground)]">DATABASE_URL</code>
                         </p>
+                        <Input
+                          placeholder="postgresql://postgres:postgres@localhost:5432/playrunner?schema=public"
+                          value={setupForm.databaseUrl}
+                          onChange={(event) =>
+                            setSetupForm((current) => ({
+                              ...current,
+                              databaseUrl: event.target.value,
+                            }))
+                          }
+                        />
                       </div>
 
-                      <div className="mt-5 space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
-                            DATABASE_URL
-                          </label>
-                          <Input
-                            placeholder="postgresql://postgres:postgres@localhost:5432/playrunner?schema=public"
-                            value={setupForm.databaseUrl}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                databaseUrl: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
-                            DIRECT_URL <span className="text-muted">(optional)</span>
-                          </label>
-                          <Input
-                            placeholder="postgresql://postgres:postgres@localhost:5432/playrunner?schema=public"
-                            value={setupForm.directUrl}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                directUrl: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
-                            SHADOW_DATABASE_URL <span className="text-muted">(optional)</span>
-                          </label>
-                          <Input
-                            placeholder="postgresql://postgres:postgres@localhost:5432/playrunner_shadow?schema=public"
-                            value={setupForm.shadowDatabaseUrl}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                shadowDatabaseUrl: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className={cn(INSET_CARD_CLASS, 'p-5')}>
-                      <div className="border-b border-subtle pb-3">
-                        <h3 className="text-sm font-medium text-[var(--foreground)]">Local login</h3>
-                        <p className="mt-1 text-sm text-muted">
-                          These credentials become the local app login after setup completes.
-                        </p>
-                      </div>
-
-                      <div className="mt-5 space-y-4">
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-[var(--foreground)]">
+                          Username
+                        </label>
+                        <p className="text-xs text-muted">
+                          <code className="font-mono text-[11px] text-[var(--foreground)]">
                             LOCAL_AUTH_USERNAME
-                          </label>
-                          <Input
-                            placeholder="admin"
-                            value={setupForm.username}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                username: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
+                          </code>
+                        </p>
+                        <Input
+                          placeholder="admin"
+                          value={setupForm.username}
+                          onChange={(event) =>
+                            setSetupForm((current) => ({
+                              ...current,
+                              username: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
 
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-[var(--foreground)]">
+                          Password
+                        </label>
+                        <p className="text-xs text-muted">
+                          <code className="font-mono text-[11px] text-[var(--foreground)]">
                             LOCAL_AUTH_PASSWORD
-                          </label>
-                          <Input
-                            type="password"
-                            placeholder="Use at least 8 characters"
-                            value={setupForm.password}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                password: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
+                          </code>
+                        </p>
+                        <Input
+                          type="password"
+                          placeholder="Use at least 8 characters"
+                          value={setupForm.password}
+                          onChange={(event) =>
+                            setSetupForm((current) => ({
+                              ...current,
+                              password: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
 
-                        <div className="space-y-1.5">
-                          <label className="block text-sm font-medium text-[var(--foreground)]">
-                            Confirm password
-                          </label>
-                          <Input
-                            type="password"
-                            placeholder="Repeat the local login password"
-                            value={setupForm.confirmPassword}
-                            onChange={(event) =>
-                              setSetupForm((current) => ({
-                                ...current,
-                                confirmPassword: event.target.value,
-                              }))
-                            }
-                          />
-                        </div>
+                      <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-[var(--foreground)]">
+                          Confirm password
+                        </label>
+                        <Input
+                          type="password"
+                          placeholder="Repeat the password"
+                          value={setupForm.confirmPassword}
+                          onChange={(event) =>
+                            setSetupForm((current) => ({
+                              ...current,
+                              confirmPassword: event.target.value,
+                            }))
+                          }
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {validationError && (
+                  {validationError ? (
                     <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
                       {validationError}
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="flex justify-end">
                     <Button
@@ -573,69 +498,6 @@ export default function Setup() {
                     </Button>
                   </div>
                 </div>
-              ) : step === 'prisma' ? (
-                <div className="space-y-6">
-                  <div className={cn(INSET_CARD_CLASS, 'p-5')}>
-                    <div className="flex items-start gap-3">
-                      <Sparkles className="mt-0.5 h-5 w-5 text-[var(--foreground)]" />
-                      <div>
-                        <p className="text-sm font-medium text-[var(--foreground)]">
-                          The installer wrote the base PostgreSQL, Prisma, and local auth files
-                          into <code className="font-mono text-xs text-[var(--foreground)]">apps/api</code>.
-                        </p>
-                        <p className="mt-2 text-sm leading-relaxed text-muted">
-                          Setup just aligned this machine with the Docker-backed Postgres database
-                          and the first local login credentials.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Connection strings</p>
-                      <p className="mt-1 text-xs text-muted">Upserted into the runtime env file.</p>
-                      <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>apps/api/.env</code>
-                      </pre>
-                    </div>
-
-                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Local auth values</p>
-                      <p className="mt-1 text-xs text-muted">
-                        Added to the same env file for local login.
-                      </p>
-                      <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>LOCAL_AUTH_USERNAME / LOCAL_AUTH_PASSWORD_HASH / AUTH_JWT_SECRET</code>
-                      </pre>
-                    </div>
-
-                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Prisma schema</p>
-                      <p className="mt-1 text-xs text-muted">Written for the PostgreSQL runtime.</p>
-                      <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>apps/api/prisma/schema.prisma</code>
-                      </pre>
-                    </div>
-
-                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Prisma client helper</p>
-                      <p className="mt-1 text-xs text-muted">
-                        Updated so the API runtime can talk to Prisma directly.
-                      </p>
-                      <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>apps/api/src/lib/prisma.ts</code>
-                      </pre>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <Button variant="primary" onClick={handlePrismaContinue} className="gap-2">
-                      Continue to migration checklist
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
               ) : (
                 <div className="space-y-6">
                   <div className={cn(INSET_CARD_CLASS, 'p-5')}>
@@ -643,42 +505,31 @@ export default function Setup() {
                       <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-500" />
                       <div>
                         <p className="text-sm font-medium text-[var(--foreground)]">
-                          Normal local startup now handles Postgres and Prisma bootstrap
-                          automatically.
+                          The runtime scaffold is ready.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          Finish setup, then switch back to the normal startup path if the product
-                          app is not already running.
+                          Finish setup to lock the installer and switch back to the normal local
+                          startup flow.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">1. Default local database</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">Run next</p>
                       <p className="mt-1 text-xs text-muted">
-                        Keep using the Docker-backed default unless you intentionally replace it.
+                        Use the standard startup path for normal local development.
                       </p>
                       <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public</code>
+                        <code>./start-local.sh</code>
                       </pre>
                     </div>
 
                     <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">2. Automatic bootstrap path</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">Login username</p>
                       <p className="mt-1 text-xs text-muted">
-                        The normal startup path now performs this bootstrap before the API boots.
-                      </p>
-                      <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
-                        <code>docker compose up -d postgres && npm run prisma:generate && npx prisma db push</code>
-                      </pre>
-                    </div>
-
-                    <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">3. Local login expectation</p>
-                      <p className="mt-1 text-xs text-muted">
-                        The login screen now expects the username you just configured.
+                        The local login screen will expect this username.
                       </p>
                       <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
                         <code>{setupForm.username || 'admin'}</code>
@@ -686,11 +537,11 @@ export default function Setup() {
                     </div>
                   </div>
 
-                  {validationError && (
+                  {validationError ? (
                     <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500">
                       {validationError}
                     </div>
-                  )}
+                  ) : null}
 
                   <div className="flex justify-end">
                     <Button

@@ -25,10 +25,21 @@ function RequireAuth() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    return auth.onAuthStateChanged((nextUser) => {
+    let isMounted = true;
+    const unsubscribe = auth.onAuthStateChanged((nextUser) => {
       setUser(nextUser);
-      setIsReady(true);
     });
+
+    void auth.validateSession().finally(() => {
+      if (isMounted) {
+        setIsReady(true);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   if (!isReady) {

@@ -153,6 +153,52 @@ class LocalAuth {
     return this.currentUser;
   }
 
+  async validateSession() {
+    if (!this.token) {
+      return this.currentUser;
+    }
+
+    try {
+      const response = await fetch("/api/auth/me", {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        await this.signOut();
+        return null;
+      }
+
+      if (!response.ok) {
+        return this.currentUser;
+      }
+
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            user?: StoredAuthUser;
+          }
+        | null;
+
+      if (!payload?.user?.uid || !payload.user.username) {
+        await this.signOut();
+        return null;
+      }
+
+      const session: StoredAuthSession = {
+        token: this.token,
+        user: payload.user,
+      };
+
+      this.persistSession(session);
+      this.applySession(session);
+
+      return this.currentUser;
+    } catch {
+      return this.currentUser;
+    }
+  }
+
   async signOut() {
     this.persistSession(null);
     this.applySession(null);
