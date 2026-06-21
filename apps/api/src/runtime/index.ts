@@ -11,7 +11,7 @@ import type {
   WorkflowExecutionRequest,
   WorkflowExecutionResult,
 } from './contracts';
-import { PubSubLogTransport } from './log-transport';
+import { DatabaseLogTransport } from './log-transport';
 import { GcpOutputProxyBackend } from './gcp-output-proxy';
 import { GcpOutputSyncBackend } from './gcp-output-sync';
 import { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
@@ -91,7 +91,7 @@ class OutputProxyRegistry {
   }
 }
 
-const logTransport = new PubSubLogTransport();
+const logTransport = new DatabaseLogTransport();
 const cloudProviders = new StaticCloudProviderRegistry();
 const outputProxy = new OutputProxyRegistry([
   new NoopOutputProxyBackend(),

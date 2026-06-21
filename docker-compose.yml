@@ -15,11 +15,5 @@ services:
       timeout: 5s
       retries: 20
 
-  pubsub-emulator:
-    image: gcr.io/google.com/cloudsdktool/cloud-sdk:emulators
-    ports:
-      - "8085:8085"
-    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085
-
 volumes:
   playrunner-postgres-data:

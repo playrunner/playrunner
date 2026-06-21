@@ -41,21 +41,21 @@ title: Troubleshooting
 
 **Causes & fixes:**
 
-1. **Pub/Sub emulator is not running.**
+1. **PostgreSQL is not running or `DATABASE_URL` is wrong.**
    ```bash
-   docker compose up -d pubsub-emulator
-   docker ps  # confirm pubsub-emulator container is up
+   docker compose up -d postgres
+   docker ps  # confirm postgres is up
    ```
 
-2. **`PUBSUB_EMULATOR_HOST` not set in the API's environment.**
+2. **`DATABASE_URL` is missing in the API's environment.**
    Confirm `apps/api/.env` contains:
    ```
-   PUBSUB_EMULATOR_HOST=localhost:8085
+   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/playrunner?schema=public
    ```
    Restart the API after changing `.env`.
 
-3. **No SSE client connected.**  
-   The API only forwards messages when at least one browser tab has the Editor open (i.e., has subscribed to `GET /api/logs/stream`). Check the API terminal for "SSE Client connected" messages.
+3. **No editor presence SSE client connected.**  
+   The Orchestrator only stays alive while at least one browser tab has the Editor open and subscribed to `GET /api/presence/stream`. Check the API terminal for "Editor presence SSE connected" messages.
 
 ---
 
@@ -80,7 +80,7 @@ title: Troubleshooting
 
 ## `host.docker.internal` not resolving inside containers
 
-**Symptom:** Containers can't reach the API or Pub/Sub emulator; connection refused errors.
+**Symptom:** Containers can't reach the API; connection refused errors.
 
 **Fix (Linux only):**
 Docker Desktop on Mac/Windows provides `host.docker.internal` automatically. On Linux, pass the flag when running containers:

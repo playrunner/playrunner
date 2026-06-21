@@ -100,17 +100,17 @@ When the API receives `POST /api/outputs/:testId/:nodeId`:
 3. Scans for:
    - `playwright-report/index.html` → constructs a `reportUrl`
    - `test-results/**/*.webm` and `*.png` → constructs `media` URLs
-4. Broadcasts a `node_output` SSE event to all connected browser clients
+4. Persists a `node_output` event in PostgreSQL for that execution
 
 ### 7. Real-Time Logs via SSE
 
-Throughout the entire flow, the Playwright runner and Orchestrator publish log messages to the Pub/Sub topic `orchestrator-logs`. The API's Pub/Sub subscription forwards each message to all connected SSE clients at `GET /api/logs/stream`, which the Editor's log panel listens to.
+Throughout the entire flow, the Playwright runner and Orchestrator call `POST /api/executions/:executionId/events` with a signed per-execution token. The API stores those events in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
 
 ---
 
 ## Node States
 
-Each node transitions through these states, broadcast via Pub/Sub as `node_state` events:
+Each node transitions through these states, persisted as `node_state` events:
 
 | State | Meaning |
 |---|---|

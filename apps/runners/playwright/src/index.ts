@@ -1,27 +1,68 @@
-import { PubSub } from '@google-cloud/pubsub';
 import { spawn } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';
 
 import fs from 'fs';
 
-const pubsub = new PubSub();
-const topicName = process.env.PUBSUB_TOPIC || 'orchestrator-logs';
+const EXECUTION_TOKEN_HEADER = 'x-execution-token';
+
+type RunnerEventContext = {
+  editorApiUrl: string;
+  executionToken: string;
+  nodeId?: string;
+  testId: string;
+};
+
+let runnerEventContext: RunnerEventContext | null = null;
+
+async function publishEvent(payload: Record<string, unknown>) {
+  if (!runnerEventContext?.executionToken || !runnerEventContext.editorApiUrl || !runnerEventContext.testId) {
+    return;
+  }
+
+  try {
+    const response = await fetch(new URL(`/api/executions/${runnerEventContext.testId}/events`, runnerEventContext.editorApiUrl), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [EXECUTION_TOKEN_HEADER]: runnerEventContext.executionToken,
+      },
+      body: JSON.stringify({
+        executionId: runnerEventContext.testId,
+        nodeId: runnerEventContext.nodeId,
+        testId: runnerEventContext.testId,
+        ...payload,
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => '');
+      console.error(`Failed to publish runner event (${response.status}): ${details}`);
+    }
+  } catch (error) {
+    console.error('Failed to publish runner event:', error);
+  }
+}
 
 async function publishLog(message: string, level: 'info' | 'error' = 'info') {
-  const payload = JSON.stringify({ message: `[Playwright Runner] ${message}`, level, timestamp: new Date() });
-  try {
-    const topic = pubsub.topic(topicName);
-    await topic.publishMessage({ data: Buffer.from(payload) });
-    console.log(message);
-  } catch {
-    console.log(`[Local Fallback] ${message}`);
+  const formattedMessage = `[Playwright Runner] ${message}`;
+  if (level === 'error') {
+    console.error(formattedMessage);
+  } else {
+    console.log(formattedMessage);
   }
+
+  await publishEvent({
+    level,
+    message: formattedMessage,
+    timestamp: new Date().toISOString(),
+    type: 'log',
+  });
 }
 
 async function runTypescriptTest(workingDir: string): Promise<void> {
   await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
-  
+
   if (fs.existsSync(path.join(workingDir, 'package.json'))) {
     await publishLog('Installing npm dependencies...');
     await new Promise<void>((resolve, reject) => {
@@ -65,6 +106,7 @@ async function uploadOutputs(
   nodeId: string,
   testId: string,
   editorApiUrl: string,
+  executionAuthToken?: string,
   bucketName?: string,
   accessToken?: string,
   gcpProject?: string,
@@ -74,25 +116,25 @@ async function uploadOutputs(
     await publishLog('Missing nodeId or testId, skipping output upload.');
     return;
   }
-  
+
   await publishLog(`Preparing test outputs for node ${nodeId}...`);
-  
+
   const hasPlaywrightReport = fs.existsSync(path.join(workingDir, 'playwright-report'));
   const hasTestResults = fs.existsSync(path.join(workingDir, 'test-results'));
-  
+
   if (!hasPlaywrightReport && !hasTestResults) {
     await publishLog('No playwright-report or test-results directory found. Skipping output upload.');
     return;
   }
-  
+
   try {
     if (cloudProvider === 'GCP' && bucketName && accessToken && gcpProject) {
       const outputData: any = {};
-      
+
       if (hasPlaywrightReport) {
         outputData.reportUrl = `/outputs/${testId}/${nodeId}/playwright-report/index.html`;
       }
-      
+
       if (hasTestResults) {
         const findVideos = (dir: string): string[] => {
           let results: string[] = [];
@@ -121,7 +163,7 @@ async function uploadOutputs(
       ]);
       const oauth2Client = new OAuth2Client();
       oauth2Client.setCredentials({ access_token: accessToken });
-      
+
       const authClient = {
         getRequestHeaders: async (url?: string) => {
           const headers = await oauth2Client.getRequestHeaders(url);
@@ -139,15 +181,22 @@ async function uploadOutputs(
           if (res && res.headers && typeof (res.headers as any).forEach === 'function') {
             const plainHeaders: Record<string, string> = {};
             (res.headers as any).forEach((value: string, key: string) => { plainHeaders[key] = value; });
-            return new Proxy(res, { get(target, prop) { if (prop === 'headers') return plainHeaders; const value = target[prop as keyof typeof target]; if (typeof value === 'function') return value.bind(target); return value; } });
+            return new Proxy(res, {
+              get(target, prop) {
+                if (prop === 'headers') return plainHeaders;
+                const value = target[prop as keyof typeof target];
+                if (typeof value === 'function') return value.bind(target);
+                return value;
+              }
+            });
           }
           return res;
         }
       };
-      
+
       const storage = new Storage({ projectId: gcpProject, authClient: authClient as any });
       const bucket = storage.bucket(bucketName);
-      
+
       const uploadDirToGcs = async (localDir: string, gcsPrefix: string) => {
         const files = fs.readdirSync(localDir);
         for (const file of files) {
@@ -160,15 +209,21 @@ async function uploadOutputs(
           }
         }
       };
-      
+
       if (hasPlaywrightReport) await uploadDirToGcs(path.join(workingDir, 'playwright-report'), `${testId}/${nodeId}/playwright-report`);
       if (hasTestResults) await uploadDirToGcs(path.join(workingDir, 'test-results'), `${testId}/${nodeId}/test-results`);
 
-      // Broadcast node_output event via PubSub so API can send it via SSE.
-      const eventPayload = JSON.stringify({ type: 'node_output', nodeId, testId, output: outputData });
-      const topic = pubsub.topic(topicName);
-      await topic.publishMessage({ data: Buffer.from(eventPayload) });
+      await publishEvent({
+        nodeId,
+        output: outputData,
+        timestamp: new Date().toISOString(),
+        type: 'node_output',
+      });
     } else {
+      if (!executionAuthToken) {
+        throw new Error('Missing executionAuthToken for local output upload.');
+      }
+
       await publishLog(`Uploading outputs to editor API at ${editorApiUrl} for local execution.`);
       const outputDirs = [];
       if (hasPlaywrightReport) outputDirs.push('playwright-report');
@@ -193,7 +248,8 @@ async function uploadOutputs(
       const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/gzip'
+          'Content-Type': 'application/gzip',
+          [EXECUTION_TOKEN_HEADER]: executionAuthToken,
         },
         body: new Uint8Array(archiveBuffer)
       });
@@ -222,6 +278,13 @@ async function run() {
 
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL-DEV';
+  runnerEventContext = {
+    editorApiUrl: payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
+    executionToken: payload?.data?.executionAuthToken || '',
+    nodeId: payload?.data?.nodeId,
+    testId,
+  };
+
   const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
   await publishLog(`Playwright runner container started in ${envType}. Test ID: ${testId}`);
 
@@ -233,24 +296,24 @@ async function run() {
       const repo = payload.data.repository;
       const branch = payload.data.branch || 'main';
       const token = payload?.github?.accessToken;
-      
+
       await publishLog(`Cloning repository ${repo} on branch ${branch}...`);
-      
+
       const cloneUrl = token ? `https://x-access-token:${token}@github.com/${repo}.git` : `https://github.com/${repo}.git`;
-      
+
       try {
         await new Promise<void>((resolve, reject) => {
           const gitProcess = spawn('git', ['clone', '--depth', '1', '-b', branch, '--single-branch', cloneUrl, '/app/repo']);
-          
+
           gitProcess.stdout.on('data', (data) => console.log(`[Git]: ${data.toString().trim()}`));
           gitProcess.stderr.on('data', (data) => console.error(`[Git Error]: ${data.toString().trim()}`));
-          
+
           gitProcess.on('close', (code) => {
             if (code === 0) resolve();
             else reject(new Error(`Git clone failed with code ${code}`));
           });
         });
-        await publishLog(`Repository cloned successfully.`);
+        await publishLog('Repository cloned successfully.');
         workingDir = path.join('/app/repo', payload?.data?.folder || '/');
         isCloned = true;
       } catch (err: any) {
@@ -262,10 +325,9 @@ async function run() {
       process.exit(1);
     }
   }
-  
-  // Auto-detect language if cloned
-  let testLanguage = payload?.data?.testLanguage || 'typescript'; 
-  
+
+  let testLanguage = payload?.data?.testLanguage || 'typescript';
+
   if (isCloned) {
     if (fs.existsSync(path.join(workingDir, 'requirements.txt')) || fs.existsSync(path.join(workingDir, 'pytest.ini'))) {
       testLanguage = 'python';
@@ -273,10 +335,9 @@ async function run() {
       testLanguage = 'typescript';
     }
   } else {
-    // If not cloned, default to whatever was hardcoded or configured
     testLanguage = payload?.data?.testLanguage || 'typescript';
   }
-  
+
   let testFailed = false;
   try {
     if (testLanguage === 'python') {
@@ -284,27 +345,25 @@ async function run() {
     } else {
       await runTypescriptTest(workingDir);
     }
-    
+
     await publishLog('Job complete.');
   } catch (err: any) {
     testFailed = true;
     await publishLog(`Playwright Error: ${err.message}`, 'error');
   }
 
-  // Upload outputs regardless of failure
   await uploadOutputs(
-    workingDir, 
-    payload?.data?.nodeId, 
-    testId, 
-    payload?.data?.editorApiUrl, 
+    workingDir,
+    payload?.data?.nodeId,
+    testId,
+    payload?.data?.editorApiUrl,
+    payload?.data?.executionAuthToken,
     payload?.data?.bucketName,
     payload?.settings?.gcp?.accessToken,
     payload?.settings?.gcp?.selectedProject || process.env.GCP_PROJECT,
     cloudProvider
   );
 
-  // Cloud Run Jobs must exit successfully (0) to be marked as completed,
-  // except we do want it to show failure if it failed.
   process.exit(testFailed ? 1 : 0);
 }
 

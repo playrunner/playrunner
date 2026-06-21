@@ -192,6 +192,8 @@ export default function Editor() {
   
   const [isOrchestratorReady, setIsOrchestratorReady] = useState(false);
   const [orchestratorLogs, setOrchestratorLogs] = useState<LogItem[]>([]);
+  const presenceStreamRef = useRef<EventSource | null>(null);
+  const executionStreamRef = useRef<EventSource | null>(null);
 
   const appendOrchestratorLog = React.useCallback((
     message: string,
@@ -208,12 +210,77 @@ export default function Editor() {
     ]);
   }, []);
 
+  const closePresenceStream = useCallback(() => {
+    presenceStreamRef.current?.close();
+    presenceStreamRef.current = null;
+  }, []);
+
+  const closeExecutionStream = useCallback(() => {
+    executionStreamRef.current?.close();
+    executionStreamRef.current = null;
+  }, []);
+
+  const handleExecutionEvent = useCallback((data: Record<string, any>) => {
+    const timestamp = data.timestamp ? new Date(data.timestamp) : new Date();
+
+    if (data.type === 'node_state' && typeof data.nodeId === 'string' && typeof data.state === 'string') {
+      setNodeStatus(prev => ({ ...prev, [data.nodeId]: data.state }));
+      return;
+    }
+
+    if (data.type === 'node_output' && typeof data.nodeId === 'string') {
+      setNodes(prev => prev.map(n => n.id === data.nodeId ? { ...n, output: data.output } : n));
+      return;
+    }
+
+    if (data.type === 'workflow_completed' || data.type === 'workflow_failed' || data.type === 'workflow_cancelled') {
+      isSimulationRunning.current = false;
+      setSimulationState('idle');
+      closeExecutionStream();
+    }
+
+    if (typeof data.message !== 'string' || data.message.length === 0) {
+      return;
+    }
+
+    let logType: LogItem['type'] = "Log";
+    if (data.level === 'error') logType = "Error";
+    if (data.level === 'warning' || data.level === 'warn') logType = "Warning";
+    if (data.level === 'info') logType = "Info";
+    if (data.level === 'debug') logType = "Debug";
+
+    setOrchestratorLogs(prev => [
+      ...prev,
+      {
+        id: `log-${Date.now()}-${Math.random()}`,
+        type: logType,
+        message: `[${timestamp.toLocaleTimeString()}] ${data.message}`
+      },
+    ]);
+  }, [closeExecutionStream]);
+
   useEffect(() => {
-    // Start orchestrator runner when authenticated
+    let isDisposed = false;
+
     const unsubscribeRunner = auth.onAuthStateChanged(async (user) => {
-      if (!user) return;
+      closePresenceStream();
+      closeExecutionStream();
+
+      if (!user) {
+        setIsOrchestratorReady(false);
+        return;
+      }
+
       try {
         const token = await user.getIdToken();
+        const presenceStream = new EventSource(`/api/presence/stream?token=${encodeURIComponent(token)}`);
+        presenceStream.onerror = () => {
+          if (!isDisposed) {
+            console.error('Editor presence stream disconnected.');
+          }
+        };
+        presenceStreamRef.current = presenceStream;
+
         const response = await fetch('/api/runners/start', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` }
@@ -233,58 +300,14 @@ export default function Editor() {
         setIsOrchestratorReady(true);
       }
     });
-      
-    // Connect to SSE for real-time logs
-    const eventSource = new EventSource('/api/logs/stream');
-    eventSource.onopen = () => {
-      appendOrchestratorLog('Connected to log stream.', 'Info');
-    };
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        const timestamp = data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
-        
-        if (data.type === 'node_state') {
-          setNodeStatus(prev => ({ ...prev, [data.nodeId]: data.state }));
-          return;
-        }
-        
-        if (data.type === 'node_output') {
-          setNodes(prev => prev.map(n => n.id === data.nodeId ? { ...n, output: data.output } : n));
-          return;
-        }
-        
-        if (data.message === 'Workflow execution completed.') {
-           isSimulationRunning.current = false;
-           setSimulationState('idle');
-        }
 
-        if (typeof data.message !== 'string' || data.message.length === 0) {
-          return;
-        }
-
-        let logType: LogItem['type'] = "Log";
-        if (data.level === 'error') logType = "Error";
-        if (data.level === 'warning' || data.level === 'warn') logType = "Warning";
-        if (data.level === 'info') logType = "Info";
-        if (data.level === 'debug') logType = "Debug";
-
-        const newLog: LogItem = {
-          id: `log-${Date.now()}-${Math.random()}`,
-          type: logType,
-          message: `[${timestamp}] ${data.message}`
-        };
-        
-        setOrchestratorLogs(prev => [...prev, newLog]);
-        console.log('Orchestrator Log:', data);
-      } catch (e) { console.error("SSE ERROR:", e, event.data); }
-    };
-    
     return () => {
-      eventSource.close();
+      isDisposed = true;
+      closePresenceStream();
+      closeExecutionStream();
       unsubscribeRunner();
     };
-  }, [appendOrchestratorLog]);
+  }, [appendOrchestratorLog, closeExecutionStream, closePresenceStream]);
   
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const transformRef = useRef(transform);
@@ -465,11 +488,66 @@ export default function Editor() {
     return () => unsubscribe();
   }, [cloudProvider, isCloudSettingsOpen]);
 
+  const startWorkflowExecution = useCallback(async (
+    nodesToRun: NodeData[],
+    connectionsToRun: Connection[],
+    currentCloudProvider: string,
+    settings: Record<string, any>,
+  ) => {
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
+    if (!token) {
+      throw new Error('You must be signed in to run workflows.');
+    }
+
+    const response = await fetch('/api/workflows/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        nodes: nodesToRun,
+        connections: connectionsToRun,
+        settings,
+        workflowId: activeWorkflowId,
+        cloudProvider: currentCloudProvider,
+        concurrency,
+      })
+    });
+
+    const payload = await response.json().catch(() => null) as { error?: string; message?: string; testId?: string } | null;
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.message || `Workflow start failed with status ${response.status}`);
+    }
+
+    if (!payload?.testId) {
+      throw new Error('Workflow start response did not include a testId.');
+    }
+
+    closeExecutionStream();
+    const eventSource = new EventSource(`/api/executions/${encodeURIComponent(payload.testId)}/stream?token=${encodeURIComponent(token)}`);
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        handleExecutionEvent(data);
+      } catch (error) {
+        console.error('Execution SSE parse error:', error, event.data);
+      }
+    };
+    eventSource.onerror = () => {
+      if (isSimulationRunning.current) {
+        console.error(`Execution SSE disconnected for ${payload.testId}.`);
+      }
+    };
+    executionStreamRef.current = eventSource;
+  }, [activeWorkflowId, closeExecutionStream, concurrency, handleExecutionEvent]);
+
   const handlePlay = useCallback(async () => {
     if (isSimulationRunning.current) return;
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setNodes(prev => prev.map(node => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || "LOCAL-DEV";
 
@@ -498,27 +576,23 @@ export default function Editor() {
       console.warn("auth.currentUser is null when handlePlay is called!");
     }
 
-    // Send the workflow graph to the orchestrator
-    const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-    fetch('/api/workflows/start', { 
-      method: 'POST', 
-      headers: { 
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ nodes: getNodesWithParents(), connections, settings, workflowId: activeWorkflowId, cloudProvider: currentCloudProvider, concurrency }) 
-    }).catch(err => {
+    startWorkflowExecution(getNodesWithParents(), connections, currentCloudProvider, settings).catch(err => {
       console.error("Failed to start workflow API:", err);
+      appendOrchestratorLog(
+        `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'Error'
+      );
       isSimulationRunning.current = false;
       setSimulationState('idle');
     });
-  }, [getNodesWithParents, connections, activeWorkflowId, cloudProvider, concurrency]);
+  }, [appendOrchestratorLog, cloudProvider, connections, getNodesWithParents, startWorkflowExecution]);
 
   const handlePlayNode = async (nodeId: string) => {
     if (isSimulationRunning.current) return;
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setNodes(prev => prev.map(node => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || "LOCAL-DEV";
 
@@ -558,16 +632,12 @@ export default function Editor() {
         return n;
       });
     
-    const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
-    fetch('/api/workflows/start', { 
-      method: 'POST', 
-      headers: { 
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ nodes: nodesToRun, connections: [], settings, workflowId: activeWorkflowId, cloudProvider: currentCloudProvider, concurrency }) 
-    }).catch(err => {
+    startWorkflowExecution(nodesToRun, [], currentCloudProvider, settings).catch(err => {
       console.error("Failed to start workflow API:", err);
+      appendOrchestratorLog(
+        `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        'Error'
+      );
       isSimulationRunning.current = false;
       setSimulationState('idle');
     });

@@ -167,13 +167,10 @@ async function triggerPlaywrightJob(args: {
   memory: number;
   payloadData: any;
   projectId: string;
-  pubsubTopic: string;
 }): Promise<string> {
   const jobPath = await ensurePlaywrightJob(args);
   const env = [
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
-    { name: 'PUBSUB_PROJECT_ID', value: args.projectId },
-    { name: 'PUBSUB_TOPIC', value: args.pubsubTopic },
     { name: 'GCP_PROJECT', value: args.projectId },
     ...args.envKeys.map((key) => ({ name: key, value: args.globalEnvVars[key] || '' })),
   ];
@@ -201,7 +198,6 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
     const { config, envKeys, globalEnvVars, payloadData, publishLog, reqBody, runtime } = request;
     const projectId = requireRequestValue(reqBody.gcpProject, 'gcpProject');
     const accessToken = requireRequestValue(reqBody.settings?.gcp?.accessToken, 'GCP access token');
-    const pubsubTopic = requireRequestValue(reqBody.pubsubTopic, 'pubsubTopic');
     const playwrightVersion = requireRequestValue(config.playwrightVersion, 'playwrightVersion');
     const cpu = requirePositiveNumber(config.cpu, 'cpu');
     const memory = requirePositiveNumber(config.memory, 'memory');
@@ -219,7 +215,6 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       memory,
       payloadData,
       projectId,
-      pubsubTopic,
     });
     await publishLog(`Playwright Cloud Run Job (${executionName}) finished successfully.`, 'info');
   }

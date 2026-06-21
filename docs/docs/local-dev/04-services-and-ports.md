@@ -61,7 +61,7 @@ The setup app exists only for explicit install/setup sessions. It serves the Pos
 - Serves the REST API for the Web App (`/api/*` routes)
 - Serves Playwright test outputs as static files (`/outputs/*`)
 - Manages the lifecycle of the Orchestrator Docker container
-- Subscribes to the Pub/Sub topic and forwards messages to connected browsers via SSE
+- Persists workflow events to PostgreSQL and streams them to the editor via execution-scoped SSE
 
 ### Routes
 
@@ -70,8 +70,10 @@ The setup app exists only for explicit install/setup sessions. It serves the Pos
 | `POST` | `/api/runners/start` | Spawns the Orchestrator Docker container |
 | `POST` | `/api/workflows/start` | Forwards a workflow execution request to the Orchestrator |
 | `POST` | `/api/workflows/stop-node` | Sends a stop signal for a running node to the Orchestrator |
+| `POST` | `/api/executions/:executionId/events` | Internal runner callback used to persist logs, node states, and output events |
+| `GET`  | `/api/executions/:executionId/stream` | Authenticated SSE endpoint for a single workflow execution |
+| `GET`  | `/api/presence/stream` | Lightweight SSE endpoint that marks an editor tab as connected for heartbeat checks |
 | `POST` | `/api/outputs/:testId/:nodeId` | Receives compressed test output archives from the Playwright runner and extracts them |
-| `GET`  | `/api/logs/stream` | SSE endpoint — browsers subscribe here to receive real-time log events |
 | `GET`  | `/api/heartbeat` | Returns `200 OK` if at least one SSE client (Editor tab) is connected |
 | `POST` | `/api/github/token` | CORS-bypass proxy: exchanges a GitHub OAuth code for an access token |
 | `POST` | `/api/github/refresh` | CORS-bypass proxy: refreshes an expiring GitHub OAuth access token |
@@ -111,8 +113,6 @@ The Orchestrator runs inside Docker and is given access to the host's Docker soc
 docker run --rm \
   -p 3002:8080 \
   -e PORT=8080 \
-  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8085 \
-  -e PUBSUB_PROJECT_ID=local-dev \
   -e GCP_PROJECT=local-dev \
   -e EDITOR_API_URL=http://host.docker.internal:3001 \
   -v /var/run/docker.sock:/var/run/docker.sock \
@@ -133,16 +133,9 @@ The Orchestrator pings `EDITOR_API_URL/api/heartbeat` every 5 seconds. If the he
 
 ---
 
-## Pub/Sub Emulator — Port 8085
+## Event Transport
 
-**Technology:** Google Cloud SDK emulator image  
-**Start command:** `docker compose up -d pubsub-emulator` (run by `start-local.sh`)
-
-The emulator mimics the real Google Cloud Pub/Sub API. The topic `orchestrator-logs` and subscription `orchestrator-logs-sub` are created automatically on API startup using the SDK's `autoCreate: true` option.
-
-**Network notes:**
-- The API and Orchestrator running on the host use `localhost:8085` to reach the emulator.
-- Docker containers (Orchestrator, Playwright Runner) use `host.docker.internal:8085` since they can't use `localhost` to mean the host machine.
+Workflow events no longer go through Pub/Sub. The API writes each log line, node state change, and output event to PostgreSQL, and the editor subscribes to `GET /api/executions/:executionId/stream` for the specific run it started.
 
 ---
 

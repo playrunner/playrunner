@@ -1,34 +1,10 @@
 import os
 import sys
-import json
-from datetime import datetime
-from google.cloud import pubsub_v1
 from playwright.sync_api import sync_playwright
-
-TOPIC_NAME = 'orchestrator-logs'
-
-# Initialize Pub/Sub Publisher (will use local fallback if no credentials)
-try:
-    publisher = pubsub_v1.PublisherClient()
-    project_id = os.environ.get('GCP_PROJECT', 'local-dev')
-    topic_path = publisher.topic_path(project_id, TOPIC_NAME)
-except Exception as e:
-    publisher = None
 
 def publish_log(message, level='info'):
     log_msg = f"[Python Playwright] {message}"
-    if publisher:
-        try:
-            payload = json.dumps({
-                "message": log_msg,
-                "level": level,
-                "timestamp": datetime.utcnow().isoformat()
-            }).encode("utf-8")
-            publisher.publish(topic_path, data=payload)
-        except Exception:
-            print(f"[Local Fallback] {log_msg}")
-    else:
-        print(f"[Local Fallback] {log_msg}")
+    print(f"[Local Output] {log_msg}")
 
 def run_test():
     publish_log("Starting Python Playwright execution...")

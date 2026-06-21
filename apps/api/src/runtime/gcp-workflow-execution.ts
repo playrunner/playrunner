@@ -1,16 +1,9 @@
 import type { LogTransport, WorkflowExecutionBackend, WorkflowExecutionRequest, WorkflowExecutionResult } from './contracts';
+import { EDITOR_API_PUBLIC_URL } from '../config';
 import { ensureOrchestratorService } from '../services/cloudrun';
+import { executionEvents } from '../services/execution-events';
 import { ensureBucket, getStorage, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
-import { ensureGcpPubSubSubscription } from '../services/gcp-pubsub';
 import { state } from '../state';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} must be set for GCP workflow execution.`);
-  }
-  return value;
-}
 
 export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(private readonly logTransport: LogTransport) {}
@@ -23,6 +16,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     const { body, req, testId } = request;
     const { workflowId, settings } = body;
     const gcp = settings?.gcp;
+    const userId = req.authUser?.providerUserId;
 
     if (!gcp?.accessToken) {
       return {
@@ -38,6 +32,13 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
+    if (!userId) {
+      return {
+        body: { error: 'Unauthorized' },
+        status: 401,
+      };
+    }
+
     state.gcpCredentials[testId] = {
       accessToken: gcp.accessToken,
       refreshToken: gcp.refreshToken,
@@ -46,6 +47,30 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       expiresAt: gcp.expiresAt,
       selectedProject: gcp.selectedProject,
     };
+
+    const { executionToken } = await executionEvents.createExecution({
+      cloudProvider: 'GCP',
+      executionId: testId,
+      userId,
+      workflowId,
+    });
+
+    body.executionAuthToken = executionToken;
+
+    try {
+      await this.logTransport.publish(JSON.stringify({
+        cloudProvider: 'GCP',
+        executionId: testId,
+        level: 'info',
+        message: 'Workflow execution requested.',
+        testId,
+        timestamp: new Date().toISOString(),
+        type: 'workflow_started',
+        workflowId,
+      }));
+    } catch {
+      // Ignore best-effort log transport failures.
+    }
 
     let bucketName = '';
     let refreshedToken = gcp.accessToken;
@@ -59,8 +84,22 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       if (workflowId) {
         const result = await ensureBucket(workflowId, refreshedToken, gcp.selectedProject);
         if (!result) {
+          try {
+            await this.logTransport.publish(JSON.stringify({
+              executionId: testId,
+              level: 'error',
+              message: 'Failed to create GCS bucket.',
+              testId,
+              timestamp: new Date().toISOString(),
+              type: 'workflow_failed',
+              workflowId,
+            }));
+          } catch {
+            // Ignore best-effort log transport failures.
+          }
+
           return {
-            body: { error: 'Failed to create GCS bucket.' },
+            body: { error: 'Failed to create GCS bucket.', testId },
             status: 500,
           };
         }
@@ -70,8 +109,22 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         body.bucketName = bucketName;
       }
     } catch (err: any) {
+      try {
+        await this.logTransport.publish(JSON.stringify({
+          executionId: testId,
+          level: 'error',
+          message: `Failed to create GCS bucket: ${err.message}`,
+          testId,
+          timestamp: new Date().toISOString(),
+          type: 'workflow_failed',
+          workflowId,
+        }));
+      } catch {
+        // Ignore best-effort log transport failures.
+      }
+
       return {
-        body: { error: `Failed to create GCS bucket: ${err.message}` },
+        body: { error: `Failed to create GCS bucket: ${err.message}`, testId },
         status: 500,
       };
     }
@@ -85,10 +138,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       const workflowPayloadUri = `gs://${bucketName}/executions/${testId}/payload.json`;
       console.log(`[workflows] Uploaded workflow payload to ${workflowPayloadUri}`);
 
-      const pubsubTopic = requireEnv('PUBSUB_TOPIC');
-      await ensureGcpPubSubSubscription(gcp.selectedProject, refreshedToken);
-
-      const editorApiUrl = `${req.protocol}://${req.get('host')}`;
+      const editorApiUrl = EDITOR_API_PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
       const serviceUri = await ensureOrchestratorService(gcp.selectedProject, refreshedToken);
 
       const executeResponse = await fetch(`${serviceUri}/execute`, {
@@ -98,9 +148,8 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
           ...body,
           editorApiUrl,
           gcpProject: gcp.selectedProject,
-          pubsubProjectId: gcp.selectedProject,
-          pubsubTopic,
           bucketName,
+          executionAuthToken: executionToken,
           testId,
           workflowPayloadUri
         })
@@ -112,22 +161,41 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
       try {
         await this.logTransport.publish(JSON.stringify({
-          message: 'Orchestrator Cloud Run Service triggered successfully.',
+          executionId: testId,
           level: 'info',
-          timestamp: new Date()
+          message: 'Orchestrator Cloud Run Service triggered successfully.',
+          testId,
+          timestamp: new Date().toISOString(),
+          type: 'log',
+          workflowId,
         }));
       } catch (error) {
-        console.error('Failed to publish execution ID to pubsub', error);
+        console.error('Failed to persist workflow start event', error);
       }
 
       return {
-        body: { message: `Workflow triggered on Cloud Run Service successfully, testId: ${testId}`, execution: 'service-invocation' },
+        body: { message: `Workflow triggered on Cloud Run Service successfully, testId: ${testId}`, execution: 'service-invocation', testId },
         status: 200,
       };
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
+
+      try {
+        await this.logTransport.publish(JSON.stringify({
+          executionId: testId,
+          level: 'error',
+          message: `Failed to trigger Cloud Run Service: ${err.message}`,
+          testId,
+          timestamp: new Date().toISOString(),
+          type: 'workflow_failed',
+          workflowId,
+        }));
+      } catch {
+        // Ignore best-effort log transport failures.
+      }
+
       return {
-        body: { error: `Failed to trigger Cloud Run Service: ${err.message}` },
+        body: { error: `Failed to trigger Cloud Run Service: ${err.message}`, testId },
         status: 500,
       };
     }

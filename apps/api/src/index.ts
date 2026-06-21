@@ -7,6 +7,7 @@ import { runnersRouter } from './routes/runners';
 import { workflowsRouter } from './routes/workflows';
 import { outputsRouter } from './routes/outputs';
 import { systemRouter } from './routes/system';
+import { executionsRouter } from './routes/executions';
 import { authRouter } from './routes/auth';
 import { gcpRouter } from './routes/integrations/gcp';
 import { jiraRouter } from './routes/integrations/jira';
@@ -29,8 +30,9 @@ app.use('/outputs', async (req, res, next) => {
 
 app.use('/outputs', express.static(path.join(__dirname, '../public/outputs')));
 
-// Routes that don't require user auth: heartbeat, logs stream, and runner output uploads
-app.use('/api', systemRouter); 
+// Mixed-auth routes: editor presence stream, execution event ingestion/streaming, and runner output uploads.
+app.use('/api', systemRouter);
+app.use('/api/executions', executionsRouter);
 app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
 
@@ -48,7 +50,7 @@ async function start() {
   void apiRuntime.logTransport.setup();
 
   app.listen(PORT, () => {
-    console.log(`API Server running on port ${PORT} (SSE Enabled)`);
+    console.log(`API Server running on port ${PORT} (execution SSE enabled)`);
   });
 }
 

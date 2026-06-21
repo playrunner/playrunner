@@ -238,6 +238,42 @@ model Workflow {
   @@index([projectId])
 }
 
+model WorkflowExecution {
+  id             String          @id
+  userId         String
+  workflowId     String?
+  cloudProvider  String
+  status         String          @default("running")
+  ingestTokenHash String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
+  events         WorkflowEvent[]
+
+  @@index([userId])
+  @@index([workflowId])
+}
+
+model WorkflowEvent {
+  id          BigInt            @id @default(autoincrement())
+  executionId String
+  userId      String
+  workflowId  String?
+  nodeId      String?
+  type        String
+  level       String?
+  message     String?
+  payload     Json
+  occurredAt  DateTime?
+  createdAt   DateTime          @default(now())
+  execution   WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  @@index([executionId])
+  @@index([userId])
+  @@index([workflowId])
+}
+
 model Integration {
   id        String   @id @default(cuid())
   userId    String

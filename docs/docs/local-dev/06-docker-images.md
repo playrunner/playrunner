@@ -87,8 +87,6 @@ When the Orchestrator processes a Playwright node, it runs the equivalent of:
 
 ```bash
 docker run --rm \
-  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8085 \
-  -e PUBSUB_PROJECT_ID=local-dev \
   -e GCP_PROJECT=local-dev \
   -e MY_ENV_VAR=value \           # user-defined env vars from the Environment node
   -e PAYLOAD='{"data":{...},...}' \  # full JSON config

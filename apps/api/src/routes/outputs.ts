@@ -3,15 +3,31 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import { EXECUTION_TOKEN_HEADER, executionEvents } from '../services/execution-events';
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
 
 export const outputsRouter = Router();
 
+function getStringHeader(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 // Endpoint to receive outputs from runner
 outputsRouter.post('/:testId/:nodeId', express.raw({ type: '*/*', limit: '100mb' }), async (req, res) => {
   const { nodeId, testId } = req.params;
   const bucketName = (req.query as any)?.bucketName as string | undefined;
+  const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
+
+  if (!executionToken) {
+    return res.status(401).json({ error: `Missing ${EXECUTION_TOKEN_HEADER} header.` });
+  }
+
+  const execution = await executionEvents.verifyExecutionToken(testId, executionToken);
+  if (!execution) {
+    return res.status(403).json({ error: 'Invalid execution token.' });
+  }
+
   console.log(`Received outputs for node ${nodeId}, test ${testId}, size: ${req.body?.length || 0} bytes`);
 
   const outputsDir = path.join(__dirname, '../../public/outputs', testId, nodeId);
@@ -75,10 +91,19 @@ outputsRouter.post('/:testId/:nodeId', express.raw({ type: '*/*', limit: '100mb'
     return res.status(500).json({ error: err.message });
   }
 
-  const eventPayload = JSON.stringify({ type: 'node_output', nodeId, testId, output: outputData });
-  state.sseClients.forEach(client => {
-    client.write(`data: ${eventPayload}\n\n`);
-  });
+  try {
+    await executionEvents.appendEvent(execution.id, {
+      executionId: execution.id,
+      nodeId,
+      output: outputData,
+      testId,
+      timestamp: new Date().toISOString(),
+      type: 'node_output',
+    });
+  } catch (err) {
+    console.error(`Failed to persist node output event for ${testId}/${nodeId}:`, err);
+    return res.status(500).json({ error: 'Failed to persist node output event.' });
+  }
 
   res.status(200).json({ message: 'Outputs processed successfully', output: outputData });
 });

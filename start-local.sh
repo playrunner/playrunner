@@ -103,13 +103,10 @@ bootstrap_api_prisma() {
 
 # 1. Start local Docker-backed services in the background
 echo "📦 Starting local Docker services..."
-docker compose -f "${COMPOSE_FILE}" up -d postgres pubsub-emulator
+docker compose -f "${COMPOSE_FILE}" up -d postgres
 wait_for_compose_service postgres 90
-wait_for_compose_service pubsub-emulator 30
 
-# 2. Export environment variables needed by the Google Cloud SDK to talk to the local emulator
-export PUBSUB_EMULATOR_HOST=localhost:8085
-export PUBSUB_PROJECT_ID=local-dev
+# 2. Export environment variables used by local services
 export GCP_PROJECT=local-dev
 
 # 3. Build the Orchestrator and Playwright Docker images

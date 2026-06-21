@@ -1,23 +1,26 @@
 import { Router } from 'express';
+import { requireAuth } from '../auth/auth.middleware';
 import { state } from '../state';
 
 export const systemRouter = Router();
 
-// SSE Endpoint for frontend to subscribe to logs
-systemRouter.get('/logs/stream', (req, res) => {
+systemRouter.get('/presence/stream', requireAuth, (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
-  
-  // Send an initial heartbeat
-  res.write(': heartbeat\n\n');
-  
+
+  res.write(': connected\n\n');
   state.sseClients.push(res);
-  console.log(`SSE Client connected. Total clients: ${state.sseClients.length}`);
-  
+  console.log(`Editor presence SSE connected. Total clients: ${state.sseClients.length}`);
+
+  const heartbeatInterval = setInterval(() => {
+    res.write(': heartbeat\n\n');
+  }, 15000);
+
   req.on('close', () => {
+    clearInterval(heartbeatInterval);
     state.sseClients = state.sseClients.filter(client => client !== res);
-    console.log(`SSE Client disconnected. Total clients: ${state.sseClients.length}`);
+    console.log(`Editor presence SSE disconnected. Total clients: ${state.sseClients.length}`);
   });
 });
 
