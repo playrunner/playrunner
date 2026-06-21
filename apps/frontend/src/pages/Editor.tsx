@@ -1025,7 +1025,7 @@ export default function Editor() {
         cloudProvider,
         concurrency,
       });
-      showToast('Workflow saved to PostgreSQL', 'success');
+      showToast('Workflow saved', 'success');
     } catch (err) {
       console.error('Failed to save workflow:', err);
       showToast('Failed to save workflow. Check console.', 'error');
