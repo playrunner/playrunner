@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
@@ -15,9 +14,18 @@
     "paths": {
       "@/*": ["./src/*"],
       "@web/*": ["../web/src/*"],
-      "react": ["../web/node_modules/react"],
-      "react/jsx-runtime": ["../web/node_modules/react/jsx-runtime"],
-      "react/jsx-dev-runtime": ["../web/node_modules/react/jsx-dev-runtime"],
+      "react": [
+        "../web/node_modules/@types/react",
+        "../web/node_modules/react"
+      ],
+      "react/jsx-runtime": [
+        "../web/node_modules/@types/react/jsx-runtime",
+        "../web/node_modules/react/jsx-runtime"
+      ],
+      "react/jsx-dev-runtime": [
+        "../web/node_modules/@types/react/jsx-dev-runtime",
+        "../web/node_modules/react/jsx-dev-runtime"
+      ],
       "react-dom": ["../web/node_modules/react-dom"],
       "react-dom/client": ["../web/node_modules/react-dom/client"],
       "react-router-dom": ["../web/node_modules/react-router-dom"],
@@ -26,6 +34,7 @@
       "tailwind-merge": ["../web/node_modules/tailwind-merge"]
     },
     "allowImportingTsExtensions": true,
+    "typeRoots": ["../web/node_modules/@types"],
     "noEmit": true
   },
   "include": ["src"]
