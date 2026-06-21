@@ -67,7 +67,8 @@ function buildStoredPayload(
 
   return {
     ...basePayload,
-    cloudProvider: normalizeString(basePayload.cloudProvider) ?? execution.cloudProvider,
+    cloudProvider:
+      normalizeString(basePayload.cloudProvider) ?? execution.cloudProvider,
     executionId: execution.id,
     level: level ?? normalizeString(basePayload.level) ?? null,
     message: message ?? normalizeString(basePayload.message) ?? null,
@@ -84,7 +85,7 @@ function toJsonValue(value: Record<string, unknown>): Prisma.InputJsonValue {
 }
 
 function toStreamableEvent(event: WorkflowEvent): StreamableWorkflowEvent {
-  const payload = isRecord(event.payload) ? {...event.payload} : {};
+  const payload = isRecord(event.payload) ? { ...event.payload } : {};
   const timestamp =
     normalizeString(payload.timestamp) ??
     event.occurredAt?.toISOString() ??
@@ -102,14 +103,15 @@ function toStreamableEvent(event: WorkflowEvent): StreamableWorkflowEvent {
       testId: normalizeString(payload.testId) ?? event.executionId,
       timestamp,
       type: normalizeString(payload.type) ?? event.type,
-      workflowId: normalizeString(payload.workflowId) ?? event.workflowId ?? null,
+      workflowId:
+        normalizeString(payload.workflowId) ?? event.workflowId ?? null,
     },
   };
 }
 
 async function getExecutionOrThrow(executionId: string) {
   const execution = await prisma.workflowExecution.findUnique({
-    where: {id: executionId},
+    where: { id: executionId },
   });
 
   if (!execution) {
@@ -154,10 +156,13 @@ class ExecutionEventsService {
 
   async verifyExecutionToken(executionId: string, token: string) {
     const execution = await prisma.workflowExecution.findUnique({
-      where: {id: executionId},
+      where: { id: executionId },
     });
 
-    if (!execution || !isMatchingExecutionToken(token, execution.ingestTokenHash)) {
+    if (
+      !execution ||
+      !isMatchingExecutionToken(token, execution.ingestTokenHash)
+    ) {
       return null;
     }
 
@@ -166,11 +171,14 @@ class ExecutionEventsService {
 
   async appendEvent(executionId: string, event: WorkflowEventDraft) {
     const execution = await getExecutionOrThrow(executionId);
-    const type = normalizeString(event.type) ?? (normalizeString(event.message) ? 'log' : 'event');
+    const type =
+      normalizeString(event.type) ??
+      (normalizeString(event.message) ? 'log' : 'event');
     const level = normalizeString(event.level);
     const message = normalizeString(event.message);
     const nodeId = normalizeString(event.nodeId);
-    const workflowId = normalizeString(event.workflowId) ?? execution.workflowId ?? undefined;
+    const workflowId =
+      normalizeString(event.workflowId) ?? execution.workflowId ?? undefined;
     const occurredAt = parseOccurredAt(event.timestamp) ?? new Date();
     const payload = buildStoredPayload(
       execution,
@@ -197,11 +205,20 @@ class ExecutionEventsService {
       },
     });
 
-    if (type === 'workflow_completed' || type === 'workflow_failed' || type === 'workflow_cancelled') {
+    if (
+      type === 'workflow_completed' ||
+      type === 'workflow_failed' ||
+      type === 'workflow_cancelled'
+    ) {
       await prisma.workflowExecution.update({
-        where: {id: execution.id},
+        where: { id: execution.id },
         data: {
-          status: type === 'workflow_failed' ? 'failed' : type === 'workflow_cancelled' ? 'cancelled' : 'completed',
+          status:
+            type === 'workflow_failed'
+              ? 'failed'
+              : type === 'workflow_cancelled'
+                ? 'cancelled'
+                : 'completed',
           completedAt: new Date(),
         },
       });

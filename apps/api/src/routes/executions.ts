@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
-import { executionEvents, EXECUTION_TOKEN_HEADER } from '../services/execution-events';
+import {
+  executionEvents,
+  EXECUTION_TOKEN_HEADER,
+} from '../services/execution-events';
 import { state } from '../state';
 
 export const executionsRouter = Router();
@@ -27,23 +30,37 @@ executionsRouter.post('/:executionId/events', async (req, res) => {
   const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
 
   if (!executionToken) {
-    res.status(401).json({error: `Missing ${EXECUTION_TOKEN_HEADER} header.`});
+    res
+      .status(401)
+      .json({ error: `Missing ${EXECUTION_TOKEN_HEADER} header.` });
     return;
   }
 
-  if (typeof req.body !== 'object' || req.body === null || Array.isArray(req.body)) {
-    res.status(400).json({error: 'Execution events must be sent as a JSON object.'});
+  if (
+    typeof req.body !== 'object' ||
+    req.body === null ||
+    Array.isArray(req.body)
+  ) {
+    res
+      .status(400)
+      .json({ error: 'Execution events must be sent as a JSON object.' });
     return;
   }
 
-  const execution = await executionEvents.verifyExecutionToken(executionId, executionToken);
+  const execution = await executionEvents.verifyExecutionToken(
+    executionId,
+    executionToken,
+  );
   if (!execution) {
-    res.status(403).json({error: 'Invalid execution token.'});
+    res.status(403).json({ error: 'Invalid execution token.' });
     return;
   }
 
   try {
-    const storedEvent = await executionEvents.appendEvent(execution.id, req.body as Record<string, unknown>);
+    const storedEvent = await executionEvents.appendEvent(
+      execution.id,
+      req.body as Record<string, unknown>,
+    );
     res.status(202).json({
       accepted: true,
       sequence: storedEvent.sequence.toString(),
@@ -51,7 +68,10 @@ executionsRouter.post('/:executionId/events', async (req, res) => {
   } catch (error) {
     console.error('Failed to persist workflow event:', error);
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to persist workflow event.',
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to persist workflow event.',
     });
   }
 });
@@ -61,19 +81,24 @@ executionsRouter.get('/:executionId/stream', requireAuth, async (req, res) => {
   const userId = req.authUser?.providerUserId;
 
   if (!userId) {
-    res.status(401).json({error: 'Unauthorized'});
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
-  const execution = await executionEvents.getExecutionForUser(executionId, userId);
+  const execution = await executionEvents.getExecutionForUser(
+    executionId,
+    userId,
+  );
   if (!execution) {
-    res.status(404).json({error: 'Workflow execution not found.'});
+    res.status(404).json({ error: 'Workflow execution not found.' });
     return;
   }
 
   let isClosed = false;
   let isPolling = false;
-  let cursor = parseSequenceCursor(getStringHeader(req.headers['last-event-id']));
+  let cursor = parseSequenceCursor(
+    getStringHeader(req.headers['last-event-id']),
+  );
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -139,7 +164,9 @@ executionsRouter.get('/:executionId/stream', requireAuth, async (req, res) => {
     isClosed = true;
     clearInterval(pollInterval);
     clearInterval(heartbeatInterval);
-    state.executionSseClients = state.executionSseClients.filter((client) => client !== res);
+    state.executionSseClients = state.executionSseClients.filter(
+      (client) => client !== res,
+    );
     console.log(
       `Execution SSE disconnected for ${executionId}. Total clients: ${state.executionSseClients.length}`,
     );

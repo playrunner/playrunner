@@ -4,15 +4,11 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import prettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: [
-      'dist',
-      'node_modules',
-      'coverage',
-      'vite.config.ts',
-    ],
+    ignores: ['dist', 'node_modules', 'coverage', 'vite.config.ts'],
   },
   {
     settings: {
@@ -72,4 +68,5 @@ export default [
       'react/no-unescaped-entities': 'off',
     },
   },
+  prettier,
 ];

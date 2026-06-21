@@ -21,10 +21,12 @@ import { LocalDockerRunnerProvisioner } from './runner-provisioning';
 import { LocalWorkflowExecutionBackend } from './workflow-execution';
 
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
-  constructor(private readonly providers = [
-    { id: 'LOCAL-DEV', label: 'Local Dev' },
-    { id: 'GCP', label: 'GCP Runner' },
-  ]) {}
+  constructor(
+    private readonly providers = [
+      { id: 'LOCAL-DEV', label: 'Local Dev' },
+      { id: 'GCP', label: 'GCP Runner' },
+    ],
+  ) {}
 
   list() {
     return [...this.providers];
@@ -32,7 +34,7 @@ class StaticCloudProviderRegistry implements CloudProviderRegistry {
 
   register(providers: { id: string; label: string }[]) {
     for (const provider of providers) {
-      if (!this.providers.some(existing => existing.id === provider.id)) {
+      if (!this.providers.some((existing) => existing.id === provider.id)) {
         this.providers.push(provider);
       }
     }
@@ -42,9 +44,13 @@ class StaticCloudProviderRegistry implements CloudProviderRegistry {
 class WorkflowExecutionRegistry {
   constructor(private readonly backends: WorkflowExecutionBackend[]) {}
 
-  async execute(request: WorkflowExecutionRequest): Promise<WorkflowExecutionResult> {
+  async execute(
+    request: WorkflowExecutionRequest,
+  ): Promise<WorkflowExecutionResult> {
     const cloudProvider = request.body.cloudProvider || 'LOCAL-DEV';
-    const backend = this.backends.find(candidate => candidate.supports(cloudProvider));
+    const backend = this.backends.find((candidate) =>
+      candidate.supports(cloudProvider),
+    );
     if (!backend) {
       return {
         body: { error: `Unknown cloud provider: ${cloudProvider}` },
@@ -77,7 +83,10 @@ class OutputSyncRegistry {
 class OutputProxyRegistry {
   constructor(private readonly backends: OutputProxyBackend[]) {}
 
-  async tryHandle(req: Parameters<OutputProxyBackend['tryHandle']>[0], res: Parameters<OutputProxyBackend['tryHandle']>[1]): Promise<boolean> {
+  async tryHandle(
+    req: Parameters<OutputProxyBackend['tryHandle']>[0],
+    res: Parameters<OutputProxyBackend['tryHandle']>[1],
+  ): Promise<boolean> {
     for (const backend of this.backends) {
       if (await backend.tryHandle(req, res)) {
         return true;
@@ -115,7 +124,10 @@ function resolvePremiumApiRuntimeEntry(): string | null {
   const candidates = [
     configuredPath,
     path.resolve(__dirname, '../../../../premium/api/src/runtime/register.ts'),
-    path.resolve(__dirname, '../../../../../premium/api/src/runtime/register.ts'),
+    path.resolve(
+      __dirname,
+      '../../../../../premium/api/src/runtime/register.ts',
+    ),
   ].filter(Boolean) as string[];
 
   for (const candidate of candidates) {
@@ -157,7 +169,9 @@ async function loadPremiumContribution(): Promise<void> {
     return;
   }
 
-  const contribution = await premiumModule.createPremiumApiRuntimeContribution({ logTransport });
+  const contribution = await premiumModule.createPremiumApiRuntimeContribution({
+    logTransport,
+  });
   applyContribution(contribution);
 }
 

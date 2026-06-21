@@ -27,5 +27,9 @@ for package_dir in "${LOCAL_PACKAGE_DIRS[@]}"; do
 done
 
 echo ""
+echo "Configuring git pre-commit hook (prettier formatting gate)..."
+git -C "${ROOT_DIR}" config core.hooksPath .githooks
+
+echo ""
 echo "Local development dependencies installed."
 echo "apps/setup reuses apps/web/node_modules and does not need a separate install."

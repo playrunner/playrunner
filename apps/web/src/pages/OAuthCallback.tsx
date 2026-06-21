@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 export default function OAuthCallback() {
   useEffect(() => {
@@ -29,7 +29,10 @@ export default function OAuthCallback() {
 
       window.addEventListener('message', messageListener);
 
-      window.opener.postMessage({ type: 'oauth_callback', success: true, params }, window.location.origin);
+      window.opener.postMessage(
+        { type: 'oauth_callback', success: true, params },
+        window.location.origin,
+      );
 
       return () => {
         clearTimeout(autoCloseTimer);
@@ -41,8 +44,12 @@ export default function OAuthCallback() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[var(--background)]">
       <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin mb-4" />
-      <p className="text-[var(--foreground)] font-medium">Authentication successful! Please wait...</p>
-      <p className="text-muted text-sm mt-4">You can safely close this window if nothing happens after a few seconds.</p>
+      <p className="text-[var(--foreground)] font-medium">
+        Authentication successful! Please wait...
+      </p>
+      <p className="text-muted text-sm mt-4">
+        You can safely close this window if nothing happens after a few seconds.
+      </p>
     </div>
   );
 }

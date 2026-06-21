@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { ORCHESTRATOR_URL } from '../config';
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
-import {isOrchestratorHealthy} from '../runtime/orchestrator-runner';
+import { isOrchestratorHealthy } from '../runtime/orchestrator-runner';
 
 export const workflowsRouter = Router();
 
@@ -15,7 +15,9 @@ workflowsRouter.post('/start', async (req, res) => {
   const { cloudProvider } = req.body;
   state.testCloudProviders[testId] = cloudProvider || 'LOCAL-DEV';
 
-  console.log(`Cloud provider for testId ${testId}: ${state.testCloudProviders[testId]}`);
+  console.log(
+    `Cloud provider for testId ${testId}: ${state.testCloudProviders[testId]}`,
+  );
   const result = await apiRuntime.workflowExecution.execute({
     body: req.body,
     req,
@@ -35,7 +37,7 @@ workflowsRouter.post('/stop-node', async (req, res) => {
     const response = await fetch(`${ORCHESTRATOR_URL}/stop`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify(req.body),
     });
 
     if (response.ok) {
@@ -44,6 +46,8 @@ workflowsRouter.post('/stop-node', async (req, res) => {
       res.status(500).json({ error: 'Runner failed to stop node' });
     }
   } catch (err: any) {
-    res.status(500).json({ error: `Failed to communicate with runner: ${err.message}` });
+    res
+      .status(500)
+      .json({ error: `Failed to communicate with runner: ${err.message}` });
   }
 });

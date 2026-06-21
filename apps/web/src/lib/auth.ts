@@ -1,4 +1,4 @@
-const AUTH_STORAGE_KEY = "playrunner.localAuthSession";
+const AUTH_STORAGE_KEY = 'playrunner.localAuthSession';
 
 type StoredAuthUser = {
   uid: string;
@@ -22,19 +22,19 @@ export type LocalAuthUser = StoredAuthUser & {
 type AuthStateListener = (user: LocalAuthUser | null) => void;
 
 function isBrowser() {
-  return typeof window !== "undefined";
+  return typeof window !== 'undefined';
 }
 
 class LocalAuth {
   currentUser: LocalAuthUser | null = null;
-  private token = "";
+  private token = '';
   private listeners = new Set<AuthStateListener>();
 
   constructor() {
     this.restoreFromStorage();
 
     if (isBrowser()) {
-      window.addEventListener("storage", this.handleStorageEvent);
+      window.addEventListener('storage', this.handleStorageEvent);
     }
   }
 
@@ -97,7 +97,7 @@ class LocalAuth {
   }
 
   private applySession(session: StoredAuthSession | null, shouldNotify = true) {
-    this.token = session?.token ?? "";
+    this.token = session?.token ?? '';
     this.currentUser = session ? this.createUser(session.user) : null;
 
     if (shouldNotify) {
@@ -119,10 +119,10 @@ class LocalAuth {
   }
 
   async signInWithPassword(username: string, password: string) {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         username,
@@ -130,16 +130,14 @@ class LocalAuth {
       }),
     });
 
-    const payload = (await response.json().catch(() => null)) as
-      | {
-          error?: string;
-          token?: string;
-          user?: StoredAuthUser;
-        }
-      | null;
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+      token?: string;
+      user?: StoredAuthUser;
+    } | null;
 
     if (!response.ok || !payload?.token || !payload?.user) {
-      throw new Error(payload?.error ?? "Login failed.");
+      throw new Error(payload?.error ?? 'Login failed.');
     }
 
     const session: StoredAuthSession = {
@@ -159,7 +157,7 @@ class LocalAuth {
     }
 
     try {
-      const response = await fetch("/api/auth/me", {
+      const response = await fetch('/api/auth/me', {
         headers: {
           Authorization: `Bearer ${this.token}`,
         },
@@ -174,11 +172,9 @@ class LocalAuth {
         return this.currentUser;
       }
 
-      const payload = (await response.json().catch(() => null)) as
-        | {
-            user?: StoredAuthUser;
-          }
-        | null;
+      const payload = (await response.json().catch(() => null)) as {
+        user?: StoredAuthUser;
+      } | null;
 
       if (!payload?.user?.uid || !payload.user.username) {
         await this.signOut();

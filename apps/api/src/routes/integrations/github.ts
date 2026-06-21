@@ -11,14 +11,14 @@ githubRouter.post('/token', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Playrunner-App'
+        Accept: 'application/json',
+        'User-Agent': 'Playrunner-App',
       },
       body: JSON.stringify({
         client_id,
         client_secret,
-        code
-      })
+        code,
+      }),
     });
 
     const text = await gRes.text();
@@ -27,7 +27,9 @@ githubRouter.post('/token', async (req, res) => {
       res.json(data);
     } catch {
       console.error('Token exchange failed. GitHub returned non-JSON:', text);
-      res.status(500).json({ error: 'Failed to exchange token', details: text });
+      res
+        .status(500)
+        .json({ error: 'Failed to exchange token', details: text });
     }
   } catch (err) {
     console.error('Token exchange error:', err);
@@ -44,15 +46,15 @@ githubRouter.post('/refresh', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'User-Agent': 'Playrunner-App'
+        Accept: 'application/json',
+        'User-Agent': 'Playrunner-App',
       },
       body: JSON.stringify({
         client_id,
         client_secret,
         refresh_token,
-        grant_type: 'refresh_token'
-      })
+        grant_type: 'refresh_token',
+      }),
     });
 
     const text = await gRes.text();

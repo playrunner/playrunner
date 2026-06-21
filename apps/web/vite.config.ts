@@ -2,14 +2,19 @@ import fs from 'fs';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const playwrightRunnerConfig = loadPlaywrightRunnerConfig();
   const defaultApiUrl = 'http://127.0.0.1:3001';
-  const apiProxyTarget = normalizeLocalProxyTarget(env.VITE_API_URL || defaultApiUrl);
-  const editionRuntimePath = resolveEditionRuntimePath(env.ENABLE_PREMIUM !== 'false', env.PREMIUM_WEB_RUNTIME_PATH);
+  const apiProxyTarget = normalizeLocalProxyTarget(
+    env.VITE_API_URL || defaultApiUrl,
+  );
+  const editionRuntimePath = resolveEditionRuntimePath(
+    env.ENABLE_PREMIUM !== 'false',
+    env.PREMIUM_WEB_RUNTIME_PATH,
+  );
   const webNodeModulesDir = path.resolve(__dirname, 'node_modules');
   console.log(`Proxying API requests to: ${apiProxyTarget}`);
 
@@ -24,7 +29,10 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
         '@edition-runtime': editionRuntimePath,
         react: path.resolve(webNodeModulesDir, 'react'),
-        'react/jsx-runtime': path.resolve(webNodeModulesDir, 'react/jsx-runtime.js'),
+        'react/jsx-runtime': path.resolve(
+          webNodeModulesDir,
+          'react/jsx-runtime.js',
+        ),
         'react-dom': path.resolve(webNodeModulesDir, 'react-dom'),
         'lucide-react': path.resolve(webNodeModulesDir, 'lucide-react'),
       },
@@ -43,8 +51,8 @@ export default defineConfig(({mode}) => {
         '/outputs': {
           target: apiProxyTarget,
           changeOrigin: true,
-        }
-      }
+        },
+      },
     },
   };
 });
@@ -66,11 +74,20 @@ function normalizeLocalProxyTarget(target: string): string {
 }
 
 function loadPlaywrightRunnerConfig() {
-  const configPath = path.resolve(__dirname, '..', '..', 'config', 'playwright-runner-versions.json');
+  const configPath = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    'config',
+    'playwright-runner-versions.json',
+  );
   return JSON.parse(fs.readFileSync(configPath, 'utf8'));
 }
 
-function resolveEditionRuntimePath(enablePremium: boolean, configuredPath?: string) {
+function resolveEditionRuntimePath(
+  enablePremium: boolean,
+  configuredPath?: string,
+) {
   if (enablePremium) {
     const candidates = [
       configuredPath,

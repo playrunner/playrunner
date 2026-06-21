@@ -1,4 +1,4 @@
-import type React from "react";
+import type React from 'react';
 
 export interface Integration {
   id: string;
@@ -10,14 +10,14 @@ export interface Integration {
   disabled?: boolean;
   disabledReason?: string;
   isPremiumFeature?: boolean;
-  
+
   // Node info
-  nodeType?: "trigger" | "action" | "config";
+  nodeType?: 'trigger' | 'action' | 'config';
   color?: string;
-  
+
   // Modals / UI
   SettingsModal?: React.FC<{ isOpen: boolean; onClose: () => void }>;
-  
+
   // Auth
   requiresAuth?: boolean;
   authProviderId?: string; // if this delegates to another integration's auth (e.g. playwright uses github)

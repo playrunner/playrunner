@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
-import { X } from "lucide-react";
-import { cn } from "../../lib/utils";
+import React, { useEffect } from 'react';
+import { X } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface ModalProps {
   isOpen: boolean;
@@ -24,10 +24,10 @@ export function Modal({
   icon,
   children,
   footer,
-  maxWidth = "max-w-[600px]",
+  maxWidth = 'max-w-[600px]',
   className,
   bodyClassName,
-  zIndex = 60
+  zIndex = 60,
 }: ModalProps) {
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -40,9 +40,21 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4 sm:p-0" style={{ zIndex }}>
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className={cn("relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]", maxWidth, className)}>
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 sm:p-0"
+      style={{ zIndex }}
+    >
+      <div
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div
+        className={cn(
+          'relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]',
+          maxWidth,
+          className,
+        )}
+      >
         {/* Header */}
         <div className="px-2 py-0.5 border-b border-subtle shrink-0">
           <div className="flex items-center justify-between gap-2">
@@ -53,24 +65,28 @@ export function Modal({
                 </div>
               )}
               <div className="py-0.5">
-                <h2 className="text-xs font-semibold text-[var(--foreground)] leading-none">{title}</h2>
+                <h2 className="text-xs font-semibold text-[var(--foreground)] leading-none">
+                  {title}
+                </h2>
                 {subtitle ? (
-                  <div className="mt-1 text-[11px] leading-snug text-muted">{subtitle}</div>
+                  <div className="mt-1 text-[11px] leading-snug text-muted">
+                    {subtitle}
+                  </div>
                 ) : null}
               </div>
             </div>
-            <button 
-                onClick={onClose}
-                className="p-0.5 text-muted hover:text-[var(--foreground)] transition-colors rounded hover:bg-surface-hover shrink-0"
-                title="Close"
-             >
-                <X className="w-3.5 h-3.5" />
-             </button>
+            <button
+              onClick={onClose}
+              className="p-0.5 text-muted hover:text-[var(--foreground)] transition-colors rounded hover:bg-surface-hover shrink-0"
+              title="Close"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className={cn("overflow-y-auto flex-1 p-6", bodyClassName)}>
+        <div className={cn('overflow-y-auto flex-1 p-6', bodyClassName)}>
           {children}
         </div>
 

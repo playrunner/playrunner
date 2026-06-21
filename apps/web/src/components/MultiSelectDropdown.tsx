@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { Check, ChevronDown } from "lucide-react";
-import { cn } from "../lib/utils";
+import { useState, useRef, useEffect } from 'react';
+import { Check, ChevronDown } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export interface Option {
   value: string;
@@ -19,7 +19,7 @@ export function MultiSelectDropdown({
   options,
   selectedValues,
   onChange,
-  placeholder = "Select options",
+  placeholder = 'Select options',
   className,
 }: MultiSelectDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,12 +28,15 @@ export function MultiSelectDropdown({
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleToggleOption = (value: string) => {
@@ -47,25 +50,38 @@ export function MultiSelectDropdown({
   const getDisplayText = () => {
     if (selectedValues.length === 0) return placeholder;
     if (selectedValues.length === 1) {
-      return options.find((o) => o.value === selectedValues[0])?.label || placeholder;
+      return (
+        options.find((o) => o.value === selectedValues[0])?.label || placeholder
+      );
     }
     return `${selectedValues.length} selected`;
   };
 
   return (
-    <div className={cn("relative", className)} ref={dropdownRef}>
+    <div className={cn('relative', className)} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center justify-between w-full px-3 py-2 text-sm text-[var(--foreground)] bg-control border border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 hover:border-[var(--border-strong)] transition-colors",
-          isOpen && "border-[var(--border-strong)]"
+          'flex items-center justify-between w-full px-3 py-2 text-sm text-[var(--foreground)] bg-control border border-subtle rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 hover:border-[var(--border-strong)] transition-colors',
+          isOpen && 'border-[var(--border-strong)]',
         )}
       >
-        <span className={selectedValues.length === 0 ? "text-muted" : "text-[var(--foreground)]"}>
+        <span
+          className={
+            selectedValues.length === 0
+              ? 'text-muted'
+              : 'text-[var(--foreground)]'
+          }
+        >
           {getDisplayText()}
         </span>
-        <ChevronDown className={cn("w-4 h-4 text-muted transition-transform", isOpen && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            'w-4 h-4 text-muted transition-transform',
+            isOpen && 'rotate-180',
+          )}
+        />
       </button>
 
       {isOpen && (
@@ -82,13 +98,15 @@ export function MultiSelectDropdown({
                 >
                   <div
                     className={cn(
-                      "w-4 h-4 rounded-sm border mr-3 flex items-center justify-center transition-colors shrink-0",
+                      'w-4 h-4 rounded-sm border mr-3 flex items-center justify-center transition-colors shrink-0',
                       isSelected
-                        ? "bg-[var(--accent)] border-[var(--accent)]"
-                        : "border-[var(--border-strong)] bg-[var(--background)]"
+                        ? 'bg-[var(--accent)] border-[var(--accent)]'
+                        : 'border-[var(--border-strong)] bg-[var(--background)]',
                     )}
                   >
-                    {isSelected && <Check className="w-3 h-3 text-[var(--accent-foreground)]" />}
+                    {isSelected && (
+                      <Check className="w-3 h-3 text-[var(--accent-foreground)]" />
+                    )}
                   </div>
                   <span className="truncate">{option.label}</span>
                 </button>

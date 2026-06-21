@@ -1,4 +1,4 @@
-import {spawn} from 'child_process';
+import { spawn } from 'child_process';
 import {
   EDITOR_API_URL_DOCKER,
   GCP_PROJECT,
@@ -6,13 +6,15 @@ import {
   ORCHESTRATOR_PORT,
   ORCHESTRATOR_URL,
 } from '../config';
-import {state} from '../state';
+import { state } from '../state';
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function isOrchestratorHealthy(timeoutMs = 1500): Promise<boolean> {
+export async function isOrchestratorHealthy(
+  timeoutMs = 1500,
+): Promise<boolean> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -28,7 +30,10 @@ export async function isOrchestratorHealthy(timeoutMs = 1500): Promise<boolean> 
   }
 }
 
-async function waitForOrchestratorHealth(timeoutMs = 10000, pollIntervalMs = 250) {
+async function waitForOrchestratorHealth(
+  timeoutMs = 10000,
+  pollIntervalMs = 250,
+) {
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
@@ -107,7 +112,8 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
   const becameHealthy = await waitForOrchestratorHealth();
   if (!becameHealthy) {
     return {
-      message: spawnError?.message ?? 'Docker Orchestrator failed to become healthy.',
+      message:
+        spawnError?.message ?? 'Docker Orchestrator failed to become healthy.',
       ok: false,
     };
   }

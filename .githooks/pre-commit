@@ -1,0 +1,36 @@
+#!/bin/bash
+# Prettier formatting gate. Commits are blocked unless the apps that have a
+# format:check script are fully formatted. Run `npm run format` in the offending
+# app to fix. Only runs the check for apps that have staged changes.
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+FORMAT_DIRS=(
+  "apps/web"
+  "apps/api"
+)
+
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+failed=0
+for package_dir in "${FORMAT_DIRS[@]}"; do
+  if ! echo "${staged_files}" | grep -q "^${package_dir}/"; then
+    continue
+  fi
+
+  echo "==> prettier check: ${package_dir}"
+  if ! (cd "${ROOT_DIR}/${package_dir}" && npm run format:check --silent); then
+    echo "✖ Prettier check failed in ${package_dir}."
+    echo "  Fix with: (cd ${package_dir} && npm run format)"
+    failed=1
+  fi
+done
+
+if [ "${failed}" -ne 0 ]; then
+  echo ""
+  echo "Commit blocked: formatting issues detected."
+  exit 1
+fi
+
+exit 0

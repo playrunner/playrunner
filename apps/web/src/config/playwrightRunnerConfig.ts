@@ -9,4 +9,5 @@ export type PlaywrightRunnerConfig = {
   versions: PlaywrightRunnerVersion[];
 };
 
-export const playwrightRunnerConfig: PlaywrightRunnerConfig = __PLAYWRIGHT_RUNNER_CONFIG__;
+export const playwrightRunnerConfig: PlaywrightRunnerConfig =
+  __PLAYWRIGHT_RUNNER_CONFIG__;

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import {Prisma} from '@prisma/client';
-import {Request, Response, Router} from 'express';
-import {prisma} from '../lib/prisma';
+import { Prisma } from '@prisma/client';
+import { Request, Response, Router } from 'express';
+import { prisma } from '../lib/prisma';
 
 export const storeRouter = Router();
 
@@ -42,7 +42,9 @@ function toNullableString(value: unknown) {
 }
 
 function toOptionalNumber(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 function toOptionalDate(value: unknown) {
@@ -119,7 +121,9 @@ function serializeIntegration(integration: {
   updatedAt: Date;
 }) {
   return {
-    ...(typeof integration.data === 'object' && integration.data ? integration.data : {}),
+    ...(typeof integration.data === 'object' && integration.data
+      ? integration.data
+      : {}),
     id: integration.provider,
     provider: integration.provider,
     userId: integration.userId,
@@ -136,7 +140,9 @@ function serializeCloudCredential(cloudCredential: {
   updatedAt: Date;
 }) {
   return {
-    ...(typeof cloudCredential.data === 'object' && cloudCredential.data ? cloudCredential.data : {}),
+    ...(typeof cloudCredential.data === 'object' && cloudCredential.data
+      ? cloudCredential.data
+      : {}),
     id: cloudCredential.provider,
     provider: cloudCredential.provider,
     userId: cloudCredential.userId,
@@ -170,11 +176,11 @@ storeRouter.get(
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
     const projects = await prisma.project.findMany({
-      where: {userId},
-      orderBy: {updatedAt: 'desc'},
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({projects: projects.map(serializeProject)});
+    res.json({ projects: projects.map(serializeProject) });
   }),
 );
 
@@ -189,7 +195,7 @@ storeRouter.get(
       },
     });
 
-    res.json({project: project ? serializeProject(project) : null});
+    res.json({ project: project ? serializeProject(project) : null });
   }),
 );
 
@@ -206,7 +212,7 @@ storeRouter.post(
       },
     });
 
-    res.status(201).json({project: serializeProject(project)});
+    res.status(201).json({ project: serializeProject(project) });
   }),
 );
 
@@ -231,16 +237,16 @@ storeRouter.put(
           createdAt: toOptionalDate(req.body?.createdAt),
         },
       });
-      res.status(201).json({project: serializeProject(project)});
+      res.status(201).json({ project: serializeProject(project) });
       return;
     }
 
     const project = await prisma.project.update({
-      where: {id: existing.id},
-      data: title !== undefined ? {title} : {},
+      where: { id: existing.id },
+      data: title !== undefined ? { title } : {},
     });
 
-    res.json({project: serializeProject(project)});
+    res.json({ project: serializeProject(project) });
   }),
 );
 
@@ -262,16 +268,17 @@ storeRouter.get(
   '/workflows',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+    const projectId =
+      typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
     const workflows = await prisma.workflow.findMany({
       where: {
         userId,
-        ...(projectId ? {projectId} : {}),
+        ...(projectId ? { projectId } : {}),
       },
-      orderBy: {updatedAt: 'desc'},
+      orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({workflows: workflows.map(serializeWorkflow)});
+    res.json({ workflows: workflows.map(serializeWorkflow) });
   }),
 );
 
@@ -286,7 +293,7 @@ storeRouter.get(
       },
     });
 
-    res.json({workflow: workflow ? serializeWorkflow(workflow) : null});
+    res.json({ workflow: workflow ? serializeWorkflow(workflow) : null });
   }),
 );
 
@@ -308,7 +315,7 @@ storeRouter.post(
       },
     });
 
-    res.status(201).json({workflow: serializeWorkflow(workflow)});
+    res.status(201).json({ workflow: serializeWorkflow(workflow) });
   }),
 );
 
@@ -344,7 +351,7 @@ storeRouter.put(
           createdAt: toOptionalDate(req.body?.createdAt),
         },
       });
-      res.status(201).json({workflow: serializeWorkflow(workflow)});
+      res.status(201).json({ workflow: serializeWorkflow(workflow) });
       return;
     }
 
@@ -369,11 +376,11 @@ storeRouter.put(
     }
 
     const workflow = await prisma.workflow.update({
-      where: {id: existing.id},
+      where: { id: existing.id },
       data,
     });
 
-    res.json({workflow: serializeWorkflow(workflow)});
+    res.json({ workflow: serializeWorkflow(workflow) });
   }),
 );
 
@@ -396,14 +403,17 @@ storeRouter.get(
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
     const integrations = await prisma.integration.findMany({
-      where: {userId},
+      where: { userId },
     });
 
     res.json({
-      integrations: integrations.reduce<Record<string, unknown>>((accumulator, integration) => {
-        accumulator[integration.provider] = serializeIntegration(integration);
-        return accumulator;
-      }, {}),
+      integrations: integrations.reduce<Record<string, unknown>>(
+        (accumulator, integration) => {
+          accumulator[integration.provider] = serializeIntegration(integration);
+          return accumulator;
+        },
+        {},
+      ),
     });
   }),
 );
@@ -421,7 +431,9 @@ storeRouter.get(
       },
     });
 
-    res.json({integration: integration ? serializeIntegration(integration) : null});
+    res.json({
+      integration: integration ? serializeIntegration(integration) : null,
+    });
   }),
 );
 
@@ -446,7 +458,7 @@ storeRouter.put(
       },
     });
 
-    res.json({integration: serializeIntegration(integration)});
+    res.json({ integration: serializeIntegration(integration) });
   }),
 );
 
@@ -478,7 +490,9 @@ storeRouter.get(
     });
 
     res.json({
-      cloudCredential: cloudCredential ? serializeCloudCredential(cloudCredential) : null,
+      cloudCredential: cloudCredential
+        ? serializeCloudCredential(cloudCredential)
+        : null,
     });
   }),
 );
@@ -504,7 +518,7 @@ storeRouter.put(
       },
     });
 
-    res.json({cloudCredential: serializeCloudCredential(cloudCredential)});
+    res.json({ cloudCredential: serializeCloudCredential(cloudCredential) });
   }),
 );
 
@@ -527,11 +541,11 @@ storeRouter.get(
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
     const environments = await prisma.environment.findMany({
-      where: {userId},
-      orderBy: {updatedAt: 'desc'},
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({environments: environments.map(serializeEnvironment)});
+    res.json({ environments: environments.map(serializeEnvironment) });
   }),
 );
 
@@ -560,7 +574,7 @@ storeRouter.put(
           createdAt: toOptionalDate(req.body?.createdAt),
         },
       });
-      res.status(201).json({environment: serializeEnvironment(environment)});
+      res.status(201).json({ environment: serializeEnvironment(environment) });
       return;
     }
 
@@ -575,11 +589,11 @@ storeRouter.put(
     }
 
     const environment = await prisma.environment.update({
-      where: {id: existing.id},
+      where: { id: existing.id },
       data,
     });
 
-    res.json({environment: serializeEnvironment(environment)});
+    res.json({ environment: serializeEnvironment(environment) });
   }),
 );
 

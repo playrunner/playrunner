@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type {Response} from 'express';
+import type { Response } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
 import { state } from '../state';
 
@@ -22,7 +22,9 @@ systemRouter.get('/presence/stream', requireAuth, (req, res) => {
 
     isClosed = true;
     clearInterval(heartbeatInterval);
-    state.presenceSseClients = state.presenceSseClients.filter((client) => client !== res);
+    state.presenceSseClients = state.presenceSseClients.filter(
+      (client) => client !== res,
+    );
     console.log(
       `[presence] disconnected client=${clientId} reason=${reason} remaining=${state.presenceSseClients.length}`,
     );
@@ -35,7 +37,9 @@ systemRouter.get('/presence/stream', requireAuth, (req, res) => {
 
   res.write(': connected\n\n');
   state.presenceSseClients.push(res);
-  console.log(`[presence] connected client=${clientId} total=${state.presenceSseClients.length}`);
+  console.log(
+    `[presence] connected client=${clientId} total=${state.presenceSseClients.length}`,
+  );
 
   const heartbeatInterval = setInterval(() => {
     if (!isResponseAlive(res)) {

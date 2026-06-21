@@ -12,33 +12,39 @@ export const authRouter = Router();
 authRouter.post('/login', async (req, res) => {
   if (!isLocalAuthConfigured()) {
     res.status(503).json({
-      error: 'Local auth has not been configured yet. Run ./start-local.sh --setup first.',
+      error:
+        'Local auth has not been configured yet. Run ./start-local.sh --setup first.',
     });
     return;
   }
 
-  const username = typeof req.body?.username === 'string' ? req.body.username.trim() : '';
-  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const username =
+    typeof req.body?.username === 'string' ? req.body.username.trim() : '';
+  const password =
+    typeof req.body?.password === 'string' ? req.body.password : '';
 
   if (!username || !password) {
-    res.status(400).json({error: 'Username and password are required.'});
+    res.status(400).json({ error: 'Username and password are required.' });
     return;
   }
 
   try {
     const isValid = verifyLocalCredentials(username, password);
     if (!isValid) {
-      res.status(401).json({error: 'Invalid username or password.'});
+      res.status(401).json({ error: 'Invalid username or password.' });
       return;
     }
 
     const user = getLocalAuthPublicUser();
     const token = await issueLocalAuthToken(user.username);
 
-    res.json({token, user});
+    res.json({ token, user });
   } catch (error) {
     res.status(500).json({
-      error: error instanceof Error ? error.message : 'Failed to validate local credentials.',
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to validate local credentials.',
     });
   }
 });

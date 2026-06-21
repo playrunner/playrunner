@@ -1,7 +1,12 @@
 import { ORCHESTRATOR_URL } from '../config';
 import { executionEvents } from '../services/execution-events';
-import type { LogTransport, WorkflowExecutionBackend, WorkflowExecutionRequest, WorkflowExecutionResult } from './contracts';
-import {ensureLocalOrchestratorRunning} from './orchestrator-runner';
+import type {
+  LogTransport,
+  WorkflowExecutionBackend,
+  WorkflowExecutionRequest,
+  WorkflowExecutionResult,
+} from './contracts';
+import { ensureLocalOrchestratorRunning } from './orchestrator-runner';
 
 export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(private readonly logTransport: LogTransport) {}
@@ -10,7 +15,9 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     return cloudProvider === 'LOCAL-DEV';
   }
 
-  async execute(request: WorkflowExecutionRequest): Promise<WorkflowExecutionResult> {
+  async execute(
+    request: WorkflowExecutionRequest,
+  ): Promise<WorkflowExecutionResult> {
     const { body, testId } = request;
     const workflowId = body.workflowId;
     const userId = request.req.authUser?.providerUserId;
@@ -25,7 +32,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     const runnerStart = await ensureLocalOrchestratorRunning();
     if (!runnerStart.ok) {
       return {
-        body: {error: runnerStart.message},
+        body: { error: runnerStart.message },
         status: 502,
       };
     }
@@ -40,36 +47,40 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     body.executionAuthToken = executionToken;
 
     try {
-      await this.logTransport.publish(JSON.stringify({
-        cloudProvider: 'LOCAL-DEV',
-        executionId: testId,
-        level: 'info',
-        message: 'Workflow execution requested.',
-        testId,
-        timestamp: new Date().toISOString(),
-        type: 'workflow_started',
-        workflowId,
-      }));
+      await this.logTransport.publish(
+        JSON.stringify({
+          cloudProvider: 'LOCAL-DEV',
+          executionId: testId,
+          level: 'info',
+          message: 'Workflow execution requested.',
+          testId,
+          timestamp: new Date().toISOString(),
+          type: 'workflow_started',
+          workflowId,
+        }),
+      );
 
       const response = await fetch(`${ORCHESTRATOR_URL}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const details = await response.text().catch(() => '');
         try {
-          await this.logTransport.publish(JSON.stringify({
-            cloudProvider: 'LOCAL-DEV',
-            executionId: testId,
-            level: 'error',
-            message: `Runner failed to process workflow${details ? `: ${details}` : '.'}`,
-            testId,
-            timestamp: new Date().toISOString(),
-            type: 'workflow_failed',
-            workflowId,
-          }));
+          await this.logTransport.publish(
+            JSON.stringify({
+              cloudProvider: 'LOCAL-DEV',
+              executionId: testId,
+              level: 'error',
+              message: `Runner failed to process workflow${details ? `: ${details}` : '.'}`,
+              testId,
+              timestamp: new Date().toISOString(),
+              type: 'workflow_failed',
+              workflowId,
+            }),
+          );
         } catch {
           // Ignore best-effort log transport failures.
         }
@@ -81,41 +92,51 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       }
 
       try {
-        await this.logTransport.publish(JSON.stringify({
-          cloudProvider: 'LOCAL-DEV',
-          executionId: testId,
-          level: 'info',
-          message: 'Local orchestrator triggered successfully.',
-          testId,
-          timestamp: new Date().toISOString(),
-          type: 'log',
-          workflowId,
-        }));
+        await this.logTransport.publish(
+          JSON.stringify({
+            cloudProvider: 'LOCAL-DEV',
+            executionId: testId,
+            level: 'info',
+            message: 'Local orchestrator triggered successfully.',
+            testId,
+            timestamp: new Date().toISOString(),
+            type: 'log',
+            workflowId,
+          }),
+        );
       } catch {
         // Ignore best-effort log transport failures.
       }
 
       return {
-        body: { message: `Workflow triggered on local runner successfully, testId: ${testId}`, testId },
+        body: {
+          message: `Workflow triggered on local runner successfully, testId: ${testId}`,
+          testId,
+        },
         status: 200,
       };
     } catch (err: any) {
       try {
-        await this.logTransport.publish(JSON.stringify({
-          executionId: testId,
-          level: 'error',
-          message: `Failed to communicate with runner: ${err.message}`,
-          testId,
-          timestamp: new Date().toISOString(),
-          type: 'workflow_failed',
-          workflowId,
-        }));
+        await this.logTransport.publish(
+          JSON.stringify({
+            executionId: testId,
+            level: 'error',
+            message: `Failed to communicate with runner: ${err.message}`,
+            testId,
+            timestamp: new Date().toISOString(),
+            type: 'workflow_failed',
+            workflowId,
+          }),
+        );
       } catch {
         // Ignore best-effort log transport failures.
       }
 
       return {
-        body: { error: `Failed to communicate with runner: ${err.message}`, testId },
+        body: {
+          error: `Failed to communicate with runner: ${err.message}`,
+          testId,
+        },
         status: 500,
       };
     }

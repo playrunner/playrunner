@@ -3,22 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import Login from "./pages/Login";
-import Editor from "./pages/Editor";
-import Projects from "./pages/Projects";
-import ProjectDetail from "./pages/ProjectDetail";
-import Settings from "./pages/Settings";
-import DesignSystem from "./pages/DesignSystem";
-import Environments from "./pages/Environments";
-import Integrations from "./pages/Integrations";
-import Analytics from "./pages/Analytics";
-import Teams from "./pages/Teams";
-import OAuthCallback from "./pages/OAuthCallback";
-import { ThemeProvider } from "./components/ThemeProvider";
-import { PageLayout } from "./components/PageLayout";
-import { auth } from "./lib/auth";
+import { useEffect, useState } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+} from 'react-router-dom';
+import Login from './pages/Login';
+import Editor from './pages/Editor';
+import Projects from './pages/Projects';
+import ProjectDetail from './pages/ProjectDetail';
+import Settings from './pages/Settings';
+import DesignSystem from './pages/DesignSystem';
+import Environments from './pages/Environments';
+import Integrations from './pages/Integrations';
+import Analytics from './pages/Analytics';
+import Teams from './pages/Teams';
+import OAuthCallback from './pages/OAuthCallback';
+import { ThemeProvider } from './components/ThemeProvider';
+import { PageLayout } from './components/PageLayout';
+import { auth } from './lib/auth';
 
 function RequireAuth() {
   const [user, setUser] = useState(auth.currentUser);

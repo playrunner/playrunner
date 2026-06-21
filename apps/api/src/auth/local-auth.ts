@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import {SignJWT, jwtVerify} from 'jose';
-import {AuthUser} from './auth.types';
+import { SignJWT, jwtVerify } from 'jose';
+import { AuthUser } from './auth.types';
 
 const LOCAL_AUTH_ISSUER = 'playrunner-local';
 const LOCAL_AUTH_AUDIENCE = 'playrunner-local';
@@ -9,7 +9,9 @@ const LOCAL_AUTH_SUBJECT = 'local-admin';
 function getLocalAuthUsername() {
   const username = process.env.LOCAL_AUTH_USERNAME?.trim();
   if (!username) {
-    throw new Error('LOCAL_AUTH_USERNAME is not configured. Run ./start-local.sh --setup.');
+    throw new Error(
+      'LOCAL_AUTH_USERNAME is not configured. Run ./start-local.sh --setup.',
+    );
   }
 
   return username;
@@ -18,7 +20,9 @@ function getLocalAuthUsername() {
 function getLocalAuthPasswordHash() {
   const passwordHash = process.env.LOCAL_AUTH_PASSWORD_HASH?.trim();
   if (!passwordHash) {
-    throw new Error('LOCAL_AUTH_PASSWORD_HASH is not configured. Run ./start-local.sh --setup.');
+    throw new Error(
+      'LOCAL_AUTH_PASSWORD_HASH is not configured. Run ./start-local.sh --setup.',
+    );
   }
 
   return passwordHash;
@@ -27,7 +31,9 @@ function getLocalAuthPasswordHash() {
 function getLocalAuthSecret() {
   const secret = process.env.AUTH_JWT_SECRET?.trim();
   if (!secret) {
-    throw new Error('AUTH_JWT_SECRET is not configured. Run ./start-local.sh --setup.');
+    throw new Error(
+      'AUTH_JWT_SECRET is not configured. Run ./start-local.sh --setup.',
+    );
   }
 
   return new TextEncoder().encode(secret);
@@ -55,8 +61,8 @@ function verifyPasswordHash(password: string, storedHash: string) {
 export function isLocalAuthConfigured() {
   return Boolean(
     process.env.LOCAL_AUTH_USERNAME?.trim() &&
-      process.env.LOCAL_AUTH_PASSWORD_HASH?.trim() &&
-      process.env.AUTH_JWT_SECRET?.trim(),
+    process.env.LOCAL_AUTH_PASSWORD_HASH?.trim() &&
+    process.env.AUTH_JWT_SECRET?.trim(),
   );
 }
 
@@ -85,8 +91,8 @@ export function verifyLocalCredentials(username: string, password: string) {
 }
 
 export async function issueLocalAuthToken(username: string) {
-  return new SignJWT({username})
-    .setProtectedHeader({alg: 'HS256', typ: 'JWT'})
+  return new SignJWT({ username })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuer(LOCAL_AUTH_ISSUER)
     .setAudience(LOCAL_AUTH_AUDIENCE)
     .setSubject(LOCAL_AUTH_SUBJECT)
@@ -96,7 +102,7 @@ export async function issueLocalAuthToken(username: string) {
 }
 
 export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
-  const {payload} = await jwtVerify(token, getLocalAuthSecret(), {
+  const { payload } = await jwtVerify(token, getLocalAuthSecret(), {
     issuer: LOCAL_AUTH_ISSUER,
     audience: LOCAL_AUTH_AUDIENCE,
   });
@@ -108,7 +114,8 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
 
   return {
     provider: 'local',
-    providerUserId: typeof payload.sub === 'string' ? payload.sub : LOCAL_AUTH_SUBJECT,
+    providerUserId:
+      typeof payload.sub === 'string' ? payload.sub : LOCAL_AUTH_SUBJECT,
     name: username,
     username,
   };

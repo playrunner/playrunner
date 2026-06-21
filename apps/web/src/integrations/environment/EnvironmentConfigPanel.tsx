@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
-import { cn } from "../../lib/utils";
-import { Upload, Search, ChevronDown } from "lucide-react";
-import { auth } from "../../lib/auth";
-import { DbAPI } from "../../lib/db";
-import type { EnvVar, SavedEnvironment } from "./types";
-import { VariablesTable } from "./VariablesTable";
+import React, { useState, useRef, useEffect } from 'react';
+import { cn } from '../../lib/utils';
+import { Upload, Search, ChevronDown } from 'lucide-react';
+import { auth } from '../../lib/auth';
+import { DbAPI } from '../../lib/db';
+import type { EnvVar, SavedEnvironment } from './types';
+import { VariablesTable } from './VariablesTable';
 
 interface EnvironmentConfigPanelProps {
   nodeId: string;
@@ -23,26 +23,44 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   onChange,
   className,
   onPointerDown,
-  onLabelChange
+  onLabelChange,
 }) => {
   const [variables, setVariables] = useState<EnvVar[]>(() => {
-    const initial = (Array.isArray(config.variables) ? config.variables : []).map((v: any) => ({
+    const initial = (
+      Array.isArray(config.variables) ? config.variables : []
+    ).map((v: any) => ({
       ...v,
-      enabled: v.enabled !== undefined ? v.enabled : true
+      enabled: v.enabled !== undefined ? v.enabled : true,
     }));
     const last = initial[initial.length - 1];
     if (!last || last.key || last.initialValue || last.currentValue) {
-      return [...initial, { id: Math.random().toString(36).substring(7), key: '', type: 'default', initialValue: '', currentValue: '', enabled: true }];
+      return [
+        ...initial,
+        {
+          id: Math.random().toString(36).substring(7),
+          key: '',
+          type: 'default',
+          initialValue: '',
+          currentValue: '',
+          enabled: true,
+        },
+      ];
     }
     return initial;
   });
 
-  const [filterText, setFilterText] = useState("");
+  const [filterText, setFilterText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [savedEnvironments, setSavedEnvironments] = useState<SavedEnvironment[]>([]);
-  const [linkedEnvId, setLinkedEnvId] = useState<string | null>(config.environmentId || null);
-  const [dropdownEnvId, setDropdownEnvId] = useState<string>(config.environmentId || "__create_new__");
+  const [savedEnvironments, setSavedEnvironments] = useState<
+    SavedEnvironment[]
+  >([]);
+  const [linkedEnvId, setLinkedEnvId] = useState<string | null>(
+    config.environmentId || null,
+  );
+  const [dropdownEnvId, setDropdownEnvId] = useState<string>(
+    config.environmentId || '__create_new__',
+  );
   const [isLoadingEnvs, setIsLoadingEnvs] = useState(false);
   const initializedRef = useRef(false);
   const currentUserId = auth.currentUser?.uid;
@@ -63,7 +81,11 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   }, [config.environmentId, currentUserId]);
 
   useEffect(() => {
-    if (linkedEnvId && savedEnvironments.length > 0 && !initializedRef.current) {
+    if (
+      linkedEnvId &&
+      savedEnvironments.length > 0 &&
+      !initializedRef.current
+    ) {
       const env = savedEnvironments.find((e) => e.id === linkedEnvId);
       if (env && env.variables) {
         const loadedVars = env.variables.map((v) => ({
@@ -72,7 +94,14 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         }));
         const last = loadedVars[loadedVars.length - 1];
         if (!last || last.key || last.initialValue || last.currentValue) {
-          loadedVars.push({ id: Math.random().toString(36).substring(7), key: '', type: 'default', initialValue: '', currentValue: '', enabled: true });
+          loadedVars.push({
+            id: Math.random().toString(36).substring(7),
+            key: '',
+            type: 'default',
+            initialValue: '',
+            currentValue: '',
+            enabled: true,
+          });
         }
         setVariables(loadedVars);
         initializedRef.current = true;
@@ -84,20 +113,37 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   }, [savedEnvironments, linkedEnvId]);
 
   useEffect(() => {
-    const validVars = variables.filter(v => v.key || v.initialValue || v.currentValue);
+    const validVars = variables.filter(
+      (v) => v.key || v.initialValue || v.currentValue,
+    );
     const updatedConfig: Record<string, any> = { variables: validVars };
     if (linkedEnvId) {
-      updatedConfig["environmentId"] = linkedEnvId;
+      updatedConfig['environmentId'] = linkedEnvId;
     } else {
-      updatedConfig["environmentId"] = null;
+      updatedConfig['environmentId'] = null;
     }
     onChange(nodeId, updatedConfig);
   }, [variables, linkedEnvId, nodeId, onChange]);
 
   useEffect(() => {
     const lastVar = variables[variables.length - 1];
-    if (!lastVar || (lastVar.key || lastVar.initialValue || lastVar.currentValue)) {
-      setVariables(prev => [...prev, { id: Math.random().toString(36).substring(7), key: '', type: 'default', initialValue: '', currentValue: '', enabled: true }]);
+    if (
+      !lastVar ||
+      lastVar.key ||
+      lastVar.initialValue ||
+      lastVar.currentValue
+    ) {
+      setVariables((prev) => [
+        ...prev,
+        {
+          id: Math.random().toString(36).substring(7),
+          key: '',
+          type: 'default',
+          initialValue: '',
+          currentValue: '',
+          enabled: true,
+        },
+      ]);
     }
   }, [variables]);
 
@@ -105,7 +151,9 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
     if (!linkedEnvId || !auth.currentUser) return;
     const env = savedEnvironments.find((e) => e.id === linkedEnvId);
     if (!env) return;
-    const validVars = vars.filter(v => v.key || v.initialValue || v.currentValue);
+    const validVars = vars.filter(
+      (v) => v.key || v.initialValue || v.currentValue,
+    );
     DbAPI.saveEnvironment(auth.currentUser.uid, linkedEnvId, {
       ...env,
       variables: validVars,
@@ -113,24 +161,26 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   };
 
   const updateVar = (id: string, updates: Partial<EnvVar>) => {
-    setVariables(prev => {
-      const next = prev.map(v => v.id === id ? { ...v, ...updates } : v);
+    setVariables((prev) => {
+      const next = prev.map((v) => (v.id === id ? { ...v, ...updates } : v));
       if (linkedEnvId) syncToSavedEnvironment(next);
       return next;
     });
   };
 
   const removeVar = (id: string) => {
-    setVariables(prev => {
-      const next = prev.filter(v => v.id !== id);
+    setVariables((prev) => {
+      const next = prev.filter((v) => v.id !== id);
       if (linkedEnvId) syncToSavedEnvironment(next);
       return next;
     });
   };
 
   const toggleEnabled = (id: string) => {
-    setVariables(prev => {
-      const next = prev.map(v => v.id === id ? { ...v, enabled: !v.enabled } : v);
+    setVariables((prev) => {
+      const next = prev.map((v) =>
+        v.id === id ? { ...v, enabled: !v.enabled } : v,
+      );
       if (linkedEnvId) syncToSavedEnvironment(next);
       return next;
     });
@@ -138,13 +188,15 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
 
   const handleSelectEnvironment = (envId: string) => {
     setDropdownEnvId(envId);
-    if (envId === "__create_new__") {
+    if (envId === '__create_new__') {
       setLinkedEnvId(null);
-      onChange(nodeId, { 
-        variables: variables.filter(v => v.key || v.initialValue || v.currentValue),
-        environmentId: null
+      onChange(nodeId, {
+        variables: variables.filter(
+          (v) => v.key || v.initialValue || v.currentValue,
+        ),
+        environmentId: null,
       });
-      if (onLabelChange) onLabelChange("My Prod Env"); // default? Maybe just "Environment" or keep nodeLabel
+      if (onLabelChange) onLabelChange('My Prod Env'); // default? Maybe just "Environment" or keep nodeLabel
     } else {
       const env = savedEnvironments.find((e) => e.id === envId);
       if (env) {
@@ -155,10 +207,19 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         }));
         const last = loadedVars[loadedVars.length - 1];
         if (!last || last.key || last.initialValue || last.currentValue) {
-          loadedVars.push({ id: Math.random().toString(36).substring(7), key: '', type: 'default', initialValue: '', currentValue: '', enabled: true });
+          loadedVars.push({
+            id: Math.random().toString(36).substring(7),
+            key: '',
+            type: 'default',
+            initialValue: '',
+            currentValue: '',
+            enabled: true,
+          });
         }
         setVariables(loadedVars);
-        const validVars = loadedVars.filter(v => v.key || v.initialValue || v.currentValue);
+        const validVars = loadedVars.filter(
+          (v) => v.key || v.initialValue || v.currentValue,
+        );
         onChange(nodeId, { variables: validVars, environmentId: env.id });
         if (onLabelChange) onLabelChange(env.name);
       }
@@ -168,25 +229,36 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const handleToggleGlobal = async (checked: boolean) => {
     if (!auth.currentUser) return;
     if (checked) {
-      if (dropdownEnvId !== "__create_new__") {
+      if (dropdownEnvId !== '__create_new__') {
         setLinkedEnvId(dropdownEnvId);
-        const env = savedEnvironments.find(e => e.id === dropdownEnvId);
+        const env = savedEnvironments.find((e) => e.id === dropdownEnvId);
         if (env) {
-          const validVars = variables.filter(v => v.key || v.initialValue || v.currentValue);
+          const validVars = variables.filter(
+            (v) => v.key || v.initialValue || v.currentValue,
+          );
           DbAPI.saveEnvironment(auth.currentUser.uid, dropdownEnvId, {
             ...env,
             variables: validVars,
           }).catch(console.error);
-          onChange(nodeId, { variables: validVars, environmentId: dropdownEnvId });
+          onChange(nodeId, {
+            variables: validVars,
+            environmentId: dropdownEnvId,
+          });
         }
       } else {
-        const validVars = variables.filter(v => v.key || v.initialValue || v.currentValue);
-        const name = nodeLabel || "Environment";
-        
+        const validVars = variables.filter(
+          (v) => v.key || v.initialValue || v.currentValue,
+        );
+        const name = nodeLabel || 'Environment';
+
         // Ensure global labels are unique
-        const existing = savedEnvironments.find(e => e.name.toLowerCase() === name.toLowerCase());
+        const existing = savedEnvironments.find(
+          (e) => e.name.toLowerCase() === name.toLowerCase(),
+        );
         if (existing) {
-          alert(`An environment with the name "${name}" already exists. Please choose a unique name.`);
+          alert(
+            `An environment with the name "${name}" already exists. Please choose a unique name.`,
+          );
           return;
         }
 
@@ -204,54 +276,60 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
           await DbAPI.saveEnvironment(auth.currentUser.uid, envId, newEnv);
           setLinkedEnvId(envId);
           setDropdownEnvId(envId);
-          setSavedEnvironments(prev => [...prev, newEnv]);
+          setSavedEnvironments((prev) => [...prev, newEnv]);
           onChange(nodeId, { variables: validVars, environmentId: envId });
         } catch (err) {
-          console.error("Failed to save environment globally:", err);
+          console.error('Failed to save environment globally:', err);
         }
       }
     } else {
       setLinkedEnvId(null);
-      onChange(nodeId, { 
-        variables: variables.filter(v => v.key || v.initialValue || v.currentValue),
-        environmentId: null
+      onChange(nodeId, {
+        variables: variables.filter(
+          (v) => v.key || v.initialValue || v.currentValue,
+        ),
+        environmentId: null,
       });
     }
   };
 
-  const filteredVariables = variables.filter(v => 
-    v.key.toLowerCase().includes(filterText.toLowerCase()) || 
-    v.initialValue.toLowerCase().includes(filterText.toLowerCase()) ||
-    (v.key === '' && v.initialValue === '' && v.currentValue === '')
+  const filteredVariables = variables.filter(
+    (v) =>
+      v.key.toLowerCase().includes(filterText.toLowerCase()) ||
+      v.initialValue.toLowerCase().includes(filterText.toLowerCase()) ||
+      (v.key === '' && v.initialValue === '' && v.currentValue === ''),
   );
 
   const handleEnvFileContents = (content: string) => {
     const lines = content.split('\n');
     const newVars: EnvVar[] = [];
-    
+
     for (const line of lines) {
       if (line.trim().startsWith('#') || !line.trim()) continue;
       const match = line.match(/^([^=]+)=(.*)$/);
       if (match) {
         const key = match[1].trim();
         let value = match[2].trim();
-        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
-        
+
         newVars.push({
           id: Math.random().toString(36).substring(7),
           key,
           type: 'default',
           initialValue: value,
           currentValue: value,
-          enabled: true
+          enabled: true,
         });
       }
     }
-    
+
     if (newVars.length > 0) {
-      setVariables(prev => {
+      setVariables((prev) => {
         const next = [...prev, ...newVars];
         if (linkedEnvId) syncToSavedEnvironment(next);
         return next;
@@ -309,28 +387,40 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
 
   const convertToSecret = async (id: string) => {
     if (!auth.currentUser) return;
-    const v = variables.find(v => v.id === id);
+    const v = variables.find((v) => v.id === id);
     if (!v) return;
 
     try {
       await DbAPI.saveSecret(auth.currentUser.uid, v.key, {
         value: v.currentValue,
-        description: `Secret for ${v.key}`
+        description: `Secret for ${v.key}`,
       });
 
-      setVariables(prev => {
-        const next: EnvVar[] = prev.map(v => v.id === id ? { ...v, type: 'secret' as const, currentValue: '********', initialValue: '********' } : v);
+      setVariables((prev) => {
+        const next: EnvVar[] = prev.map((v) =>
+          v.id === id
+            ? {
+                ...v,
+                type: 'secret' as const,
+                currentValue: '********',
+                initialValue: '********',
+              }
+            : v,
+        );
         if (linkedEnvId) syncToSavedEnvironment(next);
         return next;
       });
     } catch (err) {
-      console.error("Failed to save secret:", err);
+      console.error('Failed to save secret:', err);
     }
   };
 
   return (
-    <div 
-      className={cn("flex flex-col h-full bg-surface-elevated text-[var(--foreground)] relative", className)}
+    <div
+      className={cn(
+        'flex flex-col h-full bg-surface-elevated text-[var(--foreground)] relative',
+        className,
+      )}
       onPointerDown={onPointerDown}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -364,7 +454,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
           <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none" />
         </div>
 
-        {dropdownEnvId === "__create_new__" && (
+        {dropdownEnvId === '__create_new__' && (
           <label className="flex items-center gap-2 cursor-pointer w-fit">
             <input
               type="checkbox"
@@ -382,26 +472,29 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
           <h3 className="font-medium text-sm flex items-center gap-2">
             Environment Variables
           </h3>
-          <p className="text-xs text-muted mt-1">Configure environment variables or drag and drop a .env file anywhere.</p>
+          <p className="text-xs text-muted mt-1">
+            Configure environment variables or drag and drop a .env file
+            anywhere.
+          </p>
         </div>
         <div className="flex gap-2 text-sm">
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={onFileUpload} 
-            className="hidden" 
-            accept=".env,*/*" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={onFileUpload}
+            className="hidden"
+            accept=".env,*/*"
           />
           <div className="relative mr-2">
-             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
-             <input 
-                placeholder="Filter variables"
-                value={filterText}
-                onChange={e => setFilterText(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-background border border-subtle rounded text-xs focus:outline-none focus:border-[var(--accent)] w-64"
-             />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+            <input
+              placeholder="Filter variables"
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              className="pl-8 pr-3 py-1.5 bg-background border border-subtle rounded text-xs focus:outline-none focus:border-[var(--accent)] w-64"
+            />
           </div>
-          <button 
+          <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1 px-3 py-1.5 bg-surface border border-subtle rounded text-xs hover:bg-surface-hover"
           >

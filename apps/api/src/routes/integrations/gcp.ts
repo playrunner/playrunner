@@ -10,15 +10,15 @@ gcpRouter.post('/token', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         client_id,
         client_secret,
         code,
         grant_type: 'authorization_code',
-        redirect_uri
-      })
+        redirect_uri,
+      }),
     });
 
     const text = await gRes.text();
@@ -31,7 +31,9 @@ gcpRouter.post('/token', async (req, res) => {
       res.json(data);
     } catch {
       console.error('Token exchange failed. GCP returned non-JSON:', text);
-      res.status(500).json({ error: 'Failed to exchange token', details: text });
+      res
+        .status(500)
+        .json({ error: 'Failed to exchange token', details: text });
     }
   } catch (err) {
     console.error('Token exchange error:', err);
@@ -47,14 +49,14 @@ gcpRouter.post('/refresh', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
         client_id,
         client_secret,
         refresh_token,
-        grant_type: 'refresh_token'
-      })
+        grant_type: 'refresh_token',
+      }),
     });
 
     const text = await gRes.text();

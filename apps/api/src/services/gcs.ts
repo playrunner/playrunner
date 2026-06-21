@@ -14,7 +14,10 @@ function requireEnv(name: string): string {
 }
 
 function bucketName(workflowId: string): string {
-  const sanitized = workflowId.toLowerCase().replace(/[^a-z0-9-_.]/g, '-').replace(/^-+|-+$/g, '');
+  const sanitized = workflowId
+    .toLowerCase()
+    .replace(/[^a-z0-9-_.]/g, '-')
+    .replace(/^-+|-+$/g, '');
   return `${requireEnv('GCS_BUCKET_PREFIX')}-${sanitized}`;
 }
 
@@ -30,25 +33,43 @@ export interface GcpTokenRefresh {
   expiresAt?: number;
 }
 
-export async function refreshGcpAccessTokenIfNeeded(creds: GcpTokenRefresh): Promise<string | null> {
-  console.log("[GCS] refreshGcpAccessTokenIfNeeded: hasRefreshToken=" + !!creds.refreshToken +
-    " hasClientId=" + !!creds.clientId + " hasClientSecret=" + !!creds.clientSecret +
-    " hasExpiresAt=" + !!creds.expiresAt +
-    (creds.expiresAt ? " expiresIn=" + Math.round((creds.expiresAt - Date.now()) / 1000) + "s" : ""));
+export async function refreshGcpAccessTokenIfNeeded(
+  creds: GcpTokenRefresh,
+): Promise<string | null> {
+  console.log(
+    '[GCS] refreshGcpAccessTokenIfNeeded: hasRefreshToken=' +
+      !!creds.refreshToken +
+      ' hasClientId=' +
+      !!creds.clientId +
+      ' hasClientSecret=' +
+      !!creds.clientSecret +
+      ' hasExpiresAt=' +
+      !!creds.expiresAt +
+      (creds.expiresAt
+        ? ' expiresIn=' +
+          Math.round((creds.expiresAt - Date.now()) / 1000) +
+          's'
+        : ''),
+  );
 
   if (!creds.refreshToken || !creds.clientId || !creds.clientSecret) {
-    console.log("[GCS] Skipping token refresh: missing refreshToken, clientId, or clientSecret");
+    console.log(
+      '[GCS] Skipping token refresh: missing refreshToken, clientId, or clientSecret',
+    );
     return null;
   }
 
-  const isExpired = !creds.expiresAt || (Date.now() + 5 * 60 * 1000 > creds.expiresAt);
+  const isExpired =
+    !creds.expiresAt || Date.now() + 5 * 60 * 1000 > creds.expiresAt;
   if (!isExpired) {
-    console.log("[GCS] Token is still valid, no refresh needed");
+    console.log('[GCS] Token is still valid, no refresh needed');
     return null;
   }
 
   try {
-    console.log("[GCS] Token is expired or expiring soon, calling Google OAuth2 token endpoint...");
+    console.log(
+      '[GCS] Token is expired or expiring soon, calling Google OAuth2 token endpoint...',
+    );
     const res = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,30 +77,47 @@ export async function refreshGcpAccessTokenIfNeeded(creds: GcpTokenRefresh): Pro
         client_id: creds.clientId,
         client_secret: creds.clientSecret,
         refresh_token: creds.refreshToken,
-        grant_type: 'refresh_token'
-      })
+        grant_type: 'refresh_token',
+      }),
     });
 
     const tokenData = await res.json();
-    console.log("[GCS] Google OAuth2 refresh response status: " + res.status +
-      " hasAccessToken: " + !!tokenData.access_token +
-      (tokenData.error ? " error: " + tokenData.error + " " + (tokenData.error_description || "") : ""));
+    console.log(
+      '[GCS] Google OAuth2 refresh response status: ' +
+        res.status +
+        ' hasAccessToken: ' +
+        !!tokenData.access_token +
+        (tokenData.error
+          ? ' error: ' +
+            tokenData.error +
+            ' ' +
+            (tokenData.error_description || '')
+          : ''),
+    );
 
     if (tokenData.access_token) {
-      console.log("[GCS] Token refreshed successfully, new token length: " + tokenData.access_token.length);
+      console.log(
+        '[GCS] Token refreshed successfully, new token length: ' +
+          tokenData.access_token.length,
+      );
       return tokenData.access_token;
     }
   } catch (e) {
-    console.error("[GCS] Token refresh network error:", e);
+    console.error('[GCS] Token refresh network error:', e);
   }
   return null;
 }
 
 export function getStorage(accessToken: string, projectId?: string): Storage {
   const project = resolveProjectId(projectId);
-  console.log("[GCS] getStorage: using OAuth user token (length=" + (accessToken?.length || 0) +
-    " prefix=" + (accessToken ? accessToken.substring(0, 10) + "..." : "none") +
-    " projectId=" + project);
+  console.log(
+    '[GCS] getStorage: using OAuth user token (length=' +
+      (accessToken?.length || 0) +
+      ' prefix=' +
+      (accessToken ? accessToken.substring(0, 10) + '...' : 'none') +
+      ' projectId=' +
+      project,
+  );
 
   const oauth2Client = new OAuth2Client();
   oauth2Client.setCredentials({ access_token: accessToken });
@@ -102,7 +140,11 @@ export function getStorage(accessToken: string, projectId?: string): Storage {
         opts.url = opts.uri;
       }
       const res = await oauth2Client.request(opts);
-      if (res && res.headers && typeof (res.headers as any).forEach === 'function') {
+      if (
+        res &&
+        res.headers &&
+        typeof (res.headers as any).forEach === 'function'
+      ) {
         const plainHeaders: Record<string, string> = {};
         (res.headers as any).forEach((value: string, key: string) => {
           plainHeaders[key] = value;
@@ -116,40 +158,61 @@ export function getStorage(accessToken: string, projectId?: string): Storage {
               return value.bind(target);
             }
             return value;
-          }
+          },
         });
       }
       return res;
-    }
+    },
   };
 
   return new Storage({ projectId: project, authClient: authClient as any });
 }
 
-export async function ensureBucket(workflowId: string, accessToken: string, projectId?: string): Promise<{ bucket: Bucket; bucketName: string; created: boolean } | null> {
-  console.log("[GCS] ensureBucket: tokenLength=" + (accessToken?.length || 0) +
-    " projectId=" + (projectId || "auto") + " bucketPrefix=" + requireEnv('GCS_BUCKET_PREFIX') + " workflowId=" + workflowId);
+export async function ensureBucket(
+  workflowId: string,
+  accessToken: string,
+  projectId?: string,
+): Promise<{ bucket: Bucket; bucketName: string; created: boolean } | null> {
+  console.log(
+    '[GCS] ensureBucket: tokenLength=' +
+      (accessToken?.length || 0) +
+      ' projectId=' +
+      (projectId || 'auto') +
+      ' bucketPrefix=' +
+      requireEnv('GCS_BUCKET_PREFIX') +
+      ' workflowId=' +
+      workflowId,
+  );
 
   const storage = getStorage(accessToken, projectId);
   const name = bucketName(workflowId);
   const bucket = storage.bucket(name);
 
   try {
-    console.log("[GCS] Checking if bucket exists: " + name);
+    console.log('[GCS] Checking if bucket exists: ' + name);
     const [exists] = await bucket.exists();
     if (exists) {
       console.log(`GCS bucket "${name}" already exists`);
       return { bucket, bucketName: name, created: false };
     }
 
-    console.log("[GCS] Creating bucket: " + name + " in project: " + (projectId || "default"));
+    console.log(
+      '[GCS] Creating bucket: ' +
+        name +
+        ' in project: ' +
+        (projectId || 'default'),
+    );
     await bucket.create();
     console.log(`GCS bucket "${name}" created`);
     return { bucket, bucketName: name, created: true };
   } catch (err: any) {
-    console.error(`[GCS] Failed to create/check GCS bucket "${name}":`, err.message);
+    console.error(
+      `[GCS] Failed to create/check GCS bucket "${name}":`,
+      err.message,
+    );
     if (err.code) console.error(`[GCS] Error code: ${err.code}`);
-    if (err.errors) console.error(`[GCS] Error details:`, JSON.stringify(err.errors));
+    if (err.errors)
+      console.error(`[GCS] Error details:`, JSON.stringify(err.errors));
     return null;
   }
 }
@@ -157,7 +220,7 @@ export async function ensureBucket(workflowId: string, accessToken: string, proj
 export async function uploadFile(
   bucket: Bucket,
   localPath: string,
-  remotePath: string
+  remotePath: string,
 ): Promise<boolean> {
   try {
     await bucket.upload(localPath, { destination: remotePath });
@@ -172,7 +235,7 @@ export async function uploadFile(
 export async function uploadDirectory(
   bucket: Bucket,
   localDir: string,
-  remotePrefix: string
+  remotePrefix: string,
 ): Promise<{ uploaded: number; failed: number }> {
   let uploaded = 0;
   let failed = 0;
@@ -206,6 +269,8 @@ export async function uploadDirectory(
     else failed++;
   }
 
-  console.log(`GCS upload complete: ${uploaded} uploaded, ${failed} failed from ${localDir}`);
+  console.log(
+    `GCS upload complete: ${uploaded} uploaded, ${failed} failed from ${localDir}`,
+  );
   return { uploaded, failed };
 }

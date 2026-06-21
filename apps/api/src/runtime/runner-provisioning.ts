@@ -1,5 +1,5 @@
 import type { RunnerProvisionResult, RunnerProvisioner } from './contracts';
-import {ensureLocalOrchestratorRunning} from './orchestrator-runner';
+import { ensureLocalOrchestratorRunning } from './orchestrator-runner';
 
 export class LocalDockerRunnerProvisioner implements RunnerProvisioner {
   async start(): Promise<RunnerProvisionResult> {
@@ -7,13 +7,13 @@ export class LocalDockerRunnerProvisioner implements RunnerProvisioner {
 
     if (result.ok) {
       return {
-        body: {message: result.message},
+        body: { message: result.message },
         status: 200,
       };
     }
 
     return {
-      body: {error: result.message},
+      body: { error: result.message },
       status: 502,
     };
   }

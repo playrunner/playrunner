@@ -1,19 +1,19 @@
-import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowRight, Loader2, LockKeyhole, UserRound } from "lucide-react";
-import { Button, Input } from "../components/ui";
-import { auth, signInWithPassword } from "../lib/auth";
+import { FormEvent, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Loader2, LockKeyhole, UserRound } from 'lucide-react';
+import { Button, Input } from '../components/ui';
+import { auth, signInWithPassword } from '../lib/auth';
 
 export default function Login() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (auth.currentUser) {
-      navigate("/projects", { replace: true });
+      navigate('/projects', { replace: true });
     }
   }, [navigate]);
 
@@ -24,10 +24,12 @@ export default function Login() {
 
     try {
       await signInWithPassword(username.trim(), password);
-      localStorage.removeItem("hasCompletedOnboarding");
-      navigate("/projects", { replace: true });
+      localStorage.removeItem('hasCompletedOnboarding');
+      navigate('/projects', { replace: true });
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : "Login failed.");
+      setError(
+        loginError instanceof Error ? loginError.message : 'Login failed.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -47,9 +49,15 @@ export default function Login() {
               alt="Playrunner"
               className="h-14 w-14 object-contain"
             />
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Playrunner</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">
+              Playrunner
+            </h1>
           </div>
-          <p className="text-sm text-muted">No-code test orchestration and cloud runner<br />for modern engineering teams.</p>
+          <p className="text-sm text-muted">
+            No-code test orchestration and cloud runner
+            <br />
+            for modern engineering teams.
+          </p>
         </div>
 
         <div className="bg-surface border border-subtle rounded-2xl p-8 shadow-2xl relative overflow-hidden">
@@ -59,7 +67,8 @@ export default function Login() {
             Log in with the local account from setup
           </h2>
           <p className="text-sm text-muted mb-6">
-            Use the username and password configured during the one-time setup run.
+            Use the username and password configured during the one-time setup
+            run.
           </p>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -84,22 +93,35 @@ export default function Login() {
 
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
-            <Button type="submit" variant="primary" className="w-full gap-2" disabled={isLoading}>
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-              {isLoading ? "Signing in..." : "Enter Playrunner"}
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full gap-2"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              {isLoading ? 'Signing in...' : 'Enter Playrunner'}
             </Button>
           </form>
 
           <div className="mt-6 rounded-xl border border-subtle bg-[var(--background)]/70 px-4 py-3">
             <p className="text-xs text-muted">
-              If local auth has not been configured yet, run <code>./start-local.sh --setup</code> and finish the setup wizard first.
+              If local auth has not been configured yet, run{' '}
+              <code>./start-local.sh --setup</code> and finish the setup wizard
+              first.
             </p>
           </div>
         </div>
 
         <div className="mt-12 flex items-center justify-center gap-1.5 opacity-50">
           <span className="text-xs text-muted">Powered by</span>
-          <span className="text-xs font-semibold tracking-wider uppercase text-muted">Playrunner</span>
+          <span className="text-xs font-semibold tracking-wider uppercase text-muted">
+            Playrunner
+          </span>
         </div>
       </div>
     </div>
