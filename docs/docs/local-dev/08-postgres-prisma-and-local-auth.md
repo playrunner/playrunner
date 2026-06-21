@@ -68,7 +68,7 @@ The schema lives in `apps/api/prisma/schema.prisma`, and the shared Prisma clien
 
 ## Web Data Access
 
-All app-side persistence still flows through `apps/web/src/lib/db.ts`, but that module now talks to Prisma-backed API routes under `/api/store/*`.
+All app-side persistence still flows through `apps/frontend/src/lib/db.ts`, but that module now talks to Prisma-backed API routes under `/api/store/*`.
 
 Key routes include:
 

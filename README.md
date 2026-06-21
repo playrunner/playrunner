@@ -18,7 +18,7 @@
 
 ```bash
 cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
+cp apps/frontend/.env.example apps/frontend/.env
 ```
 
 ### 3. Run the one-time setup flow

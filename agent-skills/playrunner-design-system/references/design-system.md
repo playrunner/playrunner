@@ -2,11 +2,11 @@
 
 ## Source Of Truth
 
-- `apps/web/src/pages/DesignSystem.tsx`
-- `apps/web/src/components/ui/Button.tsx`
-- `apps/web/src/components/ui/Input.tsx`
-- `apps/web/src/components/ui/Badge.tsx`
-- `apps/web/src/index.css`
+- `apps/frontend/src/pages/DesignSystem.tsx`
+- `apps/frontend/src/components/ui/Button.tsx`
+- `apps/frontend/src/components/ui/Input.tsx`
+- `apps/frontend/src/components/ui/Badge.tsx`
+- `apps/frontend/src/index.css`
 - `apps/setup/src/index.css`
 
 `apps/setup/src/index.css` imports `../../web/src/index.css`, so setup screens should use the same tokens and primitives as the main web app.

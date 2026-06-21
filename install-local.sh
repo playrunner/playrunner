@@ -32,4 +32,4 @@ git -C "${ROOT_DIR}" config core.hooksPath .githooks
 
 echo ""
 echo "Local development dependencies installed."
-echo "apps/setup reuses apps/web/node_modules and does not need a separate install."
+echo "apps/setup reuses apps/frontend/node_modules and does not need a separate install."

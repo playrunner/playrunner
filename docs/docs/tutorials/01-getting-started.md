@@ -36,7 +36,7 @@ This installs the packages needed for:
 - `apps/runners/orchestrator`
 - `apps/runners/playwright`
 
-`apps/setup` does not have its own `package.json`; it reuses `apps/web/node_modules`.
+`apps/setup` does not have its own `package.json`; it reuses `apps/frontend/node_modules`.
 
 ---
 
@@ -46,7 +46,7 @@ Copy the example files so the local dev servers have their default ports and pro
 
 ```bash
 cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
+cp apps/frontend/.env.example apps/frontend/.env
 ```
 
 For local development, these files are mostly transport and proxy configuration. The actual database and local login credentials are configured through the dedicated setup UI.

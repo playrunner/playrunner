@@ -11,16 +11,16 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 
 ## Workflow
 
-1. Inspect `apps/web/src/pages/DesignSystem.tsx` before making visual changes.
-2. Reuse shared primitives from `apps/web/src/components/ui` before adding ad hoc Tailwind classes.
-3. Keep page-level layout on theme tokens from `apps/web/src/index.css`; do not introduce a one-off palette for product pages.
+1. Inspect `apps/frontend/src/pages/DesignSystem.tsx` before making visual changes.
+2. Reuse shared primitives from `apps/frontend/src/components/ui` before adding ad hoc Tailwind classes.
+3. Keep page-level layout on theme tokens from `apps/frontend/src/index.css`; do not introduce a one-off palette for product pages.
 4. Prefer system surfaces, typography, spacing, and code-block treatments from the reference file below.
 5. Remove bespoke hero treatments, custom gradients, and isolated button styles when the page is supposed to behave like normal product UI.
 6. Validate the affected frontend surface after editing.
 
 ## Rules
 
-- Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/web/src/components/ui` when those controls fit the need.
+- Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
 - Use `bg-background`, `bg-surface`, `bg-surface-hover`, `text-[var(--foreground)]`, `text-muted`, `border-[var(--border)]`, and `border-subtle` instead of hard-coded colors.
 - Use `rounded-xl` and `shadow-sm` for standard product cards and inset panels.
 - Use `text-3xl font-semibold tracking-tight` for page titles, `text-xl font-medium` for section headings, `text-sm text-muted leading-relaxed` for supporting copy, and `font-mono text-xs` for commands or env vars.

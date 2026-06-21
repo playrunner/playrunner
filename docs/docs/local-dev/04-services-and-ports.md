@@ -34,7 +34,7 @@ The product app proxies two path prefixes so the browser never hits CORS issues:
 |---|---|
 | `/api/*` | `http://127.0.0.1:3001` |
 | `/outputs/*` | `http://127.0.0.1:3001` |
-This proxy is configured in `apps/web/vite.config.ts` and targets the URL in `VITE_API_URL`.
+This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL in `VITE_API_URL`.
 
 ---
 

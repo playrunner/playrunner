@@ -21,7 +21,7 @@ Create a configuration modal (e.g., `ProviderSettingsModal.tsx`) that:
 
 ### 2. The Callback Route
 The provider will redirect back to the application. This is handled automatically by the application's dynamic router:
-- **Built-in Route:** The main routing file (`apps/web/src/App.tsx`) contains a dynamic route: `<Route path="/oauth/callback/:provider" element={<OAuthCallback />} />`. You do NOT need to add a new route for each integration.
+- **Built-in Route:** The main routing file (`apps/frontend/src/App.tsx`) contains a dynamic route: `<Route path="/oauth/callback/:provider" element={<OAuthCallback />} />`. You do NOT need to add a new route for each integration.
 - **Consistent URLs:** The `redirect_uri` used in your `window.open` call must EXACTLY match the one configured in the OAuth provider portal. It should follow the format: `https://[your-domain]/oauth/callback/[provider-id]`.
 
 ### 3. Backend Proxy Endpoints (API)

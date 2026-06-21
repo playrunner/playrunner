@@ -31,9 +31,9 @@ Copy from `apps/api/.env.example`.
 
 ---
 
-## Web App — `apps/web/.env`
+## Web App — `apps/frontend/.env`
 
-Copy from `apps/web/.env.example`.
+Copy from `apps/frontend/.env.example`.
 
 | Variable | Default | Description |
 |---|---|---|

@@ -149,6 +149,6 @@ docker logs -f <container-id>
 | Changed code location | Action required |
 |---|---|
 | `apps/api/src/**` | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`) |
-| `apps/web/src/**` | Vite HMR handles this automatically |
+| `apps/frontend/src/**` | Vite HMR handles this automatically |
 | `apps/runners/orchestrator/src/**` | `docker build -t playrunner-orchestrator ./apps/runners/orchestrator`, then reopen the Editor tab |
 | `apps/runners/playwright/src/**` | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |
