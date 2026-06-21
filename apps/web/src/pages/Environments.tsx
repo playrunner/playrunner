@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Trash2, MoreHorizontal, Loader2 } from "lucide-react";
 import { Button, Input, Badge } from "../components/ui";
 import { Modal } from "../components/ui/Modal";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/auth";
 import { DbAPI } from "../lib/db";
 import type { SavedEnvironment, EnvVar } from "../integrations/environment/types";
 import { VariablesTable } from "../integrations/environment/VariablesTable";

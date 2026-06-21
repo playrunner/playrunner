@@ -1,16 +1,17 @@
-import type {FirebaseOptions} from 'firebase/app';
+export type SetupPlatform = 'postgresql';
 
-export type SetupPlatform = 'firebase' | 'superbase';
-
-export type RuntimeFirebaseConfig = FirebaseOptions & {
-  appId: string;
-  authDomain: string;
-  firestoreDatabaseId?: string;
-  measurementId?: string;
-  messagingSenderId: string;
-  projectId: string;
-  storageBucket: string;
+export type RuntimePostgresConfig = {
+  databaseUrl: string;
+  directUrl?: string;
+  shadowDatabaseUrl?: string;
 };
+
+export type RuntimeLocalAuthConfig = {
+  username: string;
+  password: string;
+};
+
+export type RuntimeSetupConfig = RuntimePostgresConfig & RuntimeLocalAuthConfig;
 
 export type SetupSessionStatus = {
   completed: boolean;

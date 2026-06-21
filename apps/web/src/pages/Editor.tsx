@@ -11,7 +11,7 @@ import { GithubSettingsModal } from "../integrations/github/GithubSettingsModal"
 import { LogsPanel, LogItem } from "../components/LogsPanel";
 import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/auth";
 import { DbAPI } from "../lib/db";
 import { CLOUD_PROVIDERS, getCloudProvider, getDefaultCloudProviderId } from "../runtime/cloudProviders";
 
@@ -328,7 +328,7 @@ export default function Editor() {
             loaded = true;
           }
         } catch (err) {
-          console.error("Failed to load workflow from Firestore:", err);
+          console.error("Failed to load workflow from the local database:", err);
         }
       }
 
@@ -591,7 +591,7 @@ export default function Editor() {
   const handleSaveWorkflow = useCallback(async () => {
     const exportedNodes = getNodesWithParents();
     if (!auth.currentUser) {
-      console.warn("Cannot save to Firestore: User is not authenticated. Saving locally.");
+      console.warn("Cannot save to the local database: user is not authenticated. Saving locally.");
       localStorage.setItem("playrunner_local_workflow", JSON.stringify({ nodes: exportedNodes, connections, title: workflowName, cloudProvider, concurrency }));
       showToast("Saved locally (Not signed in)", "info");
       return;
@@ -605,7 +605,7 @@ export default function Editor() {
         cloudProvider,
         concurrency
       });
-      showToast("Workflow saved to Firestore", "success");
+      showToast("Workflow saved to PostgreSQL", "success");
     } catch (err) {
       console.error("Failed to save workflow:", err);
       showToast("Failed to save workflow. Check console.", "error");

@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String     @id
+  userId    String
+  title     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  workflows Workflow[]
+
+  @@index([userId])
+}
+
+model Workflow {
+  id            String   @id
+  userId        String
+  projectId     String?
+  title         String?
+  nodes         Json?
+  connections   Json?
+  cloudProvider String?
+  concurrency   Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Integration {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model CloudCredential {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model Environment {
+  id          String   @id
+  userId      String
+  name        String
+  description String?
+  variables   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Secret {
+  id          String   @id @default(cuid())
+  userId      String
+  secretKey   String
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, secretKey])
+  @@index([userId])
+}

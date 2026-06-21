@@ -1,29 +1,25 @@
 import fs from 'fs/promises';
 import http from 'http';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+import {fileURLToPath} from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = parseInt(process.env.SETUP_INSTALLER_PORT || '3003', 10);
-const FIREBASE_TEMPLATE_FILES = [
-  'firestore.indexes.json',
-  'firestore.rules',
-];
-const REQUIRED_FIREBASE_FIELDS = [
-  'projectId',
-  'apiKey',
-  'appId',
-  'authDomain',
-  'storageBucket',
-  'messagingSenderId',
-];
 const SETUP_SESSION_TOKEN = process.env.SETUP_SESSION_TOKEN || '';
 
+function getRepoRoot() {
+  return path.resolve(__dirname, '..', '..');
+}
+
 function getSetupStatePath() {
-  const repoRoot = path.resolve(__dirname, '..', '..');
-  return path.join(repoRoot, 'setup', 'installer', '.setup-state.json');
+  return path.join(getRepoRoot(), 'setup', 'installer', '.setup-state.json');
+}
+
+function getApiDir() {
+  return path.join(getRepoRoot(), 'apps', 'api');
 }
 
 function sendJson(res, statusCode, payload) {
@@ -34,18 +30,62 @@ function sendJson(res, statusCode, payload) {
   res.end(`${JSON.stringify(payload)}\n`);
 }
 
-function normalizeFirebaseSetupPayload(body) {
+function normalizePostgresUrl(value, fieldName, required = false) {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+
+  if (!trimmed) {
+    if (required) {
+      throw new Error(`Missing required field: ${fieldName}`);
+    }
+    return undefined;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`${fieldName} must be a valid postgres:// or postgresql:// URL.`);
+  }
+
+  if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+    throw new Error(`${fieldName} must use the postgres:// or postgresql:// protocol.`);
+  }
+
+  return trimmed;
+}
+
+function normalizePostgresSetupPayload(body) {
   return {
-    apiKey: body.apiKey?.trim() ?? '',
-    appId: body.appId?.trim() ?? '',
-    authDomain: body.authDomain?.trim() ?? '',
-    firestoreDatabaseId: body.firestoreDatabaseId?.trim() ?? '',
-    firestoreLocation: body.firestoreLocation?.trim() ?? '',
-    measurementId: body.measurementId?.trim() || undefined,
-    messagingSenderId: body.messagingSenderId?.trim() ?? '',
-    projectId: body.projectId?.trim() ?? '',
-    storageBucket: body.storageBucket?.trim() ?? '',
+    databaseUrl: normalizePostgresUrl(body.databaseUrl, 'DATABASE_URL', true),
+    directUrl: normalizePostgresUrl(body.directUrl, 'DIRECT_URL'),
+    shadowDatabaseUrl: normalizePostgresUrl(body.shadowDatabaseUrl, 'SHADOW_DATABASE_URL'),
+    username: normalizeUsername(body.username),
+    password: normalizePassword(body.password),
   };
+}
+
+function normalizeUsername(value) {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+
+  if (!trimmed) {
+    throw new Error('Missing required field: LOCAL_AUTH_USERNAME');
+  }
+
+  return trimmed;
+}
+
+function normalizePassword(value) {
+  const password = typeof value === 'string' ? value : '';
+
+  if (!password.trim()) {
+    throw new Error('Missing required field: LOCAL_AUTH_PASSWORD');
+  }
+
+  if (password.trim().length < 8) {
+    throw new Error('LOCAL_AUTH_PASSWORD must be at least 8 characters.');
+  }
+
+  return password;
 }
 
 async function readJsonBody(req) {
@@ -63,75 +103,243 @@ async function readJsonBody(req) {
   return JSON.parse(rawBody);
 }
 
-async function installFirebaseFiles(config) {
-  const repoRoot = path.resolve(__dirname, '..', '..');
-  const webDir = path.join(repoRoot, 'apps', 'web');
-  const templateDir = path.join(repoRoot, 'setup', 'firebase');
+function formatEnvValue(value) {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
 
-  await fs.mkdir(webDir, { recursive: true });
+function parseEnvValue(rawValue) {
+  const trimmed = rawValue.trim();
 
-  for (const fileName of FIREBASE_TEMPLATE_FILES) {
-    await fs.copyFile(path.join(templateDir, fileName), path.join(webDir, fileName));
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
   }
 
-  await fs.writeFile(
-    path.join(webDir, 'firebase-config.json'),
-    `${JSON.stringify(
-      {
-        apiKey: config.apiKey,
-        appId: config.appId,
-        authDomain: config.authDomain,
-        firestoreDatabaseId: config.firestoreDatabaseId || undefined,
-        measurementId: config.measurementId,
-        messagingSenderId: config.messagingSenderId,
-        projectId: config.projectId,
-        storageBucket: config.storageBucket,
-      },
-      null,
-      2,
-    )}\n`,
-    'utf8',
-  );
+  return trimmed;
+}
 
-  await fs.writeFile(
-    path.join(webDir, '.firebaserc'),
-    `${JSON.stringify(
-      {
-        projects: {
-          default: config.projectId,
-        },
-        targets: {},
-        etags: {},
-      },
-      null,
-      2,
-    )}\n`,
-    'utf8',
-  );
+function getEnvVariable(lines, key) {
+  const line = lines.find((entry) => entry.startsWith(`${key}=`));
+  if (!line) {
+    return undefined;
+  }
 
-  await fs.writeFile(
-    path.join(webDir, 'firebase.json'),
-    `${JSON.stringify(
-      {
-        firestore: {
-          database: config.firestoreDatabaseId,
-          location: config.firestoreLocation,
-          rules: 'firestore.rules',
-          indexes: 'firestore.indexes.json',
-        },
-      },
-      null,
-      2,
-    )}\n`,
-    'utf8',
-  );
+  return parseEnvValue(line.slice(key.length + 1));
+}
 
+function upsertEnvVariable(lines, key, value) {
+  const index = lines.findIndex((line) => line.startsWith(`${key}=`));
+
+  if (!value) {
+    if (index !== -1) {
+      lines.splice(index, 1);
+    }
+    return;
+  }
+
+  const renderedLine = `${key}=${formatEnvValue(value)}`;
+  if (index === -1) {
+    lines.push(renderedLine);
+    return;
+  }
+
+  lines[index] = renderedLine;
+}
+
+function ensureEnvVariable(lines, key, createValue) {
+  const existingValue = getEnvVariable(lines, key);
+
+  if (existingValue) {
+    return existingValue;
+  }
+
+  const value = createValue();
+  upsertEnvVariable(lines, key, value);
+  return value;
+}
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `scrypt$${salt}$${derivedKey}`;
+}
+
+async function ensureApiEnvFile() {
+  const apiDir = getApiDir();
+  const envPath = path.join(apiDir, '.env');
+  const envExamplePath = path.join(apiDir, '.env.example');
+
+  try {
+    await fs.access(envPath);
+  } catch {
+    try {
+      await fs.copyFile(envExamplePath, envPath);
+    } catch {
+      await fs.writeFile(envPath, '', 'utf8');
+    }
+  }
+
+  return envPath;
+}
+
+function renderPrismaSchema(config) {
+  const optionalDatasourceLines = [];
+
+  if (config.directUrl) {
+    optionalDatasourceLines.push('  directUrl = env("DIRECT_URL")');
+  }
+
+  if (config.shadowDatabaseUrl) {
+    optionalDatasourceLines.push('  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")');
+  }
+
+  const datasourceBlock = [
+    'datasource db {',
+    '  provider = "postgresql"',
+    '  url      = env("DATABASE_URL")',
+    ...optionalDatasourceLines,
+    '}',
+  ].join('\n');
+
+  return `generator client {
+  provider = "prisma-client-js"
+}
+
+${datasourceBlock}
+
+model Project {
+  id        String     @id
+  userId    String
+  title     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  workflows Workflow[]
+
+  @@index([userId])
+}
+
+model Workflow {
+  id           String    @id
+  userId       String
+  projectId    String?
+  title        String?
+  nodes        Json?
+  connections  Json?
+  cloudProvider String?
+  concurrency  Int?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+model Integration {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model CloudCredential {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model Environment {
+  id          String   @id
+  userId      String
+  name        String
+  description String?
+  variables   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Secret {
+  id          String   @id @default(cuid())
+  userId      String
+  secretKey   String
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, secretKey])
+  @@index([userId])
+}
+`;
+}
+
+function renderPrismaClientTs() {
+  return `import {PrismaClient} from '@prisma/client';
+
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
+export const prisma =
+  globalThis.prisma ||
+  new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') {
+  globalThis.prisma = prisma;
+}
+`;
+}
+
+async function installPostgresFiles(config) {
+  const apiDir = getApiDir();
+  const prismaDir = path.join(apiDir, 'prisma');
+  const apiLibDir = path.join(apiDir, 'src', 'lib');
+  const envPath = await ensureApiEnvFile();
+
+  await fs.mkdir(prismaDir, {recursive: true});
+  await fs.mkdir(apiLibDir, {recursive: true});
+
+  const envContents = await fs.readFile(envPath, 'utf8').catch(() => '');
+  const envLines = envContents ? envContents.split(/\r?\n/) : [];
+
+  upsertEnvVariable(envLines, 'DATABASE_URL', config.databaseUrl);
+  upsertEnvVariable(envLines, 'DIRECT_URL', config.directUrl);
+  upsertEnvVariable(envLines, 'SHADOW_DATABASE_URL', config.shadowDatabaseUrl);
+  upsertEnvVariable(envLines, 'LOCAL_AUTH_USERNAME', config.username);
+  upsertEnvVariable(envLines, 'LOCAL_AUTH_PASSWORD_HASH', hashPassword(config.password));
+  ensureEnvVariable(envLines, 'AUTH_JWT_SECRET', () => crypto.randomBytes(32).toString('hex'));
+
+  while (envLines.length > 0 && envLines[envLines.length - 1] === '') {
+    envLines.pop();
+  }
+
+  await fs.writeFile(envPath, `${envLines.join('\n')}\n`, 'utf8');
+  await fs.writeFile(path.join(prismaDir, 'schema.prisma'), renderPrismaSchema(config), 'utf8');
+  await fs.writeFile(path.join(apiLibDir, 'prisma.ts'), renderPrismaClientTs(), 'utf8');
 }
 
 async function markSetupCompleted() {
   await fs.writeFile(
     getSetupStatePath(),
-    `${JSON.stringify({ completedAt: new Date().toISOString() }, null, 2)}\n`,
+    `${JSON.stringify({completedAt: new Date().toISOString()}, null, 2)}\n`,
     'utf8',
   );
 }
@@ -159,7 +367,7 @@ async function handleRequest(req, res) {
   const isCompleted = Boolean(setupState?.completedAt);
 
   if (req.method === 'GET' && requestUrl.pathname === '/health') {
-    sendJson(res, 200, { ok: true });
+    sendJson(res, 200, {ok: true});
     return;
   }
 
@@ -175,35 +383,30 @@ async function handleRequest(req, res) {
 
   if (
     req.method === 'POST' &&
-    (requestUrl.pathname === '/setup/firebase/generate' ||
-      requestUrl.pathname === '/setup/firebase/complete')
+    (requestUrl.pathname === '/setup/runtime/generate' ||
+      requestUrl.pathname === '/setup/runtime/complete')
   ) {
     try {
       const token = requestUrl.searchParams.get('token') || '';
 
       if (isCompleted) {
-        sendJson(res, 403, { error: 'Setup has already been completed.' });
+        sendJson(res, 403, {error: 'Setup has already been completed.'});
         return;
       }
 
       if (!isValidSetupSessionToken(token)) {
-        sendJson(res, 403, { error: 'Missing or invalid setup session token.' });
+        sendJson(res, 403, {error: 'Missing or invalid setup session token.'});
         return;
       }
 
-      const payload = normalizeFirebaseSetupPayload(await readJsonBody(req));
-      const missingFields = REQUIRED_FIREBASE_FIELDS.filter((field) => !payload[field]);
+      const payload = normalizePostgresSetupPayload(await readJsonBody(req));
 
-      if (missingFields.length > 0) {
-        sendJson(res, 400, { error: `Missing required fields: ${missingFields.join(', ')}` });
-        return;
-      }
-
-      await installFirebaseFiles(payload);
-      if (requestUrl.pathname === '/setup/firebase/complete') {
+      await installPostgresFiles(payload);
+      if (requestUrl.pathname === '/setup/runtime/complete') {
         await markSetupCompleted();
       }
-      sendJson(res, 200, { ok: true });
+
+      sendJson(res, 200, {ok: true});
       return;
     } catch (error) {
       const isParseError = error instanceof SyntaxError;
@@ -212,15 +415,15 @@ async function handleRequest(req, res) {
         ? 'Invalid JSON payload.'
         : error instanceof Error
           ? error.message
-          : 'Failed to install Firebase setup files.';
+          : 'Failed to install PostgreSQL, Prisma, and local auth setup files.';
 
       console.error('Installer service error:', error);
-      sendJson(res, statusCode, { error: message });
+      sendJson(res, statusCode, {error: message});
       return;
     }
   }
 
-  sendJson(res, 404, { error: 'Not found' });
+  sendJson(res, 404, {error: 'Not found'});
 }
 
 export function createInstallerServer() {

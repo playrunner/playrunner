@@ -6,6 +6,9 @@
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "tsx --watch --env-file=.env src/index.ts"
   },
@@ -14,6 +17,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/client": "^6.17.1",
     "@google-cloud/pubsub": "^5.3.0",
     "@google-cloud/run": "^3.2.1",
     "@google-cloud/storage": "^7.19.0",
@@ -30,6 +34,7 @@
     "@types/express": "^5.0.6",
     "eslint": "^9.39.4",
     "globals": "^17.6.0",
+    "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",

@@ -44,7 +44,7 @@ This proxy is configured in `apps/web/vite.config.ts` and targets the URL in `VI
 **Start command:** `cd apps/web && npm exec vite -- --config ../setup/vite.config.ts`  
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
-The setup app exists only for explicit install/setup sessions. It serves the Firebase setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003`.
+The setup app exists only for explicit install/setup sessions. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003`.
 
 `./start-local.sh --setup` starts this app instead of the main product app, so no product routes are available during setup.
 
@@ -89,8 +89,9 @@ The setup app exists only for explicit install/setup sessions. It serves the Fir
 
 - Accepts setup-only requests from the setup wizard
 - Verifies an explicit one-time setup token injected by `./start-local.sh --setup`
-- Copies Firebase template files from `setup/firebase` into `apps/web`
-- Generates `apps/web/firebase-config.json` and `apps/web/.firebaserc`
+- Creates `apps/api/.env` from `apps/api/.env.example` when needed
+- Upserts PostgreSQL connection strings plus local username/password auth settings
+- Writes the Prisma schema and Prisma client helper into `apps/api`
 - Records setup completion in a non-public lock file under `setup/installer`
 
 This service is intentionally separate from the main API so it is never part of the normal app deployment path.

@@ -3,7 +3,7 @@ import { cn } from "../lib/utils";
 import { Input } from "./ui/Input";
 import { Textarea } from "./ui/Textarea";
 import { Select } from "./ui/Select";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/auth";
 import { DbAPI } from "../lib/db";
 import { INTEGRATIONS } from "../integrations/registry";
 import { ChevronDown, ChevronUp, Info, Eye, EyeOff } from "lucide-react";

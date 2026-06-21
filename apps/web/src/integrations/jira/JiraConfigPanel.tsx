@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Select } from "../../components/ui/Select";
 import { Textarea } from "../../components/ui/Textarea";
 import { Input } from "../../components/ui/Input";
-import { auth } from "../../lib/firebase";
+import { auth } from "../../lib/auth";
 
 export const JiraConfigPanel: React.FC<{
   config: Record<string, any>;

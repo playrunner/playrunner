@@ -54,7 +54,7 @@ Click the Playwright node to open its panel:
 
 ## Step 6 — Save the workflow
 
-Click **Save** in the top toolbar. Your workflow is persisted to Firestore and will be available next time you open the editor.
+Click **Save** in the top toolbar. Your workflow is persisted to PostgreSQL through the Prisma-backed API and will be available next time you open the editor.
 
 ---
 

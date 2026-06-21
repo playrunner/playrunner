@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { cn } from "../../lib/utils";
 import { Upload, Search, ChevronDown } from "lucide-react";
-import { auth } from "../../lib/firebase";
+import { auth } from "../../lib/auth";
 import { DbAPI } from "../../lib/db";
 import type { EnvVar, SavedEnvironment } from "./types";
 import { VariablesTable } from "./VariablesTable";

@@ -1,9 +1,10 @@
 export interface AuthUser {
-  provider: 'firebase' | 'supabase' | 'auth0' | 'clerk' | string;
+  provider: 'local' | string;
   providerUserId: string;
   email?: string;
   emailVerified?: boolean;
   name?: string;
+  username?: string;
 }
 
 export interface TokenVerifier {

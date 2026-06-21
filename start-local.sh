@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$SCRIPT_DIR}"
 BASE_DIR="${BASE_DIR:-$WORKSPACE_ROOT}"
 PREMIUM_DIR="${PREMIUM_DIR:-$WORKSPACE_ROOT/premium}"
+COMPOSE_FILE="${BASE_DIR}/docker-compose.yml"
+API_DIR="${BASE_DIR}/apps/api"
 
 RUN_SETUP=false
 EDITION="oss"
@@ -51,9 +53,59 @@ echo "🧩 Edition mode: ${EDITION_LABEL}"
 echo "📁 Workspace root: ${WORKSPACE_ROOT}"
 echo "📦 Base dir: ${BASE_DIR}"
 
-# 1. Start Google Cloud Pub/Sub Emulator in the background
-echo "📦 Starting Google Cloud Pub/Sub Emulator..."
-docker compose -f "${BASE_DIR}/docker-compose.yml" up -d pubsub-emulator
+wait_for_compose_service() {
+    local service="$1"
+    local timeout_seconds="${2:-60}"
+    local elapsed=0
+    local container_id
+
+    container_id=$(docker compose -f "${COMPOSE_FILE}" ps -q "${service}")
+    if [ -z "${container_id}" ]; then
+        echo "Failed to locate Docker container for service '${service}'."
+        exit 1
+    fi
+
+    while [ "${elapsed}" -lt "${timeout_seconds}" ]; do
+        local status
+        status=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container_id}" 2>/dev/null || true)
+
+        if [ "${status}" = "healthy" ] || [ "${status}" = "running" ]; then
+            echo "✅ ${service} is ${status}."
+            return 0
+        fi
+
+        sleep 2
+        elapsed=$((elapsed + 2))
+    done
+
+    echo "Timed out waiting for Docker service '${service}' to become ready."
+    exit 1
+}
+
+bootstrap_api_prisma() {
+    if [ ! -f "${API_DIR}/.env" ]; then
+        echo "Missing ${API_DIR}/.env. Run ./start-local.sh --setup first."
+        exit 1
+    fi
+
+    echo "🗃️  Generating Prisma client..."
+    (
+        cd "${API_DIR}"
+        npm run prisma:generate
+    )
+
+    echo "🗃️  Pushing Prisma schema to PostgreSQL..."
+    (
+        cd "${API_DIR}"
+        npx prisma db push --skip-generate
+    )
+}
+
+# 1. Start local Docker-backed services in the background
+echo "📦 Starting local Docker services..."
+docker compose -f "${COMPOSE_FILE}" up -d postgres pubsub-emulator
+wait_for_compose_service postgres 90
+wait_for_compose_service pubsub-emulator 30
 
 # 2. Export environment variables needed by the Google Cloud SDK to talk to the local emulator
 export PUBSUB_EMULATOR_HOST=localhost:8085
@@ -136,6 +188,7 @@ else
     unset SETUP_SESSION_TOKEN
     unset VITE_SETUP_MODE
     unset VITE_SETUP_SESSION_TOKEN
+    bootstrap_api_prisma
     echo "🔒 Setup is locked. Run ./start-local.sh --setup to open the dedicated setup app."
     concurrently \
       --names "WEB,API" \

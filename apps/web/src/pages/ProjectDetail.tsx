@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, GitMerge, Settings, Loader2, Plus, Cloud, Trash2, MoreHorizontal, Monitor } from "lucide-react";
 import { Button, Badge } from "../components/ui";
 import { useHeader } from "../components/PageLayout";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/auth";
 import { DbAPI } from "../lib/db";
 import { getCloudProvider, getDefaultCloudProviderId } from "../runtime/cloudProviders";
 

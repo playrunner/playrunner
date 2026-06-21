@@ -13,6 +13,7 @@ import { jiraRouter } from './routes/integrations/jira';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
+import { storeRouter } from './routes/store';
 
 const app = express();
 app.use(cors());
@@ -31,6 +32,7 @@ app.use('/outputs', express.static(path.join(__dirname, '../public/outputs')));
 // Routes that don't require user auth: heartbeat, logs stream, and runner output uploads
 app.use('/api', systemRouter); 
 app.use('/api/outputs', outputsRouter);
+app.use('/api/auth', authRouter);
 
 app.use('/api', requireAuth);
 app.use('/api/github', githubRouter);
@@ -38,7 +40,7 @@ app.use('/api/gcp', gcpRouter);
 app.use('/api/jira', jiraRouter);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);
-app.use('/api/auth', authRouter);
+app.use('/api/store', storeRouter);
 
 async function start() {
   await apiRuntime.ready;

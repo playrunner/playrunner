@@ -1,14 +1,4 @@
-import { doc, getDoc, setDoc, getDocs, collection, query, where, onSnapshot, deleteDoc } from "firebase/firestore";
-import { auth, db } from "./firebase";
-
-// --- Flat Collection Paths ---
-// We use a deterministic ID pattern for 1-to-1 relationships to avoid needing complex queries.
-
-const getWorkflowId = (userId: string, workflowId: string) => `${userId}_${workflowId}`;
-const getIntegrationId = (userId: string, integrationId: string) => `${userId}_${integrationId}`;
-const getCloudCredentialId = (userId: string, providerId: string) => `${userId}_${providerId}`;
-const getEnvironmentId = (userId: string, envId: string) => `${userId}_${envId}`;
-const getProjectId = (userId: string, projectId: string) => `${userId}_${projectId}`;
+import { auth } from "./auth";
 
 async function getAuthenticatedUser() {
   if (auth.currentUser) {
@@ -16,7 +6,7 @@ async function getAuthenticatedUser() {
   }
 
   return await new Promise<typeof auth.currentUser>((resolve) => {
-    const unsubscribe = auth.onAuthStateChanged((user: any) => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
       unsubscribe();
       resolve(user);
     });
@@ -24,12 +14,10 @@ async function getAuthenticatedUser() {
 }
 
 async function getApiHeaders() {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
+  const headers: Record<string, string> = {};
   const user = await getAuthenticatedUser();
   const token = user ? await user.getIdToken() : "";
+
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -37,52 +25,139 @@ async function getApiHeaders() {
   return headers;
 }
 
+async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(init.body ? { "Content-Type": "application/json" } : {}),
+    ...(await getApiHeaders()),
+    ...((init.headers as Record<string, string> | undefined) ?? {}),
+  };
+
+  const response = await fetch(path, {
+    ...init,
+    headers,
+  });
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | {
+        error?: string;
+      }
+    | T
+    | null;
+
+  if (!response.ok) {
+    const message =
+      payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+        ? payload.error
+        : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload as T;
+}
+
+function createPollingSubscription<T>(
+  loader: () => Promise<T | null>,
+  callback: (exists: boolean, data?: T) => void,
+) {
+  let cancelled = false;
+
+  const run = async () => {
+    try {
+      const data = await loader();
+      if (cancelled) {
+        return;
+      }
+
+      callback(Boolean(data), data ?? undefined);
+    } catch (error) {
+      if (!cancelled) {
+        console.error("Subscription refresh failed:", error);
+      }
+    }
+  };
+
+  void run();
+
+  if (typeof window === "undefined") {
+    return () => {
+      cancelled = true;
+    };
+  }
+
+  const intervalId = window.setInterval(() => {
+    void run();
+  }, 5000);
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(intervalId);
+  };
+}
+
+async function saveIntegrationRecord(integrationId: string, data: any) {
+  await apiRequest(`/api/store/integrations/${integrationId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+async function saveCloudCredentialRecord(providerId: string, data: any) {
+  await apiRequest(`/api/store/cloud-credentials/${providerId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
 async function refreshGithubTokenIfNeeded(userId: string, integrationData: any) {
   if (!integrationData || !integrationData.accessToken || !integrationData.refreshToken || !integrationData.expiresAt) {
     return integrationData;
   }
 
-  // Check if expired (or within 5 minutes of expiring)
   if (Date.now() + 5 * 60 * 1000 > integrationData.expiresAt) {
     try {
       console.log("GitHub token is expired or expiring soon, refreshing...");
       const res = await fetch("/api/github/refresh", {
         method: "POST",
-        headers: await getApiHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getApiHeaders()),
+        },
         body: JSON.stringify({
           refresh_token: integrationData.refreshToken,
           client_id: integrationData.clientId,
-          client_secret: integrationData.clientSecret
-        })
+          client_secret: integrationData.clientSecret,
+        }),
       });
-      
+
       const tokenData = await res.json();
-      
+
       if (tokenData.access_token) {
         integrationData.accessToken = tokenData.access_token;
         if (tokenData.refresh_token) {
-           integrationData.refreshToken = tokenData.refresh_token;
+          integrationData.refreshToken = tokenData.refresh_token;
         }
         if (tokenData.expires_in) {
-           integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
+          integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
         }
         if (tokenData.refresh_token_expires_in) {
-           integrationData.refreshTokenExpiresAt = Date.now() + tokenData.refresh_token_expires_in * 1000;
+          integrationData.refreshTokenExpiresAt = Date.now() + tokenData.refresh_token_expires_in * 1000;
         }
         integrationData.updatedAt = new Date().toISOString();
-        
-        // Save back to Firestore
-        await setDoc(doc(db, "integrations", getIntegrationId(userId, "github")), {
-           ...integrationData
-        }, { merge: true });
+
+        await saveIntegrationRecord("github", integrationData);
         console.log("GitHub token refreshed successfully.");
       } else {
         console.error("Failed to refresh GitHub token, no access_token returned:", tokenData);
       }
-    } catch (e) {
-      console.error("Failed to refresh GitHub token:", e);
+    } catch (error) {
+      console.error("Failed to refresh GitHub token:", error);
     }
   }
+
   return integrationData;
 }
 
@@ -91,44 +166,44 @@ async function refreshJiraTokenIfNeeded(userId: string, integrationData: any) {
     return integrationData;
   }
 
-  // Check if expired (or within 5 minutes of expiring)
   if (Date.now() + 5 * 60 * 1000 > integrationData.expiresAt) {
     try {
       console.log("Jira token is expired or expiring soon, refreshing...");
       const res = await fetch("/api/jira/refresh", {
         method: "POST",
-        headers: await getApiHeaders(),
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getApiHeaders()),
+        },
         body: JSON.stringify({
           refresh_token: integrationData.refreshToken,
           client_id: integrationData.clientId,
-          client_secret: integrationData.clientSecret
-        })
+          client_secret: integrationData.clientSecret,
+        }),
       });
-      
+
       const tokenData = await res.json();
-      
+
       if (tokenData.access_token) {
         integrationData.accessToken = tokenData.access_token;
         if (tokenData.refresh_token) {
-           integrationData.refreshToken = tokenData.refresh_token;
+          integrationData.refreshToken = tokenData.refresh_token;
         }
         if (tokenData.expires_in) {
-           integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
+          integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
         }
         integrationData.updatedAt = new Date().toISOString();
-        
-        // Save back to Firestore
-        await setDoc(doc(db, "integrations", getIntegrationId(userId, "jira")), {
-           ...integrationData
-        }, { merge: true });
+
+        await saveIntegrationRecord("jira", integrationData);
         console.log("Jira token refreshed successfully.");
       } else {
         console.error("Failed to refresh Jira token, no access_token returned:", tokenData);
       }
-    } catch (e) {
-      console.error("Failed to refresh Jira token:", e);
+    } catch (error) {
+      console.error("Failed to refresh Jira token:", error);
     }
   }
+
   return integrationData;
 }
 
@@ -141,180 +216,140 @@ async function refreshGcpTokenIfNeeded(userId: string, credentialData: any) {
   if (!isExpired) {
     return credentialData;
   }
-    try {
-      console.log("GCP token is expired or expiring soon, refreshing...");
-      const res = await fetch("/api/gcp/refresh", {
-        method: "POST",
-        headers: await getApiHeaders(),
-        body: JSON.stringify({
-          refresh_token: credentialData.refreshToken,
-          client_id: credentialData.clientId,
-          client_secret: credentialData.clientSecret
-        })
-      });
 
-      const tokenData = await res.json();
+  try {
+    console.log("GCP token is expired or expiring soon, refreshing...");
+    const res = await fetch("/api/gcp/refresh", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getApiHeaders()),
+      },
+      body: JSON.stringify({
+        refresh_token: credentialData.refreshToken,
+        client_id: credentialData.clientId,
+        client_secret: credentialData.clientSecret,
+      }),
+    });
 
-      if (tokenData.access_token) {
-        credentialData.accessToken = tokenData.access_token;
-        if (tokenData.expires_in) {
-          credentialData.expiresAt = Date.now() + tokenData.expires_in * 1000;
-        }
-        credentialData.updatedAt = new Date().toISOString();
+    const tokenData = await res.json();
 
-        await setDoc(doc(db, "cloud_credentials", getCloudCredentialId(userId, "gcp")), {
-          ...credentialData
-        }, { merge: true });
-        console.log("GCP token refreshed successfully.");
-      } else {
-        console.error("Failed to refresh GCP token, no access_token returned:", tokenData);
+    if (tokenData.access_token) {
+      credentialData.accessToken = tokenData.access_token;
+      if (tokenData.expires_in) {
+        credentialData.expiresAt = Date.now() + tokenData.expires_in * 1000;
       }
-    } catch (e) {
-      console.error("Failed to refresh GCP token:", e);
+      credentialData.updatedAt = new Date().toISOString();
+
+      await saveCloudCredentialRecord("gcp", credentialData);
+      console.log("GCP token refreshed successfully.");
+    } else {
+      console.error("Failed to refresh GCP token, no access_token returned:", tokenData);
     }
+  } catch (error) {
+    console.error("Failed to refresh GCP token:", error);
+  }
+
   return credentialData;
 }
 
 export const DbAPI = {
-  // --- Projects ---
-  async getProject(userId: string, projectId: string) {
-    const id = getProjectId(userId, projectId);
-    const snap = await getDoc(doc(db, "projects", id));
-    return snap.exists() ? snap.data() : null;
+  async getProject(_userId: string, projectId: string) {
+    const payload = await apiRequest<{ project: any | null }>(`/api/store/projects/${projectId}`);
+    return payload.project;
   },
 
-  async getProjects(userId: string) {
-    const q = query(collection(db, "projects"), where("userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const results: any[] = [];
-    snapshot.forEach(doc => {
-      const originalId = doc.id.replace(`${userId}_`, "");
-      results.push({ ...doc.data(), id: originalId });
+  async getProjects(_userId: string) {
+    const payload = await apiRequest<{ projects: any[] }>("/api/store/projects");
+    return payload.projects;
+  },
+
+  async createProject(_userId: string, data: any) {
+    const payload = await apiRequest<{ project: { id: string } }>("/api/store/projects", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
-    return results;
+    return payload.project.id;
   },
 
-  async createProject(userId: string, data: any) {
-    const projectId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-    const id = getProjectId(userId, projectId);
-    await setDoc(doc(db, "projects", id), {
-      ...data,
-      userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  async saveProject(_userId: string, projectId: string, data: any) {
+    await apiRequest(`/api/store/projects/${projectId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     });
-    return projectId;
   },
 
-  async saveProject(userId: string, projectId: string, data: any) {
-    const id = getProjectId(userId, projectId);
-    await setDoc(doc(db, "projects", id), {
-      ...data,
-      userId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-  },
-
-  async deleteProject(userId: string, projectId: string) {
-    const id = getProjectId(userId, projectId);
-    await deleteDoc(doc(db, "projects", id));
-  },
-
-  // --- Workflows ---
-  async getWorkflow(userId: string, workflowId: string = "current") {
-    const id = getWorkflowId(userId, workflowId);
-    const snap = await getDoc(doc(db, "workflows", id));
-    return snap.exists() ? snap.data() : null;
-  },
-
-  async getWorkflows(userId: string) {
-    const q = query(collection(db, "workflows"), where("userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const results: any[] = [];
-    snapshot.forEach(doc => {
-      const originalId = doc.id.replace(`${userId}_`, "");
-      results.push({ ...doc.data(), id: originalId });
+  async deleteProject(_userId: string, projectId: string) {
+    await apiRequest(`/api/store/projects/${projectId}`, {
+      method: "DELETE",
     });
-    return results;
   },
 
-  async getWorkflowsByProject(userId: string, projectId: string) {
-    const q = query(collection(db, "workflows"), where("userId", "==", userId), where("projectId", "==", projectId));
-    const snapshot = await getDocs(q);
-    const results: any[] = [];
-    snapshot.forEach(doc => {
-      const originalId = doc.id.replace(`${userId}_`, "");
-      results.push({ ...doc.data(), id: originalId });
+  async getWorkflow(_userId: string, workflowId: string = "current") {
+    const payload = await apiRequest<{ workflow: any | null }>(`/api/store/workflows/${workflowId}`);
+    return payload.workflow;
+  },
+
+  async getWorkflows(_userId: string) {
+    const payload = await apiRequest<{ workflows: any[] }>("/api/store/workflows");
+    return payload.workflows;
+  },
+
+  async getWorkflowsByProject(_userId: string, projectId: string) {
+    const payload = await apiRequest<{ workflows: any[] }>(
+      `/api/store/workflows?projectId=${encodeURIComponent(projectId)}`,
+    );
+    return payload.workflows;
+  },
+
+  async saveWorkflow(_userId: string, workflowId: string = "current", data: any) {
+    await apiRequest(`/api/store/workflows/${workflowId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     });
-    return results;
   },
 
-  async saveWorkflow(userId: string, workflowId: string = "current", data: any) {
-    const id = getWorkflowId(userId, workflowId);
-    await setDoc(doc(db, "workflows", id), {
-      ...data,
-      userId, // Store userId for potential future relational querying
-      updatedAt: new Date().toISOString()
-    }, { merge: true }); // Use merge to avoid overwriting missing fields like createdAt
-  },
-
-  async createWorkflow(userId: string, data: any) {
-    const workflowId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-    const id = getWorkflowId(userId, workflowId);
-    await setDoc(doc(db, "workflows", id), {
-      ...data,
-      userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+  async createWorkflow(_userId: string, data: any) {
+    const payload = await apiRequest<{ workflow: { id: string } }>("/api/store/workflows", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
-    return workflowId;
+    return payload.workflow.id;
   },
 
-  async deleteWorkflow(userId: string, workflowId: string) {
-    const id = getWorkflowId(userId, workflowId);
-    await deleteDoc(doc(db, "workflows", id));
+  async deleteWorkflow(_userId: string, workflowId: string) {
+    await apiRequest(`/api/store/workflows/${workflowId}`, {
+      method: "DELETE",
+    });
   },
 
-  // --- Integrations ---
   async getIntegration(userId: string, integrationId: string) {
-    const id = getIntegrationId(userId, integrationId);
-    const snap = await getDoc(doc(db, "integrations", id));
-    let data = snap.exists() ? snap.data() : null;
-    
+    const payload = await apiRequest<{ integration: any | null }>(`/api/store/integrations/${integrationId}`);
+    let data = payload.integration;
+
     if (integrationId === "github" && data) {
       data = await refreshGithubTokenIfNeeded(userId, data);
     }
-    
+
     if (integrationId === "jira" && data) {
       data = await refreshJiraTokenIfNeeded(userId, data);
     }
-    
+
     return data;
   },
 
-  async saveIntegration(userId: string, integrationId: string, data: any) {
-    const id = getIntegrationId(userId, integrationId);
-    await setDoc(doc(db, "integrations", id), {
-      ...data,
-      userId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+  async saveIntegration(_userId: string, integrationId: string, data: any) {
+    await saveIntegrationRecord(integrationId, data);
   },
 
   async getAllIntegrations(userId: string) {
-    const q = query(collection(db, "integrations"), where("userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const results: Record<string, any> = {};
-    snapshot.forEach(doc => {
-      // Reconstruct original integrationId from document ID
-      const originalId = doc.id.replace(`${userId}_`, "");
-      results[originalId] = doc.data();
-    });
+    const payload = await apiRequest<{ integrations: Record<string, any> }>("/api/store/integrations");
+    const results = payload.integrations;
 
     if (results["github"]) {
       results["github"] = await refreshGithubTokenIfNeeded(userId, results["github"]);
     }
-    
+
     if (results["jira"]) {
       results["jira"] = await refreshJiraTokenIfNeeded(userId, results["jira"]);
     }
@@ -323,29 +358,22 @@ export const DbAPI = {
   },
 
   subscribeToIntegration(userId: string, integrationId: string, callback: (exists: boolean, data?: any) => void) {
-    const id = getIntegrationId(userId, integrationId);
-    return onSnapshot(doc(db, "integrations", id), async (snapshot) => {
-      let data = snapshot.data();
-      if (snapshot.exists() && integrationId === "github" && data) {
-        data = await refreshGithubTokenIfNeeded(userId, data);
-      }
-      if (snapshot.exists() && integrationId === "jira" && data) {
-        data = await refreshJiraTokenIfNeeded(userId, data);
-      }
-      callback(snapshot.exists(), data);
+    return createPollingSubscription(async () => {
+      return await DbAPI.getIntegration(userId, integrationId);
+    }, callback);
+  },
+
+  async deleteIntegration(_userId: string, integrationId: string) {
+    await apiRequest(`/api/store/integrations/${integrationId}`, {
+      method: "DELETE",
     });
   },
 
-  async deleteIntegration(userId: string, integrationId: string) {
-    const id = getIntegrationId(userId, integrationId);
-    await deleteDoc(doc(db, "integrations", id));
-  },
-
-  // --- Cloud Credentials ---
   async getCloudCredential(userId: string, providerId: string) {
-    const id = getCloudCredentialId(userId, providerId);
-    const snap = await getDoc(doc(db, "cloud_credentials", id));
-    let data = snap.exists() ? snap.data() : null;
+    const payload = await apiRequest<{ cloudCredential: any | null }>(
+      `/api/store/cloud-credentials/${providerId}`,
+    );
+    let data = payload.cloudCredential;
 
     if (providerId === "gcp" && data) {
       data = await refreshGcpTokenIfNeeded(userId, data);
@@ -354,63 +382,44 @@ export const DbAPI = {
     return data;
   },
 
-  async saveCloudCredential(userId: string, providerId: string, data: any) {
-    const id = getCloudCredentialId(userId, providerId);
-    await setDoc(doc(db, "cloud_credentials", id), {
-      ...data,
-      userId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true }); // Adding merge: true to support partial updates like in OnboardingModal
+  async saveCloudCredential(_userId: string, providerId: string, data: any) {
+    await saveCloudCredentialRecord(providerId, data);
   },
 
   subscribeToCloudCredential(userId: string, providerId: string, callback: (exists: boolean, data?: any) => void) {
-    const id = getCloudCredentialId(userId, providerId);
-    return onSnapshot(doc(db, "cloud_credentials", id), (snapshot) => {
-      callback(snapshot.exists(), snapshot.data());
+    return createPollingSubscription(async () => {
+      return await DbAPI.getCloudCredential(userId, providerId);
+    }, callback);
+  },
+
+  async deleteCloudCredential(_userId: string, providerId: string) {
+    await apiRequest(`/api/store/cloud-credentials/${providerId}`, {
+      method: "DELETE",
     });
   },
 
-  async deleteCloudCredential(userId: string, providerId: string) {
-    const id = getCloudCredentialId(userId, providerId);
-    // Assuming deleteDoc is imported in db.ts
-    await import("firebase/firestore").then(({ deleteDoc }) => 
-      deleteDoc(doc(db, "cloud_credentials", id))
-    );
-  },
-
-  // --- Secrets ---
-  async saveSecret(userId: string, secretKey: string, data: any) {
-    const id = `${userId}_${secretKey}`;
-    await setDoc(doc(db, "secrets", id), {
-      ...data,
-      userId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-  },
-
-  // --- Environments ---
-  async getEnvironments(userId: string) {
-    const q = query(collection(db, "environments"), where("userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const results: any[] = [];
-    snapshot.forEach(doc => {
-      const originalId = doc.id.replace(`${userId}_`, "");
-      results.push({ ...doc.data(), id: originalId });
+  async saveSecret(_userId: string, secretKey: string, data: any) {
+    await apiRequest(`/api/store/secrets/${encodeURIComponent(secretKey)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
     });
-    return results;
   },
 
-  async saveEnvironment(userId: string, envId: string, data: any) {
-    const id = getEnvironmentId(userId, envId);
-    await setDoc(doc(db, "environments", id), {
-      ...data,
-      userId,
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
+  async getEnvironments(_userId: string) {
+    const payload = await apiRequest<{ environments: any[] }>("/api/store/environments");
+    return payload.environments;
   },
 
-  async deleteEnvironment(userId: string, envId: string) {
-    const id = getEnvironmentId(userId, envId);
-    await deleteDoc(doc(db, "environments", id));
-  }
+  async saveEnvironment(_userId: string, envId: string, data: any) {
+    await apiRequest(`/api/store/environments/${envId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteEnvironment(_userId: string, envId: string) {
+    await apiRequest(`/api/store/environments/${envId}`, {
+      method: "DELETE",
+    });
+  },
 };

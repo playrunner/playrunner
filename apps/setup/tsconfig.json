@@ -41,9 +41,6 @@
       "react-router-dom": [
         "../web/node_modules/react-router-dom"
       ],
-      "firebase/app": [
-        "../web/node_modules/firebase/app"
-      ],
       "lucide-react": [
         "../web/node_modules/lucide-react"
       ],

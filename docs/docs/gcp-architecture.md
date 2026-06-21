@@ -15,7 +15,7 @@ When deployed to GCP, the local docker-based services are mapped directly to sca
 
 ```mermaid
 graph TD
-    A[Browser / Web App] -->|HTTPS Requests| B(Firebase Hosting)
+    A[Browser / Web App] -->|HTTPS Requests| B(Web Hosting)
     A -->|API Calls & SSE| C(API Server - Cloud Run Service)
     C -->|Trigger Workflow| D(Orchestrator - Cloud Run Service)
     D -->|Spawn Playwright Execution| E[Playwright Runner - Cloud Run Job]

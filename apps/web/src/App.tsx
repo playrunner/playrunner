@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Login from "./pages/Login";
 import Editor from "./pages/Editor";
 import Projects from "./pages/Projects";
@@ -17,25 +18,50 @@ import Teams from "./pages/Teams";
 import OAuthCallback from "./pages/OAuthCallback";
 import { ThemeProvider } from "./components/ThemeProvider";
 import { PageLayout } from "./components/PageLayout";
+import { auth } from "./lib/auth";
+
+function RequireAuth() {
+  const [user, setUser] = useState(auth.currentUser);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    return auth.onAuthStateChanged((nextUser) => {
+      setUser(nextUser);
+      setIsReady(true);
+    });
+  }, []);
+
+  if (!isReady) {
+    return <div className="min-h-screen bg-background" />;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+}
 
 function AppShell() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/design" element={<DesignSystem />} />
         <Route path="/oauth/callback/:provider" element={<OAuthCallback />} />
-        <Route element={<PageLayout />}>
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/projects/:id" element={<ProjectDetail />} />
-          <Route path="/workflow" element={<Editor />} />
-          <Route path="/workflow/:id" element={<Editor />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/environments" element={<Environments />} />
-          <Route path="/integrations" element={<Integrations />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/teams" element={<Teams />} />
+        <Route element={<RequireAuth />}>
+          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route element={<PageLayout />}>
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/workflow" element={<Editor />} />
+            <Route path="/workflow/:id" element={<Editor />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/environments" element={<Environments />} />
+            <Route path="/integrations" element={<Integrations />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/teams" element={<Teams />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>

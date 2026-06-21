@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, CheckCircle2, Settings } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
-import { auth } from "../lib/firebase";
+import { auth } from "../lib/auth";
 import { DbAPI } from "../lib/db";
 import { INTEGRATIONS } from "../integrations/registry";
 

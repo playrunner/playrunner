@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Check, ChevronRight, Loader2, Copy } from "lucide-react";
 import { Input } from "../../components/ui/Input";
-import { auth } from "../../lib/firebase";
+import { auth } from "../../lib/auth";
 import { DbAPI } from "../../lib/db";
 import { Modal } from "../../components/ui/Modal";
 

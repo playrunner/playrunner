@@ -32,7 +32,6 @@ export default defineConfig(async ({mode}) => {
         'react-dom': path.resolve(webNodeModulesDir, 'react-dom'),
         'react-dom/client': path.resolve(webNodeModulesDir, 'react-dom/client.js'),
         'react-router-dom': path.resolve(webNodeModulesDir, 'react-router-dom'),
-        'firebase/app': path.resolve(webNodeModulesDir, 'firebase/app'),
         'lucide-react': path.resolve(webNodeModulesDir, 'lucide-react'),
         clsx: path.resolve(webNodeModulesDir, 'clsx'),
         'tailwind-merge': path.resolve(webNodeModulesDir, 'tailwind-merge'),

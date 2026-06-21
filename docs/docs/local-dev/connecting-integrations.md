@@ -37,6 +37,6 @@ You must create backend endpoints to handle token exchange and refresh. The back
 - **Security:** Ensure these endpoints are mounted correctly in the main Express router (`apps/api/src/index.ts` or `routes/index.ts`) and are protected by authentication middleware if applicable.
 
 ### 4. Database Storage
-Store the integration credentials securely in Firestore using the existing `DbAPI`:
+Store the integration credentials through the existing Prisma-backed `DbAPI` layer:
 - Save `clientId`, `clientSecret`, `accessToken`, `refreshToken`, and an `expiresAt` timestamp (calculated using `Date.now() + expires_in * 1000`).
-- Use `merge: true` when updating tokens to preserve other configuration fields (like selected projects or repositories).
+- Keep partial updates merge-friendly so token refreshes do not overwrite other configuration fields (like selected projects or repositories).
