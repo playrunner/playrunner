@@ -16,11 +16,11 @@ const config: Config = {
 
   // Production URL (update if/when hosted)
   url: 'https://playrunner.github.io',
-  baseUrl: '/central-station/',
+  baseUrl: '/playrunner/',
 
   // GitHub pages deployment config
   organizationName: 'playrunner',
-  projectName: 'central-station',
+  projectName: 'playrunner',
 
   onBrokenLinks: 'warn',
 
@@ -36,7 +36,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl:
-            'https://github.com/playrunner/central-station/tree/main/docs/',
+            'https://github.com/playrunner/playrunner/tree/main/docs/',
           routeBasePath: 'docs',
         },
         blog: {
@@ -46,7 +46,7 @@ const config: Config = {
             xslt: true,
           },
           editUrl:
-            'https://github.com/playrunner/central-station/tree/main/docs/',
+            'https://github.com/playrunner/playrunner/tree/main/docs/',
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
@@ -78,7 +78,7 @@ const config: Config = {
         },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/playrunner/central-station',
+          href: 'https://github.com/playrunner/playrunner',
           label: 'GitHub',
           position: 'right',
         },
@@ -116,7 +116,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/playrunner/central-station',
+              href: 'https://github.com/playrunner/playrunner',
             },
           ],
         },

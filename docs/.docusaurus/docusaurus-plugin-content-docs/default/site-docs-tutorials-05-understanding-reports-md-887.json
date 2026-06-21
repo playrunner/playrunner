@@ -5,10 +5,10 @@
   "source": "@site/docs/tutorials/05-understanding-reports.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/understanding-reports",
-  "permalink": "/central-station/docs/tutorials/understanding-reports",
+  "permalink": "/playrunner/docs/tutorials/understanding-reports",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/05-understanding-reports.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/tutorials/05-understanding-reports.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 5,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Run Your First Test",
-    "permalink": "/central-station/docs/tutorials/run-your-first-test"
+    "permalink": "/playrunner/docs/tutorials/run-your-first-test"
   },
   "next": {
     "title": "Overview",
-    "permalink": "/central-station/docs/local-dev/"
+    "permalink": "/playrunner/docs/local-dev/"
   }
 }

@@ -15,8 +15,8 @@ This tutorial walks you through setting up the complete Playrunner local develop
 ## Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/playrunner/central-station.git
-cd central-station
+git clone https://github.com/playrunner/playrunner.git
+cd playrunner
 ```
 
 ---

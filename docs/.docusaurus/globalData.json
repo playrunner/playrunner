@@ -1,98 +1,108 @@
 {
   "docusaurus-plugin-content-docs": {
     "default": {
-      "path": "/central-station/docs",
+      "path": "/playrunner/docs",
       "versions": [
         {
           "name": "current",
           "label": "Next",
           "isLast": true,
-          "path": "/central-station/docs",
+          "path": "/playrunner/docs",
           "mainDocId": "overview",
           "docs": [
             {
               "id": "gcp-architecture",
-              "path": "/central-station/docs/gcp-architecture",
+              "path": "/playrunner/docs/gcp-architecture",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "legal/license",
+              "path": "/playrunner/docs/legal/license",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/connecting-integrations",
-              "path": "/central-station/docs/local-dev/connecting-integrations",
+              "path": "/playrunner/docs/local-dev/connecting-integrations",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/connection-nodes",
-              "path": "/central-station/docs/local-dev/connection-nodes",
+              "path": "/playrunner/docs/local-dev/connection-nodes",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/docker-images",
-              "path": "/central-station/docs/local-dev/docker-images",
+              "path": "/playrunner/docs/local-dev/docker-images",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/environment-variables",
-              "path": "/central-station/docs/local-dev/environment-variables",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "local-dev/firebase-and-data",
-              "path": "/central-station/docs/local-dev/firebase-and-data",
+              "path": "/playrunner/docs/local-dev/environment-variables",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/index",
-              "path": "/central-station/docs/local-dev/",
+              "path": "/playrunner/docs/local-dev/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/postgres-prisma-and-local-auth",
+              "path": "/playrunner/docs/local-dev/postgres-prisma-and-local-auth",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/services-and-ports",
-              "path": "/central-station/docs/local-dev/services-and-ports",
+              "path": "/playrunner/docs/local-dev/services-and-ports",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/troubleshooting",
-              "path": "/central-station/docs/local-dev/troubleshooting",
+              "path": "/playrunner/docs/local-dev/troubleshooting",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "local-dev/workflow-execution",
-              "path": "/central-station/docs/local-dev/workflow-execution",
+              "path": "/playrunner/docs/local-dev/workflow-execution",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "overview",
-              "path": "/central-station/docs/overview",
+              "path": "/playrunner/docs/overview",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/connect-github",
-              "path": "/central-station/docs/tutorials/connect-github",
+              "path": "/playrunner/docs/tutorials/connect-github",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/create-your-first-workflow",
-              "path": "/central-station/docs/tutorials/create-your-first-workflow",
+              "path": "/playrunner/docs/tutorials/create-your-first-workflow",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/getting-started",
-              "path": "/central-station/docs/tutorials/getting-started",
+              "path": "/playrunner/docs/tutorials/getting-started",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/index",
-              "path": "/central-station/docs/tutorials/",
+              "path": "/playrunner/docs/tutorials/",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/run-your-first-test",
-              "path": "/central-station/docs/tutorials/run-your-first-test",
+              "path": "/playrunner/docs/tutorials/run-your-first-test",
               "sidebar": "tutorialSidebar"
             },
             {
               "id": "tutorials/understanding-reports",
-              "path": "/central-station/docs/tutorials/understanding-reports",
+              "path": "/playrunner/docs/tutorials/understanding-reports",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/legal",
+              "path": "/playrunner/docs/category/legal",
               "sidebar": "tutorialSidebar"
             }
           ],
@@ -100,7 +110,7 @@
           "sidebars": {
             "tutorialSidebar": {
               "link": {
-                "path": "/central-station/docs/overview",
+                "path": "/playrunner/docs/overview",
                 "label": "overview"
               }
             }

@@ -5,10 +5,10 @@
   "source": "@site/docs/tutorials/03-connect-github.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/connect-github",
-  "permalink": "/central-station/docs/tutorials/connect-github",
+  "permalink": "/playrunner/docs/tutorials/connect-github",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/03-connect-github.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/tutorials/03-connect-github.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 3,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Create Your First Workflow",
-    "permalink": "/central-station/docs/tutorials/create-your-first-workflow"
+    "permalink": "/playrunner/docs/tutorials/create-your-first-workflow"
   },
   "next": {
     "title": "Run Your First Test",
-    "permalink": "/central-station/docs/tutorials/run-your-first-test"
+    "permalink": "/playrunner/docs/tutorials/run-your-first-test"
   }
 }

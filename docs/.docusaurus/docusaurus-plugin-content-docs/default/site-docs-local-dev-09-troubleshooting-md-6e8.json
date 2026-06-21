@@ -5,10 +5,10 @@
   "source": "@site/docs/local-dev/09-troubleshooting.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/troubleshooting",
-  "permalink": "/central-station/docs/local-dev/troubleshooting",
+  "permalink": "/playrunner/docs/local-dev/troubleshooting",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/09-troubleshooting.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/09-troubleshooting.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 9,
@@ -18,7 +18,11 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Firebase & Data Storage",
-    "permalink": "/central-station/docs/local-dev/firebase-and-data"
+    "title": "PostgreSQL, Prisma & Local Auth",
+    "permalink": "/playrunner/docs/local-dev/postgres-prisma-and-local-auth"
+  },
+  "next": {
+    "title": "Legal",
+    "permalink": "/playrunner/docs/category/legal"
   }
 }

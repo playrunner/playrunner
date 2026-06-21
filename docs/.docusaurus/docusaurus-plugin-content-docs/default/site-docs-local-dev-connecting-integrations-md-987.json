@@ -5,10 +5,10 @@
   "source": "@site/docs/local-dev/connecting-integrations.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/connecting-integrations",
-  "permalink": "/central-station/docs/local-dev/connecting-integrations",
+  "permalink": "/playrunner/docs/local-dev/connecting-integrations",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/connecting-integrations.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/connecting-integrations.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 3,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Overview",
-    "permalink": "/central-station/docs/local-dev/"
+    "permalink": "/playrunner/docs/local-dev/"
   },
   "next": {
     "title": "Services & Ports",
-    "permalink": "/central-station/docs/local-dev/services-and-ports"
+    "permalink": "/playrunner/docs/local-dev/services-and-ports"
   }
 }

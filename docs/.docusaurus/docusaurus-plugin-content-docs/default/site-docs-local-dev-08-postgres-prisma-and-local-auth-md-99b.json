@@ -1,0 +1,28 @@
+{
+  "id": "local-dev/postgres-prisma-and-local-auth",
+  "title": "PostgreSQL, Prisma & Local Auth",
+  "description": "Local development only. The default local stack now runs a Docker-backed PostgreSQL database and a setup-seeded username/password login.",
+  "source": "@site/docs/local-dev/08-postgres-prisma-and-local-auth.md",
+  "sourceDirName": "local-dev",
+  "slug": "/local-dev/postgres-prisma-and-local-auth",
+  "permalink": "/playrunner/docs/local-dev/postgres-prisma-and-local-auth",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/08-postgres-prisma-and-local-auth.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 8,
+  "frontMatter": {
+    "sidebar_position": 8,
+    "title": "PostgreSQL, Prisma & Local Auth"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Workflow Execution Flow",
+    "permalink": "/playrunner/docs/local-dev/workflow-execution"
+  },
+  "next": {
+    "title": "Troubleshooting",
+    "permalink": "/playrunner/docs/local-dev/troubleshooting"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "blogBasePath": "/central-station/blog",
+  "blogBasePath": "/playrunner/blog",
   "blogTitle": "Blog",
-  "authorsListPath": "/central-station/blog/authors"
+  "authorsListPath": "/playrunner/blog/authors"
 }

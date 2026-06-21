@@ -59,7 +59,7 @@ npm ci
 npm run start -- --port 3004
 ```
 
-Then open `http://127.0.0.1:3004/central-station/docs/`.
+Then open `http://127.0.0.1:3004/playrunner/docs/`.
 
 The docs workspace currently requires Node.js 20+.
 

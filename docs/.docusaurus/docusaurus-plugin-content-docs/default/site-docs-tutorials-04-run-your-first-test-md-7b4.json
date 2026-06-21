@@ -5,10 +5,10 @@
   "source": "@site/docs/tutorials/04-run-your-first-test.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/run-your-first-test",
-  "permalink": "/central-station/docs/tutorials/run-your-first-test",
+  "permalink": "/playrunner/docs/tutorials/run-your-first-test",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/04-run-your-first-test.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/tutorials/04-run-your-first-test.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 4,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Connect GitHub",
-    "permalink": "/central-station/docs/tutorials/connect-github"
+    "permalink": "/playrunner/docs/tutorials/connect-github"
   },
   "next": {
     "title": "Understanding Test Reports",
-    "permalink": "/central-station/docs/tutorials/understanding-reports"
+    "permalink": "/playrunner/docs/tutorials/understanding-reports"
   }
 }

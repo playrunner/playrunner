@@ -3,25 +3,25 @@
   "items": [
     {
       "title": "Welcome",
-      "permalink": "/central-station/blog/welcome",
+      "permalink": "/playrunner/blog/welcome",
       "unlisted": false,
       "date": "2021-08-26T00:00:00.000Z"
     },
     {
       "title": "MDX Blog Post",
-      "permalink": "/central-station/blog/mdx-blog-post",
+      "permalink": "/playrunner/blog/mdx-blog-post",
       "unlisted": false,
       "date": "2021-08-01T00:00:00.000Z"
     },
     {
       "title": "Long Blog Post",
-      "permalink": "/central-station/blog/long-blog-post",
+      "permalink": "/playrunner/blog/long-blog-post",
       "unlisted": false,
       "date": "2019-05-29T00:00:00.000Z"
     },
     {
       "title": "First Blog Post",
-      "permalink": "/central-station/blog/first-blog-post",
+      "permalink": "/playrunner/blog/first-blog-post",
       "unlisted": false,
       "date": "2019-05-28T00:00:00.000Z"
     }

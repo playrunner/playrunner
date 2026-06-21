@@ -5,10 +5,10 @@
   "source": "@site/docs/tutorials/index.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/",
-  "permalink": "/central-station/docs/tutorials/",
+  "permalink": "/playrunner/docs/tutorials/",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/tutorials/index.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/tutorials/index.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 1,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "GCP Cloud Architecture",
-    "permalink": "/central-station/docs/gcp-architecture"
+    "permalink": "/playrunner/docs/gcp-architecture"
   },
   "next": {
     "title": "Getting Started",
-    "permalink": "/central-station/docs/tutorials/getting-started"
+    "permalink": "/playrunner/docs/tutorials/getting-started"
   }
 }

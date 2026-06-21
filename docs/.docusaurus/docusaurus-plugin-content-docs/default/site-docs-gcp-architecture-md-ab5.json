@@ -5,10 +5,10 @@
   "source": "@site/docs/gcp-architecture.md",
   "sourceDirName": ".",
   "slug": "/gcp-architecture",
-  "permalink": "/central-station/docs/gcp-architecture",
+  "permalink": "/playrunner/docs/gcp-architecture",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/gcp-architecture.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/gcp-architecture.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 2,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Overview",
-    "permalink": "/central-station/docs/overview"
+    "permalink": "/playrunner/docs/overview"
   },
   "next": {
     "title": "Tutorials",
-    "permalink": "/central-station/docs/tutorials/"
+    "permalink": "/playrunner/docs/tutorials/"
   }
 }

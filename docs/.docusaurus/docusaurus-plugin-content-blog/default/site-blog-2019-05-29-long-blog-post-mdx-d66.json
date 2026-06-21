@@ -1,6 +1,6 @@
 {
-  "permalink": "/central-station/blog/long-blog-post",
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/blog/2019-05-29-long-blog-post.mdx",
+  "permalink": "/playrunner/blog/long-blog-post",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/blog/2019-05-29-long-blog-post.mdx",
   "source": "@site/blog/2019-05-29-long-blog-post.mdx",
   "title": "Long Blog Post",
   "description": "This is the summary of a very long blog post,",
@@ -9,13 +9,13 @@
     {
       "inline": false,
       "label": "Hello",
-      "permalink": "/central-station/blog/tags/hello",
+      "permalink": "/playrunner/blog/tags/hello",
       "description": "Hello tag description"
     },
     {
       "inline": false,
       "label": "Docusaurus",
-      "permalink": "/central-station/blog/tags/docusaurus",
+      "permalink": "/playrunner/blog/tags/docusaurus",
       "description": "Docusaurus tag description"
     }
   ],
@@ -27,7 +27,7 @@
       "title": "Ex-Meta Staff Engineer, Co-founder GreatFrontEnd",
       "url": "https://linkedin.com/in/yangshun",
       "page": {
-        "permalink": "/central-station/blog/authors/yangshun"
+        "permalink": "/playrunner/blog/authors/yangshun"
       },
       "socials": {
         "x": "https://x.com/yangshunz",
@@ -51,10 +51,10 @@
   "unlisted": false,
   "prevItem": {
     "title": "MDX Blog Post",
-    "permalink": "/central-station/blog/mdx-blog-post"
+    "permalink": "/playrunner/blog/mdx-blog-post"
   },
   "nextItem": {
     "title": "First Blog Post",
-    "permalink": "/central-station/blog/first-blog-post"
+    "permalink": "/playrunner/blog/first-blog-post"
   }
 }

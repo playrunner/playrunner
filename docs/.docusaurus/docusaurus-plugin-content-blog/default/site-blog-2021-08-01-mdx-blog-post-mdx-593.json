@@ -1,6 +1,6 @@
 {
-  "permalink": "/central-station/blog/mdx-blog-post",
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/blog/2021-08-01-mdx-blog-post.mdx",
+  "permalink": "/playrunner/blog/mdx-blog-post",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/blog/2021-08-01-mdx-blog-post.mdx",
   "source": "@site/blog/2021-08-01-mdx-blog-post.mdx",
   "title": "MDX Blog Post",
   "description": "Blog posts support Docusaurus Markdown features, such as MDX.",
@@ -9,7 +9,7 @@
     {
       "inline": false,
       "label": "Docusaurus",
-      "permalink": "/central-station/blog/tags/docusaurus",
+      "permalink": "/playrunner/blog/tags/docusaurus",
       "description": "Docusaurus tag description"
     }
   ],
@@ -21,7 +21,7 @@
       "title": "Docusaurus maintainer",
       "url": "https://sebastienlorber.com",
       "page": {
-        "permalink": "/central-station/blog/authors/all-sebastien-lorber-articles"
+        "permalink": "/playrunner/blog/authors/all-sebastien-lorber-articles"
       },
       "socials": {
         "x": "https://x.com/sebastienlorber",
@@ -46,10 +46,10 @@
   "unlisted": false,
   "prevItem": {
     "title": "Welcome",
-    "permalink": "/central-station/blog/welcome"
+    "permalink": "/playrunner/blog/welcome"
   },
   "nextItem": {
     "title": "Long Blog Post",
-    "permalink": "/central-station/blog/long-blog-post"
+    "permalink": "/playrunner/blog/long-blog-post"
   }
 }

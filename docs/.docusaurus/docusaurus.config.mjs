@@ -30,9 +30,9 @@ export default {
     }
   },
   "url": "https://playrunner.github.io",
-  "baseUrl": "/central-station/",
+  "baseUrl": "/playrunner/",
   "organizationName": "playrunner",
-  "projectName": "central-station",
+  "projectName": "playrunner",
   "onBrokenLinks": "warn",
   "i18n": {
     "defaultLocale": "en",
@@ -48,7 +48,7 @@ export default {
       {
         "docs": {
           "sidebarPath": "./sidebars.ts",
-          "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/",
+          "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/",
           "routeBasePath": "docs"
         },
         "blog": {
@@ -60,7 +60,7 @@ export default {
             ],
             "xslt": true
           },
-          "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/",
+          "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/",
           "onInlineTags": "warn",
           "onInlineAuthors": "warn",
           "onUntruncatedBlogPosts": "warn"
@@ -97,7 +97,7 @@ export default {
           "position": "left"
         },
         {
-          "href": "https://github.com/playrunner/central-station",
+          "href": "https://github.com/playrunner/playrunner",
           "label": "GitHub",
           "position": "right"
         }
@@ -163,12 +163,12 @@ export default {
           "items": [
             {
               "label": "GitHub",
-              "href": "https://github.com/playrunner/central-station"
+              "href": "https://github.com/playrunner/playrunner"
             }
           ]
         }
       ],
-      "copyright": "Copyright © 2026 Playrunner. Built with Docusaurus."
+      "copyright": "Copyright © 2026 Concept AI PTY LTD. Playrunner is distributed under the Playrunner Sustainable Use License."
     },
     "prism": {
       "theme": {

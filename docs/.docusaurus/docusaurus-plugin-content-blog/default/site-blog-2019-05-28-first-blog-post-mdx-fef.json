@@ -1,6 +1,6 @@
 {
-  "permalink": "/central-station/blog/first-blog-post",
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/blog/2019-05-28-first-blog-post.mdx",
+  "permalink": "/playrunner/blog/first-blog-post",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/blog/2019-05-28-first-blog-post.mdx",
   "source": "@site/blog/2019-05-28-first-blog-post.mdx",
   "title": "First Blog Post",
   "description": "Lorem ipsum dolor sit amet...",
@@ -9,13 +9,13 @@
     {
       "inline": false,
       "label": "Hola",
-      "permalink": "/central-station/blog/tags/hola",
+      "permalink": "/playrunner/blog/tags/hola",
       "description": "Hola tag description"
     },
     {
       "inline": false,
       "label": "Docusaurus",
-      "permalink": "/central-station/blog/tags/docusaurus",
+      "permalink": "/playrunner/blog/tags/docusaurus",
       "description": "Docusaurus tag description"
     }
   ],
@@ -27,7 +27,7 @@
       "title": "Docusaurus maintainer",
       "url": "https://sebastienlorber.com",
       "page": {
-        "permalink": "/central-station/blog/authors/all-sebastien-lorber-articles"
+        "permalink": "/playrunner/blog/authors/all-sebastien-lorber-articles"
       },
       "socials": {
         "x": "https://x.com/sebastienlorber",
@@ -43,7 +43,7 @@
       "title": "Ex-Meta Staff Engineer, Co-founder GreatFrontEnd",
       "url": "https://linkedin.com/in/yangshun",
       "page": {
-        "permalink": "/central-station/blog/authors/yangshun"
+        "permalink": "/playrunner/blog/authors/yangshun"
       },
       "socials": {
         "x": "https://x.com/yangshunz",
@@ -70,6 +70,6 @@
   "unlisted": false,
   "prevItem": {
     "title": "Long Blog Post",
-    "permalink": "/central-station/blog/long-blog-post"
+    "permalink": "/playrunner/blog/long-blog-post"
   }
 }

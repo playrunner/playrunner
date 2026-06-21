@@ -3,226 +3,238 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/central-station/__docusaurus/debug',
-    component: ComponentCreator('/central-station/__docusaurus/debug', 'd80'),
+    path: '/playrunner/__docusaurus/debug',
+    component: ComponentCreator('/playrunner/__docusaurus/debug', 'e37'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/config',
-    component: ComponentCreator('/central-station/__docusaurus/debug/config', 'b4b'),
+    path: '/playrunner/__docusaurus/debug/config',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/config', '568'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/content',
-    component: ComponentCreator('/central-station/__docusaurus/debug/content', '976'),
+    path: '/playrunner/__docusaurus/debug/content',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/content', '231'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/globalData',
-    component: ComponentCreator('/central-station/__docusaurus/debug/globalData', 'ece'),
+    path: '/playrunner/__docusaurus/debug/globalData',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData', '878'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/metadata',
-    component: ComponentCreator('/central-station/__docusaurus/debug/metadata', 'c77'),
+    path: '/playrunner/__docusaurus/debug/metadata',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata', 'baa'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/registry',
-    component: ComponentCreator('/central-station/__docusaurus/debug/registry', '6db'),
+    path: '/playrunner/__docusaurus/debug/registry',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/registry', '6eb'),
     exact: true
   },
   {
-    path: '/central-station/__docusaurus/debug/routes',
-    component: ComponentCreator('/central-station/__docusaurus/debug/routes', 'f37'),
+    path: '/playrunner/__docusaurus/debug/routes',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/routes', '585'),
     exact: true
   },
   {
-    path: '/central-station/blog',
-    component: ComponentCreator('/central-station/blog', 'd3a'),
+    path: '/playrunner/blog',
+    component: ComponentCreator('/playrunner/blog', 'c4d'),
     exact: true
   },
   {
-    path: '/central-station/blog/archive',
-    component: ComponentCreator('/central-station/blog/archive', '1ae'),
+    path: '/playrunner/blog/archive',
+    component: ComponentCreator('/playrunner/blog/archive', '239'),
     exact: true
   },
   {
-    path: '/central-station/blog/authors',
-    component: ComponentCreator('/central-station/blog/authors', '37b'),
+    path: '/playrunner/blog/authors',
+    component: ComponentCreator('/playrunner/blog/authors', '405'),
     exact: true
   },
   {
-    path: '/central-station/blog/authors/all-sebastien-lorber-articles',
-    component: ComponentCreator('/central-station/blog/authors/all-sebastien-lorber-articles', '804'),
+    path: '/playrunner/blog/authors/all-sebastien-lorber-articles',
+    component: ComponentCreator('/playrunner/blog/authors/all-sebastien-lorber-articles', 'c2f'),
     exact: true
   },
   {
-    path: '/central-station/blog/authors/yangshun',
-    component: ComponentCreator('/central-station/blog/authors/yangshun', '974'),
+    path: '/playrunner/blog/authors/yangshun',
+    component: ComponentCreator('/playrunner/blog/authors/yangshun', '14f'),
     exact: true
   },
   {
-    path: '/central-station/blog/first-blog-post',
-    component: ComponentCreator('/central-station/blog/first-blog-post', '3de'),
+    path: '/playrunner/blog/first-blog-post',
+    component: ComponentCreator('/playrunner/blog/first-blog-post', '7f2'),
     exact: true
   },
   {
-    path: '/central-station/blog/long-blog-post',
-    component: ComponentCreator('/central-station/blog/long-blog-post', '9f4'),
+    path: '/playrunner/blog/long-blog-post',
+    component: ComponentCreator('/playrunner/blog/long-blog-post', 'ba6'),
     exact: true
   },
   {
-    path: '/central-station/blog/mdx-blog-post',
-    component: ComponentCreator('/central-station/blog/mdx-blog-post', 'f16'),
+    path: '/playrunner/blog/mdx-blog-post',
+    component: ComponentCreator('/playrunner/blog/mdx-blog-post', '28d'),
     exact: true
   },
   {
-    path: '/central-station/blog/tags',
-    component: ComponentCreator('/central-station/blog/tags', 'e23'),
+    path: '/playrunner/blog/tags',
+    component: ComponentCreator('/playrunner/blog/tags', 'b7c'),
     exact: true
   },
   {
-    path: '/central-station/blog/tags/docusaurus',
-    component: ComponentCreator('/central-station/blog/tags/docusaurus', '7a7'),
+    path: '/playrunner/blog/tags/docusaurus',
+    component: ComponentCreator('/playrunner/blog/tags/docusaurus', '7a3'),
     exact: true
   },
   {
-    path: '/central-station/blog/tags/facebook',
-    component: ComponentCreator('/central-station/blog/tags/facebook', 'e22'),
+    path: '/playrunner/blog/tags/facebook',
+    component: ComponentCreator('/playrunner/blog/tags/facebook', '023'),
     exact: true
   },
   {
-    path: '/central-station/blog/tags/hello',
-    component: ComponentCreator('/central-station/blog/tags/hello', '5ba'),
+    path: '/playrunner/blog/tags/hello',
+    component: ComponentCreator('/playrunner/blog/tags/hello', 'b40'),
     exact: true
   },
   {
-    path: '/central-station/blog/tags/hola',
-    component: ComponentCreator('/central-station/blog/tags/hola', 'bc7'),
+    path: '/playrunner/blog/tags/hola',
+    component: ComponentCreator('/playrunner/blog/tags/hola', 'ab8'),
     exact: true
   },
   {
-    path: '/central-station/blog/welcome',
-    component: ComponentCreator('/central-station/blog/welcome', '026'),
+    path: '/playrunner/blog/welcome',
+    component: ComponentCreator('/playrunner/blog/welcome', 'bd6'),
     exact: true
   },
   {
-    path: '/central-station/markdown-page',
-    component: ComponentCreator('/central-station/markdown-page', '4b9'),
+    path: '/playrunner/markdown-page',
+    component: ComponentCreator('/playrunner/markdown-page', '00b'),
     exact: true
   },
   {
-    path: '/central-station/docs',
-    component: ComponentCreator('/central-station/docs', 'e7a'),
+    path: '/playrunner/docs',
+    component: ComponentCreator('/playrunner/docs', '847'),
     routes: [
       {
-        path: '/central-station/docs',
-        component: ComponentCreator('/central-station/docs', '055'),
+        path: '/playrunner/docs',
+        component: ComponentCreator('/playrunner/docs', '0f9'),
         routes: [
           {
-            path: '/central-station/docs',
-            component: ComponentCreator('/central-station/docs', 'c0b'),
+            path: '/playrunner/docs',
+            component: ComponentCreator('/playrunner/docs', 'f13'),
             routes: [
               {
-                path: '/central-station/docs/gcp-architecture',
-                component: ComponentCreator('/central-station/docs/gcp-architecture', 'eed'),
+                path: '/playrunner/docs/category/legal',
+                component: ComponentCreator('/playrunner/docs/category/legal', '17f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/',
-                component: ComponentCreator('/central-station/docs/local-dev/', '4ad'),
+                path: '/playrunner/docs/gcp-architecture',
+                component: ComponentCreator('/playrunner/docs/gcp-architecture', '87c'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/connecting-integrations',
-                component: ComponentCreator('/central-station/docs/local-dev/connecting-integrations', '5b6'),
+                path: '/playrunner/docs/legal/license',
+                component: ComponentCreator('/playrunner/docs/legal/license', '544'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/connection-nodes',
-                component: ComponentCreator('/central-station/docs/local-dev/connection-nodes', '9cb'),
+                path: '/playrunner/docs/local-dev/',
+                component: ComponentCreator('/playrunner/docs/local-dev/', 'cb6'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/docker-images',
-                component: ComponentCreator('/central-station/docs/local-dev/docker-images', '250'),
+                path: '/playrunner/docs/local-dev/connecting-integrations',
+                component: ComponentCreator('/playrunner/docs/local-dev/connecting-integrations', '515'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/environment-variables',
-                component: ComponentCreator('/central-station/docs/local-dev/environment-variables', 'e73'),
+                path: '/playrunner/docs/local-dev/connection-nodes',
+                component: ComponentCreator('/playrunner/docs/local-dev/connection-nodes', '0b3'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/firebase-and-data',
-                component: ComponentCreator('/central-station/docs/local-dev/firebase-and-data', 'e63'),
+                path: '/playrunner/docs/local-dev/docker-images',
+                component: ComponentCreator('/playrunner/docs/local-dev/docker-images', '723'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/services-and-ports',
-                component: ComponentCreator('/central-station/docs/local-dev/services-and-ports', '65f'),
+                path: '/playrunner/docs/local-dev/environment-variables',
+                component: ComponentCreator('/playrunner/docs/local-dev/environment-variables', '0d6'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/troubleshooting',
-                component: ComponentCreator('/central-station/docs/local-dev/troubleshooting', 'a01'),
+                path: '/playrunner/docs/local-dev/postgres-prisma-and-local-auth',
+                component: ComponentCreator('/playrunner/docs/local-dev/postgres-prisma-and-local-auth', '087'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/local-dev/workflow-execution',
-                component: ComponentCreator('/central-station/docs/local-dev/workflow-execution', '7a3'),
+                path: '/playrunner/docs/local-dev/services-and-ports',
+                component: ComponentCreator('/playrunner/docs/local-dev/services-and-ports', 'caf'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/overview',
-                component: ComponentCreator('/central-station/docs/overview', 'cbe'),
+                path: '/playrunner/docs/local-dev/troubleshooting',
+                component: ComponentCreator('/playrunner/docs/local-dev/troubleshooting', 'c1f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/',
-                component: ComponentCreator('/central-station/docs/tutorials/', '6ff'),
+                path: '/playrunner/docs/local-dev/workflow-execution',
+                component: ComponentCreator('/playrunner/docs/local-dev/workflow-execution', '095'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/connect-github',
-                component: ComponentCreator('/central-station/docs/tutorials/connect-github', '809'),
+                path: '/playrunner/docs/overview',
+                component: ComponentCreator('/playrunner/docs/overview', '925'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/create-your-first-workflow',
-                component: ComponentCreator('/central-station/docs/tutorials/create-your-first-workflow', '379'),
+                path: '/playrunner/docs/tutorials/',
+                component: ComponentCreator('/playrunner/docs/tutorials/', 'd0b'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/getting-started',
-                component: ComponentCreator('/central-station/docs/tutorials/getting-started', '3ad'),
+                path: '/playrunner/docs/tutorials/connect-github',
+                component: ComponentCreator('/playrunner/docs/tutorials/connect-github', '9df'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/run-your-first-test',
-                component: ComponentCreator('/central-station/docs/tutorials/run-your-first-test', '3b6'),
+                path: '/playrunner/docs/tutorials/create-your-first-workflow',
+                component: ComponentCreator('/playrunner/docs/tutorials/create-your-first-workflow', '0b7'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/central-station/docs/tutorials/understanding-reports',
-                component: ComponentCreator('/central-station/docs/tutorials/understanding-reports', '050'),
+                path: '/playrunner/docs/tutorials/getting-started',
+                component: ComponentCreator('/playrunner/docs/tutorials/getting-started', 'bdf'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/tutorials/run-your-first-test',
+                component: ComponentCreator('/playrunner/docs/tutorials/run-your-first-test', '864'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/tutorials/understanding-reports',
+                component: ComponentCreator('/playrunner/docs/tutorials/understanding-reports', '499'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               }
@@ -233,8 +245,8 @@ export default [
     ]
   },
   {
-    path: '/central-station/',
-    component: ComponentCreator('/central-station/', '826'),
+    path: '/playrunner/',
+    component: ComponentCreator('/playrunner/', '6a1'),
     exact: true
   },
   {

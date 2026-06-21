@@ -5,10 +5,10 @@
   "source": "@site/docs/local-dev/04-services-and-ports.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/services-and-ports",
-  "permalink": "/central-station/docs/local-dev/services-and-ports",
+  "permalink": "/playrunner/docs/local-dev/services-and-ports",
   "draft": false,
   "unlisted": false,
-  "editUrl": "https://github.com/playrunner/central-station/tree/main/docs/docs/local-dev/04-services-and-ports.md",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/04-services-and-ports.md",
   "tags": [],
   "version": "current",
   "sidebarPosition": 4,
@@ -19,10 +19,10 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Connecting Integrations",
-    "permalink": "/central-station/docs/local-dev/connecting-integrations"
+    "permalink": "/playrunner/docs/local-dev/connecting-integrations"
   },
   "next": {
     "title": "Connection Nodes",
-    "permalink": "/central-station/docs/local-dev/connection-nodes"
+    "permalink": "/playrunner/docs/local-dev/connection-nodes"
   }
 }

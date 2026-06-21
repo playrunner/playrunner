@@ -6,7 +6,7 @@ title: Overview
 # Development — Overview
 
 > **This documentation covers local development only.**  
-> It describes how to run the entire Central Station stack on your own machine.
+> It describes how to run the entire Playrunner stack on your own machine.
 
 ---
 
@@ -22,9 +22,9 @@ The rest of the Development section assumes you have already completed that setu
 
 ---
 
-## What is Central Station?
+## What is Playrunner?
 
-Central Station is a workflow orchestration platform for running automated Playwright test pipelines. It consists of four main services that must all be running locally to have a fully functional development environment:
+Playrunner is a workflow orchestration platform for running automated Playwright test pipelines. It consists of four main services that must all be running locally to have a fully functional development environment:
 
 | Service | Technology | Port | How it runs |
 |---|---|---|---|
@@ -72,7 +72,7 @@ Pub/Sub is the message bus that decouples the Playwright runner (running inside 
 ## Repository Structure
 
 ```
-central-station/
+playrunner/
 ├── apps/
 │   ├── api/                   # Express API server
 │   ├── web/                   # React + Vite frontend
