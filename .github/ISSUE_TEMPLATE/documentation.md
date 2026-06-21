@@ -1,10 +1,33 @@
 ---
-name: Documentation
-about: Request an update to the documentation.
-title: "[Documentation]:"
-labels: ''
-assignees: ''
+name: Documentation 📖
+description: Submit a request to add or update documentation
+title: '[Docs]: '
+labels: ['Documentation :book:']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Thank you for helping us improve our documentation!
+        Please be sure you are looking at [the Next version of the documentation](https://playrunner.dev/docs/next/intro) before opening an issue here.
+  - type: textarea
+    id: links
+    attributes:
+      label: Page(s)
+      description: |
+        Links to one or more documentation pages that should be modified.
+        If you are reporting an issue with a specific section of a page, try to link directly to the nearest anchor.
+        If you are suggesting that a new page be created, link to the parent of the proposed page.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the change you are requesting.
+        If the issue pertains to a single function or matcher, be sure to specify the entire call signature.
+    validations:
+      required: true
 
 ---
-
 
