@@ -108,7 +108,7 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               />
             </div>
             <span className={cn(textClass, 'font-bold text-lg tracking-tight')}>
-              Playrunner
+              Playstage
             </span>
           </div>
 
@@ -148,11 +148,14 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               />
               <NavItem
                 icon={BarChart2}
-                label="Analytics"
+                label="Reports"
                 isOpen={isOpen}
-                isActive={location.pathname === '/analytics'}
+                isActive={
+                  location.pathname === '/reports' ||
+                  location.pathname === '/analytics'
+                }
                 onClick={() => {
-                  navigate('/analytics');
+                  navigate('/reports');
                 }}
               />
               <NavItem

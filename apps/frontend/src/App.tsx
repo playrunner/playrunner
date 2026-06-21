@@ -19,7 +19,7 @@ import Settings from './pages/Settings';
 import DesignSystem from './pages/DesignSystem';
 import Environments from './pages/Environments';
 import Integrations from './pages/Integrations';
-import Analytics from './pages/Analytics';
+import Reports from './pages/Reports';
 import Teams from './pages/Teams';
 import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './components/ThemeProvider';
@@ -76,7 +76,11 @@ function AppShell() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/environments" element={<Environments />} />
             <Route path="/integrations" element={<Integrations />} />
-            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route
+              path="/analytics"
+              element={<Navigate to="/reports" replace />}
+            />
             <Route path="/teams" element={<Teams />} />
           </Route>
         </Route>
