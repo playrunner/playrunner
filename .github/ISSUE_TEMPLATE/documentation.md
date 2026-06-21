@@ -1,8 +1,8 @@
 ---
-name: Documentation
+name: Documentation 📖
 about: Request an update to the documentation.
 title: "[Documentation]:"
-labels: ''
+labels: ['Documentation :book:']
 assignees: ''
 
 ---
