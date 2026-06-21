@@ -108,7 +108,7 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               />
             </div>
             <span className={cn(textClass, 'font-bold text-lg tracking-tight')}>
-              Playstage
+              Playrunner
             </span>
           </div>
 
