@@ -27,6 +27,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 - Use bordered section headers and stacked surface cards like the Design System page.
 - Prefer nested inset panels with `bg-[var(--background)]` inside a `bg-[var(--surface)]` page card.
 - Treat setup/onboarding screens as normal product surfaces, not marketing splash pages.
+- Pay attention to the lint and Prettier rules when writing code; run the affected app's `lint` and `format:check` scripts and keep changes passing both.
 
 ## Reference
 

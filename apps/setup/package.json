@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "lint": "node ../web/node_modules/eslint/bin/eslint.js .",
-    "lint:fix": "node ../web/node_modules/eslint/bin/eslint.js . --fix"
+    "lint:fix": "node ../web/node_modules/eslint/bin/eslint.js . --fix",
+    "format": "node ../web/node_modules/prettier/bin/prettier.cjs --write .",
+    "format:check": "node ../web/node_modules/prettier/bin/prettier.cjs --check ."
   }
 }

@@ -16,28 +16,40 @@ type RunnerEventContext = {
 let runnerEventContext: RunnerEventContext | null = null;
 
 async function publishEvent(payload: Record<string, unknown>) {
-  if (!runnerEventContext?.executionToken || !runnerEventContext.editorApiUrl || !runnerEventContext.testId) {
+  if (
+    !runnerEventContext?.executionToken ||
+    !runnerEventContext.editorApiUrl ||
+    !runnerEventContext.testId
+  ) {
     return;
   }
 
   try {
-    const response = await fetch(new URL(`/api/executions/${runnerEventContext.testId}/events`, runnerEventContext.editorApiUrl), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [EXECUTION_TOKEN_HEADER]: runnerEventContext.executionToken,
+    const response = await fetch(
+      new URL(
+        `/api/executions/${runnerEventContext.testId}/events`,
+        runnerEventContext.editorApiUrl,
+      ),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [EXECUTION_TOKEN_HEADER]: runnerEventContext.executionToken,
+        },
+        body: JSON.stringify({
+          executionId: runnerEventContext.testId,
+          nodeId: runnerEventContext.nodeId,
+          testId: runnerEventContext.testId,
+          ...payload,
+        }),
       },
-      body: JSON.stringify({
-        executionId: runnerEventContext.testId,
-        nodeId: runnerEventContext.nodeId,
-        testId: runnerEventContext.testId,
-        ...payload,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const details = await response.text().catch(() => '');
-      console.error(`Failed to publish runner event (${response.status}): ${details}`);
+      console.error(
+        `Failed to publish runner event (${response.status}): ${details}`,
+      );
     }
   } catch (error) {
     console.error('Failed to publish runner event:', error);
@@ -67,9 +79,17 @@ async function runTypescriptTest(workingDir: string): Promise<void> {
     await publishLog('Installing npm dependencies...');
     await new Promise<void>((resolve, reject) => {
       const install = spawn('npm', ['install'], { cwd: workingDir });
-      install.stdout.on('data', data => console.log(`[npm]: ${data.toString().trim()}`));
-      install.stderr.on('data', data => console.error(`[npm error]: ${data.toString().trim()}`));
-      install.on('close', code => code === 0 ? resolve() : reject(new Error(`npm install failed with code ${code}`)));
+      install.stdout.on('data', (data) =>
+        console.log(`[npm]: ${data.toString().trim()}`),
+      );
+      install.stderr.on('data', (data) =>
+        console.error(`[npm error]: ${data.toString().trim()}`),
+      );
+      install.on('close', (code) =>
+        code === 0
+          ? resolve()
+          : reject(new Error(`npm install failed with code ${code}`)),
+      );
     });
   }
 
@@ -83,9 +103,17 @@ async function runTypescriptTest(workingDir: string): Promise<void> {
   await publishLog(`Running npx playwright test using ${configMsg}...`);
   await new Promise<void>((resolve, reject) => {
     const testProc = spawn('npx', args, { cwd: workingDir });
-    testProc.stdout.on('data', data => console.log(`[playwright]: ${data.toString().trim()}`));
-    testProc.stderr.on('data', data => console.error(`[playwright error]: ${data.toString().trim()}`));
-    testProc.on('close', code => code === 0 ? resolve() : reject(new Error(`Tests failed with code ${code}`)));
+    testProc.stdout.on('data', (data) =>
+      console.log(`[playwright]: ${data.toString().trim()}`),
+    );
+    testProc.stderr.on('data', (data) =>
+      console.error(`[playwright error]: ${data.toString().trim()}`),
+    );
+    testProc.on('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Tests failed with code ${code}`)),
+    );
   });
 }
 
@@ -95,9 +123,17 @@ async function runPythonTest(workingDir: string): Promise<void> {
   await publishLog('Running pytest...');
   await new Promise<void>((resolve, reject) => {
     const testProc = spawn('pytest', [], { cwd: workingDir });
-    testProc.stdout.on('data', data => console.log(`[pytest]: ${data.toString().trim()}`));
-    testProc.stderr.on('data', data => console.error(`[pytest error]: ${data.toString().trim()}`));
-    testProc.on('close', code => code === 0 ? resolve() : reject(new Error(`Tests failed with code ${code}`)));
+    testProc.stdout.on('data', (data) =>
+      console.log(`[pytest]: ${data.toString().trim()}`),
+    );
+    testProc.stderr.on('data', (data) =>
+      console.error(`[pytest error]: ${data.toString().trim()}`),
+    );
+    testProc.on('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Tests failed with code ${code}`)),
+    );
   });
 }
 
@@ -110,7 +146,7 @@ async function uploadOutputs(
   bucketName?: string,
   accessToken?: string,
   gcpProject?: string,
-  cloudProvider: string = 'LOCAL-DEV'
+  cloudProvider: string = 'LOCAL-DEV',
 ) {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
@@ -119,11 +155,15 @@ async function uploadOutputs(
 
   await publishLog(`Preparing test outputs for node ${nodeId}...`);
 
-  const hasPlaywrightReport = fs.existsSync(path.join(workingDir, 'playwright-report'));
+  const hasPlaywrightReport = fs.existsSync(
+    path.join(workingDir, 'playwright-report'),
+  );
   const hasTestResults = fs.existsSync(path.join(workingDir, 'test-results'));
 
   if (!hasPlaywrightReport && !hasTestResults) {
-    await publishLog('No playwright-report or test-results directory found. Skipping output upload.');
+    await publishLog(
+      'No playwright-report or test-results directory found. Skipping output upload.',
+    );
     return;
   }
 
@@ -139,7 +179,7 @@ async function uploadOutputs(
         const findVideos = (dir: string): string[] => {
           let results: string[] = [];
           const list = fs.readdirSync(dir);
-          list.forEach(file => {
+          list.forEach((file) => {
             const fileRoute = path.join(dir, file);
             const stat = fs.statSync(fileRoute);
             if (stat && stat.isDirectory()) {
@@ -152,11 +192,16 @@ async function uploadOutputs(
         };
         const mediaFiles = findVideos(path.join(workingDir, 'test-results'));
         if (mediaFiles.length > 0) {
-          outputData.media = mediaFiles.map(v => `/outputs/${testId}/${nodeId}/${path.relative(workingDir, v)}`);
+          outputData.media = mediaFiles.map(
+            (v) =>
+              `/outputs/${testId}/${nodeId}/${path.relative(workingDir, v)}`,
+          );
         }
       }
 
-      await publishLog(`Uploading outputs directly to GCS bucket ${bucketName}...`);
+      await publishLog(
+        `Uploading outputs directly to GCS bucket ${bucketName}...`,
+      );
       const [{ Storage }, { OAuth2Client }] = await Promise.all([
         import('@google-cloud/storage'),
         import('google-auth-library'),
@@ -169,7 +214,9 @@ async function uploadOutputs(
           const headers = await oauth2Client.getRequestHeaders(url);
           const plainHeaders: Record<string, string> = {};
           if (headers && typeof (headers as any).forEach === 'function') {
-            (headers as any).forEach((value: string, key: string) => { plainHeaders[key] = value; });
+            (headers as any).forEach((value: string, key: string) => {
+              plainHeaders[key] = value;
+            });
           } else if (headers) {
             Object.assign(plainHeaders, headers);
           }
@@ -178,23 +225,32 @@ async function uploadOutputs(
         request: async (opts: any) => {
           if (opts.uri && !opts.url) opts.url = opts.uri;
           const res = await oauth2Client.request(opts);
-          if (res && res.headers && typeof (res.headers as any).forEach === 'function') {
+          if (
+            res &&
+            res.headers &&
+            typeof (res.headers as any).forEach === 'function'
+          ) {
             const plainHeaders: Record<string, string> = {};
-            (res.headers as any).forEach((value: string, key: string) => { plainHeaders[key] = value; });
+            (res.headers as any).forEach((value: string, key: string) => {
+              plainHeaders[key] = value;
+            });
             return new Proxy(res, {
               get(target, prop) {
                 if (prop === 'headers') return plainHeaders;
                 const value = target[prop as keyof typeof target];
                 if (typeof value === 'function') return value.bind(target);
                 return value;
-              }
+              },
             });
           }
           return res;
-        }
+        },
       };
 
-      const storage = new Storage({ projectId: gcpProject, authClient: authClient as any });
+      const storage = new Storage({
+        projectId: gcpProject,
+        authClient: authClient as any,
+      });
       const bucket = storage.bucket(bucketName);
 
       const uploadDirToGcs = async (localDir: string, gcsPrefix: string) => {
@@ -210,8 +266,16 @@ async function uploadOutputs(
         }
       };
 
-      if (hasPlaywrightReport) await uploadDirToGcs(path.join(workingDir, 'playwright-report'), `${testId}/${nodeId}/playwright-report`);
-      if (hasTestResults) await uploadDirToGcs(path.join(workingDir, 'test-results'), `${testId}/${nodeId}/test-results`);
+      if (hasPlaywrightReport)
+        await uploadDirToGcs(
+          path.join(workingDir, 'playwright-report'),
+          `${testId}/${nodeId}/playwright-report`,
+        );
+      if (hasTestResults)
+        await uploadDirToGcs(
+          path.join(workingDir, 'test-results'),
+          `${testId}/${nodeId}/test-results`,
+        );
 
       await publishEvent({
         nodeId,
@@ -224,25 +288,34 @@ async function uploadOutputs(
         throw new Error('Missing executionAuthToken for local output upload.');
       }
 
-      await publishLog(`Uploading outputs to editor API at ${editorApiUrl} for local execution.`);
+      await publishLog(
+        `Uploading outputs to editor API at ${editorApiUrl} for local execution.`,
+      );
       const outputDirs = [];
       if (hasPlaywrightReport) outputDirs.push('playwright-report');
       if (hasTestResults) outputDirs.push('test-results');
 
       const archiveBuffer = await new Promise<Buffer>((resolve, reject) => {
-        const tarProcess = spawn('tar', ['-czf', '-', ...outputDirs], { cwd: workingDir });
+        const tarProcess = spawn('tar', ['-czf', '-', ...outputDirs], {
+          cwd: workingDir,
+        });
         const chunks: Buffer[] = [];
 
         tarProcess.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
-        tarProcess.stderr.on('data', data => console.error(`[tar error]: ${data.toString().trim()}`));
-        tarProcess.on('close', code => {
+        tarProcess.stderr.on('data', (data) =>
+          console.error(`[tar error]: ${data.toString().trim()}`),
+        );
+        tarProcess.on('close', (code) => {
           if (code === 0) resolve(Buffer.concat(chunks));
           else reject(new Error(`tar failed with code ${code}`));
         });
         tarProcess.on('error', reject);
       });
 
-      const uploadUrl = new URL(`/api/outputs/${testId}/${nodeId}`, editorApiUrl);
+      const uploadUrl = new URL(
+        `/api/outputs/${testId}/${nodeId}`,
+        editorApiUrl,
+      );
       if (bucketName) uploadUrl.searchParams.set('bucketName', bucketName);
 
       const response = await fetch(uploadUrl, {
@@ -251,12 +324,14 @@ async function uploadOutputs(
           'Content-Type': 'application/gzip',
           [EXECUTION_TOKEN_HEADER]: executionAuthToken,
         },
-        body: new Uint8Array(archiveBuffer)
+        body: new Uint8Array(archiveBuffer),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Editor API upload failed (${response.status}): ${errorText}`);
+        throw new Error(
+          `Editor API upload failed (${response.status}): ${errorText}`,
+        );
       }
     }
 
@@ -272,26 +347,35 @@ async function run() {
     try {
       payload = JSON.parse(process.env.PAYLOAD);
     } catch {
-      await publishLog('Failed to parse PAYLOAD environment variable.', 'error');
+      await publishLog(
+        'Failed to parse PAYLOAD environment variable.',
+        'error',
+      );
     }
   }
 
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL-DEV';
   runnerEventContext = {
-    editorApiUrl: payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
+    editorApiUrl:
+      payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
     executionToken: payload?.data?.executionAuthToken || '',
     nodeId: payload?.data?.nodeId,
     testId,
   };
 
   const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
-  await publishLog(`Playwright runner container started in ${envType}. Test ID: ${testId}`);
+  await publishLog(
+    `Playwright runner container started in ${envType}. Test ID: ${testId}`,
+  );
 
   let workingDir = __dirname;
   let isCloned = false;
 
-  if (payload?.data?.action === 'clone' || (!payload?.data?.action && payload?.data?.repository)) {
+  if (
+    payload?.data?.action === 'clone' ||
+    (!payload?.data?.action && payload?.data?.repository)
+  ) {
     if (payload?.data?.repository) {
       const repo = payload.data.repository;
       const branch = payload.data.branch || 'main';
@@ -299,14 +383,29 @@ async function run() {
 
       await publishLog(`Cloning repository ${repo} on branch ${branch}...`);
 
-      const cloneUrl = token ? `https://x-access-token:${token}@github.com/${repo}.git` : `https://github.com/${repo}.git`;
+      const cloneUrl = token
+        ? `https://x-access-token:${token}@github.com/${repo}.git`
+        : `https://github.com/${repo}.git`;
 
       try {
         await new Promise<void>((resolve, reject) => {
-          const gitProcess = spawn('git', ['clone', '--depth', '1', '-b', branch, '--single-branch', cloneUrl, '/app/repo']);
+          const gitProcess = spawn('git', [
+            'clone',
+            '--depth',
+            '1',
+            '-b',
+            branch,
+            '--single-branch',
+            cloneUrl,
+            '/app/repo',
+          ]);
 
-          gitProcess.stdout.on('data', (data) => console.log(`[Git]: ${data.toString().trim()}`));
-          gitProcess.stderr.on('data', (data) => console.error(`[Git Error]: ${data.toString().trim()}`));
+          gitProcess.stdout.on('data', (data) =>
+            console.log(`[Git]: ${data.toString().trim()}`),
+          );
+          gitProcess.stderr.on('data', (data) =>
+            console.error(`[Git Error]: ${data.toString().trim()}`),
+          );
 
           gitProcess.on('close', (code) => {
             if (code === 0) resolve();
@@ -329,7 +428,10 @@ async function run() {
   let testLanguage = payload?.data?.testLanguage || 'typescript';
 
   if (isCloned) {
-    if (fs.existsSync(path.join(workingDir, 'requirements.txt')) || fs.existsSync(path.join(workingDir, 'pytest.ini'))) {
+    if (
+      fs.existsSync(path.join(workingDir, 'requirements.txt')) ||
+      fs.existsSync(path.join(workingDir, 'pytest.ini'))
+    ) {
       testLanguage = 'python';
     } else {
       testLanguage = 'typescript';
@@ -361,7 +463,7 @@ async function run() {
     payload?.data?.bucketName,
     payload?.settings?.gcp?.accessToken,
     payload?.settings?.gcp?.selectedProject || process.env.GCP_PROJECT,
-    cloudProvider
+    cloudProvider,
   );
 
   process.exit(testFailed ? 1 : 0);

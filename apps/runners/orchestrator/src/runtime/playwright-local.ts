@@ -1,8 +1,12 @@
 import { spawn } from 'child_process';
-import type { PlaywrightExecutionBackend, PlaywrightExecutionRequest } from './contracts';
+import type {
+  PlaywrightExecutionBackend,
+  PlaywrightExecutionRequest,
+} from './contracts';
 
 const GCP_PROJECT = process.env.GCP_PROJECT || 'local-dev';
-const PLAYWRIGHT_IMAGE_BASE = process.env.PLAYWRIGHT_IMAGE_BASE || 'playrunner-playwright-runner';
+const PLAYWRIGHT_IMAGE_BASE =
+  process.env.PLAYWRIGHT_IMAGE_BASE || 'playrunner-playwright-runner';
 
 function resolvePlaywrightLocalImage(runtime: 'typescript' | 'python'): string {
   return `${PLAYWRIGHT_IMAGE_BASE}-${runtime}`;
@@ -27,7 +31,10 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
 
     const imageTag = config.playwrightVersion || 'latest';
     const fullImage = `${resolvePlaywrightLocalImage(runtime)}:${imageTag}`;
-    await publishLog(`Playwright Runner starting in Docker container using ${runtime} image: ${fullImage}`, 'info');
+    await publishLog(
+      `Playwright Runner starting in Docker container using ${runtime} image: ${fullImage}`,
+      'info',
+    );
 
     const dockerArgs = ['run', '--rm', '--platform', 'linux/amd64'];
     dockerArgs.push('-e', `GCP_PROJECT=${GCP_PROJECT}`);

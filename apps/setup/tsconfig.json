@@ -5,11 +5,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,
@@ -17,44 +13,20 @@
     "allowJs": true,
     "jsx": "react-jsx",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@web/*": [
-        "../web/src/*"
-      ],
-      "react": [
-        "../web/node_modules/react"
-      ],
-      "react/jsx-runtime": [
-        "../web/node_modules/react/jsx-runtime"
-      ],
-      "react/jsx-dev-runtime": [
-        "../web/node_modules/react/jsx-dev-runtime"
-      ],
-      "react-dom": [
-        "../web/node_modules/react-dom"
-      ],
-      "react-dom/client": [
-        "../web/node_modules/react-dom/client"
-      ],
-      "react-router-dom": [
-        "../web/node_modules/react-router-dom"
-      ],
-      "lucide-react": [
-        "../web/node_modules/lucide-react"
-      ],
-      "clsx": [
-        "../web/node_modules/clsx"
-      ],
-      "tailwind-merge": [
-        "../web/node_modules/tailwind-merge"
-      ]
+      "@/*": ["./src/*"],
+      "@web/*": ["../web/src/*"],
+      "react": ["../web/node_modules/react"],
+      "react/jsx-runtime": ["../web/node_modules/react/jsx-runtime"],
+      "react/jsx-dev-runtime": ["../web/node_modules/react/jsx-dev-runtime"],
+      "react-dom": ["../web/node_modules/react-dom"],
+      "react-dom/client": ["../web/node_modules/react-dom/client"],
+      "react-router-dom": ["../web/node_modules/react-router-dom"],
+      "lucide-react": ["../web/node_modules/lucide-react"],
+      "clsx": ["../web/node_modules/clsx"],
+      "tailwind-merge": ["../web/node_modules/tailwind-merge"]
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

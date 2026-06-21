@@ -1,12 +1,17 @@
-import {createRequire} from 'module';
+import { createRequire } from 'module';
 import path from 'path';
-import {defineConfig, loadEnv} from '../web/node_modules/vite/dist/node/index.js';
+import {
+  defineConfig,
+  loadEnv,
+} from '../web/node_modules/vite/dist/node/index.js';
 
-const webRequire = createRequire(path.resolve(__dirname, '../web/package.json'));
+const webRequire = createRequire(
+  path.resolve(__dirname, '../web/package.json'),
+);
 
-export default defineConfig(async ({mode}) => {
+export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, path.resolve(__dirname, '../web'), '');
-  const [{default: react}, {default: tailwindcss}] = await Promise.all([
+  const [{ default: react }, { default: tailwindcss }] = await Promise.all([
     import(webRequire.resolve('@vitejs/plugin-react')),
     import(webRequire.resolve('@tailwindcss/vite')),
   ]);
@@ -27,10 +32,19 @@ export default defineConfig(async ({mode}) => {
         '@': path.resolve(__dirname, 'src'),
         '@web': path.resolve(__dirname, '../web/src'),
         react: path.resolve(webNodeModulesDir, 'react'),
-        'react/jsx-runtime': path.resolve(webNodeModulesDir, 'react/jsx-runtime.js'),
-        'react/jsx-dev-runtime': path.resolve(webNodeModulesDir, 'react/jsx-dev-runtime.js'),
+        'react/jsx-runtime': path.resolve(
+          webNodeModulesDir,
+          'react/jsx-runtime.js',
+        ),
+        'react/jsx-dev-runtime': path.resolve(
+          webNodeModulesDir,
+          'react/jsx-dev-runtime.js',
+        ),
         'react-dom': path.resolve(webNodeModulesDir, 'react-dom'),
-        'react-dom/client': path.resolve(webNodeModulesDir, 'react-dom/client.js'),
+        'react-dom/client': path.resolve(
+          webNodeModulesDir,
+          'react-dom/client.js',
+        ),
         'react-router-dom': path.resolve(webNodeModulesDir, 'react-router-dom'),
         'lucide-react': path.resolve(webNodeModulesDir, 'lucide-react'),
         clsx: path.resolve(webNodeModulesDir, 'clsx'),

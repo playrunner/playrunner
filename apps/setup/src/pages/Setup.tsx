@@ -1,4 +1,4 @@
-import {useMemo, useState} from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -8,19 +8,23 @@ import {
   LockKeyhole,
   Sparkles,
 } from 'lucide-react';
-import {Badge, Button, Input} from '@web/components/ui';
-import {cn} from '@web/lib/utils';
-import type {RuntimeSetupConfig} from '../lib/setup';
-import {getActiveSetupSessionToken} from '../lib/setup';
+import { Badge, Button, Input } from '@web/components/ui';
+import { cn } from '@web/lib/utils';
+import type { RuntimeSetupConfig } from '../lib/setup';
+import { getActiveSetupSessionToken } from '../lib/setup';
 
 type SetupStep = 'intro' | 'postgres' | 'complete';
 
-type SetupFormState = Omit<RuntimeSetupConfig, 'directUrl' | 'shadowDatabaseUrl'> & {
+type SetupFormState = Omit<
+  RuntimeSetupConfig,
+  'directUrl' | 'shadowDatabaseUrl'
+> & {
   confirmPassword: string;
 };
 
 const EMPTY_SETUP_FORM: SetupFormState = {
-  databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public',
+  databaseUrl:
+    'postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public',
   username: 'admin',
   password: '',
   confirmPassword: '',
@@ -50,11 +54,14 @@ const STEP_SEQUENCE = [
   },
 ];
 
-const SURFACE_CARD_CLASS = 'rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm';
-const INSET_CARD_CLASS = 'rounded-xl border border-[var(--border)] bg-[var(--background)]';
+const SURFACE_CARD_CLASS =
+  'rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm';
+const INSET_CARD_CLASS =
+  'rounded-xl border border-[var(--border)] bg-[var(--background)]';
 const CODE_BLOCK_CLASS =
   'overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 font-mono text-xs text-[var(--foreground)]';
-const SECTION_LABEL_CLASS = 'text-xs font-semibold uppercase tracking-[0.24em] text-muted';
+const SECTION_LABEL_CLASS =
+  'text-xs font-semibold uppercase tracking-[0.24em] text-muted';
 
 function getStepTitle(step: SetupStep) {
   switch (step) {
@@ -92,7 +99,9 @@ export default function Setup() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const activeStepIndex = STEP_SEQUENCE.findIndex((candidate) => candidate.id === step);
+  const activeStepIndex = STEP_SEQUENCE.findIndex(
+    (candidate) => candidate.id === step,
+  );
 
   const missingFields = useMemo(() => {
     const fields: string[] = [];
@@ -111,7 +120,10 @@ export default function Setup() {
   const invalidFields = useMemo(() => {
     const fields: string[] = [];
 
-    if (setupForm.databaseUrl.trim() && !isValidPostgresUrl(setupForm.databaseUrl)) {
+    if (
+      setupForm.databaseUrl.trim() &&
+      !isValidPostgresUrl(setupForm.databaseUrl)
+    ) {
       fields.push('DATABASE_URL');
     }
 
@@ -160,7 +172,9 @@ export default function Setup() {
 
     const setupSessionToken = getActiveSetupSessionToken();
     if (!setupSessionToken) {
-      setValidationError('Missing setup session token. Restart with an explicit setup launch.');
+      setValidationError(
+        'Missing setup session token. Restart with an explicit setup launch.',
+      );
       return false;
     }
 
@@ -180,7 +194,9 @@ export default function Setup() {
       );
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {error?: string} | null;
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
         throw new Error(
           payload?.error ??
             (mode === 'generate'
@@ -238,11 +254,16 @@ export default function Setup() {
             </Badge>
             <div className="space-y-2">
               <h1 className="max-w-3xl text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-                Point this workspace at PostgreSQL and seed the first local login.
+                Point this workspace at PostgreSQL and seed the first local
+                login.
               </h1>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                Setup writes the local database, auth, and Prisma runtime values into{' '}
-                <code className="font-mono text-xs text-[var(--foreground)]">apps/api</code>.
+                Setup writes the local database, auth, and Prisma runtime values
+                into{' '}
+                <code className="font-mono text-xs text-[var(--foreground)]">
+                  apps/api
+                </code>
+                .
               </p>
             </div>
           </div>
@@ -252,10 +273,12 @@ export default function Setup() {
           <aside className="space-y-6">
             <section className={cn(SURFACE_CARD_CLASS, 'p-6')}>
               <div className="border-b border-subtle pb-3">
-                <h2 className="mb-1 text-xl font-medium text-[var(--foreground)]">Setup flow</h2>
+                <h2 className="mb-1 text-xl font-medium text-[var(--foreground)]">
+                  Setup flow
+                </h2>
                 <p className="text-sm text-muted">
-                  Short overview first, then the form, then a final handoff back to normal local
-                  startup.
+                  Short overview first, then the form, then a final handoff back
+                  to normal local startup.
                 </p>
               </div>
 
@@ -279,12 +302,28 @@ export default function Setup() {
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]">
                           <Icon className="h-4 w-4 text-[var(--foreground)]" />
                         </div>
-                        <Badge variant={isComplete ? 'success' : isCurrent ? 'default' : 'outline'}>
-                          {isComplete ? 'Completed' : isCurrent ? 'Current' : item.label}
+                        <Badge
+                          variant={
+                            isComplete
+                              ? 'success'
+                              : isCurrent
+                                ? 'default'
+                                : 'outline'
+                          }
+                        >
+                          {isComplete
+                            ? 'Completed'
+                            : isCurrent
+                              ? 'Current'
+                              : item.label}
                         </Badge>
                       </div>
-                      <h3 className="text-sm font-medium text-[var(--foreground)]">{item.title}</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-muted">{item.description}</p>
+                      <h3 className="text-sm font-medium text-[var(--foreground)]">
+                        {item.title}
+                      </h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
+                        {item.description}
+                      </p>
                     </div>
                   );
                 })}
@@ -297,8 +336,8 @@ export default function Setup() {
                 After setup
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                The standard local path starts Postgres, generates the Prisma client, and pushes
-                the current schema before the API boots.
+                The standard local path starts Postgres, generates the Prisma
+                client, and pushes the current schema before the API boots.
               </p>
               <pre className={cn(CODE_BLOCK_CLASS, 'mt-4')}>
                 <code>./start-local.sh</code>
@@ -315,7 +354,11 @@ export default function Setup() {
                 </h2>
               </div>
               {step !== 'intro' && (
-                <Button variant="secondary" onClick={handleBack} className="gap-2 self-start">
+                <Button
+                  variant="secondary"
+                  onClick={handleBack}
+                  className="gap-2 self-start"
+                >
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
@@ -330,12 +373,14 @@ export default function Setup() {
                       <Sparkles className="mt-0.5 h-5 w-5 text-[var(--foreground)]" />
                       <div>
                         <p className="text-sm font-medium text-[var(--foreground)]">
-                          If you are using the standard local stack, the defaults already point at
-                          the Docker-backed Postgres database.
+                          If you are using the standard local stack, the
+                          defaults already point at the Docker-backed Postgres
+                          database.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          You only need to change the connection values if you want setup to target
-                          a different database or keep separate direct and shadow URLs.
+                          You only need to change the connection values if you
+                          want setup to target a different database or keep
+                          separate direct and shadow URLs.
                         </p>
                       </div>
                     </div>
@@ -348,7 +393,8 @@ export default function Setup() {
                         Database runtime
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Save the Prisma datasource URL into the local API env file.
+                        Save the Prisma datasource URL into the local API env
+                        file.
                       </p>
                     </div>
 
@@ -358,7 +404,8 @@ export default function Setup() {
                         First login
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Create the first local username and password for the app login screen.
+                        Create the first local username and password for the app
+                        login screen.
                       </p>
                     </div>
 
@@ -368,13 +415,21 @@ export default function Setup() {
                         Prisma scaffold
                       </p>
                       <p className="mt-1 text-xs leading-relaxed text-muted">
-                        Write the base runtime files into <code className="font-mono text-[11px] text-[var(--foreground)]">apps/api</code>.
+                        Write the base runtime files into{' '}
+                        <code className="font-mono text-[11px] text-[var(--foreground)]">
+                          apps/api
+                        </code>
+                        .
                       </p>
                     </div>
                   </div>
 
                   <div className="flex justify-end">
-                    <Button variant="primary" onClick={handleIntroContinue} className="gap-2">
+                    <Button
+                      variant="primary"
+                      onClick={handleIntroContinue}
+                      className="gap-2"
+                    >
                       Continue to configuration
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -390,8 +445,9 @@ export default function Setup() {
                           Enter the main database URL and the first local login.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          Keep the default value for the local Docker-backed database, or replace it
-                          with your own PostgreSQL instance.
+                          Keep the default value for the local Docker-backed
+                          database, or replace it with your own PostgreSQL
+                          instance.
                         </p>
                       </div>
                     </div>
@@ -404,7 +460,9 @@ export default function Setup() {
                           Database URL
                         </label>
                         <p className="text-xs text-muted">
-                          <code className="font-mono text-[11px] text-[var(--foreground)]">DATABASE_URL</code>
+                          <code className="font-mono text-[11px] text-[var(--foreground)]">
+                            DATABASE_URL
+                          </code>
                         </p>
                         <Input
                           placeholder="postgresql://postgres:postgres@localhost:5432/playrunner?schema=public"
@@ -493,7 +551,9 @@ export default function Setup() {
                       className="gap-2"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? 'Writing setup files...' : 'Write runtime scaffold'}
+                      {isSubmitting
+                        ? 'Writing setup files...'
+                        : 'Write runtime scaffold'}
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
@@ -508,8 +568,8 @@ export default function Setup() {
                           The runtime scaffold is ready.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          Finish setup to lock the installer and switch back to the normal local
-                          startup flow.
+                          Finish setup to lock the installer and switch back to
+                          the normal local startup flow.
                         </p>
                       </div>
                     </div>
@@ -517,9 +577,12 @@ export default function Setup() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Run next</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">
+                        Run next
+                      </p>
                       <p className="mt-1 text-xs text-muted">
-                        Use the standard startup path for normal local development.
+                        Use the standard startup path for normal local
+                        development.
                       </p>
                       <pre className={cn(CODE_BLOCK_CLASS, 'mt-3')}>
                         <code>./start-local.sh</code>
@@ -527,7 +590,9 @@ export default function Setup() {
                     </div>
 
                     <div className={cn(INSET_CARD_CLASS, 'p-4')}>
-                      <p className="text-sm font-medium text-[var(--foreground)]">Login username</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">
+                        Login username
+                      </p>
                       <p className="mt-1 text-xs text-muted">
                         The local login screen will expect this username.
                       </p>

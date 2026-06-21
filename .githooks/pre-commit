@@ -9,6 +9,9 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 FORMAT_DIRS=(
   "apps/web"
   "apps/api"
+  "apps/setup"
+  "apps/runners/orchestrator"
+  "apps/runners/playwright"
 )
 
 staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"

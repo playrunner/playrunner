@@ -1,4 +1,7 @@
-import type { PlaywrightExecutionBackend, PlaywrightExecutionRequest } from './contracts';
+import type {
+  PlaywrightExecutionBackend,
+  PlaywrightExecutionRequest,
+} from './contracts';
 
 type CloudRunOperation = {
   done?: boolean;
@@ -31,12 +34,17 @@ function requireRequestValue(value: string | undefined, name: string): string {
 
 function requirePositiveNumber(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be provided as a positive number for GCP Playwright execution.`);
+    throw new Error(
+      `${name} must be provided as a positive number for GCP Playwright execution.`,
+    );
   }
   return value;
 }
 
-function renderTemplate(template: string, values: Record<string, string | number>): string {
+function renderTemplate(
+  template: string,
+  values: Record<string, string | number>,
+): string {
   return Object.entries(values).reduce(
     (result, [key, value]) => result.replaceAll(`{${key}}`, String(value)),
     template,
@@ -47,17 +55,39 @@ function cloudRunUrl(resourcePath: string): string {
   return `${requireEnv('GCP_CLOUD_RUN_API_BASE_URL').replace(/\/$/, '')}/${resourcePath}`;
 }
 
-function resolvePlaywrightCloudImage(projectId: string, runtime: string, version: string): string {
-  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE'), { projectId, runtime, version });
+function resolvePlaywrightCloudImage(
+  projectId: string,
+  runtime: string,
+  version: string,
+): string {
+  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE'), {
+    projectId,
+    runtime,
+    version,
+  });
 }
 
-function resolveJobName(runtime: string, version: string, cpu: number, memory: number): string {
-  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_JOB_NAME_TEMPLATE'), { cpu, memory, runtime, version })
+function resolveJobName(
+  runtime: string,
+  version: string,
+  cpu: number,
+  memory: number,
+): string {
+  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_JOB_NAME_TEMPLATE'), {
+    cpu,
+    memory,
+    runtime,
+    version,
+  })
     .replace(/[^a-zA-Z0-9-]/g, '-')
     .toLowerCase();
 }
 
-async function cloudRunRequest<T>(resourcePath: string, accessToken: string, init: RequestInit = {}): Promise<T> {
+async function cloudRunRequest<T>(
+  resourcePath: string,
+  accessToken: string,
+  init: RequestInit = {},
+): Promise<T> {
   const response = await fetch(cloudRunUrl(resourcePath), {
     ...init,
     headers: {
@@ -75,7 +105,10 @@ async function cloudRunRequest<T>(resourcePath: string, accessToken: string, ini
   return response.json() as Promise<T>;
 }
 
-async function jobExists(jobPath: string, accessToken: string): Promise<boolean> {
+async function jobExists(
+  jobPath: string,
+  accessToken: string,
+): Promise<boolean> {
   try {
     await cloudRunRequest(jobPath, accessToken);
     return true;
@@ -87,9 +120,15 @@ async function jobExists(jobPath: string, accessToken: string): Promise<boolean>
   }
 }
 
-async function waitForOperation(operationName: string, accessToken: string): Promise<CloudRunOperation> {
+async function waitForOperation(
+  operationName: string,
+  accessToken: string,
+): Promise<CloudRunOperation> {
   while (true) {
-    const operation = await cloudRunRequest<CloudRunOperation>(operationName, accessToken);
+    const operation = await cloudRunRequest<CloudRunOperation>(
+      operationName,
+      accessToken,
+    );
     if (operation.done) {
       if (operation.error?.message) {
         throw new Error(operation.error.message);
@@ -100,15 +139,25 @@ async function waitForOperation(operationName: string, accessToken: string): Pro
   }
 }
 
-async function waitForExecution(executionName: string, accessToken: string): Promise<void> {
+async function waitForExecution(
+  executionName: string,
+  accessToken: string,
+): Promise<void> {
   while (true) {
-    const execution = await cloudRunRequest<CloudRunExecution>(executionName, accessToken);
-    const completed = execution.conditions?.find((condition) => condition.type === 'Completed');
+    const execution = await cloudRunRequest<CloudRunExecution>(
+      executionName,
+      accessToken,
+    );
+    const completed = execution.conditions?.find(
+      (condition) => condition.type === 'Completed',
+    );
     if (completed?.state === 'CONDITION_SUCCEEDED') {
       return;
     }
     if (completed?.state === 'CONDITION_FAILED') {
-      throw new Error(`Playwright Cloud Run Execution ${execution.name || executionName} failed.`);
+      throw new Error(
+        `Playwright Cloud Run Execution ${execution.name || executionName} failed.`,
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
@@ -130,28 +179,32 @@ async function ensurePlaywrightJob(args: {
     return jobPath;
   }
 
-  const operation = await cloudRunRequest<CloudRunOperation>(`${parentPath}/jobs?jobId=${args.jobName}`, args.accessToken, {
-    method: 'POST',
-    body: JSON.stringify({
-      template: {
+  const operation = await cloudRunRequest<CloudRunOperation>(
+    `${parentPath}/jobs?jobId=${args.jobName}`,
+    args.accessToken,
+    {
+      method: 'POST',
+      body: JSON.stringify({
         template: {
-          containers: [
-            {
-              image: args.imageUri,
-              name: 'playwright',
-              resources: {
-                limits: {
-                  cpu: `${args.cpu}`,
-                  memory: `${args.memory}Gi`,
+          template: {
+            containers: [
+              {
+                image: args.imageUri,
+                name: 'playwright',
+                resources: {
+                  limits: {
+                    cpu: `${args.cpu}`,
+                    memory: `${args.memory}Gi`,
+                  },
                 },
               },
-            },
-          ],
-          maxRetries: 0,
+            ],
+            maxRetries: 0,
+          },
         },
-      },
-    }),
-  });
+      }),
+    },
+  );
 
   await waitForOperation(operation.name, args.accessToken);
   return jobPath;
@@ -172,19 +225,32 @@ async function triggerPlaywrightJob(args: {
   const env = [
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
     { name: 'GCP_PROJECT', value: args.projectId },
-    ...args.envKeys.map((key) => ({ name: key, value: args.globalEnvVars[key] || '' })),
+    ...args.envKeys.map((key) => ({
+      name: key,
+      value: args.globalEnvVars[key] || '',
+    })),
   ];
 
-  const operation = await cloudRunRequest<CloudRunOperation>(`${jobPath}:run`, args.accessToken, {
-    method: 'POST',
-    body: JSON.stringify({
-      overrides: {
-        containerOverrides: [{ env, name: 'playwright' }],
-      },
-    }),
-  });
-  const completedOperation = await waitForOperation(operation.name, args.accessToken);
-  const executionName = requireRequestValue(completedOperation.response?.name, 'Cloud Run execution name');
+  const operation = await cloudRunRequest<CloudRunOperation>(
+    `${jobPath}:run`,
+    args.accessToken,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        overrides: {
+          containerOverrides: [{ env, name: 'playwright' }],
+        },
+      }),
+    },
+  );
+  const completedOperation = await waitForOperation(
+    operation.name,
+    args.accessToken,
+  );
+  const executionName = requireRequestValue(
+    completedOperation.response?.name,
+    'Cloud Run execution name',
+  );
   await waitForExecution(executionName, args.accessToken);
   return executionName;
 }
@@ -195,16 +261,37 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
   }
 
   async execute(request: PlaywrightExecutionRequest): Promise<void> {
-    const { config, envKeys, globalEnvVars, payloadData, publishLog, reqBody, runtime } = request;
+    const {
+      config,
+      envKeys,
+      globalEnvVars,
+      payloadData,
+      publishLog,
+      reqBody,
+      runtime,
+    } = request;
     const projectId = requireRequestValue(reqBody.gcpProject, 'gcpProject');
-    const accessToken = requireRequestValue(reqBody.settings?.gcp?.accessToken, 'GCP access token');
-    const playwrightVersion = requireRequestValue(config.playwrightVersion, 'playwrightVersion');
+    const accessToken = requireRequestValue(
+      reqBody.settings?.gcp?.accessToken,
+      'GCP access token',
+    );
+    const playwrightVersion = requireRequestValue(
+      config.playwrightVersion,
+      'playwrightVersion',
+    );
     const cpu = requirePositiveNumber(config.cpu, 'cpu');
     const memory = requirePositiveNumber(config.memory, 'memory');
-    const imageUri = resolvePlaywrightCloudImage(projectId, runtime, playwrightVersion);
+    const imageUri = resolvePlaywrightCloudImage(
+      projectId,
+      runtime,
+      playwrightVersion,
+    );
     const jobName = resolveJobName(runtime, playwrightVersion, cpu, memory);
 
-    await publishLog(`Playwright Runner starting in Cloud Run Job using ${runtime} image: ${imageUri}`, 'info');
+    await publishLog(
+      `Playwright Runner starting in Cloud Run Job using ${runtime} image: ${imageUri}`,
+      'info',
+    );
     const executionName = await triggerPlaywrightJob({
       accessToken,
       cpu,
@@ -216,6 +303,9 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       payloadData,
       projectId,
     });
-    await publishLog(`Playwright Cloud Run Job (${executionName}) finished successfully.`, 'info');
+    await publishLog(
+      `Playwright Cloud Run Job (${executionName}) finished successfully.`,
+      'info',
+    );
   }
 }

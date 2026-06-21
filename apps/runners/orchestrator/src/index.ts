@@ -15,11 +15,17 @@ type WorkflowNodeState = 'idle' | 'running' | 'success' | 'error' | 'warning';
 type WorkflowEventPublisher = {
   executionId: string;
   publishEvent: (payload: Record<string, unknown>) => Promise<void>;
-  publishLog: (message: string, level?: WorkflowEventLevel, extra?: Record<string, unknown>) => Promise<void>;
+  publishLog: (
+    message: string,
+    level?: WorkflowEventLevel,
+    extra?: Record<string, unknown>,
+  ) => Promise<void>;
   publishNodeState: (nodeId: string, state: WorkflowNodeState) => Promise<void>;
 };
 
-function resolvePlaywrightRuntime(config: Record<string, any>): 'typescript' | 'python' {
+function resolvePlaywrightRuntime(
+  config: Record<string, any>,
+): 'typescript' | 'python' {
   const configured = config.testLanguage || config.runtime;
   if (configured === 'python') {
     return 'python';
@@ -49,7 +55,9 @@ setInterval(async () => {
   }
 
   if (!editorIsAlive && activeWorkflows === 0) {
-    console.log('Lost heartbeat to editor and no workflows in progress. Shutting down gracefully.');
+    console.log(
+      'Lost heartbeat to editor and no workflows in progress. Shutting down gracefully.',
+    );
     process.exit(0);
   }
 }, 5000);
@@ -61,31 +69,44 @@ async function postWorkflowEvent(args: {
   payload: Record<string, unknown>;
 }) {
   try {
-    const response = await fetch(new URL(`/api/executions/${args.executionId}/events`, args.editorApiUrl), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        [EXECUTION_TOKEN_HEADER]: args.executionToken,
+    const response = await fetch(
+      new URL(`/api/executions/${args.executionId}/events`, args.editorApiUrl),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          [EXECUTION_TOKEN_HEADER]: args.executionToken,
+        },
+        body: JSON.stringify({
+          executionId: args.executionId,
+          testId: args.executionId,
+          ...args.payload,
+        }),
       },
-      body: JSON.stringify({
-        executionId: args.executionId,
-        testId: args.executionId,
-        ...args.payload,
-      }),
-    });
+    );
 
     if (!response.ok) {
       const details = await response.text().catch(() => '');
-      console.error(`Failed to post workflow event for ${args.executionId}: ${response.status} ${details}`);
+      console.error(
+        `Failed to post workflow event for ${args.executionId}: ${response.status} ${details}`,
+      );
     }
   } catch (error) {
-    console.error(`Failed to post workflow event for ${args.executionId}:`, error);
+    console.error(
+      `Failed to post workflow event for ${args.executionId}:`,
+      error,
+    );
   }
 }
 
-function createWorkflowEventPublisher(reqBody: Record<string, any>): WorkflowEventPublisher {
+function createWorkflowEventPublisher(
+  reqBody: Record<string, any>,
+): WorkflowEventPublisher {
   const executionId = typeof reqBody.testId === 'string' ? reqBody.testId : '';
-  const executionToken = typeof reqBody.executionAuthToken === 'string' ? reqBody.executionAuthToken : '';
+  const executionToken =
+    typeof reqBody.executionAuthToken === 'string'
+      ? reqBody.executionAuthToken
+      : '';
   const editorApiUrl = reqBody.editorApiUrl || EDITOR_API_URL;
   const basePayload = {
     cloudProvider: reqBody.cloudProvider || 'LOCAL-DEV',
@@ -94,7 +115,9 @@ function createWorkflowEventPublisher(reqBody: Record<string, any>): WorkflowEve
 
   const publishEvent = async (payload: Record<string, unknown>) => {
     if (!executionId || !executionToken) {
-      console.warn('Skipping workflow event publish because execution context is missing.');
+      console.warn(
+        'Skipping workflow event publish because execution context is missing.',
+      );
       return;
     }
 
@@ -142,7 +165,10 @@ async function executeWorkflow(reqBody: any) {
   try {
     const { nodes, connections, settings, testId, bucketName } = reqBody;
 
-    console.log('Runner received workflow execution request with nodes:', nodes?.length);
+    console.log(
+      'Runner received workflow execution request with nodes:',
+      nodes?.length,
+    );
 
     await publishEvent({
       level: 'info',
@@ -153,7 +179,9 @@ async function executeWorkflow(reqBody: any) {
 
     if (nodes && Array.isArray(nodes)) {
       const globalEnvVars: Record<string, string> = {};
-      const envNodes = nodes.filter((n) => (n.nodeType || n.label).toLowerCase() === 'environment');
+      const envNodes = nodes.filter(
+        (n) => (n.nodeType || n.label).toLowerCase() === 'environment',
+      );
       for (const envNode of envNodes) {
         if (envNode.config?.variables) {
           envNode.config.variables.forEach((v: any) => {
@@ -173,7 +201,9 @@ async function executeWorkflow(reqBody: any) {
         ];
 
         for (const parentId of implicitParents) {
-          const hasExplicit = processedConnections.some((c) => c.sourceId === parentId && c.targetId === node.id);
+          const hasExplicit = processedConnections.some(
+            (c) => c.sourceId === parentId && c.targetId === node.id,
+          );
           if (!hasExplicit) {
             processedConnections.push({
               sourceId: parentId,
@@ -185,10 +215,16 @@ async function executeWorkflow(reqBody: any) {
       }
 
       if (processedConnections.length > 0) {
-        await publishLog(`Analyzing ${processedConnections.length} workflow connections...`, 'info');
+        await publishLog(
+          `Analyzing ${processedConnections.length} workflow connections...`,
+          'info',
+        );
         for (const conn of processedConnections) {
           const type = conn.type || 'sequential';
-          await publishLog(`Connection ${conn.sourceId} -> ${conn.targetId} is marked as [${type.toUpperCase()}]`, 'debug');
+          await publishLog(
+            `Connection ${conn.sourceId} -> ${conn.targetId} is marked as [${type.toUpperCase()}]`,
+            'debug',
+          );
         }
       }
 
@@ -200,16 +236,25 @@ async function executeWorkflow(reqBody: any) {
 
       const enqueueNode = (
         nodeId: string,
-        options: { priority?: 'normal' | 'high'; bypassConcurrency?: boolean } = {},
+        options: {
+          priority?: 'normal' | 'high';
+          bypassConcurrency?: boolean;
+        } = {},
       ) => {
         const { priority = 'normal', bypassConcurrency = false } = options;
-        if (nodeHasRun[nodeId] || nodeIsRunning[nodeId] || nodeQueue.includes(nodeId)) {
+        if (
+          nodeHasRun[nodeId] ||
+          nodeIsRunning[nodeId] ||
+          nodeQueue.includes(nodeId)
+        ) {
           return;
         }
         if (bypassConcurrency) {
-          processNode(nodeId).catch(console.error).finally(() => {
-            pumpQueue();
-          });
+          processNode(nodeId)
+            .catch(console.error)
+            .finally(() => {
+              pumpQueue();
+            });
           return;
         }
         if (priority === 'high') {
@@ -226,9 +271,11 @@ async function executeWorkflow(reqBody: any) {
         isPumping = true;
         while (activeNodeCount < maxConcurrency && nodeQueue.length > 0) {
           const id = nodeQueue.shift()!;
-          processNode(id).catch(console.error).finally(() => {
-            pumpQueue();
-          });
+          processNode(id)
+            .catch(console.error)
+            .finally(() => {
+              pumpQueue();
+            });
         }
         isPumping = false;
       };
@@ -246,10 +293,17 @@ async function executeWorkflow(reqBody: any) {
 
         await publishNodeState(node.id, 'running');
 
-        const outgoing = processedConnections.filter((c) => c.sourceId === node.id);
-        const concurrentChildren = outgoing.filter((c) => (c.type || 'sequential') === 'concurrent');
+        const outgoing = processedConnections.filter(
+          (c) => c.sourceId === node.id,
+        );
+        const concurrentChildren = outgoing.filter(
+          (c) => (c.type || 'sequential') === 'concurrent',
+        );
         concurrentChildren.forEach((c) => {
-          enqueueNode(c.targetId, { priority: 'high', bypassConcurrency: true });
+          enqueueNode(c.targetId, {
+            priority: 'high',
+            bypassConcurrency: true,
+          });
         });
 
         await new Promise((resolve) => setTimeout(resolve, 1500));
@@ -257,7 +311,10 @@ async function executeWorkflow(reqBody: any) {
         let finalState: 'success' | 'error' | 'warning' = 'success';
 
         if (type === 'environment') {
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
         } else if (type === 'playwright') {
           const config = node.config || {};
           const runtime = resolvePlaywrightRuntime(config);
@@ -266,12 +323,23 @@ async function executeWorkflow(reqBody: any) {
           const workers = config.workers || 1;
           const envKeys = config.envVars || [];
 
-          const injectedEnv = envKeys.map((key: string) => `${key}=***`).join(', ');
+          const injectedEnv = envKeys
+            .map((key: string) => `${key}=***`)
+            .join(', ');
 
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
-          await publishLog(`Starting Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`, 'build');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
+          await publishLog(
+            `Starting Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
+            'build',
+          );
           if (injectedEnv) {
-            await publishLog(`Injecting Environment Variables: ${injectedEnv}`, 'info');
+            await publishLog(
+              `Injecting Environment Variables: ${injectedEnv}`,
+              'info',
+            );
           }
           const cloudProvider = reqBody.cloudProvider || 'LOCAL-DEV';
           const payloadData = {
@@ -286,7 +354,10 @@ async function executeWorkflow(reqBody: any) {
               testId,
               testLanguage: runtime,
               playwrightVersion: config.playwrightVersion || 'latest',
-              editorApiUrl: reqBody.editorApiUrl || EDITOR_API_URL || 'http://host.docker.internal:3001',
+              editorApiUrl:
+                reqBody.editorApiUrl ||
+                EDITOR_API_URL ||
+                'http://host.docker.internal:3001',
               bucketName: reqBody.bucketName || bucketName || null,
               cloudProvider,
             },
@@ -294,9 +365,15 @@ async function executeWorkflow(reqBody: any) {
             settings: reqBody.settings,
           };
 
-          console.log(`[Orchestrator] Sending payload to runner for ${node.id}:`, JSON.stringify(payloadData, null, 2));
+          console.log(
+            `[Orchestrator] Sending payload to runner for ${node.id}:`,
+            JSON.stringify(payloadData, null, 2),
+          );
           if (!settings?.github?.accessToken) {
-            console.warn('[Orchestrator WARNING] No GitHub accessToken found in settings. settings.github keys:', settings?.github ? Object.keys(settings.github) : 'null');
+            console.warn(
+              '[Orchestrator WARNING] No GitHub accessToken found in settings. settings.github keys:',
+              settings?.github ? Object.keys(settings.github) : 'null',
+            );
           }
 
           try {
@@ -308,7 +385,9 @@ async function executeWorkflow(reqBody: any) {
               payloadData,
               publishLog,
               registerActiveProcess: (activeNodeId, process) => {
-                activeProcesses[activeNodeId] = process as ReturnType<typeof spawn>;
+                activeProcesses[activeNodeId] = process as ReturnType<
+                  typeof spawn
+                >;
                 activeNodePublishers[activeNodeId] = eventPublisher;
                 process.on('exit', () => {
                   delete activeProcesses[activeNodeId];
@@ -323,23 +402,41 @@ async function executeWorkflow(reqBody: any) {
               runtime,
             });
           } catch (err: any) {
-            await publishLog(`Playwright Runner failed: ${err.message}`, 'error');
+            await publishLog(
+              `Playwright Runner failed: ${err.message}`,
+              'error',
+            );
             finalState = 'error';
           }
         } else if (type === 'slack') {
           const hasSlackSettings = !!(settings && settings.slack);
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
           if (hasSlackSettings) {
-            await publishLog('Slack credentials found. Simulating message send.', 'info');
+            await publishLog(
+              'Slack credentials found. Simulating message send.',
+              'info',
+            );
           } else {
-            await publishLog('Slack credentials missing. Send might fail.', 'warn');
+            await publishLog(
+              'Slack credentials missing. Send might fail.',
+              'warn',
+            );
             finalState = 'warning';
           }
         } else if (type === 'github') {
           const hasGithubSettings = !!(settings && settings.github);
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
           if (hasGithubSettings) {
-            await publishLog('GitHub credentials loaded. Authenticating...', 'info');
+            await publishLog(
+              'GitHub credentials loaded. Authenticating...',
+              'info',
+            );
           } else {
             await publishLog('No GitHub credentials provided.', 'warn');
             finalState = 'error';
@@ -347,10 +444,16 @@ async function executeWorkflow(reqBody: any) {
         } else if (type === 'jira') {
           const config = node.config || {};
           const jiraSettings = settings?.jira;
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
 
           if (!jiraSettings?.accessToken) {
-            await publishLog('Jira credentials missing. Cannot execute Jira action.', 'error');
+            await publishLog(
+              'Jira credentials missing. Cannot execute Jira action.',
+              'error',
+            );
             finalState = 'error';
           } else {
             try {
@@ -358,14 +461,19 @@ async function executeWorkflow(reqBody: any) {
               const cloudId = config.cloudId;
 
               if (!cloudId) {
-                throw new Error('Missing cloudId in Jira node config. Please reselect project.');
+                throw new Error(
+                  'Missing cloudId in Jira node config. Please reselect project.',
+                );
               }
 
               const replaceVars = (text: string) => {
                 if (!text) return text;
                 let result = text;
                 for (const [k, v] of Object.entries(globalEnvVars)) {
-                  result = result.replace(new RegExp(`{{\\s*env\\.${k}\\s*}}`, 'g'), v);
+                  result = result.replace(
+                    new RegExp(`{{\\s*env\\.${k}\\s*}}`, 'g'),
+                    v,
+                  );
                 }
                 return result;
               };
@@ -389,9 +497,7 @@ async function executeWorkflow(reqBody: any) {
                     content: [
                       {
                         type: 'paragraph',
-                        content: [
-                          { type: 'text', text: description },
-                        ],
+                        content: [{ type: 'text', text: description }],
                       },
                     ],
                   };
@@ -399,27 +505,36 @@ async function executeWorkflow(reqBody: any) {
 
                 const body = { fields };
 
-                const res = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`, {
-                  method: 'POST',
-                  headers: {
-                    Authorization: `Bearer ${jiraSettings.accessToken}`,
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
+                const res = await fetch(
+                  `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${jiraSettings.accessToken}`,
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body),
                   },
-                  body: JSON.stringify(body),
-                });
+                );
 
                 if (!res.ok) {
                   const errData = await res.text();
-                  throw new Error(`Jira API returned ${res.status}: ${errData}`);
+                  throw new Error(
+                    `Jira API returned ${res.status}: ${errData}`,
+                  );
                 }
 
                 const data = await res.json();
-                await publishLog(`Successfully created Jira issue: ${data.key}`, 'info');
+                await publishLog(
+                  `Successfully created Jira issue: ${data.key}`,
+                  'info',
+                );
               } else if (action === 'update') {
                 await publishLog('Updating Jira issue...', 'info');
                 const issueKey = replaceVars(config.issueKey || '');
-                if (!issueKey) throw new Error('Issue key is required for update action.');
+                if (!issueKey)
+                  throw new Error('Issue key is required for update action.');
 
                 const fields: any = {};
                 if (summary) fields.summary = summary;
@@ -430,9 +545,7 @@ async function executeWorkflow(reqBody: any) {
                     content: [
                       {
                         type: 'paragraph',
-                        content: [
-                          { type: 'text', text: description },
-                        ],
+                        content: [{ type: 'text', text: description }],
                       },
                     ],
                   };
@@ -440,22 +553,30 @@ async function executeWorkflow(reqBody: any) {
 
                 const body = { fields };
 
-                const res = await fetch(`https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`, {
-                  method: 'PUT',
-                  headers: {
-                    Authorization: `Bearer ${jiraSettings.accessToken}`,
-                    Accept: 'application/json',
-                    'Content-Type': 'application/json',
+                const res = await fetch(
+                  `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      Authorization: `Bearer ${jiraSettings.accessToken}`,
+                      Accept: 'application/json',
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body),
                   },
-                  body: JSON.stringify(body),
-                });
+                );
 
                 if (!res.ok) {
                   const errData = await res.text();
-                  throw new Error(`Jira API returned ${res.status}: ${errData}`);
+                  throw new Error(
+                    `Jira API returned ${res.status}: ${errData}`,
+                  );
                 }
 
-                await publishLog(`Successfully updated Jira issue: ${issueKey}`, 'info');
+                await publishLog(
+                  `Successfully updated Jira issue: ${issueKey}`,
+                  'info',
+                );
               }
             } catch (err: any) {
               await publishLog(`Jira Action failed: ${err.message}`, 'error');
@@ -463,7 +584,10 @@ async function executeWorkflow(reqBody: any) {
             }
           }
         } else {
-          await publishLog(`Processing node: ${node.label} (${node.id})`, 'info');
+          await publishLog(
+            `Processing node: ${node.label} (${node.id})`,
+            'info',
+          );
         }
 
         await publishNodeState(node.id, finalState);
@@ -475,7 +599,9 @@ async function executeWorkflow(reqBody: any) {
         nodeHasRun[nodeId] = true;
         activeNodeCount--;
 
-        const hasConditionals = outgoing.some((c) => c.type === 'success' || c.type === 'failure');
+        const hasConditionals = outgoing.some(
+          (c) => c.type === 'success' || c.type === 'failure',
+        );
         const isSuccess = finalState === 'success' || finalState === 'warning';
 
         for (const conn of outgoing) {
@@ -513,7 +639,9 @@ async function executeWorkflow(reqBody: any) {
           incomingCount[conn.targetId]++;
         }
       }
-      const startNodes = nodes.filter((n: any) => incomingCount[n.id] === 0).map((n: any) => n.id);
+      const startNodes = nodes
+        .filter((n: any) => incomingCount[n.id] === 0)
+        .map((n: any) => n.id);
 
       startNodes.forEach((startNodeId: string) => enqueueNode(startNodeId));
 
@@ -525,7 +653,9 @@ async function executeWorkflow(reqBody: any) {
     terminalEventPublished = true;
     await publishEvent({
       level: workflowFailed ? 'error' : 'info',
-      message: workflowFailed ? 'Workflow execution failed.' : 'Workflow execution completed.',
+      message: workflowFailed
+        ? 'Workflow execution failed.'
+        : 'Workflow execution completed.',
       timestamp: new Date().toISOString(),
       type: workflowFailed ? 'workflow_failed' : 'workflow_completed',
     });
@@ -544,8 +674,14 @@ async function executeWorkflow(reqBody: any) {
     console.log(
       `[heartbeat] workflow-finished activeWorkflows=${activeWorkflows} editorIsAlive=${editorIsAlive}`,
     );
-    if (!editorIsAlive && activeWorkflows === 0 && process.env.JOB_MODE !== 'true') {
-      console.log('Lost heartbeat to editor and workflow completed. Shutting down gracefully.');
+    if (
+      !editorIsAlive &&
+      activeWorkflows === 0 &&
+      process.env.JOB_MODE !== 'true'
+    ) {
+      console.log(
+        'Lost heartbeat to editor and workflow completed. Shutting down gracefully.',
+      );
       process.exit(0);
     }
   }
@@ -567,7 +703,10 @@ app.post('/stop', async (req, res) => {
   if (!nodeId) return res.status(400).json({ error: 'nodeId required' });
 
   if (activeProcesses[nodeId]) {
-    await activeNodePublishers[nodeId]?.publishLog(`Stopping execution for node: ${nodeId}...`, 'warn');
+    await activeNodePublishers[nodeId]?.publishLog(
+      `Stopping execution for node: ${nodeId}...`,
+      'warn',
+    );
     await activeNodePublishers[nodeId]?.publishNodeState(nodeId, 'idle');
     activeProcesses[nodeId].kill('SIGTERM');
     res.status(200).json({ status: 'stopped' });

@@ -6,7 +6,10 @@ export interface PlaywrightExecutionRequest {
   globalEnvVars: Record<string, string>;
   nodeId: string;
   payloadData: any;
-  publishLog: (message: string, level?: 'info' | 'error' | 'warn' | 'build' | 'debug') => Promise<void>;
+  publishLog: (
+    message: string,
+    level?: 'info' | 'error' | 'warn' | 'build' | 'debug',
+  ) => Promise<void>;
   registerActiveProcess: (nodeId: string, process: ChildProcess) => void;
   reqBody: any;
   runtime: 'typescript' | 'python';
