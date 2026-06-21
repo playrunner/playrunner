@@ -1,2 +1,2 @@
-@import '../../web/src/index.css';
-@source "../../web/src/**/*.{ts,tsx}";
+@import '../../frontend/src/index.css';
+@source "../../frontend/src/**/*.{ts,tsx}";

@@ -91,8 +91,8 @@ function resolveEditionRuntimePath(
   if (enablePremium) {
     const candidates = [
       configuredPath,
-      path.resolve(__dirname, '../../premium/web/src/runtime/edition.ts'),
-      path.resolve(__dirname, '../../../premium/web/src/runtime/edition.ts'),
+      path.resolve(__dirname, '../../premium/frontend/src/runtime/edition.ts'),
+      path.resolve(__dirname, '../../../premium/frontend/src/runtime/edition.ts'),
     ].filter(Boolean) as string[];
 
     for (const candidate of candidates) {

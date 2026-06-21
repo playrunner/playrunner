@@ -5,9 +5,9 @@
   "license": "SEE LICENSE IN ../../LICENSE",
   "type": "module",
   "scripts": {
-    "lint": "node ../web/node_modules/eslint/bin/eslint.js .",
-    "lint:fix": "node ../web/node_modules/eslint/bin/eslint.js . --fix",
-    "format": "node ../web/node_modules/prettier/bin/prettier.cjs --write .",
-    "format:check": "node ../web/node_modules/prettier/bin/prettier.cjs --check ."
+    "lint": "node ../frontend/node_modules/eslint/bin/eslint.js .",
+    "lint:fix": "node ../frontend/node_modules/eslint/bin/eslint.js . --fix",
+    "format": "node ../frontend/node_modules/prettier/bin/prettier.cjs --write .",
+    "format:check": "node ../frontend/node_modules/prettier/bin/prettier.cjs --check ."
   }
 }

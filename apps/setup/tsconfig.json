@@ -13,28 +13,28 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"],
-      "@web/*": ["../web/src/*"],
+      "@frontend/*": ["../frontend/src/*"],
       "react": [
-        "../web/node_modules/@types/react",
-        "../web/node_modules/react"
+        "../frontend/node_modules/@types/react",
+        "../frontend/node_modules/react"
       ],
       "react/jsx-runtime": [
-        "../web/node_modules/@types/react/jsx-runtime",
-        "../web/node_modules/react/jsx-runtime"
+        "../frontend/node_modules/@types/react/jsx-runtime",
+        "../frontend/node_modules/react/jsx-runtime"
       ],
       "react/jsx-dev-runtime": [
-        "../web/node_modules/@types/react/jsx-dev-runtime",
-        "../web/node_modules/react/jsx-dev-runtime"
+        "../frontend/node_modules/@types/react/jsx-dev-runtime",
+        "../frontend/node_modules/react/jsx-dev-runtime"
       ],
-      "react-dom": ["../web/node_modules/react-dom"],
-      "react-dom/client": ["../web/node_modules/react-dom/client"],
-      "react-router-dom": ["../web/node_modules/react-router-dom"],
-      "lucide-react": ["../web/node_modules/lucide-react"],
-      "clsx": ["../web/node_modules/clsx"],
-      "tailwind-merge": ["../web/node_modules/tailwind-merge"]
+      "react-dom": ["../frontend/node_modules/react-dom"],
+      "react-dom/client": ["../frontend/node_modules/react-dom/client"],
+      "react-router-dom": ["../frontend/node_modules/react-router-dom"],
+      "lucide-react": ["../frontend/node_modules/lucide-react"],
+      "clsx": ["../frontend/node_modules/clsx"],
+      "tailwind-merge": ["../frontend/node_modules/tailwind-merge"]
     },
     "allowImportingTsExtensions": true,
-    "typeRoots": ["../web/node_modules/@types"],
+    "typeRoots": ["../frontend/node_modules/@types"],
     "noEmit": true
   },
   "include": ["src"]

@@ -9,7 +9,7 @@
 - `apps/frontend/src/index.css`
 - `apps/setup/src/index.css`
 
-`apps/setup/src/index.css` imports `../../web/src/index.css`, so setup screens should use the same tokens and primitives as the main web app.
+`apps/setup/src/index.css` imports `../../frontend/src/index.css`, so setup screens should use the same tokens and primitives as the main web app.
 
 ## Layout
 

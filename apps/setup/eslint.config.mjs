@@ -3,7 +3,9 @@ import { createRequire } from 'module';
 import { fileURLToPath } from 'url';
 
 const setupDir = path.dirname(fileURLToPath(import.meta.url));
-const webRequire = createRequire(path.resolve(setupDir, '../web/package.json'));
+const webRequire = createRequire(
+  path.resolve(setupDir, '../frontend/package.json'),
+);
 
 const { default: js } = await import(webRequire.resolve('@eslint/js'));
 const { default: globals } = await import(webRequire.resolve('globals'));

@@ -8,8 +8,8 @@ import {
   LockKeyhole,
   Sparkles,
 } from 'lucide-react';
-import { Badge, Button, Input } from '@web/components/ui';
-import { cn } from '@web/lib/utils';
+import { Badge, Button, Input } from '@frontend/components/ui';
+import { cn } from '@frontend/lib/utils';
 import type { RuntimeSetupConfig } from '../lib/setup';
 import { getActiveSetupSessionToken } from '../lib/setup';
 

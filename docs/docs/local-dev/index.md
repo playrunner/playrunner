@@ -75,7 +75,7 @@ Pub/Sub is the message bus that decouples the Playwright runner (running inside 
 playrunner/
 ├── apps/
 │   ├── api/                   # Express API server
-│   ├── web/                   # React + Vite frontend
+│   ├── frontend/                   # React + Vite frontend
 │   └── runners/
 │       ├── orchestrator/      # Orchestrator runner (Docker image)
 │       └── playwright/        # Playwright test runner (Docker image)

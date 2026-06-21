@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { CheckCircle2, LockKeyhole, Sparkles } from 'lucide-react';
-import { ThemeProvider } from '@web/components/ThemeProvider';
-import { Badge } from '@web/components/ui';
+import { ThemeProvider } from '@frontend/components/ThemeProvider';
+import { Badge } from '@frontend/components/ui';
 import Setup from './pages/Setup';
 import { detectSetupMode } from './lib/setup';
 

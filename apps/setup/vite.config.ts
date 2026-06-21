@@ -3,20 +3,20 @@ import path from 'path';
 import {
   defineConfig,
   loadEnv,
-} from '../web/node_modules/vite/dist/node/index.js';
+} from '../frontend/node_modules/vite/dist/node/index.js';
 
 const webRequire = createRequire(
-  path.resolve(__dirname, '../web/package.json'),
+  path.resolve(__dirname, '../frontend/package.json'),
 );
 
 export default defineConfig(async ({ mode }) => {
-  const env = loadEnv(mode, path.resolve(__dirname, '../web'), '');
+  const env = loadEnv(mode, path.resolve(__dirname, '../frontend'), '');
   const [{ default: react }, { default: tailwindcss }] = await Promise.all([
     import(webRequire.resolve('@vitejs/plugin-react')),
     import(webRequire.resolve('@tailwindcss/vite')),
   ]);
   const defaultSetupInstallerUrl = 'http://127.0.0.1:3003';
-  const webNodeModulesDir = path.resolve(__dirname, '../web/node_modules');
+  const webNodeModulesDir = path.resolve(__dirname, '../frontend/node_modules');
   const setupProxyTarget = normalizeLocalProxyTarget(
     env.VITE_SETUP_INSTALLER_URL || defaultSetupInstallerUrl,
   );
@@ -26,11 +26,11 @@ export default defineConfig(async ({ mode }) => {
   return {
     root: __dirname,
     plugins: [react(), tailwindcss()],
-    publicDir: path.resolve(__dirname, '../web/public'),
+    publicDir: path.resolve(__dirname, '../frontend/public'),
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),
-        '@web': path.resolve(__dirname, '../web/src'),
+        '@frontend': path.resolve(__dirname, '../frontend/src'),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(
           webNodeModulesDir,

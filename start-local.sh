@@ -179,7 +179,7 @@ if [ "$RUN_SETUP" = "true" ]; then
     concurrently \
       --names "SETUP-WEB,SETUP" \
       --prefix-colors "blue,yellow" \
-      "cd '${BASE_DIR}/apps/web' && npm exec vite -- --config '${BASE_DIR}/apps/setup/vite.config.ts'" \
+      "cd '${BASE_DIR}/apps/frontend' && npm exec vite -- --config '${BASE_DIR}/apps/setup/vite.config.ts'" \
       "node '${BASE_DIR}/setup/installer/index.mjs'"
 else
     unset SETUP_SESSION_TOKEN
@@ -190,6 +190,6 @@ else
     concurrently \
       --names "WEB,API" \
       --prefix-colors "blue,green" \
-      "cd '${BASE_DIR}/apps/web' && npm run dev" \
+      "cd '${BASE_DIR}/apps/frontend' && npm run dev" \
       "cd '${BASE_DIR}/apps/api' && npm start"
 fi
