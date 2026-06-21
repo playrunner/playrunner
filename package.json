@@ -1,6 +1,8 @@
 {
-  "name": "central-station",
+  "name": "playrunner",
   "private": true,
+  "author": "Concept AI PTY LTD",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev:oss": "./start-local.sh",
     "dev:premium": "./start-premium.sh",

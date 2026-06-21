@@ -1,7 +1,9 @@
 {
-  "name": "react-example",
+  "name": "playrunner-web",
   "private": true,
   "version": "0.0.0",
+  "author": "Concept AI PTY LTD",
+  "license": "SEE LICENSE IN ../../LICENSE",
   "type": "module",
   "scripts": {
     "dev": "vite",

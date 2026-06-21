@@ -47,3 +47,33 @@ rm setup/installer/.setup-state.json
 ```
 
 For more detail, see [`docs/docs/tutorials/01-getting-started.md`](docs/docs/tutorials/01-getting-started.md).
+
+## Run the docs site
+
+The Docusaurus docs live in `docs/`. They use their own dependencies and are
+not installed by `./install-local.sh`.
+
+```bash
+cd docs
+npm ci
+npm run start -- --port 3004
+```
+
+Then open `http://127.0.0.1:3004/central-station/docs/`.
+
+The docs workspace currently requires Node.js 20+.
+
+## License
+
+Playrunner is source-available under the [Playrunner Sustainable Use
+License](LICENSE), copyright © 2026 Concept AI PTY LTD.
+
+You can use and modify Playrunner for your own internal business purposes, or
+for personal and other non-commercial use. You may not resell Playrunner, offer
+it as a hosted or white-label service, or embed it into a commercial offering
+where a material part of the value comes from Playrunner itself without
+separate written permission.
+
+This is not an OSI-approved open source license. See
+[`LICENSE`](LICENSE) and [`docs/docs/legal/license.md`](docs/docs/legal/license.md)
+for the full terms.

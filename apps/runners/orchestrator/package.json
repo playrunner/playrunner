@@ -14,8 +14,8 @@
     "dev": "tsx src/index.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Concept AI PTY LTD",
+  "license": "SEE LICENSE IN ../../../LICENSE",
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",

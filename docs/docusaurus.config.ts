@@ -121,7 +121,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Playrunner. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Concept AI PTY LTD. Playrunner is distributed under the Playrunner Sustainable Use License.`,
     },
     prism: {
       theme: prismThemes.github,

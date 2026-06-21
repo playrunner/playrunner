@@ -1,5 +1,5 @@
 {
-  "name": "api",
+  "name": "playrunner-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -15,8 +15,8 @@
     "start": "tsx --watch --env-file=.env src/index.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Concept AI PTY LTD",
+  "license": "SEE LICENSE IN ../../LICENSE",
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/run": "^3.2.1",
