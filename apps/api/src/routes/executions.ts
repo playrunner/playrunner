@@ -81,8 +81,10 @@ executionsRouter.get('/:executionId/stream', requireAuth, async (req, res) => {
   res.flushHeaders?.();
   res.write(': connected\n\n');
 
-  state.sseClients.push(res);
-  console.log(`Execution SSE connected for ${executionId}. Total clients: ${state.sseClients.length}`);
+  state.executionSseClients.push(res);
+  console.log(
+    `Execution SSE connected for ${executionId}. Total clients: ${state.executionSseClients.length}`,
+  );
 
   const flushEvents = async () => {
     if (isClosed || isPolling) {
@@ -129,11 +131,21 @@ executionsRouter.get('/:executionId/stream', requireAuth, async (req, res) => {
     }
   }, 15000);
 
-  req.on('close', () => {
+  const cleanup = () => {
+    if (isClosed) {
+      return;
+    }
+
     isClosed = true;
     clearInterval(pollInterval);
     clearInterval(heartbeatInterval);
-    state.sseClients = state.sseClients.filter((client) => client !== res);
-    console.log(`Execution SSE disconnected for ${executionId}. Total clients: ${state.sseClients.length}`);
-  });
+    state.executionSseClients = state.executionSseClients.filter((client) => client !== res);
+    console.log(
+      `Execution SSE disconnected for ${executionId}. Total clients: ${state.executionSseClients.length}`,
+    );
+  };
+
+  req.on('close', cleanup);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
 });

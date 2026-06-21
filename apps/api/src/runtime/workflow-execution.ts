@@ -1,7 +1,7 @@
 import { ORCHESTRATOR_URL } from '../config';
 import { executionEvents } from '../services/execution-events';
-import { state } from '../state';
 import type { LogTransport, WorkflowExecutionBackend, WorkflowExecutionRequest, WorkflowExecutionResult } from './contracts';
+import {ensureLocalOrchestratorRunning} from './orchestrator-runner';
 
 export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(private readonly logTransport: LogTransport) {}
@@ -15,17 +15,18 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     const workflowId = body.workflowId;
     const userId = request.req.authUser?.providerUserId;
 
-    if (!state.runnerProcess) {
-      return {
-        body: { error: 'Runner is not running.' },
-        status: 400,
-      };
-    }
-
     if (!userId) {
       return {
         body: { error: 'Unauthorized' },
         status: 401,
+      };
+    }
+
+    const runnerStart = await ensureLocalOrchestratorRunning();
+    if (!runnerStart.ok) {
+      return {
+        body: {error: runnerStart.message},
+        status: 502,
       };
     }
 

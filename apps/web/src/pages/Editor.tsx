@@ -9,6 +9,7 @@ import { IntegrationConfigPanel } from "../components/IntegrationConfigPanel";
 import { JiraSettingsModal } from "../integrations/jira/JiraSettingsModal";
 import { GithubSettingsModal } from "../integrations/github/GithubSettingsModal";
 import { LogsPanel, LogItem } from "../components/LogsPanel";
+import { Button } from "../components/ui";
 import { Modal } from "../components/ui/Modal";
 import { Badge } from "../components/ui/Badge";
 import { auth } from "../lib/auth";
@@ -191,9 +192,12 @@ export default function Editor() {
   const [concurrency, setConcurrency] = useState<number>(1);
   
   const [isOrchestratorReady, setIsOrchestratorReady] = useState(false);
+  const [orchestratorStartError, setOrchestratorStartError] = useState<string | null>(null);
+  const [orchestratorStartAttempt, setOrchestratorStartAttempt] = useState(0);
   const [orchestratorLogs, setOrchestratorLogs] = useState<LogItem[]>([]);
   const presenceStreamRef = useRef<EventSource | null>(null);
   const executionStreamRef = useRef<EventSource | null>(null);
+  const runnerStartupSequenceRef = useRef(0);
 
   const appendOrchestratorLog = React.useCallback((
     message: string,
@@ -211,8 +215,16 @@ export default function Editor() {
   }, []);
 
   const closePresenceStream = useCallback(() => {
+    if (presenceStreamRef.current) {
+      console.info('[presence] closing editor presence stream');
+    }
     presenceStreamRef.current?.close();
     presenceStreamRef.current = null;
+  }, []);
+
+  const invalidateRunnerStartupSequence = useCallback(() => {
+    runnerStartupSequenceRef.current += 1;
+    return runnerStartupSequenceRef.current;
   }, []);
 
   const closeExecutionStream = useCallback(() => {
@@ -263,22 +275,49 @@ export default function Editor() {
     let isDisposed = false;
 
     const unsubscribeRunner = auth.onAuthStateChanged(async (user) => {
+      const startupSequence = invalidateRunnerStartupSequence();
+      const isStale = () =>
+        isDisposed || startupSequence !== runnerStartupSequenceRef.current;
+
       closePresenceStream();
       closeExecutionStream();
 
       if (!user) {
         setIsOrchestratorReady(false);
+        setOrchestratorStartError(null);
         return;
       }
 
       try {
+        setIsOrchestratorReady(false);
+        setOrchestratorStartError(null);
         const token = await user.getIdToken();
+        if (isStale()) {
+          console.info(`[presence] aborting stale runner startup seq=${startupSequence} before stream open`);
+          return;
+        }
+
+        console.info(`[presence] opening editor presence stream seq=${startupSequence}`);
         const presenceStream = new EventSource(`/api/presence/stream?token=${encodeURIComponent(token)}`);
-        presenceStream.onerror = () => {
+        presenceStream.onopen = () => {
           if (!isDisposed) {
-            console.error('Editor presence stream disconnected.');
+            console.info(`[presence] editor presence stream connected seq=${startupSequence}`);
           }
         };
+        presenceStream.onerror = () => {
+          if (!isDisposed) {
+            console.error(`[presence] editor presence stream disconnected seq=${startupSequence}.`);
+          }
+        };
+
+        if (isStale()) {
+          console.info(
+            `[presence] closing stale editor presence stream seq=${startupSequence} immediately after open`,
+          );
+          presenceStream.close();
+          return;
+        }
+
         presenceStreamRef.current = presenceStream;
 
         const response = await fetch('/api/runners/start', {
@@ -286,28 +325,47 @@ export default function Editor() {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const payload = await response.json().catch(() => null);
+        if (isStale()) {
+          console.info(`[presence] aborting stale runner startup seq=${startupSequence} after start request`);
+          return;
+        }
+
         if (!response.ok) {
           throw new Error(payload?.error || payload?.message || `Runner start failed with status ${response.status}`);
         }
         appendOrchestratorLog(payload?.message || 'Runner startup requested.', 'Info');
         setIsOrchestratorReady(true);
       } catch (err) {
+        if (isStale()) {
+          console.info(`[presence] ignoring stale runner startup error seq=${startupSequence}`);
+          return;
+        }
+
+        const message = err instanceof Error ? err.message : 'Unknown error';
         console.error('Failed to start orchestrator:', err);
         appendOrchestratorLog(
-          `Failed to start orchestrator: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          `Failed to start orchestrator: ${message}`,
           'Error'
         );
-        setIsOrchestratorReady(true);
+        setOrchestratorStartError(message);
+        setIsOrchestratorReady(false);
       }
     });
 
     return () => {
       isDisposed = true;
+      invalidateRunnerStartupSequence();
       closePresenceStream();
       closeExecutionStream();
       unsubscribeRunner();
     };
-  }, [appendOrchestratorLog, closeExecutionStream, closePresenceStream]);
+  }, [
+    appendOrchestratorLog,
+    closeExecutionStream,
+    closePresenceStream,
+    invalidateRunnerStartupSequence,
+    orchestratorStartAttempt,
+  ]);
   
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const transformRef = useRef(transform);
@@ -1406,6 +1464,24 @@ export default function Editor() {
   }, [cloudProjectId, cloudProvider, connectedCloudIds, isSaving, simulationState, setHeaderCenter, handleCloudProviderChange, handleSaveWorkflow, handlePlay, handleStop, handleAddNode]);
 
   if (!isOrchestratorReady) {
+    if (orchestratorStartError) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <XCircle className="w-10 h-10 text-red-500" />
+          <div className="space-y-2">
+            <p className="text-lg font-medium text-[var(--foreground)]">Failed to start orchestrator runner</p>
+            <p className="max-w-xl text-sm text-muted">{orchestratorStartError}</p>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => setOrchestratorStartAttempt((current) => current + 1)}
+          >
+            Retry runner startup
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-muted gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />

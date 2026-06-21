@@ -11,8 +11,9 @@ interface GcpCredentials {
 }
 
 export const state = {
+  executionSseClients: [] as express.Response[],
+  presenceSseClients: [] as express.Response[],
   runnerProcess: null as ChildProcess | null,
-  sseClients: [] as express.Response[],
   gcpCredentials: {} as Record<string, GcpCredentials>,
   testCloudProviders: {} as Record<string, string>,
   testBucketNames: {} as Record<string, string>,

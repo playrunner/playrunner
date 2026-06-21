@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { ORCHESTRATOR_URL } from '../config';
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
+import {isOrchestratorHealthy} from '../runtime/orchestrator-runner';
 
 export const workflowsRouter = Router();
 
@@ -26,7 +27,7 @@ workflowsRouter.post('/start', async (req, res) => {
 
 // Endpoint to stop a node
 workflowsRouter.post('/stop-node', async (req, res) => {
-  if (!state.runnerProcess) {
+  if (!(await isOrchestratorHealthy())) {
     return res.status(400).json({ error: 'Runner is not running.' });
   }
 
