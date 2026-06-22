@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import { Storage } from '@google-cloud/storage';
@@ -5,24 +6,29 @@ import { OAuth2Client } from 'google-auth-library';
 
 type Bucket = ReturnType<Storage['bucket']>;
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} must be set for GCP storage integration.`);
-  }
-  return value;
-}
-
-function bucketName(workflowId: string): string {
-  const sanitized = workflowId
+function sanitizeBucketSegment(value: string, fallback: string): string {
+  const sanitized = value
     .toLowerCase()
-    .replace(/[^a-z0-9-_.]/g, '-')
+    .replace(/[^a-z0-9-]/g, '-')
     .replace(/^-+|-+$/g, '');
-  return `${requireEnv('GCS_BUCKET_PREFIX')}-${sanitized}`;
+
+  return sanitized || fallback;
 }
 
-function resolveProjectId(projectId?: string): string {
-  return projectId || requireEnv('GCS_PROJECT_ID');
+function bucketName(projectId: string, workflowId: string): string {
+  const projectSegment = sanitizeBucketSegment(projectId, 'project');
+  const workflowSegment = sanitizeBucketSegment(workflowId, 'workflow');
+  const hash = crypto
+    .createHash('sha1')
+    .update(`${projectId}:${workflowId}`)
+    .digest('hex')
+    .slice(0, 10);
+  const maxBaseLength = 63 - hash.length - 1;
+  const base = `playrunner-${projectSegment}-${workflowSegment}`
+    .slice(0, maxBaseLength)
+    .replace(/-+$/g, '');
+
+  return `${base}-${hash}`;
 }
 
 export interface GcpTokenRefresh {
@@ -108,15 +114,14 @@ export async function refreshGcpAccessTokenIfNeeded(
   return null;
 }
 
-export function getStorage(accessToken: string, projectId?: string): Storage {
-  const project = resolveProjectId(projectId);
+export function getStorage(accessToken: string, projectId: string): Storage {
   console.log(
     '[GCS] getStorage: using OAuth user token (length=' +
       (accessToken?.length || 0) +
       ' prefix=' +
       (accessToken ? accessToken.substring(0, 10) + '...' : 'none') +
       ' projectId=' +
-      project,
+      projectId,
   );
 
   const oauth2Client = new OAuth2Client();
@@ -165,27 +170,25 @@ export function getStorage(accessToken: string, projectId?: string): Storage {
     },
   };
 
-  return new Storage({ projectId: project, authClient: authClient as any });
+  return new Storage({ projectId, authClient: authClient as any });
 }
 
 export async function ensureBucket(
   workflowId: string,
   accessToken: string,
-  projectId?: string,
+  projectId: string,
 ): Promise<{ bucket: Bucket; bucketName: string; created: boolean } | null> {
   console.log(
     '[GCS] ensureBucket: tokenLength=' +
       (accessToken?.length || 0) +
       ' projectId=' +
-      (projectId || 'auto') +
-      ' bucketPrefix=' +
-      requireEnv('GCS_BUCKET_PREFIX') +
+      projectId +
       ' workflowId=' +
       workflowId,
   );
 
   const storage = getStorage(accessToken, projectId);
-  const name = bucketName(workflowId);
+  const name = bucketName(projectId, workflowId);
   const bucket = storage.bucket(name);
 
   try {
@@ -196,12 +199,7 @@ export async function ensureBucket(
       return { bucket, bucketName: name, created: false };
     }
 
-    console.log(
-      '[GCS] Creating bucket: ' +
-        name +
-        ' in project: ' +
-        (projectId || 'default'),
-    );
+    console.log('[GCS] Creating bucket: ' + name + ' in project: ' + projectId);
     await bucket.create();
     console.log(`GCS bucket "${name}" created`);
     return { bucket, bucketName: name, created: true };

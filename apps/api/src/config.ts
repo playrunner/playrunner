@@ -6,7 +6,6 @@ export const ORCHESTRATOR_IMAGE =
   process.env.ORCHESTRATOR_IMAGE || 'playrunner-orchestrator';
 export const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL || `http://localhost:${ORCHESTRATOR_PORT}`;
-export const GCP_PROJECT = process.env.GCP_PROJECT || 'local-dev';
 export const EDITOR_API_URL_DOCKER =
   process.env.EDITOR_API_URL_DOCKER ||
   `http://host.docker.internal:${process.env.PORT || 3001}`;

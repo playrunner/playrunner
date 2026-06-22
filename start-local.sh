@@ -335,10 +335,7 @@ echo "📦 Starting local Docker services..."
 docker compose -f "${COMPOSE_FILE}" up -d postgres
 wait_for_compose_service postgres 90
 
-# 2. Export environment variables used by local services
-export GCP_PROJECT="${GCP_PROJECT:-local-dev}"
-
-# 3. Build the Orchestrator and Playwright Docker images
+# 2. Build the Orchestrator and Playwright Docker images
 echo "🔨 Building Orchestrator Docker image..."
 BASE_PATH_ARG="."
 if [ "${BASE_DIR}" != "${WORKSPACE_ROOT}" ]; then

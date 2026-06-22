@@ -4,7 +4,6 @@ import type {
   PlaywrightExecutionRequest,
 } from './contracts';
 
-const GCP_PROJECT = process.env.GCP_PROJECT || 'local-dev';
 const PLAYWRIGHT_IMAGE_BASE =
   process.env.PLAYWRIGHT_IMAGE_BASE || 'playrunner-playwright-runner';
 
@@ -37,7 +36,6 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
     );
 
     const dockerArgs = ['run', '--rm', '--platform', 'linux/amd64'];
-    dockerArgs.push('-e', `GCP_PROJECT=${GCP_PROJECT}`);
 
     envKeys.forEach((key) => {
       const actualVal = globalEnvVars[key] || '***';

@@ -1,12 +1,20 @@
 import { ServicesClient } from '@google-cloud/run';
 import { OAuth2Client } from 'google-auth-library';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} must be set for GCP Cloud Run integration.`);
+const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
+
+export interface GcpCloudRunSettings {
+  cloudRunLocation?: string;
+  orchestratorImageUriTemplate?: string;
+  orchestratorServiceName?: string;
+}
+
+function requireSetting(value: string | undefined, name: string): string {
+  const normalized = value?.trim();
+  if (!normalized) {
+    throw new Error(`${name} must be configured in GCP settings.`);
   }
-  return value;
+  return normalized;
 }
 
 function renderTemplate(
@@ -19,21 +27,32 @@ function renderTemplate(
   );
 }
 
-function getOrchestratorImageUri(projectId: string): string {
-  return renderTemplate(requireEnv('GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE'), {
-    projectId,
-  });
+function getOrchestratorImageUri(projectId: string, template: string): string {
+  return renderTemplate(template, { projectId });
 }
 
 export async function ensureOrchestratorService(
   projectId: string,
   accessToken: string,
+  settings: GcpCloudRunSettings,
 ): Promise<string> {
   const oauth2Client = new OAuth2Client();
   oauth2Client.setCredentials({ access_token: accessToken });
 
-  const cloudRunLocation = requireEnv('GCP_CLOUD_RUN_LOCATION');
-  const orchestratorServiceName = requireEnv('GCP_ORCHESTRATOR_SERVICE_NAME');
+  const cloudRunLocation = requireSetting(
+    settings.cloudRunLocation,
+    'Cloud Run region',
+  );
+  const orchestratorServiceName =
+    settings.orchestratorServiceName?.trim() ||
+    DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+  const orchestratorImageUri = getOrchestratorImageUri(
+    projectId,
+    requireSetting(
+      settings.orchestratorImageUriTemplate,
+      'Orchestrator image URI template',
+    ),
+  );
   const servicesClient = new ServicesClient({
     authClient: oauth2Client,
     projectId,
@@ -52,8 +71,6 @@ export async function ensureOrchestratorService(
       console.log(
         `[CloudRun] Service ${formattedServiceName} not found. Creating it dynamically...`,
       );
-      const orchestratorImageUri = getOrchestratorImageUri(projectId);
-
       const parent = `projects/${projectId}/locations/${cloudRunLocation}`;
 
       const createOperation = await servicesClient.createService({

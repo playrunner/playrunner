@@ -12,6 +12,23 @@ interface GcpSettingsModalProps {
   cloudId: string;
 }
 
+type GcpCredentialData = {
+  accessToken?: string;
+  clientId?: string;
+  clientSecret?: string;
+  cloudRunLocation?: string;
+  code?: string;
+  expiresAt?: number;
+  orchestratorImageUriTemplate?: string;
+  orchestratorServiceName?: string;
+  playwrightImageUriTemplate?: string;
+  refreshToken?: string;
+  selectedProject?: string;
+  updatedAt?: string;
+};
+
+const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
+
 export function GcpSettingsModal({
   isOpen,
   onClose,
@@ -19,6 +36,14 @@ export function GcpSettingsModal({
 }: GcpSettingsModalProps) {
   const [gcpClientId, setGcpClientId] = useState('');
   const [gcpClientSecret, setGcpClientSecret] = useState('');
+  const [cloudRunLocation, setCloudRunLocation] = useState('');
+  const [orchestratorServiceName, setOrchestratorServiceName] = useState(
+    DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+  );
+  const [orchestratorImageUriTemplate, setOrchestratorImageUriTemplate] =
+    useState('');
+  const [playwrightImageUriTemplate, setPlaywrightImageUriTemplate] =
+    useState('');
   const [projects, setProjects] = useState<
     { projectId: string; name: string }[]
   >([]);
@@ -27,8 +52,13 @@ export function GcpSettingsModal({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
+  const [isSavingRunnerSettings, setIsSavingRunnerSettings] = useState(false);
+  const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
+  const credentialRef = React.useRef<GcpCredentialData>({
+    orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+  });
 
   const callbackUrl = `${window.location.origin}/oauth/callback/gcp`;
 
@@ -36,6 +66,91 @@ export function GcpSettingsModal({
     navigator.clipboard.writeText(callbackUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const resetCredentialState = () => {
+    credentialRef.current = {
+      orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+    };
+    setGcpClientId('');
+    setGcpClientSecret('');
+    setCloudRunLocation('');
+    setOrchestratorServiceName(DEFAULT_ORCHESTRATOR_SERVICE_NAME);
+    setOrchestratorImageUriTemplate('');
+    setPlaywrightImageUriTemplate('');
+    setProjects([]);
+    setSelectedProject('');
+    setRunnerSettingsSaved(false);
+  };
+
+  const loadCredentialState = (data: any) => {
+    const next: GcpCredentialData = {
+      accessToken:
+        typeof data?.accessToken === 'string' ? data.accessToken : undefined,
+      clientId: typeof data?.clientId === 'string' ? data.clientId : undefined,
+      clientSecret:
+        typeof data?.clientSecret === 'string' ? data.clientSecret : undefined,
+      cloudRunLocation:
+        typeof data?.cloudRunLocation === 'string'
+          ? data.cloudRunLocation
+          : undefined,
+      code: typeof data?.code === 'string' ? data.code : undefined,
+      expiresAt:
+        typeof data?.expiresAt === 'number' ? data.expiresAt : undefined,
+      orchestratorImageUriTemplate:
+        typeof data?.orchestratorImageUriTemplate === 'string'
+          ? data.orchestratorImageUriTemplate
+          : undefined,
+      orchestratorServiceName:
+        typeof data?.orchestratorServiceName === 'string' &&
+        data.orchestratorServiceName.trim()
+          ? data.orchestratorServiceName
+          : DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+      playwrightImageUriTemplate:
+        typeof data?.playwrightImageUriTemplate === 'string'
+          ? data.playwrightImageUriTemplate
+          : undefined,
+      refreshToken:
+        typeof data?.refreshToken === 'string' ? data.refreshToken : undefined,
+      selectedProject:
+        typeof data?.selectedProject === 'string'
+          ? data.selectedProject
+          : undefined,
+      updatedAt:
+        typeof data?.updatedAt === 'string' ? data.updatedAt : undefined,
+    };
+
+    credentialRef.current = next;
+    setGcpClientId(next.clientId || '');
+    setGcpClientSecret(next.clientSecret || '');
+    setCloudRunLocation(next.cloudRunLocation || '');
+    setOrchestratorServiceName(
+      next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+    );
+    setOrchestratorImageUriTemplate(next.orchestratorImageUriTemplate || '');
+    setPlaywrightImageUriTemplate(next.playwrightImageUriTemplate || '');
+    setSelectedProject(next.selectedProject || '');
+    setRunnerSettingsSaved(false);
+  };
+
+  const persistCredentialPatch = async (patch: Partial<GcpCredentialData>) => {
+    if (!auth.currentUser) {
+      return credentialRef.current;
+    }
+
+    const next: GcpCredentialData = {
+      ...credentialRef.current,
+      ...patch,
+      orchestratorServiceName:
+        patch.orchestratorServiceName?.trim() ||
+        credentialRef.current.orchestratorServiceName ||
+        DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+      updatedAt: new Date().toISOString(),
+    };
+
+    credentialRef.current = next;
+    await DbAPI.saveCloudCredential(auth.currentUser.uid, 'gcp', next);
+    return next;
   };
 
   const fetchGcpProjects = async (cred: {
@@ -77,15 +192,14 @@ export function GcpSettingsModal({
           if (refreshRes.ok) {
             const refreshData = await refreshRes.json();
             if (refreshData.access_token) {
-              currentToken = refreshData.access_token;
-
-              await DbAPI.saveCloudCredential(auth.currentUser.uid, 'gcp', {
+              const next = await persistCredentialPatch({
                 accessToken: refreshData.access_token,
                 expiresAt: refreshData.expires_in
                   ? Date.now() + refreshData.expires_in * 1000
                   : undefined,
-                updatedAt: new Date().toISOString(),
               });
+
+              currentToken = next.accessToken || refreshData.access_token;
               return true;
             }
           }
@@ -148,12 +262,9 @@ export function GcpSettingsModal({
               'gcp',
             );
             if (data && isMounted) {
+              loadCredentialState(data);
               if (data.clientId && data.accessToken) {
-                setGcpClientId(data.clientId);
-                setGcpClientSecret(data.clientSecret || '');
                 setAuthSuccess(true);
-                if (data.selectedProject)
-                  setSelectedProject(data.selectedProject);
                 fetchGcpProjects({
                   accessToken: data.accessToken,
                   refreshToken: data.refreshToken,
@@ -161,9 +272,6 @@ export function GcpSettingsModal({
                   clientSecret: data.clientSecret,
                   expiresAt: data.expiresAt,
                 });
-              } else if (data.clientId) {
-                setGcpClientId(data.clientId);
-                setGcpClientSecret(data.clientSecret || '');
               }
             }
           }
@@ -179,10 +287,7 @@ export function GcpSettingsModal({
       setAuthSuccess(false);
       setIsAuthenticating(false);
       setIsFetchingCredentials(false);
-      setGcpClientId('');
-      setGcpClientSecret('');
-      setProjects([]);
-      setSelectedProject('');
+      resetCredentialState();
     }
 
     return () => {
@@ -195,10 +300,9 @@ export function GcpSettingsModal({
       setIsAuthenticating(true);
 
       if (auth.currentUser) {
-        await DbAPI.saveCloudCredential(auth.currentUser.uid, 'gcp', {
+        await persistCredentialPatch({
           clientId: gcpClientId,
           clientSecret: gcpClientSecret,
-          updatedAt: new Date().toISOString(),
         });
       }
 
@@ -230,7 +334,7 @@ export function GcpSettingsModal({
                 );
               }
 
-              await DbAPI.saveCloudCredential(auth.currentUser.uid, 'gcp', {
+              const next = await persistCredentialPatch({
                 clientId: gcpClientId,
                 clientSecret: gcpClientSecret,
                 code: event.data.params.code,
@@ -239,16 +343,13 @@ export function GcpSettingsModal({
                 expiresAt: tokenData.expires_in
                   ? Date.now() + tokenData.expires_in * 1000
                   : undefined,
-                updatedAt: new Date().toISOString(),
               });
               fetchGcpProjects({
-                accessToken: tokenData.access_token,
-                refreshToken: tokenData.refresh_token,
-                clientId: gcpClientId,
-                clientSecret: gcpClientSecret,
-                expiresAt: tokenData.expires_in
-                  ? Date.now() + tokenData.expires_in * 1000
-                  : undefined,
+                accessToken: next.accessToken || tokenData.access_token,
+                refreshToken: next.refreshToken,
+                clientId: next.clientId,
+                clientSecret: next.clientSecret,
+                expiresAt: next.expiresAt,
               });
               if (popupRef.current)
                 popupRef.current.postMessage(
@@ -305,15 +406,37 @@ export function GcpSettingsModal({
     }
   };
 
+  const handleSaveRunnerSettings = async () => {
+    if (!auth.currentUser) return;
+
+    setIsSavingRunnerSettings(true);
+    try {
+      const next = await persistCredentialPatch({
+        cloudRunLocation: cloudRunLocation.trim(),
+        orchestratorImageUriTemplate: orchestratorImageUriTemplate.trim(),
+        orchestratorServiceName:
+          orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+        playwrightImageUriTemplate: playwrightImageUriTemplate.trim(),
+        selectedProject,
+      });
+      setOrchestratorServiceName(
+        next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+      );
+      setRunnerSettingsSaved(true);
+      setTimeout(() => setRunnerSettingsSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save GCP runner settings', error);
+    } finally {
+      setIsSavingRunnerSettings(false);
+    }
+  };
+
   const handleDisconnectGcp = async () => {
     if (!auth.currentUser) return;
     try {
       await DbAPI.deleteCloudCredential(auth.currentUser.uid, 'gcp');
       setAuthSuccess(false);
-      setGcpClientId('');
-      setGcpClientSecret('');
-      setProjects([]);
-      setSelectedProject('');
+      resetCredentialState();
       localStorage.removeItem('primaryCloud');
       onClose();
     } catch (error) {
@@ -373,39 +496,118 @@ export function GcpSettingsModal({
             Your workspace can now run workloads in Google Cloud.
           </p>
 
-          <div className="bg-[var(--control-bg)] border border-[var(--border)] rounded-lg p-4 text-left max-w-sm mx-auto mb-6 w-full">
-            <h4 className="text-sm font-medium text-[var(--foreground)] mb-2">
-              Select Google Cloud Project
-            </h4>
-            {isLoadingProjects ? (
-              <div className="flex items-center gap-2 text-xs text-muted">
-                <Loader2 className="w-3 h-3 animate-spin" /> Loading projects...
-              </div>
-            ) : (
-              <Select
-                value={selectedProject}
-                onChange={async (e) => {
-                  const newProject = e.target.value;
-                  setSelectedProject(newProject);
-                  if (auth.currentUser) {
-                    await DbAPI.saveCloudCredential(
-                      auth.currentUser.uid,
-                      'gcp',
-                      {
+          <div className="bg-[var(--control-bg)] border border-[var(--border)] rounded-lg p-4 text-left max-w-2xl mx-auto mb-6 w-full space-y-4">
+            <div>
+              <h4 className="text-sm font-medium text-[var(--foreground)] mb-2">
+                Select Google Cloud Project
+              </h4>
+              {isLoadingProjects ? (
+                <div className="flex items-center gap-2 text-xs text-muted">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Loading
+                  projects...
+                </div>
+              ) : (
+                <Select
+                  value={selectedProject}
+                  onChange={async (e) => {
+                    const newProject = e.target.value;
+                    setSelectedProject(newProject);
+                    if (auth.currentUser) {
+                      await persistCredentialPatch({
                         selectedProject: newProject,
-                      },
-                    );
-                  }
-                }}
-              >
-                <option value="">Select a project</option>
-                {projects.map((project) => (
-                  <option key={project.projectId} value={project.projectId}>
-                    {project.name || project.projectId}
-                  </option>
-                ))}
-              </Select>
-            )}
+                      });
+                    }
+                  }}
+                >
+                  <option value="">Select a project</option>
+                  {projects.map((project) => (
+                    <option key={project.projectId} value={project.projectId}>
+                      {project.name || project.projectId}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Cloud Run Region
+                </label>
+                <Input
+                  value={cloudRunLocation}
+                  onChange={(e) => {
+                    setCloudRunLocation(e.target.value);
+                    setRunnerSettingsSaved(false);
+                  }}
+                  placeholder="australia-southeast1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Orchestrator Service Name
+                </label>
+                <Input
+                  value={orchestratorServiceName}
+                  onChange={(e) => {
+                    setOrchestratorServiceName(e.target.value);
+                    setRunnerSettingsSaved(false);
+                  }}
+                  placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Orchestrator Image URI Template
+                </label>
+                <Input
+                  value={orchestratorImageUriTemplate}
+                  onChange={(e) => {
+                    setOrchestratorImageUriTemplate(e.target.value);
+                    setRunnerSettingsSaved(false);
+                  }}
+                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/orchestrator/playrunner-orchestrator:latest`}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Playwright Image URI Template
+                </label>
+                <Input
+                  value={playwrightImageUriTemplate}
+                  onChange={(e) => {
+                    setPlaywrightImageUriTemplate(e.target.value);
+                    setRunnerSettingsSaved(false);
+                  }}
+                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`}
+                />
+              </div>
+              <p className="text-xs text-muted">
+                Use <code>{'{projectId}'}</code> in both image templates, plus{' '}
+                <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
+                the Playwright image.
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-emerald-400">
+                  {runnerSettingsSaved ? 'Runner settings saved.' : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveRunnerSettings}
+                  disabled={isSavingRunnerSettings}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingRunnerSettings ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Runner Settings'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
           <button

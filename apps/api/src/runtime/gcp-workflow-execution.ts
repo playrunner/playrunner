@@ -14,6 +14,24 @@ import {
 } from '../services/gcs';
 import { state } from '../state';
 
+function missingRunnerSettings(gcp: Record<string, any>): string[] {
+  const missing: string[] = [];
+
+  if (!gcp.cloudRunLocation) {
+    missing.push('Cloud Run region');
+  }
+
+  if (!gcp.orchestratorImageUriTemplate) {
+    missing.push('Orchestrator image URI template');
+  }
+
+  if (!gcp.playwrightImageUriTemplate) {
+    missing.push('Playwright image URI template');
+  }
+
+  return missing;
+}
+
 export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(private readonly logTransport: LogTransport) {}
 
@@ -43,6 +61,16 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         body: {
           error:
             'GCP project required. Select a project in the UI before running.',
+        },
+        status: 400,
+      };
+    }
+
+    const missingSettings = missingRunnerSettings(gcp);
+    if (missingSettings.length > 0) {
+      return {
+        body: {
+          error: `GCP runner settings required. Open Settings > Google Cloud and complete: ${missingSettings.join(', ')}.`,
         },
         status: 400,
       };
@@ -174,6 +202,11 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       const serviceUri = await ensureOrchestratorService(
         gcp.selectedProject,
         refreshedToken,
+        {
+          cloudRunLocation: gcp.cloudRunLocation,
+          orchestratorImageUriTemplate: gcp.orchestratorImageUriTemplate,
+          orchestratorServiceName: gcp.orchestratorServiceName,
+        },
       );
 
       const executeResponse = await fetch(`${serviceUri}/execute`, {

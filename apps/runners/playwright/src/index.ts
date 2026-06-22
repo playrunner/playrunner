@@ -462,7 +462,7 @@ async function run() {
     payload?.data?.executionAuthToken,
     payload?.data?.bucketName,
     payload?.settings?.gcp?.accessToken,
-    payload?.settings?.gcp?.selectedProject || process.env.GCP_PROJECT,
+    payload?.settings?.gcp?.selectedProject,
     cloudProvider,
   );
 

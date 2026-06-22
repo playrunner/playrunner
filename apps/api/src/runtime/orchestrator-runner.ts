@@ -1,7 +1,6 @@
 import { spawn } from 'child_process';
 import {
   EDITOR_API_URL_DOCKER,
-  GCP_PROJECT,
   ORCHESTRATOR_IMAGE,
   ORCHESTRATOR_PORT,
   ORCHESTRATOR_URL,
@@ -85,8 +84,6 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
       'PORT=8080',
       '-e',
       `ENABLE_PREMIUM=${process.env.ENABLE_PREMIUM ?? 'true'}`,
-      '-e',
-      `GCP_PROJECT=${GCP_PROJECT}`,
       '-e',
       `EDITOR_API_URL=${EDITOR_API_URL_DOCKER}`,
       '-v',

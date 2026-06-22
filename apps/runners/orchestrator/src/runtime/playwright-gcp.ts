@@ -16,13 +16,16 @@ type CloudRunExecution = {
 };
 
 const POLL_INTERVAL_MS = 3000;
+const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
+const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE =
+  'playrunner-{runtime}-{version}-{cpu}cpu-{memory}gi';
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} must be set for GCP Playwright execution.`);
+function requireSetting(value: string | undefined, name: string): string {
+  const normalized = value?.trim();
+  if (!normalized) {
+    throw new Error(`${name} must be configured in GCP settings.`);
   }
-  return value;
+  return normalized;
 }
 
 function requireRequestValue(value: string | undefined, name: string): string {
@@ -52,15 +55,16 @@ function renderTemplate(
 }
 
 function cloudRunUrl(resourcePath: string): string {
-  return `${requireEnv('GCP_CLOUD_RUN_API_BASE_URL').replace(/\/$/, '')}/${resourcePath}`;
+  return `${CLOUD_RUN_API_BASE_URL}/${resourcePath}`;
 }
 
 function resolvePlaywrightCloudImage(
   projectId: string,
   runtime: string,
   version: string,
+  template: string,
 ): string {
-  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE'), {
+  return renderTemplate(template, {
     projectId,
     runtime,
     version,
@@ -68,12 +72,13 @@ function resolvePlaywrightCloudImage(
 }
 
 function resolveJobName(
+  template: string,
   runtime: string,
   version: string,
   cpu: number,
   memory: number,
 ): string {
-  return renderTemplate(requireEnv('GCP_PLAYWRIGHT_JOB_NAME_TEMPLATE'), {
+  return renderTemplate(template, {
     cpu,
     memory,
     runtime,
@@ -168,11 +173,11 @@ async function ensurePlaywrightJob(args: {
   cpu: number;
   imageUri: string;
   jobName: string;
+  location: string;
   memory: number;
   projectId: string;
 }): Promise<string> {
-  const location = requireEnv('GCP_CLOUD_RUN_LOCATION');
-  const parentPath = `projects/${args.projectId}/locations/${location}`;
+  const parentPath = `projects/${args.projectId}/locations/${args.location}`;
   const jobPath = `${parentPath}/jobs/${args.jobName}`;
 
   if (await jobExists(jobPath, args.accessToken)) {
@@ -217,6 +222,7 @@ async function triggerPlaywrightJob(args: {
   globalEnvVars: Record<string, string>;
   imageUri: string;
   jobName: string;
+  location: string;
   memory: number;
   payloadData: any;
   projectId: string;
@@ -271,9 +277,14 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       runtime,
     } = request;
     const projectId = requireRequestValue(reqBody.gcpProject, 'gcpProject');
+    const gcpSettings = reqBody.settings?.gcp ?? {};
     const accessToken = requireRequestValue(
-      reqBody.settings?.gcp?.accessToken,
+      gcpSettings.accessToken,
       'GCP access token',
+    );
+    const cloudRunLocation = requireSetting(
+      gcpSettings.cloudRunLocation,
+      'Cloud Run region',
     );
     const playwrightVersion = requireRequestValue(
       config.playwrightVersion,
@@ -285,8 +296,19 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       projectId,
       runtime,
       playwrightVersion,
+      requireSetting(
+        gcpSettings.playwrightImageUriTemplate,
+        'Playwright image URI template',
+      ),
     );
-    const jobName = resolveJobName(runtime, playwrightVersion, cpu, memory);
+    const jobName = resolveJobName(
+      gcpSettings.playwrightJobNameTemplate ||
+        DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE,
+      runtime,
+      playwrightVersion,
+      cpu,
+      memory,
+    );
 
     await publishLog(
       `Playwright Runner starting in Cloud Run Job using ${runtime} image: ${imageUri}`,
@@ -299,6 +321,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       globalEnvVars,
       imageUri,
       jobName,
+      location: cloudRunLocation,
       memory,
       payloadData,
       projectId,
