@@ -7,7 +7,8 @@ export function HeaderActions() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const docsUrl = import.meta.env.VITE_DOCS_URL || 'https://docs.playrunner.dev';
+  const docsUrl =
+    import.meta.env.VITE_DOCS_URL || 'https://docs.playrunner.dev';
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

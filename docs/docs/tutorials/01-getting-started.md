@@ -63,7 +63,13 @@ Start the repo-root local stack:
 ./start-local.sh
 ```
 
-On the first run, this command opens setup automatically. Then open the URL printed by the script. With defaults:
+This is the main local-development entry point. On the first run it:
+
+- starts the local Docker Postgres container
+- opens setup automatically
+- starts the local docs site and opens the Getting Started page
+
+Then open the setup URL printed by the script. With defaults:
 
 ```text
 http://127.0.0.1:3000/setup
@@ -71,7 +77,7 @@ http://127.0.0.1:3000/setup
 
 This route is only available while startup has put the workspace into setup mode. The setup app is gated by a one-time session token and talks to the local installer through `/setup-api/*`.
 
-That same command also starts the local Docusaurus docs site. With defaults:
+On first-time setup, the local docs site also opens in the browser. With defaults:
 
 ```text
 http://127.0.0.1:3004/playrunner/
@@ -83,7 +89,7 @@ The setup UI is intentionally short. In the form you:
 
 1. Confirm or replace the PostgreSQL `DATABASE_URL`.
 2. Choose the first local admin username and password for the login screen.
-3. Let the installer write the local database and auth config into `apps/api/.env`.
+3. Let the installer write the local database config into `apps/api/.env` and store the local login credentials in PostgreSQL.
 
 After setup, run the normal local stack:
 
@@ -91,14 +97,15 @@ After setup, run the normal local stack:
 ./start-local.sh
 ```
 
-That command now starts the local Postgres container and runs Prisma bootstrap before the API server comes online.
+That command starts the local Postgres container, runs Prisma bootstrap, and starts the product app.
 
 The installer writes the PostgreSQL and Prisma config into `apps/api`, including:
 
 - `.env` updates for `DATABASE_URL`, `DIRECT_URL`, and `SHADOW_DATABASE_URL`
-- `.env` updates for `LOCAL_AUTH_USERNAME`, `LOCAL_AUTH_PASSWORD_HASH`, and `AUTH_JWT_SECRET`
 - `prisma/schema.prisma`
 - `src/lib/prisma.ts`
+
+The local admin username, password hash, and JWT secret are stored in PostgreSQL so they do not live in `apps/api/.env`.
 
 If you need to rerun setup later:
 
@@ -117,11 +124,44 @@ After setup completes, stop the setup-only session and start the normal local st
 ./start-local.sh
 ```
 
-This starts the product web app, API, and local docs site, and also rebuilds the local runner images needed by the editor.
+This starts the product web app, API, and local docs site, and also rebuilds the local runner images needed by the editor. Later `./start-local.sh` runs keep the docs server available locally, but they do not auto-open the docs browser tab again.
 
 ---
 
-## Step 6 — Open the product app
+## Step 6 — If `start-local.sh` does not get you there
+
+Use these fallback checks before going deeper:
+
+1. Re-run the dependency install:
+
+   ```bash
+   ./install-local.sh
+   ```
+
+2. Create the root local config file yourself if it is missing:
+
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+3. If Docker says the Postgres port is already in use, edit `.env.local` and change `POSTGRES_PORT`, then run `./start-local.sh` again.
+
+4. If setup should reopen, delete the generated API env file and start again:
+
+   ```bash
+   rm apps/api/.env
+   ./start-local.sh
+   ```
+
+5. If startup succeeds but the browser did not land on setup, open the setup URL directly. With defaults:
+
+   ```text
+   http://127.0.0.1:3000/setup
+   ```
+
+---
+
+## Step 7 — Open the product app
 
 Once the script output settles, open the URL printed by the script. With defaults:
 

@@ -623,5 +623,5 @@ else
       --prefix-colors "blue,green,magenta" \
       "cd '${BASE_DIR}/apps/frontend' && npm run dev -- --port '${WEB_PORT}'" \
       "cd '${BASE_DIR}/apps/api' && npm start" \
-      "cd '${DOCS_DIR}' && npm run start -- --host 127.0.0.1 --port '${DOCS_PORT}'"
+      "cd '${DOCS_DIR}' && npm run start -- --host 127.0.0.1 --port '${DOCS_PORT}' --no-open"
 fi
