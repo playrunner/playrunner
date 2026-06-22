@@ -5,9 +5,10 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 LOCAL_PACKAGE_DIRS=(
   "apps/api"
-  "apps/web"
+  "apps/frontend"
   "apps/runners/orchestrator"
   "apps/runners/playwright"
+  "docs"
 )
 
 if ! command -v npm >/dev/null 2>&1; then
@@ -33,3 +34,4 @@ git -C "${ROOT_DIR}" config core.hooksPath .githooks
 echo ""
 echo "Local development dependencies installed."
 echo "apps/setup reuses apps/frontend/node_modules and does not need a separate install."
+echo "docs is installed here because ./start-local.sh also starts the local Docusaurus site."

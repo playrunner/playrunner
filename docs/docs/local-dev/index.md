@@ -18,7 +18,7 @@ If you need to install dependencies, create the local `.env` files, run the one-
 
 ➡️ [Getting Started](../tutorials/getting-started)
 
-The rest of the Development section assumes you have already completed that setup and just need reference material for specific parts of the stack.
+The rest of the Development section assumes you have already completed that setup and just need reference material for specific parts of the stack. The repo-root startup flow also launches the local Docusaurus site so the product header can point at local docs during development.
 
 ---
 
@@ -37,6 +37,7 @@ There is also a supporting infrastructure service:
 
 | Service | Port | How it runs |
 |---|---|---|
+| **Docs Site** | `3004` by default | Host process via `./start-local.sh` |
 | **Google Cloud Pub/Sub Emulator** | `8085` | Docker container (via `docker compose`) |
 
 ---

@@ -15,6 +15,7 @@ title: Services & Ports
 |---|---|---|---|
 | Web App (Vite) | `3000` by default | `localhost:WEB_PORT` | Product app in normal runs |
 | Setup App (Vite) | `3000` by default | `localhost:WEB_PORT` | Dedicated setup UI during `--setup` runs |
+| Docs Site (Docusaurus) | `3004` by default | `localhost:DOCS_PORT` | Host process started by `start-local.sh`; not part of Docker |
 | API Server | `3001` | `localhost:3001` | Express, started via `npm start` |
 | Setup Installer | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh` |
 | Orchestrator | `3002` | `localhost:3002` | Docker container, port-mapped `3002:8080` |
@@ -25,8 +26,8 @@ title: Services & Ports
 
 ## Web App — Port 3000 by Default
 
-**Location:** `apps/web`  
-**Start command:** `cd apps/web && npm run dev`  
+**Location:** `apps/frontend`
+**Start command:** `cd apps/frontend && npm run dev`
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
 The product app proxies two path prefixes so the browser never hits CORS issues:
@@ -41,13 +42,25 @@ This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL i
 
 ## Setup App — Port 3000 by Default (setup runs only)
 
-**Location:** `apps/setup`  
-**Start command:** `cd apps/web && npm exec vite -- --config ../setup/vite.config.ts`  
+**Location:** `apps/setup`
+**Start command:** `cd apps/frontend && npm exec vite -- --config ../setup/vite.config.ts`
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
 The setup app exists only for explicit install/setup sessions. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003` by default.
 
 `./start-local.sh --setup` starts this app instead of the main product app, so no product routes are available during setup.
+
+---
+
+## Docs Site — Port 3004 by Default
+
+**Location:** `docs`
+**Start command:** `cd docs && npm run start -- --port 3004`
+**Technology:** Docusaurus 3 + React 19 + TypeScript
+
+`./start-local.sh` and `./start-local.sh --setup` also start the Docusaurus site on the host so the product header's `Docs` link can stay local during development. The published path is still `/playrunner/docs/`, so the default local URL is `http://127.0.0.1:3004/playrunner/docs/`.
+
+This service is not part of Docker.
 
 ---
 

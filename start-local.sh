@@ -7,6 +7,7 @@ BASE_DIR="${BASE_DIR:-$WORKSPACE_ROOT}"
 PREMIUM_DIR="${PREMIUM_DIR:-$WORKSPACE_ROOT/premium}"
 COMPOSE_FILE="${BASE_DIR}/docker-compose.yml"
 API_DIR="${BASE_DIR}/apps/api"
+DOCS_DIR="${BASE_DIR}/docs"
 ROOT_ENV_FILE="${BASE_DIR}/.env"
 ROOT_ENV_EXAMPLE_FILE="${BASE_DIR}/.env.example"
 
@@ -32,6 +33,7 @@ if [ -f "${ROOT_ENV_FILE}" ]; then
 fi
 
 WEB_PORT="${WEB_PORT:-3000}"
+DOCS_PORT="${DOCS_PORT:-3004}"
 SETUP_INSTALLER_PORT="${SETUP_INSTALLER_PORT:-3003}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_HOST="${POSTGRES_HOST:-127.0.0.1}"
@@ -42,8 +44,10 @@ LOCAL_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRE
 ROOT_DATABASE_URL="${DATABASE_URL:-}"
 VITE_DEFAULT_DATABASE_URL="${VITE_DEFAULT_DATABASE_URL:-${ROOT_DATABASE_URL:-$LOCAL_DATABASE_URL}}"
 VITE_SETUP_INSTALLER_URL="${VITE_SETUP_INSTALLER_URL:-http://127.0.0.1:${SETUP_INSTALLER_PORT}}"
+VITE_DOCS_URL="${VITE_DOCS_URL:-http://127.0.0.1:${DOCS_PORT}/playrunner/docs/}"
 
 export WEB_PORT
+export DOCS_PORT
 export SETUP_INSTALLER_PORT
 export POSTGRES_PORT
 export POSTGRES_HOST
@@ -52,6 +56,7 @@ export POSTGRES_USER
 export POSTGRES_PASSWORD
 export VITE_DEFAULT_DATABASE_URL
 export VITE_SETUP_INSTALLER_URL
+export VITE_DOCS_URL
 
 RUN_SETUP=false
 EDITION="oss"
@@ -72,7 +77,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             echo "Unknown argument: $1"
-            echo "Usage: ./start-local.sh [--setup]"
+            echo "Usage: ./start-local.sh [--setup] [--edition oss|premium]"
             exit 1
             ;;
     esac
@@ -98,6 +103,7 @@ echo "🧩 Edition mode: ${EDITION_LABEL}"
 echo "📁 Workspace root: ${WORKSPACE_ROOT}"
 echo "📦 Base dir: ${BASE_DIR}"
 echo "🌐 Web port: ${WEB_PORT}"
+echo "📚 Docs port: ${DOCS_PORT}"
 echo "🧰 Setup installer port: ${SETUP_INSTALLER_PORT}"
 echo "🐘 Postgres port: ${POSTGRES_PORT}"
 
@@ -127,6 +133,15 @@ wait_for_compose_service() {
     done
 
     echo "Timed out waiting for Docker service '${service}' to become ready."
+    exit 1
+}
+
+ensure_docs_dependencies() {
+    if [ -d "${DOCS_DIR}/node_modules" ]; then
+        return 0
+    fi
+
+    echo "Missing ${DOCS_DIR}/node_modules. Run ./install-local.sh first."
     exit 1
 }
 
@@ -246,6 +261,8 @@ NODE
 }
 
 # 1. Start local Docker-backed services in the background
+ensure_docs_dependencies
+
 echo "📦 Starting local Docker services..."
 docker compose -f "${COMPOSE_FILE}" up -d postgres
 wait_for_compose_service postgres 90
@@ -320,11 +337,13 @@ if [ "$RUN_SETUP" = "true" ]; then
     export VITE_SETUP_SESSION_TOKEN="$SETUP_SESSION_TOKEN"
     echo "🔐 Setup explicitly enabled for this run only."
     echo "➡️  Open http://127.0.0.1:${WEB_PORT}/setup"
+    echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \
-      --names "SETUP-WEB,SETUP" \
-      --prefix-colors "blue,yellow" \
+      --names "SETUP-WEB,SETUP,DOCS" \
+      --prefix-colors "blue,yellow,magenta" \
       "cd '${BASE_DIR}/apps/frontend' && npm exec vite -- --config '${BASE_DIR}/apps/setup/vite.config.ts' --port '${WEB_PORT}'" \
-      "node '${BASE_DIR}/setup/installer/index.mjs'"
+      "node '${BASE_DIR}/setup/installer/index.mjs'" \
+      "cd '${DOCS_DIR}' && npm run start -- --host 127.0.0.1 --port '${DOCS_PORT}'"
 else
     unset SETUP_SESSION_TOKEN
     unset VITE_SETUP_MODE
@@ -332,9 +351,11 @@ else
     sync_api_database_url
     bootstrap_api_prisma
     echo "🔒 Setup is locked. Run ./start-local.sh --setup to open the dedicated setup app."
+    echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \
-      --names "WEB,API" \
-      --prefix-colors "blue,green" \
+      --names "WEB,API,DOCS" \
+      --prefix-colors "blue,green,magenta" \
       "cd '${BASE_DIR}/apps/frontend' && npm run dev -- --port '${WEB_PORT}'" \
-      "cd '${BASE_DIR}/apps/api' && npm start"
+      "cd '${BASE_DIR}/apps/api' && npm start" \
+      "cd '${DOCS_DIR}' && npm run start -- --host 127.0.0.1 --port '${DOCS_PORT}'"
 fi

@@ -16,6 +16,7 @@ Copy from `.env.example`.
 | Variable | Default | Description |
 |---|---|---|
 | `WEB_PORT` | `3000` | Port used by both the setup app and the normal web app |
+| `DOCS_PORT` | `3004` | Port used by the local Docusaurus docs site started by `./start-local.sh` |
 | `SETUP_INSTALLER_PORT` | `3003` | Port used by the local setup installer service |
 | `POSTGRES_PORT` | `5432` | Host port mapped to the Docker-backed Postgres container |
 | `POSTGRES_HOST` | `127.0.0.1` | Hostname used when deriving the default local Prisma connection |
@@ -24,6 +25,7 @@ Copy from `.env.example`.
 | `POSTGRES_PASSWORD` | `postgres` | Password for the standard local Postgres container |
 | `DATABASE_URL` | _(optional)_ | Explicit Prisma datasource URL override for both setup defaults and the normal API startup path |
 | `VITE_DEFAULT_DATABASE_URL` | _(optional)_ | Override only the database URL prefilled in the setup form |
+| `VITE_DOCS_URL` | Derived from `DOCS_PORT` by default | Optional full override for the header `Docs` link during repo-root local startup |
 
 `./start-local.sh` loads this file first, uses it to start Docker-backed services, and passes the derived defaults into the setup app.
 
@@ -59,6 +61,7 @@ Optional. The standard local flow does not require this file.
 |---|---|---|
 | `VITE_API_URL` | `http://127.0.0.1:3001` | Target for the Vite dev-server proxy (`/api/*` and `/outputs/*`) when you run the frontend outside `./start-local.sh` |
 | `VITE_SETUP_INSTALLER_URL` | `http://127.0.0.1:3003` | Target for the Vite dev-server proxy (`/setup-api/*`) when you run the setup app outside `./start-local.sh` |
+| `VITE_DOCS_URL` | `https://docs.playrunner.dev` | Target for the header `Docs` link when you run the frontend outside `./start-local.sh` |
 | `GEMINI_API_KEY` | _(empty)_ | API key for Gemini AI features; injected at runtime in production |
 | `APP_URL` | _(empty)_ | Self-referential URL; not needed for local dev |
 

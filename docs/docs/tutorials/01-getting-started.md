@@ -8,7 +8,7 @@ title: Getting Started
 This tutorial walks you through setting up the complete Playrunner local development environment from scratch. By the end you'll have the local stack running, the workspace configured through the setup UI, and the product app ready for login.
 
 **Time to complete:** ~15 minutes  
-**Prerequisites:** Docker Desktop, Node.js 18+, Git
+**Prerequisites:** Docker Desktop, Node.js 20+, Git
 
 ---
 
@@ -32,9 +32,10 @@ Install the local development dependencies from the repo root:
 This installs the packages needed for:
 
 - `apps/api`
-- `apps/web`
+- `apps/frontend`
 - `apps/runners/orchestrator`
 - `apps/runners/playwright`
+- `docs`
 
 `apps/setup` does not have its own `package.json`; it reuses `apps/frontend/node_modules`.
 
@@ -50,7 +51,7 @@ cp .env.example .env
 
 This step is recommended if you want to change ports before the first run. If `.env` is missing, `./start-local.sh` will create it from `.env.example` automatically.
 
-Edit `.env` before continuing if you want a different local web port or Postgres port. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
+Edit `.env` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
 
 ---
 
@@ -69,6 +70,12 @@ http://127.0.0.1:3000/setup
 ```
 
 This route is only available during an explicit setup run. The setup app is gated by a one-time session token and talks to the local installer through `/setup-api/*`.
+
+That same command also starts the local Docusaurus docs site. With defaults:
+
+```text
+http://127.0.0.1:3004/playrunner/docs/
+```
 
 ### What the setup UI does
 
@@ -105,7 +112,7 @@ After setup completes, stop the setup-only session and start the normal local st
 ./start-local.sh
 ```
 
-This starts the product web app and API, and also rebuilds the local runner images needed by the editor.
+This starts the product web app, API, and local docs site, and also rebuilds the local runner images needed by the editor.
 
 ---
 
@@ -118,6 +125,8 @@ http://127.0.0.1:3000
 ```
 
 Log in with the username and password you configured in the setup wizard. You should then see the Playrunner product app and can continue into the workflow editor.
+
+While the local stack is running, the header `Docs` link opens the local Docusaurus site instead of the live docs domain.
 
 ---
 

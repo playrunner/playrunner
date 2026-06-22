@@ -7,6 +7,7 @@ export function HeaderActions() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const docsUrl = import.meta.env.VITE_DOCS_URL || 'https://docs.playrunner.dev';
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -26,7 +27,7 @@ export function HeaderActions() {
   return (
     <div className="flex items-center gap-3 ml-auto">
       <a
-        href="https://docs.playrunner.dev"
+        href={docsUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-1.5 text-sm font-medium text-muted hover:text-[var(--foreground)] transition-colors"
