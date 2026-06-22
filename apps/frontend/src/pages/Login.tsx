@@ -64,7 +64,7 @@ export default function Login() {
           <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-[var(--border-strong)] to-transparent" />
 
           <h2 className="text-xl font-semibold text-[var(--foreground)] mb-2">
-            Log in with the local account from setup
+            Sign in to your account
           </h2>
           <p className="text-sm text-muted mb-6">
             Use the username and password configured during local setup.
