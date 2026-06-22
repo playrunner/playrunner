@@ -24,21 +24,17 @@ This step is recommended if you want to change ports before the first run. If `.
 
 Edit `.env.local` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup.
 
-### 3. Run the one-time setup flow
+### 3. Start the app
 
-```bash
-./start-local.sh --setup
-```
-
-Then open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3000/setup`.
-
-That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3004/playrunner/`, and the app header's `Docs` link points there during local development.
-
-### 4. Start the app
+On the first run, Playrunner opens the setup app automatically. After setup is complete, the same command starts the normal local app.
 
 ```bash
 ./start-local.sh
 ```
+
+If setup is needed, open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3000/setup`. In that screen, confirm the PostgreSQL URL and create the first admin username and password.
+
+That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3004/playrunner/`, and the app header's `Docs` link points there during local development.
 
 Then open the URL printed by the script and log in with the username and password you created during setup. With defaults, that is `http://127.0.0.1:3000`.
 
@@ -49,9 +45,11 @@ The local docs site also starts with this command. With defaults, it is `http://
 If you need to reopen the setup wizard:
 
 ```bash
-rm setup/installer/.setup-state.json
-./start-local.sh --setup
+rm apps/api/.env
+./start-local.sh
 ```
+
+If you also want to regenerate the local port or Postgres defaults, remove `.env.local` before rerunning setup.
 
 For more detail, see [`docs/docs/tutorials/01-getting-started.md`](docs/docs/tutorials/01-getting-started.md).
 

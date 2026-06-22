@@ -11,10 +11,10 @@ title: PostgreSQL, Prisma & Local Auth
 
 ## Services Used
 
-| Service | Purpose |
-|---|---|
+| Service        | Purpose                                                             |
+| -------------- | ------------------------------------------------------------------- |
 | **PostgreSQL** | Stores workflows, projects, integrations, environments, and secrets |
-| **Prisma** | Provides the API schema, client, and local database bootstrap |
+| **Prisma**     | Provides the API schema, client, and local database bootstrap       |
 | **Local auth** | Issues JWT bearer tokens for the setup-configured username/password |
 
 ---
@@ -42,8 +42,8 @@ npx prisma db push --skip-generate
 ### How the local database config flows
 
 1. The repo-root `.env.local` defines the local web port, setup installer port, and Docker-backed Postgres connection defaults.
-2. `./start-local.sh --setup` starts Postgres with those values and passes the derived `DATABASE_URL` into the setup app.
-3. The setup installer writes the chosen `DATABASE_URL` plus local auth settings into `apps/api/.env`.
+2. When setup is active, `./start-local.sh` starts Postgres with those values and passes the derived `DATABASE_URL` into the setup app.
+3. The setup installer writes the chosen `DATABASE_URL` plus the local admin username/password settings into `apps/api/.env`.
 4. `./start-local.sh` later reuses that config, and if you are still using the standard Docker-backed Postgres settings it keeps `apps/api/.env` aligned with the repo-root `.env.local` before running Prisma bootstrap.
 
 ---

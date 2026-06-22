@@ -14,7 +14,7 @@ title: Overview
 
 Project setup now lives in the Tutorials section.
 
-If you need to install dependencies, create the local `.env.local` and service `.env` files, run the one-time setup flow, or start the app for the first time, use:
+If you need to install dependencies, create the local `.env.local` and service `.env` files, let startup run setup on first launch, or start the app for the first time, use:
 
 ➡️ [Getting Started](../tutorials/getting-started)
 
@@ -26,19 +26,19 @@ The rest of the Development section assumes you have already completed that setu
 
 Playrunner is a workflow orchestration platform for running automated Playwright test pipelines. It consists of four main services that must all be running locally to have a fully functional development environment:
 
-| Service | Technology | Port | How it runs |
-|---|---|---|---|
-| **Web App** | React + Vite | `3000` | `npm run dev` (host process) |
-| **API** | Express + TypeScript | `3001` | `npm start` (host process) |
-| **Orchestrator** | Express + TypeScript | `3002` | Docker container (spawned by the API) |
-| **Playwright Runner** | TypeScript + Python | — | Docker container (spawned by the Orchestrator) |
+| Service               | Technology           | Port   | How it runs                                    |
+| --------------------- | -------------------- | ------ | ---------------------------------------------- |
+| **Web App**           | React + Vite         | `3000` | `npm run dev` (host process)                   |
+| **API**               | Express + TypeScript | `3001` | `npm start` (host process)                     |
+| **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)          |
+| **Playwright Runner** | TypeScript + Python  | —      | Docker container (spawned by the Orchestrator) |
 
 There is also a supporting infrastructure service:
 
-| Service | Port | How it runs |
-|---|---|---|
-| **Docs Site** | `3004` by default | Host process via `./start-local.sh` |
-| **Google Cloud Pub/Sub Emulator** | `8085` | Docker container (via `docker compose`) |
+| Service                           | Port              | How it runs                             |
+| --------------------------------- | ----------------- | --------------------------------------- |
+| **Docs Site**                     | `3004` by default | Host process via `./start-local.sh`     |
+| **Google Cloud Pub/Sub Emulator** | `8085`            | Docker container (via `docker compose`) |
 
 ---
 

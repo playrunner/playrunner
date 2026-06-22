@@ -51,25 +51,25 @@ cp .env.local.example .env.local
 
 This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
+Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh` creates and updates `apps/api/.env` for you whenever setup is active.
 
 ---
 
-## Step 4 — Run the one-time setup flow
+## Step 4 — Start the local stack
 
-Start an explicit setup session from the repo root:
+Start the repo-root local stack:
 
 ```bash
-./start-local.sh --setup
+./start-local.sh
 ```
 
-Then open the URL printed by the script. With defaults:
+On the first run, this command opens setup automatically. Then open the URL printed by the script. With defaults:
 
 ```text
 http://127.0.0.1:3000/setup
 ```
 
-This route is only available during an explicit setup run. The setup app is gated by a one-time session token and talks to the local installer through `/setup-api/*`.
+This route is only available while startup has put the workspace into setup mode. The setup app is gated by a one-time session token and talks to the local installer through `/setup-api/*`.
 
 That same command also starts the local Docusaurus docs site. With defaults:
 
@@ -79,13 +79,11 @@ http://127.0.0.1:3004/playrunner/
 
 ### What the setup UI does
 
-The current wizard is built around PostgreSQL and Prisma. In the UI you:
+The setup UI is intentionally short. In the form you:
 
-1. Paste the Prisma `DATABASE_URL` and any optional direct or shadow database URLs.
-2. Choose the local username and password that should be accepted by the login screen.
-3. Let the installer write the PostgreSQL and auth environment variables into `apps/api/.env`.
-4. Generate the Prisma scaffold for the API package.
-5. Complete setup, which permanently closes the installer for that workspace.
+1. Confirm or replace the PostgreSQL `DATABASE_URL`.
+2. Choose the first local admin username and password for the login screen.
+3. Let the installer write the local database and auth config into `apps/api/.env`.
 
 After setup, run the normal local stack:
 
@@ -101,6 +99,13 @@ The installer writes the PostgreSQL and Prisma config into `apps/api`, including
 - `.env` updates for `LOCAL_AUTH_USERNAME`, `LOCAL_AUTH_PASSWORD_HASH`, and `AUTH_JWT_SECRET`
 - `prisma/schema.prisma`
 - `src/lib/prisma.ts`
+
+If you need to rerun setup later:
+
+```bash
+rm apps/api/.env
+./start-local.sh
+```
 
 ---
 

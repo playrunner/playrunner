@@ -67,8 +67,7 @@ export default function Login() {
             Log in with the local account from setup
           </h2>
           <p className="text-sm text-muted mb-6">
-            Use the username and password configured during the one-time setup
-            run.
+            Use the username and password configured during local setup.
           </p>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
@@ -111,8 +110,7 @@ export default function Login() {
           <div className="mt-6 rounded-xl border border-subtle bg-[var(--background)]/70 px-4 py-3">
             <p className="text-xs text-muted">
               If local auth has not been configured yet, run{' '}
-              <code>./start-local.sh --setup</code> and finish the setup wizard
-              first.
+              <code>./start-local.sh</code> and finish the setup wizard.
             </p>
           </div>
         </div>

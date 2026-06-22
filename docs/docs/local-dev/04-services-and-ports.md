@@ -11,16 +11,16 @@ title: Services & Ports
 
 ## Port Map
 
-| Service | Port | Binding | Notes |
-|---|---|---|---|
-| Web App (Vite) | `3000` by default | `localhost:WEB_PORT` | Product app in normal runs |
-| Setup App (Vite) | `3000` by default | `localhost:WEB_PORT` | Dedicated setup UI during `--setup` runs |
-| Docs Site (Docusaurus) | `3004` by default | `localhost:DOCS_PORT` | Host process started by `start-local.sh`; not part of Docker |
-| API Server | `3001` | `localhost:3001` | Express, started via `npm start` |
-| Setup Installer | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh` |
-| Orchestrator | `3002` | `localhost:3002` | Docker container, port-mapped `3002:8080` |
-| PostgreSQL | `5432` by default | `localhost:POSTGRES_PORT` | Docker container started by `start-local.sh` |
-| Pub/Sub Emulator | `8085` | `localhost:8085` | Docker container via `docker compose` |
+| Service                | Port              | Binding                          | Notes                                                        |
+| ---------------------- | ----------------- | -------------------------------- | ------------------------------------------------------------ |
+| Web App (Vite)         | `3000` by default | `localhost:WEB_PORT`             | Product app in normal runs                                   |
+| Setup App (Vite)       | `3000` by default | `localhost:WEB_PORT`             | Dedicated setup UI during `--setup` runs                     |
+| Docs Site (Docusaurus) | `3004` by default | `localhost:DOCS_PORT`            | Host process started by `start-local.sh`; not part of Docker |
+| API Server             | `3001`            | `localhost:3001`                 | Express, started via `npm start`                             |
+| Setup Installer        | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
+| Orchestrator           | `3002`            | `localhost:3002`                 | Docker container, port-mapped `3002:8080`                    |
+| PostgreSQL             | `5432` by default | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
+| Pub/Sub Emulator       | `8085`            | `localhost:8085`                 | Docker container via `docker compose`                        |
 
 ---
 
@@ -32,10 +32,11 @@ title: Services & Ports
 
 The product app proxies two path prefixes so the browser never hits CORS issues:
 
-| Proxy path | Forwarded to |
-|---|---|
-| `/api/*` | `http://127.0.0.1:3001` |
+| Proxy path   | Forwarded to            |
+| ------------ | ----------------------- |
+| `/api/*`     | `http://127.0.0.1:3001` |
 | `/outputs/*` | `http://127.0.0.1:3001` |
+
 This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL in `VITE_API_URL`.
 
 ---
@@ -46,9 +47,9 @@ This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL i
 **Start command:** `cd apps/frontend && npm exec vite -- --config ../setup/vite.config.ts`
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
-The setup app exists only for explicit install/setup sessions. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003` by default.
+The setup app exists only while the repo-root startup flow is running in setup mode. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003` by default.
 
-`./start-local.sh --setup` starts this app instead of the main product app, so no product routes are available during setup.
+`./start-local.sh` starts this app automatically when local setup has not been completed yet, and `./start-local.sh --setup` can still force it explicitly. No product routes are available during setup.
 
 ---
 
@@ -79,19 +80,19 @@ This service is not part of Docker.
 
 ### Routes
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/runners/start` | Spawns the Orchestrator Docker container |
-| `POST` | `/api/workflows/start` | Forwards a workflow execution request to the Orchestrator |
-| `POST` | `/api/workflows/stop-node` | Sends a stop signal for a running node to the Orchestrator |
-| `POST` | `/api/executions/:executionId/events` | Internal runner callback used to persist logs, node states, and output events |
-| `GET`  | `/api/executions/:executionId/stream` | Authenticated SSE endpoint for a single workflow execution |
-| `GET`  | `/api/presence/stream` | Lightweight SSE endpoint that marks an editor tab as connected for heartbeat checks |
-| `POST` | `/api/outputs/:testId/:nodeId` | Receives compressed test output archives from the Playwright runner and extracts them |
-| `GET`  | `/api/heartbeat` | Returns `200 OK` if at least one SSE client (Editor tab) is connected |
-| `POST` | `/api/github/token` | CORS-bypass proxy: exchanges a GitHub OAuth code for an access token |
-| `POST` | `/api/github/refresh` | CORS-bypass proxy: refreshes an expiring GitHub OAuth access token |
-| `GET`  | `/outputs/*` | Static file server for extracted Playwright reports and media |
+| Method | Path                                  | Description                                                                           |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------- |
+| `POST` | `/api/runners/start`                  | Spawns the Orchestrator Docker container                                              |
+| `POST` | `/api/workflows/start`                | Forwards a workflow execution request to the Orchestrator                             |
+| `POST` | `/api/workflows/stop-node`            | Sends a stop signal for a running node to the Orchestrator                            |
+| `POST` | `/api/executions/:executionId/events` | Internal runner callback used to persist logs, node states, and output events         |
+| `GET`  | `/api/executions/:executionId/stream` | Authenticated SSE endpoint for a single workflow execution                            |
+| `GET`  | `/api/presence/stream`                | Lightweight SSE endpoint that marks an editor tab as connected for heartbeat checks   |
+| `POST` | `/api/outputs/:testId/:nodeId`        | Receives compressed test output archives from the Playwright runner and extracts them |
+| `GET`  | `/api/heartbeat`                      | Returns `200 OK` if at least one SSE client (Editor tab) is connected                 |
+| `POST` | `/api/github/token`                   | CORS-bypass proxy: exchanges a GitHub OAuth code for an access token                  |
+| `POST` | `/api/github/refresh`                 | CORS-bypass proxy: refreshes an expiring GitHub OAuth access token                    |
+| `GET`  | `/outputs/*`                          | Static file server for extracted Playwright reports and media                         |
 
 ---
 
@@ -104,12 +105,12 @@ This service is not part of Docker.
 ### What the setup installer does
 
 - Accepts setup-only requests from the setup wizard
-- Verifies an explicit one-time setup token injected by `./start-local.sh --setup`
+- Verifies the setup token injected by `./start-local.sh` whenever startup enters setup mode
 - Uses the repo-root `.env.local` values to determine the default local Postgres connection shown in setup
 - Creates `apps/api/.env` from `apps/api/.env.example` when needed
 - Upserts PostgreSQL connection strings plus local username/password auth settings
 - Writes the Prisma schema and Prisma client helper into `apps/api`
-- Records setup completion in a non-public lock file under `setup/installer`
+- Treats a repo-root `.env.local` plus a populated `apps/api/.env` as the signal that setup has already been completed
 
 This service is intentionally separate from the main API so it is never part of the normal app deployment path.
 
@@ -136,11 +137,11 @@ docker run --rm \
 
 ### Orchestrator Endpoints
 
-| Method | Path | Description |
-|---|---|---|
+| Method | Path       | Description                                                     |
+| ------ | ---------- | --------------------------------------------------------------- |
 | `POST` | `/execute` | Accepts a workflow (nodes + connections + settings) and runs it |
-| `POST` | `/stop` | Kills the Docker container for a specific `nodeId` |
-| `GET`  | `/health` | Health check — returns `200 OK` when the container is up |
+| `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`              |
+| `GET`  | `/health`  | Health check — returns `200 OK` when the container is up        |
 
 ### Heartbeat & Graceful Shutdown
 

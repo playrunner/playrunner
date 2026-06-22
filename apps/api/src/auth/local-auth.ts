@@ -10,7 +10,7 @@ function getLocalAuthUsername() {
   const username = process.env.LOCAL_AUTH_USERNAME?.trim();
   if (!username) {
     throw new Error(
-      'LOCAL_AUTH_USERNAME is not configured. Run ./start-local.sh --setup.',
+      'LOCAL_AUTH_USERNAME is not configured. Run ./start-local.sh to reopen setup.',
     );
   }
 
@@ -21,7 +21,7 @@ function getLocalAuthPasswordHash() {
   const passwordHash = process.env.LOCAL_AUTH_PASSWORD_HASH?.trim();
   if (!passwordHash) {
     throw new Error(
-      'LOCAL_AUTH_PASSWORD_HASH is not configured. Run ./start-local.sh --setup.',
+      'LOCAL_AUTH_PASSWORD_HASH is not configured. Run ./start-local.sh to reopen setup.',
     );
   }
 
@@ -32,7 +32,7 @@ function getLocalAuthSecret() {
   const secret = process.env.AUTH_JWT_SECRET?.trim();
   if (!secret) {
     throw new Error(
-      'AUTH_JWT_SECRET is not configured. Run ./start-local.sh --setup.',
+      'AUTH_JWT_SECRET is not configured. Run ./start-local.sh to reopen setup.',
     );
   }
 
@@ -44,7 +44,7 @@ function verifyPasswordHash(password: string, storedHash: string) {
 
   if (algorithm !== 'scrypt' || !salt || !expectedHash) {
     throw new Error(
-      'LOCAL_AUTH_PASSWORD_HASH uses an unexpected format. Re-run ./start-local.sh --setup.',
+      'LOCAL_AUTH_PASSWORD_HASH uses an unexpected format. Re-run ./start-local.sh to reopen setup.',
     );
   }
 

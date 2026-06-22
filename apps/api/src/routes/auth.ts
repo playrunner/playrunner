@@ -13,7 +13,7 @@ authRouter.post('/login', async (req, res) => {
   if (!isLocalAuthConfigured()) {
     res.status(503).json({
       error:
-        'Local auth has not been configured yet. Run ./start-local.sh --setup first.',
+        'Local auth has not been configured yet. Run ./start-local.sh to complete setup.',
     });
     return;
   }

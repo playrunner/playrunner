@@ -7,8 +7,8 @@ This is the Node.js Express API for Playrunner.
 For the standard local workflow, do not hand-build the API environment first. Use the repo-root setup flow:
 
 1. Optionally copy `.env.local.example` to `.env.local` at the repo root and adjust ports before first run.
-2. Run `./start-local.sh --setup` to create or update `apps/api/.env` and seed local auth.
-3. Run `./start-local.sh` to start Docker-backed Postgres, sync the local `DATABASE_URL` when appropriate, generate the Prisma client, and boot the API.
+2. Run `./start-local.sh`. On the first run it opens setup automatically, creates or updates `apps/api/.env`, and seeds local auth.
+3. After setup is complete, run `./start-local.sh` again whenever you want to start Docker-backed Postgres, sync the local `DATABASE_URL` when appropriate, generate the Prisma client, and boot the API.
 
 ## Authentication Architecture
 

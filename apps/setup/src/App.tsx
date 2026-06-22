@@ -53,8 +53,8 @@ function SetupShell() {
               Preparing setup
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted">
-              Checking whether this machine is in an explicit one-time setup
-              session.
+              Checking whether this workspace already has local setup files and
+              whether this browser session is allowed to edit them.
             </p>
           </div>
         </div>
@@ -78,49 +78,71 @@ function SetupShell() {
               ) : (
                 <LockKeyhole className="h-3.5 w-3.5" />
               )}
-              {isCompleted ? 'Setup completed' : 'Setup is locked'}
+              {isCompleted ? 'Setup already configured' : 'Setup is locked'}
             </Badge>
 
             <h1 className="mt-5 text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-              {isCompleted ? 'Setup Completed' : 'Setup Is Locked'}
+              {isCompleted ? 'Local Setup Already Exists' : 'Setup Is Locked'}
             </h1>
 
             <div className="mt-5 space-y-4 text-sm leading-relaxed text-muted">
               {isCompleted ? (
                 <>
                   <p>
-                    The installer has already completed once and is now disabled
-                    for this session.
+                    This workspace already has a repo-root{' '}
+                    <code className="font-mono text-xs text-[var(--foreground)]">
+                      .env.local
+                    </code>{' '}
+                    and a populated{' '}
+                    <code className="font-mono text-xs text-[var(--foreground)]">
+                      apps/api/.env
+                    </code>
+                    , so the setup form stays closed.
                   </p>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-                    <p className="text-sm font-medium text-[var(--foreground)]">
-                      Run next
-                    </p>
-                    <p className="mt-1 text-sm text-muted">
-                      Stop this setup session and start the normal local app
-                      instead.
-                    </p>
-                    <pre className={CODE_BLOCK_CLASS}>
-                      <code>./start-local.sh</code>
-                    </pre>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+                      <p className="text-sm font-medium text-[var(--foreground)]">
+                        Run next
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        Stop this setup session and start the normal local app
+                        instead.
+                      </p>
+                      <pre className={CODE_BLOCK_CLASS}>
+                        <code>./start-local.sh</code>
+                      </pre>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+                      <p className="text-sm font-medium text-[var(--foreground)]">
+                        Reset setup
+                      </p>
+                      <p className="mt-1 text-sm text-muted">
+                        Delete the generated API env file, then start a fresh
+                        setup session.
+                      </p>
+                      <pre className={CODE_BLOCK_CLASS}>
+                        <code>{`rm apps/api/.env
+./start-local.sh`}</code>
+                      </pre>
+                    </div>
                   </div>
                 </>
               ) : (
                 <>
                   <p>
-                    This setup app only opens during an explicit one-time setup
-                    run.
+                    This setup app only opens while startup has put the
+                    workspace into setup mode.
                   </p>
                   <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
                     <p className="text-sm font-medium text-[var(--foreground)]">
                       Open a setup session
                     </p>
                     <p className="mt-1 text-sm text-muted">
-                      Start the installer explicitly, then open the setup route
-                      in the browser.
+                      Start the local stack. The setup route opens whenever
+                      startup puts this workspace into setup mode.
                     </p>
                     <pre className={CODE_BLOCK_CLASS}>
-                      <code>./start-local.sh --setup</code>
+                      <code>./start-local.sh</code>
                     </pre>
                   </div>
                 </>

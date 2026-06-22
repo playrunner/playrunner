@@ -66,6 +66,7 @@ export VITE_SETUP_INSTALLER_URL
 export VITE_DOCS_URL
 
 RUN_SETUP=false
+AUTO_SETUP=false
 EDITION="oss"
 
 while [[ $# -gt 0 ]]; do
@@ -152,9 +153,63 @@ ensure_docs_dependencies() {
     exit 1
 }
 
+has_completed_local_setup() {
+    node - "${ROOT_ENV_FILE}" "${API_DIR}/.env" <<'NODE'
+const fs = require('fs');
+
+const [, , rootEnvPath, apiEnvPath] = process.argv;
+
+function fileExists(filePath) {
+  try {
+    fs.accessSync(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseEnvValue(rawValue = '') {
+  const trimmed = rawValue.trim();
+
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+
+  return trimmed;
+}
+
+if (!fileExists(rootEnvPath) || !fileExists(apiEnvPath)) {
+  process.exit(1);
+}
+
+const envLines = fs.readFileSync(apiEnvPath, 'utf8').split(/\r?\n/);
+const requiredKeys = [
+  'DATABASE_URL',
+  'LOCAL_AUTH_USERNAME',
+  'LOCAL_AUTH_PASSWORD_HASH',
+  'AUTH_JWT_SECRET',
+];
+
+const isComplete = requiredKeys.every((key) => {
+  const line = envLines.find((entry) => entry.startsWith(`${key}=`));
+  if (!line) {
+    return false;
+  }
+
+  return Boolean(parseEnvValue(line.slice(key.length + 1)));
+});
+
+process.exit(isComplete ? 0 : 1);
+NODE
+}
+
 bootstrap_api_prisma() {
     if [ ! -f "${API_DIR}/.env" ]; then
-        echo "Missing ${API_DIR}/.env. Run ./start-local.sh --setup first."
+        echo "Missing ${API_DIR}/.env. Re-run ./start-local.sh to reopen setup."
         exit 1
     fi
 
@@ -270,6 +325,12 @@ NODE
 # 1. Start local Docker-backed services in the background
 ensure_docs_dependencies
 
+if [ "$RUN_SETUP" != "true" ] && ! has_completed_local_setup; then
+    RUN_SETUP=true
+    AUTO_SETUP=true
+    echo "🛠️  No completed local setup detected. Opening setup automatically."
+fi
+
 echo "📦 Starting local Docker services..."
 docker compose -f "${COMPOSE_FILE}" up -d postgres
 wait_for_compose_service postgres 90
@@ -342,7 +403,11 @@ if [ "$RUN_SETUP" = "true" ]; then
     export SETUP_SESSION_TOKEN=$(node -e "console.log(require('crypto').randomUUID())")
     export VITE_SETUP_MODE=true
     export VITE_SETUP_SESSION_TOKEN="$SETUP_SESSION_TOKEN"
-    echo "🔐 Setup explicitly enabled for this run only."
+    if [ "$AUTO_SETUP" = "true" ]; then
+        echo "🔐 Setup enabled automatically for this run."
+    else
+        echo "🔐 Setup explicitly enabled for this run only."
+    fi
     echo "➡️  Open http://127.0.0.1:${WEB_PORT}/setup"
     echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \
@@ -357,7 +422,7 @@ else
     unset VITE_SETUP_SESSION_TOKEN
     sync_api_database_url
     bootstrap_api_prisma
-    echo "🔒 Setup is locked. Run ./start-local.sh --setup to open the dedicated setup app."
+    echo "✅ Local setup detected. Starting the normal app."
     echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \
       --names "WEB,API,DOCS" \
