@@ -29,6 +29,22 @@ type GcpCredentialData = {
 
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
 
+function buildOrchestratorTemplate(
+  region: string,
+  serviceName: string,
+): string {
+  const trimmedRegion = region.trim();
+  if (!trimmedRegion) return '';
+  const name = serviceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+  return `${trimmedRegion}-docker.pkg.dev/{projectId}/orchestrator/${name}:latest`;
+}
+
+function buildPlaywrightTemplate(region: string): string {
+  const trimmedRegion = region.trim();
+  if (!trimmedRegion) return '';
+  return `${trimmedRegion}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`;
+}
+
 export function GcpSettingsModal({
   isOpen,
   onClose,
@@ -44,6 +60,10 @@ export function GcpSettingsModal({
     useState('');
   const [playwrightImageUriTemplate, setPlaywrightImageUriTemplate] =
     useState('');
+  const [orchestratorTemplateEdited, setOrchestratorTemplateEdited] =
+    useState(false);
+  const [playwrightTemplateEdited, setPlaywrightTemplateEdited] =
+    useState(false);
   const [projects, setProjects] = useState<
     { projectId: string; name: string }[]
   >([]);
@@ -78,6 +98,8 @@ export function GcpSettingsModal({
     setOrchestratorServiceName(DEFAULT_ORCHESTRATOR_SERVICE_NAME);
     setOrchestratorImageUriTemplate('');
     setPlaywrightImageUriTemplate('');
+    setOrchestratorTemplateEdited(false);
+    setPlaywrightTemplateEdited(false);
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
@@ -121,14 +143,24 @@ export function GcpSettingsModal({
     };
 
     credentialRef.current = next;
+    const regionVal = next.cloudRunLocation || '';
+    const svcName =
+      next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+    const storedOrch = next.orchestratorImageUriTemplate || '';
+    const storedPlay = next.playwrightImageUriTemplate || '';
+
     setGcpClientId(next.clientId || '');
     setGcpClientSecret(next.clientSecret || '');
-    setCloudRunLocation(next.cloudRunLocation || '');
-    setOrchestratorServiceName(
-      next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+    setCloudRunLocation(regionVal);
+    setOrchestratorServiceName(svcName);
+    setOrchestratorImageUriTemplate(
+      storedOrch || buildOrchestratorTemplate(regionVal, svcName),
     );
-    setOrchestratorImageUriTemplate(next.orchestratorImageUriTemplate || '');
-    setPlaywrightImageUriTemplate(next.playwrightImageUriTemplate || '');
+    setOrchestratorTemplateEdited(Boolean(storedOrch));
+    setPlaywrightImageUriTemplate(
+      storedPlay || buildPlaywrightTemplate(regionVal),
+    );
+    setPlaywrightTemplateEdited(Boolean(storedPlay));
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
   };
@@ -423,7 +455,7 @@ export function GcpSettingsModal({
         next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
       );
       setRunnerSettingsSaved(true);
-      setTimeout(() => setRunnerSettingsSaved(false), 2000);
+      onClose();
     } catch (error) {
       console.error('Failed to save GCP runner settings', error);
     } finally {
@@ -537,7 +569,21 @@ export function GcpSettingsModal({
                 <Input
                   value={cloudRunLocation}
                   onChange={(e) => {
-                    setCloudRunLocation(e.target.value);
+                    const nextRegion = e.target.value;
+                    setCloudRunLocation(nextRegion);
+                    if (!orchestratorTemplateEdited) {
+                      setOrchestratorImageUriTemplate(
+                        buildOrchestratorTemplate(
+                          nextRegion,
+                          orchestratorServiceName,
+                        ),
+                      );
+                    }
+                    if (!playwrightTemplateEdited) {
+                      setPlaywrightImageUriTemplate(
+                        buildPlaywrightTemplate(nextRegion),
+                      );
+                    }
                     setRunnerSettingsSaved(false);
                   }}
                   placeholder="australia-southeast1"
@@ -550,7 +596,13 @@ export function GcpSettingsModal({
                 <Input
                   value={orchestratorServiceName}
                   onChange={(e) => {
-                    setOrchestratorServiceName(e.target.value);
+                    const nextName = e.target.value;
+                    setOrchestratorServiceName(nextName);
+                    if (!orchestratorTemplateEdited) {
+                      setOrchestratorImageUriTemplate(
+                        buildOrchestratorTemplate(cloudRunLocation, nextName),
+                      );
+                    }
                     setRunnerSettingsSaved(false);
                   }}
                   placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
@@ -564,9 +616,10 @@ export function GcpSettingsModal({
                   value={orchestratorImageUriTemplate}
                   onChange={(e) => {
                     setOrchestratorImageUriTemplate(e.target.value);
+                    setOrchestratorTemplateEdited(true);
                     setRunnerSettingsSaved(false);
                   }}
-                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/orchestrator/playrunner-orchestrator:latest`}
+                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/orchestrator/${orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME}:latest`}
                 />
               </div>
               <div>
@@ -577,6 +630,7 @@ export function GcpSettingsModal({
                   value={playwrightImageUriTemplate}
                   onChange={(e) => {
                     setPlaywrightImageUriTemplate(e.target.value);
+                    setPlaywrightTemplateEdited(true);
                     setRunnerSettingsSaved(false);
                   }}
                   placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`}
@@ -591,21 +645,31 @@ export function GcpSettingsModal({
                 <span className="text-xs text-emerald-400">
                   {runnerSettingsSaved ? 'Runner settings saved.' : ''}
                 </span>
-                <button
-                  type="button"
-                  onClick={handleSaveRunnerSettings}
-                  disabled={isSavingRunnerSettings}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSavingRunnerSettings ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Runner Settings'
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSavingRunnerSettings}
+                    className="px-4 py-2 rounded-lg border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveRunnerSettings}
+                    disabled={isSavingRunnerSettings}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingRunnerSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Runner Settings'
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
