@@ -14,7 +14,7 @@ function resolvePlaywrightLocalImage(runtime: 'typescript' | 'python'): string {
 
 export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBackend {
   supports(cloudProvider: string): boolean {
-    return cloudProvider === 'LOCAL-DEV';
+    return cloudProvider === 'LOCAL_RUNNER';
   }
 
   async execute(request: PlaywrightExecutionRequest): Promise<void> {

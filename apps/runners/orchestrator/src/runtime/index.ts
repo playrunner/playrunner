@@ -13,7 +13,7 @@ class PlaywrightExecutionRegistry {
   constructor(private readonly backends: PlaywrightExecutionBackend[]) {}
 
   async execute(request: PlaywrightExecutionRequest): Promise<void> {
-    const cloudProvider = request.reqBody.cloudProvider || 'LOCAL-DEV';
+    const cloudProvider = request.reqBody.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),
     );

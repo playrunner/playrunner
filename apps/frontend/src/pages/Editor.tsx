@@ -129,11 +129,11 @@ function CloudProviderDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const isLocal = value === 'LOCAL-DEV';
+  const isLocal = value === 'LOCAL_RUNNER';
   const selectedCloud = providers.find((p) => p.id === value);
   const displayIcon = isLocal ? null : selectedCloud?.icon;
   const displayLabel = isLocal
-    ? 'Local Dev'
+    ? 'Local Runner'
     : cloudProjectId || selectedCloud?.label || value;
 
   return (
@@ -169,7 +169,7 @@ function CloudProviderDropdown({
             <button
               type="button"
               onClick={() => {
-                onChange('LOCAL-DEV');
+                onChange('LOCAL_RUNNER');
                 setIsOpen(false);
               }}
               className={cn(
@@ -180,7 +180,7 @@ function CloudProviderDropdown({
               )}
             >
               <Monitor className="w-4 h-4 text-muted flex-shrink-0" />
-              <span className="flex-1">Local Dev</span>
+              <span className="flex-1">Local Runner</span>
               {isLocal && (
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] flex-shrink-0" />
               )}
@@ -189,7 +189,7 @@ function CloudProviderDropdown({
             <div className="my-1 border-t border-subtle" />
 
             {providers
-              .filter((provider) => provider.id !== 'LOCAL-DEV')
+              .filter((provider) => provider.id !== 'LOCAL_RUNNER')
               .map((provider) => {
                 const isConnected = connectedIds.has(provider.id);
                 const isDisabled = Boolean(provider.disabled);
@@ -860,7 +860,7 @@ export default function Editor() {
     setNodeStatus({});
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
-    const currentCloudProvider = cloudProvider || 'LOCAL-DEV';
+    const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
 
     let settings: Record<string, any> = {};
     if (auth.currentUser) {
@@ -872,7 +872,7 @@ export default function Editor() {
         console.error('Failed to fetch integration settings:', err);
       }
 
-      if (currentCloudProvider !== 'LOCAL-DEV') {
+      if (currentCloudProvider !== 'LOCAL_RUNNER') {
         try {
           const cloudCreds = await DbAPI.getCloudCredential(
             auth.currentUser.uid,
@@ -922,7 +922,7 @@ export default function Editor() {
     setNodeStatus({});
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
-    const currentCloudProvider = cloudProvider || 'LOCAL-DEV';
+    const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
 
     let settings: Record<string, any> = {};
     if (auth.currentUser) {
@@ -934,7 +934,7 @@ export default function Editor() {
         console.error('Failed to fetch integration settings:', err);
       }
 
-      if (currentCloudProvider !== 'LOCAL-DEV') {
+      if (currentCloudProvider !== 'LOCAL_RUNNER') {
         try {
           const cloudCreds = await DbAPI.getCloudCredential(
             auth.currentUser.uid,

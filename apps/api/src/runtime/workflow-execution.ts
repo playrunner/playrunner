@@ -12,7 +12,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(private readonly logTransport: LogTransport) {}
 
   supports(cloudProvider: string): boolean {
-    return cloudProvider === 'LOCAL-DEV';
+    return cloudProvider === 'LOCAL_RUNNER';
   }
 
   async execute(
@@ -38,7 +38,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
 
     const { executionToken } = await executionEvents.createExecution({
-      cloudProvider: 'LOCAL-DEV',
+      cloudProvider: 'LOCAL_RUNNER',
       executionId: testId,
       userId,
       workflowId,
@@ -49,7 +49,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
     try {
       await this.logTransport.publish(
         JSON.stringify({
-          cloudProvider: 'LOCAL-DEV',
+          cloudProvider: 'LOCAL_RUNNER',
           executionId: testId,
           level: 'info',
           message: 'Workflow execution requested.',
@@ -71,7 +71,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
         try {
           await this.logTransport.publish(
             JSON.stringify({
-              cloudProvider: 'LOCAL-DEV',
+              cloudProvider: 'LOCAL_RUNNER',
               executionId: testId,
               level: 'error',
               message: `Runner failed to process workflow${details ? `: ${details}` : '.'}`,
@@ -94,7 +94,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       try {
         await this.logTransport.publish(
           JSON.stringify({
-            cloudProvider: 'LOCAL-DEV',
+            cloudProvider: 'LOCAL_RUNNER',
             executionId: testId,
             level: 'info',
             message: 'Local orchestrator triggered successfully.',

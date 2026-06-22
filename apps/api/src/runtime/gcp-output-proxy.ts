@@ -11,7 +11,7 @@ export class GcpOutputProxyBackend implements OutputProxyBackend {
     }
 
     const testId = parts[0];
-    const cloudProvider = state.testCloudProviders[testId] || 'LOCAL-DEV';
+    const cloudProvider = state.testCloudProviders[testId] || 'LOCAL_RUNNER';
     if (cloudProvider !== 'GCP') {
       return false;
     }

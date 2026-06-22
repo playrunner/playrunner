@@ -18,8 +18,8 @@ export type CloudProvider = {
 
 const baseProviders: CloudProvider[] = [
   {
-    id: 'LOCAL-DEV',
-    label: 'Local Dev',
+    id: 'LOCAL_RUNNER',
+    label: 'Local Runner',
   },
   {
     disabled: true,
@@ -71,5 +71,5 @@ export function getDefaultCloudProviderId(): string {
     return saved;
   }
 
-  return 'LOCAL-DEV';
+  return 'LOCAL_RUNNER';
 }

@@ -13,7 +13,7 @@ workflowsRouter.post('/start', async (req, res) => {
   req.body.testId = testId;
 
   const { cloudProvider } = req.body;
-  state.testCloudProviders[testId] = cloudProvider || 'LOCAL-DEV';
+  state.testCloudProviders[testId] = cloudProvider || 'LOCAL_RUNNER';
 
   console.log(
     `Cloud provider for testId ${testId}: ${state.testCloudProviders[testId]}`,

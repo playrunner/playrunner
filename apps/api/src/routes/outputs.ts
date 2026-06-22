@@ -105,7 +105,7 @@ outputsRouter.post(
     try {
       await apiRuntime.outputSync.sync({
         bucketName,
-        cloudProvider: state.testCloudProviders[testId] || 'LOCAL-DEV',
+        cloudProvider: state.testCloudProviders[testId] || 'LOCAL_RUNNER',
         nodeId,
         outputsDir,
         testId,

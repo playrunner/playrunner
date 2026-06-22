@@ -23,7 +23,7 @@ import { LocalWorkflowExecutionBackend } from './workflow-execution';
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
     private readonly providers = [
-      { id: 'LOCAL-DEV', label: 'Local Dev' },
+      { id: 'LOCAL_RUNNER', label: 'Local Dev' },
       { id: 'GCP', label: 'GCP Runner' },
     ],
   ) {}
@@ -47,7 +47,7 @@ class WorkflowExecutionRegistry {
   async execute(
     request: WorkflowExecutionRequest,
   ): Promise<WorkflowExecutionResult> {
-    const cloudProvider = request.body.cloudProvider || 'LOCAL-DEV';
+    const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),
     );

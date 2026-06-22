@@ -146,7 +146,7 @@ async function uploadOutputs(
   bucketName?: string,
   accessToken?: string,
   gcpProject?: string,
-  cloudProvider: string = 'LOCAL-DEV',
+  cloudProvider: string = 'LOCAL_RUNNER',
 ) {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
@@ -355,7 +355,7 @@ async function run() {
   }
 
   const testId = payload?.data?.testId || crypto.randomUUID();
-  const cloudProvider = payload?.data?.cloudProvider || 'LOCAL-DEV';
+  const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
   runnerEventContext = {
     editorApiUrl:
       payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',

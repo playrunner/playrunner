@@ -22,7 +22,7 @@ import {
 
 const getProviderIcon = (provider?: string) => {
   const p = provider?.toUpperCase();
-  if (p === 'LOCAL-DEV') return <Monitor className="w-5 h-5 text-muted" />;
+  if (p === 'LOCAL_RUNNER') return <Monitor className="w-5 h-5 text-muted" />;
   const matchedProvider = getCloudProvider(p || '');
   if (matchedProvider?.icon) {
     return (

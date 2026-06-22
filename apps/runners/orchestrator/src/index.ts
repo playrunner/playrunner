@@ -109,7 +109,7 @@ function createWorkflowEventPublisher(
       : '';
   const editorApiUrl = reqBody.editorApiUrl || EDITOR_API_URL;
   const basePayload = {
-    cloudProvider: reqBody.cloudProvider || 'LOCAL-DEV',
+    cloudProvider: reqBody.cloudProvider || 'LOCAL_RUNNER',
     workflowId: reqBody.workflowId || null,
   };
 
@@ -341,7 +341,7 @@ async function executeWorkflow(reqBody: any) {
               'info',
             );
           }
-          const cloudProvider = reqBody.cloudProvider || 'LOCAL-DEV';
+          const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
           const payloadData = {
             data: {
               repository: config.repository,
