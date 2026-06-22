@@ -1,6 +1,14 @@
-# API Server
+# Playrunner API Server
 
-This is the Node.js Express API for Central Station.
+This is the Node.js Express API for Playrunner.
+
+## Local Setup
+
+For the standard local workflow, do not hand-build the API environment first. Use the repo-root setup flow:
+
+1. Optionally copy `.env.example` to `.env` at the repo root and adjust ports before first run.
+2. Run `./start-local.sh --setup` to create or update `apps/api/.env` and seed local auth.
+3. Run `./start-local.sh` to start Docker-backed Postgres, sync the local `DATABASE_URL` when appropriate, generate the Prisma client, and boot the API.
 
 ## Authentication Architecture
 

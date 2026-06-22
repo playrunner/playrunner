@@ -54,4 +54,4 @@ Previous reports are never overwritten, so you can compare runs across time. The
 You've completed the core tutorials. Where to go from here:
 
 - 📖 [Development reference docs](../local-dev) — deep dives into every service
-- 🔧 [Troubleshooting](../local-dev/09-troubleshooting) — common issues and fixes
+- 🔧 [Troubleshooting](../local-dev/troubleshooting) — common issues and fixes

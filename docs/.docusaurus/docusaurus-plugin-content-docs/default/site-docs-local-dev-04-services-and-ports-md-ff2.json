@@ -1,7 +1,7 @@
 {
   "id": "local-dev/services-and-ports",
   "title": "Services & Ports",
-  "description": "Local development only. Each service runs on a fixed port and communicates over localhost or host.docker.internal.",
+  "description": "Local development only. The defaults below come from the repo-root .env.example file and can be overridden in a local .env.",
   "source": "@site/docs/local-dev/04-services-and-ports.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/services-and-ports",

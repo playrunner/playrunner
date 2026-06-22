@@ -9,14 +9,34 @@ title: Environment Variables
 
 ---
 
+## Local Startup — `.env`
+
+Copy from `.env.example`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `WEB_PORT` | `3000` | Port used by both the setup app and the normal web app |
+| `SETUP_INSTALLER_PORT` | `3003` | Port used by the local setup installer service |
+| `POSTGRES_PORT` | `5432` | Host port mapped to the Docker-backed Postgres container |
+| `POSTGRES_HOST` | `127.0.0.1` | Hostname used when deriving the default local Prisma connection |
+| `POSTGRES_DB` | `playrunner` | Database name for the standard local Postgres container |
+| `POSTGRES_USER` | `postgres` | Username for the standard local Postgres container |
+| `POSTGRES_PASSWORD` | `postgres` | Password for the standard local Postgres container |
+| `DATABASE_URL` | _(optional)_ | Explicit Prisma datasource URL override for both setup defaults and the normal API startup path |
+| `VITE_DEFAULT_DATABASE_URL` | _(optional)_ | Override only the database URL prefilled in the setup form |
+
+`./start-local.sh` loads this file first, uses it to start Docker-backed services, and passes the derived defaults into the setup app.
+
+---
+
 ## API Server — `apps/api/.env`
 
-Copy from `apps/api/.env.example`.
+Created from `apps/api/.env.example` during setup when needed, then updated by the setup installer. During normal local startup, `./start-local.sh` also keeps `DATABASE_URL` aligned with the repo-root `.env` when you are still using the standard Docker-backed Postgres settings.
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3001` | Port the Express API server listens on |
-| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/playrunner?schema=public` | Prisma datasource used for app data and workflow execution events |
+| `DATABASE_URL` | Derived from repo-root `.env` by default | Prisma datasource used for app data and workflow execution events. In the standard local flow this resolves to `postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public` unless you explicitly override `DATABASE_URL` in the repo-root `.env`. |
 | `GCP_PROJECT` | `local-dev` | GCP project ID used for Cloud Storage / Cloud Run integrations |
 | `ORCHESTRATOR_PORT` | `3002` | Host port the Orchestrator Docker container is mapped to |
 | `ORCHESTRATOR_URL` | `http://localhost:3002` | Full URL used by the API to communicate with the Orchestrator |
@@ -33,16 +53,16 @@ Copy from `apps/api/.env.example`.
 
 ## Web App — `apps/frontend/.env`
 
-Copy from `apps/frontend/.env.example`.
+Optional. The standard local flow does not require this file.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_API_URL` | `http://127.0.0.1:3001` | Target for the Vite dev-server proxy (`/api/*` and `/outputs/*`) |
-| `VITE_SETUP_INSTALLER_URL` | `http://127.0.0.1:3003` | Target for the Vite dev-server proxy (`/setup-api/*`) |
+| `VITE_API_URL` | `http://127.0.0.1:3001` | Target for the Vite dev-server proxy (`/api/*` and `/outputs/*`) when you run the frontend outside `./start-local.sh` |
+| `VITE_SETUP_INSTALLER_URL` | `http://127.0.0.1:3003` | Target for the Vite dev-server proxy (`/setup-api/*`) when you run the setup app outside `./start-local.sh` |
 | `GEMINI_API_KEY` | _(empty)_ | API key for Gemini AI features; injected at runtime in production |
 | `APP_URL` | _(empty)_ | Self-referential URL; not needed for local dev |
 
-Only `VITE_API_URL` is functionally relevant in local development.
+When you use `./start-local.sh`, it exports the correct local proxy targets automatically, so this file is only needed for standalone frontend debugging.
 
 ---
 

@@ -46,4 +46,4 @@ API Server  →  SSE stream  →  Web App (real-time log panel)
 
 ## New here?
 
-Start with the **[Getting Started](./tutorials/01-getting-started)** tutorial — it walks you through cloning the repo, configuring your environment, and booting the full stack in about 15 minutes.
+Start with the **[Getting Started](./tutorials/getting-started)** tutorial — it walks you through cloning the repo, configuring your environment, and booting the full stack in about 15 minutes.

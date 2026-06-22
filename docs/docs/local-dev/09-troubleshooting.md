@@ -35,7 +35,7 @@ title: Troubleshooting
 
 ---
 
-## Pub/Sub messages not appearing in the log panel
+## Execution log messages not appearing in the log panel
 
 **Symptom:** Workflows run but no log messages appear in the editor's log panel.
 
@@ -50,12 +50,29 @@ title: Troubleshooting
 2. **`DATABASE_URL` is missing in the API's environment.**
    Confirm `apps/api/.env` contains:
    ```
-   DATABASE_URL=postgresql://postgres:postgres@localhost:5432/playrunner?schema=public
+   DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public
    ```
-   Restart the API after changing `.env`.
+   If you changed the local Postgres port, confirm the repo-root `.env` matches it as well. Restart the API after changing `.env`.
 
 3. **No editor presence SSE client connected.**  
    The Orchestrator only stays alive while at least one browser tab has the Editor open and subscribed to `GET /api/presence/stream`. Check the API terminal for "Editor presence SSE connected" messages.
+
+---
+
+## Postgres port 5432 is already allocated
+
+**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5432` failed because the port is already allocated.
+
+**Fix:**
+
+1. Edit the repo-root `.env`.
+2. Set a different host port, for example:
+   ```dotenv
+   POSTGRES_PORT=55432
+   ```
+3. Re-run `./start-local.sh --setup` or `./start-local.sh`.
+
+The setup wizard default database URL and the Docker Postgres bind will both follow the new `POSTGRES_PORT` value automatically.
 
 ---
 

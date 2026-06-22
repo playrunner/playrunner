@@ -22,9 +22,12 @@ type SetupFormState = Omit<
   confirmPassword: string;
 };
 
+const DEFAULT_DATABASE_URL =
+  import.meta.env.VITE_DEFAULT_DATABASE_URL?.trim() ||
+  'postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public';
+
 const EMPTY_SETUP_FORM: SetupFormState = {
-  databaseUrl:
-    'postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public',
+  databaseUrl: DEFAULT_DATABASE_URL,
   username: 'admin',
   password: '',
   confirmPassword: '',
@@ -378,9 +381,14 @@ export default function Setup() {
                           database.
                         </p>
                         <p className="mt-2 text-sm leading-relaxed text-muted">
-                          You only need to change the connection values if you
-                          want setup to target a different database or keep
-                          separate direct and shadow URLs.
+                          Edit the repo-root{' '}
+                          <code className="font-mono text-[11px] text-[var(--foreground)]">
+                            .env
+                          </code>{' '}
+                          file before continuing if you want a different local
+                          web or Postgres port. You only need to change the
+                          connection value below if setup should target a
+                          different database entirely.
                         </p>
                       </div>
                     </div>
@@ -465,7 +473,7 @@ export default function Setup() {
                           </code>
                         </p>
                         <Input
-                          placeholder="postgresql://postgres:postgres@localhost:5432/playrunner?schema=public"
+                          placeholder={DEFAULT_DATABASE_URL}
                           value={setupForm.databaseUrl}
                           onChange={(event) =>
                             setSetupForm((current) => ({

@@ -18,7 +18,9 @@ export default defineConfig(async ({ mode }) => {
   const defaultSetupInstallerUrl = 'http://127.0.0.1:3003';
   const webNodeModulesDir = path.resolve(__dirname, '../frontend/node_modules');
   const setupProxyTarget = normalizeLocalProxyTarget(
-    env.VITE_SETUP_INSTALLER_URL || defaultSetupInstallerUrl,
+    env.VITE_SETUP_INSTALLER_URL ||
+      process.env.VITE_SETUP_INSTALLER_URL ||
+      defaultSetupInstallerUrl,
   );
 
   console.log(`Proxying setup installer requests to: ${setupProxyTarget}`);

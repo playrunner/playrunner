@@ -2,18 +2,26 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# Playrunner Frontend
 
-This contains everything you need to run your app locally.
+This package contains the Vite frontend for Playrunner. The standard local workflow does not start it directly from this folder.
 
-View your app in AI Studio: https://ai.studio/apps/6abaf93f-e674-4bd9-84b4-f860e2328fb1
+## Standard Local Development
 
-## Run Locally
+Use the repo-root startup flow instead:
 
-**Prerequisites:** Node.js
+1. Copy `.env.example` to `.env` at the repo root if you want to change ports before first run.
+2. Run `./start-local.sh --setup` for the one-time setup flow.
+3. Run `./start-local.sh` for the normal app.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+The repo-root script loads the local `.env`, exports the correct proxy targets, and chooses whether to run the normal app or the dedicated setup app.
+
+## Standalone Frontend Debugging
+
+If you specifically want to run the frontend package by itself:
+
+1. Install dependencies with the repo-root `./install-local.sh` or run `npm ci` in this package.
+2. Optionally copy `apps/frontend/.env.example` to `apps/frontend/.env`.
+3. Run `npm run dev`.
+
+For the setup UI, use `npm exec vite -- --config ../setup/vite.config.ts` from `apps/frontend`.

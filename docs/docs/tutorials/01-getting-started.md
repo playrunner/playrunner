@@ -40,16 +40,17 @@ This installs the packages needed for:
 
 ---
 
-## Step 3 — Create the local env files
+## Step 3 — Create the local config file
 
-Copy the example files so the local dev servers have their default ports and proxy targets:
+Copy the root example file so the local startup scripts have their default ports and local database settings:
 
 ```bash
-cp apps/api/.env.example apps/api/.env
-cp apps/frontend/.env.example apps/frontend/.env
+cp .env.example .env
 ```
 
-For local development, these files are mostly transport and proxy configuration. The actual database and local login credentials are configured through the dedicated setup UI.
+This step is recommended if you want to change ports before the first run. If `.env` is missing, `./start-local.sh` will create it from `.env.example` automatically.
+
+Edit `.env` before continuing if you want a different local web port or Postgres port. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
 
 ---
 
@@ -61,7 +62,7 @@ Start an explicit setup session from the repo root:
 ./start-local.sh --setup
 ```
 
-Then open:
+Then open the URL printed by the script. With defaults:
 
 ```text
 http://127.0.0.1:3000/setup
@@ -110,10 +111,10 @@ This starts the product web app and API, and also rebuilds the local runner imag
 
 ## Step 6 — Open the product app
 
-Once the script output settles, open:
+Once the script output settles, open the URL printed by the script. With defaults:
 
 ```
-http://localhost:3000
+http://127.0.0.1:3000
 ```
 
 Log in with the username and password you configured in the setup wizard. You should then see the Playrunner product app and can continue into the workflow editor.
@@ -124,4 +125,4 @@ Log in with the username and password you configured in the setup wizard. You sh
 
 Now that everything is running, continue with:
 
-➡️ [Create Your First Workflow](./02-create-your-first-workflow)
+➡️ [Create Your First Workflow](./create-your-first-workflow)

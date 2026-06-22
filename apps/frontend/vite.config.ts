@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const playwrightRunnerConfig = loadPlaywrightRunnerConfig();
   const defaultApiUrl = 'http://127.0.0.1:3001';
   const apiProxyTarget = normalizeLocalProxyTarget(
-    env.VITE_API_URL || defaultApiUrl,
+    env.VITE_API_URL || process.env.VITE_API_URL || defaultApiUrl,
   );
   const editionRuntimePath = resolveEditionRuntimePath(
     env.ENABLE_PREMIUM !== 'false',

@@ -7,13 +7,13 @@ title: Create Your First Workflow
 
 In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor — a **Schedule** trigger that fires a **Playwright** test run.
 
-**Prerequisites:** Complete [Getting Started](./01-getting-started) first.
+**Prerequisites:** Complete [Getting Started](./getting-started) first.
 
 ---
 
 ## Step 1 — Open the Editor
 
-Navigate to `http://localhost:3000` and click **Editor** in the sidebar. The canvas opens with an empty workflow.
+Navigate to the URL printed by `./start-local.sh` and click **Editor** in the sidebar. With defaults, that is `http://127.0.0.1:3000`. The canvas opens with an empty workflow.
 
 ---
 
@@ -60,4 +60,4 @@ Click **Save** in the top toolbar. Your workflow is persisted to PostgreSQL thro
 
 ## Next steps
 
-➡️ [Connect GitHub](./03-connect-github)
+➡️ [Connect GitHub](./connect-github)

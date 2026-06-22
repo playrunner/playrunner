@@ -5,7 +5,7 @@ title: Services & Ports
 
 # Services & Ports
 
-> **Local development only.** Each service runs on a fixed port and communicates over localhost or `host.docker.internal`.
+> **Local development only.** The defaults below come from the repo-root `.env.example` file and can be overridden in a local `.env`.
 
 ---
 
@@ -13,16 +13,17 @@ title: Services & Ports
 
 | Service | Port | Binding | Notes |
 |---|---|---|---|
-| Web App (Vite) | `3000` | `localhost:3000` | Product app in normal runs |
-| Setup App (Vite) | `3000` | `localhost:3000` | Dedicated setup UI during `--setup` runs |
+| Web App (Vite) | `3000` by default | `localhost:WEB_PORT` | Product app in normal runs |
+| Setup App (Vite) | `3000` by default | `localhost:WEB_PORT` | Dedicated setup UI during `--setup` runs |
 | API Server | `3001` | `localhost:3001` | Express, started via `npm start` |
-| Setup Installer | `3003` | `localhost:3003` | Local-only file writer, started by `start-local.sh` |
+| Setup Installer | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh` |
 | Orchestrator | `3002` | `localhost:3002` | Docker container, port-mapped `3002:8080` |
+| PostgreSQL | `5432` by default | `localhost:POSTGRES_PORT` | Docker container started by `start-local.sh` |
 | Pub/Sub Emulator | `8085` | `localhost:8085` | Docker container via `docker compose` |
 
 ---
 
-## Web App — Port 3000
+## Web App — Port 3000 by Default
 
 **Location:** `apps/web`  
 **Start command:** `cd apps/web && npm run dev`  
@@ -38,13 +39,13 @@ This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL i
 
 ---
 
-## Setup App — Port 3000 (setup runs only)
+## Setup App — Port 3000 by Default (setup runs only)
 
 **Location:** `apps/setup`  
 **Start command:** `cd apps/web && npm exec vite -- --config ../setup/vite.config.ts`  
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
-The setup app exists only for explicit install/setup sessions. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003`.
+The setup app exists only for explicit install/setup sessions. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003` by default.
 
 `./start-local.sh --setup` starts this app instead of the main product app, so no product routes are available during setup.
 
@@ -81,7 +82,7 @@ The setup app exists only for explicit install/setup sessions. It serves the Pos
 
 ---
 
-## Setup Installer — Port 3003
+## Setup Installer — Port 3003 by Default
 
 **Location:** `setup/installer`  
 **Start command:** `node setup/installer/index.mjs`  
@@ -91,6 +92,7 @@ The setup app exists only for explicit install/setup sessions. It serves the Pos
 
 - Accepts setup-only requests from the setup wizard
 - Verifies an explicit one-time setup token injected by `./start-local.sh --setup`
+- Uses the repo-root `.env` values to determine the default local Postgres connection shown in setup
 - Creates `apps/api/.env` from `apps/api/.env.example` when needed
 - Upserts PostgreSQL connection strings plus local username/password auth settings
 - Writes the Prisma schema and Prisma client helper into `apps/api`

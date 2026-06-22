@@ -16,7 +16,7 @@ Project setup now lives in the Tutorials section.
 
 If you need to install dependencies, create the local `.env` files, run the one-time setup flow, or start the app for the first time, use:
 
-➡️ [Getting Started](../tutorials/01-getting-started.md)
+➡️ [Getting Started](../tutorials/getting-started)
 
 The rest of the Development section assumes you have already completed that setup and just need reference material for specific parts of the stack.
 

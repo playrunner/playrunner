@@ -7,7 +7,7 @@ title: Run Your First Test
 
 With a workflow saved and GitHub connected, you're ready to trigger a live test run and watch it execute in real time.
 
-**Prerequisites:** Complete [Connect GitHub](./03-connect-github) first.
+**Prerequisites:** Complete [Connect GitHub](./connect-github) first.
 
 ---
 
@@ -59,10 +59,10 @@ Once the run finishes:
 | `git clone` fails | GitHub token expired or repo access revoked |
 | Tests error immediately | Wrong Playwright version selected for your project |
 
-See the [Troubleshooting guide](../local-dev/09-troubleshooting) for more detail.
+See the [Troubleshooting guide](../local-dev/troubleshooting) for more detail.
 
 ---
 
 ## Next steps
 
-➡️ [Understanding Test Reports](./05-understanding-reports)
+➡️ [Understanding Test Reports](./understanding-reports)

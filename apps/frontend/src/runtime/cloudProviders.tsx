@@ -16,6 +16,9 @@ export type CloudProvider = {
   }>;
 };
 
+const disabledCloudRunnerMessage =
+  'This runner is currently in development and will be available soon.';
+
 const baseProviders: CloudProvider[] = [
   {
     id: 'LOCAL_RUNNER',
@@ -23,8 +26,7 @@ const baseProviders: CloudProvider[] = [
   },
   {
     disabled: true,
-    disabledReason:
-      'Premium feature. Start premium mode to enable this runner.',
+    disabledReason: disabledCloudRunnerMessage,
     icon: '/images/integrations/aws.svg',
     id: 'AWS',
     isPremiumFeature: true,
@@ -32,8 +34,7 @@ const baseProviders: CloudProvider[] = [
   },
   {
     disabled: true,
-    disabledReason:
-      'Premium feature. Start premium mode to enable this runner.',
+    disabledReason: disabledCloudRunnerMessage,
     icon: '/images/integrations/gcp.svg',
     id: 'GCP',
     isPremiumFeature: true,
@@ -41,8 +42,7 @@ const baseProviders: CloudProvider[] = [
   },
   {
     disabled: true,
-    disabledReason:
-      'Premium feature. Start premium mode to enable this runner.',
+    disabledReason: disabledCloudRunnerMessage,
     icon: '/images/integrations/azure.svg',
     id: 'AZURE',
     isPremiumFeature: true,

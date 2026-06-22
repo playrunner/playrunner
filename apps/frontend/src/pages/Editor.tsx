@@ -169,6 +169,7 @@ function CloudProviderDropdown({
             <button
               type="button"
               onClick={() => {
+                setNotice(null);
                 onChange('LOCAL_RUNNER');
                 setIsOpen(false);
               }}
@@ -202,6 +203,7 @@ function CloudProviderDropdown({
                         setNotice(provider.disabledReason || 'Premium feature');
                         return;
                       }
+                      setNotice(null);
                       onChange(provider.id);
                       setIsOpen(false);
                       onOpenSettings();
@@ -222,13 +224,15 @@ function CloudProviderDropdown({
                       alt={provider.label}
                       className="w-4 h-4 object-contain flex-shrink-0"
                     />
-                    <span className="flex-1">{provider.label}</span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {provider.label}
+                    </span>
                     {provider.isPremiumFeature && !isConnected ? (
                       <Badge
                         variant="outline"
-                        className="text-[10px] uppercase tracking-wide"
+                        className="shrink-0 whitespace-nowrap px-1.5 py-0 text-[9px] uppercase tracking-[0.16em]"
                       >
-                        Premium
+                        COMING SOON
                       </Badge>
                     ) : (
                       <span
