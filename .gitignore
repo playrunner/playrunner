@@ -5,7 +5,7 @@ coverage/
 .DS_Store
 *.log
 .env*
-!.env.example
+!.env.local.example
 apps/api/public/outputs/*
 setup/installer/.setup-state.json
 apps/setup/.vite

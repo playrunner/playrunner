@@ -8,11 +8,18 @@ PREMIUM_DIR="${PREMIUM_DIR:-$WORKSPACE_ROOT/premium}"
 COMPOSE_FILE="${BASE_DIR}/docker-compose.yml"
 API_DIR="${BASE_DIR}/apps/api"
 DOCS_DIR="${BASE_DIR}/docs"
-ROOT_ENV_FILE="${BASE_DIR}/.env"
-ROOT_ENV_EXAMPLE_FILE="${BASE_DIR}/.env.example"
+ROOT_ENV_FILE="${BASE_DIR}/.env.local"
+ROOT_ENV_EXAMPLE_FILE="${BASE_DIR}/.env.local.example"
+LEGACY_ROOT_ENV_FILE="${BASE_DIR}/.env"
 
 ensure_root_env_file() {
     if [ -f "${ROOT_ENV_FILE}" ]; then
+        return 0
+    fi
+
+    if [ -f "${LEGACY_ROOT_ENV_FILE}" ]; then
+        mv "${LEGACY_ROOT_ENV_FILE}" "${ROOT_ENV_FILE}"
+        echo "📝 Renamed ${LEGACY_ROOT_ENV_FILE} to ${ROOT_ENV_FILE}"
         return 0
     fi
 
@@ -44,7 +51,7 @@ LOCAL_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRE
 ROOT_DATABASE_URL="${DATABASE_URL:-}"
 VITE_DEFAULT_DATABASE_URL="${VITE_DEFAULT_DATABASE_URL:-${ROOT_DATABASE_URL:-$LOCAL_DATABASE_URL}}"
 VITE_SETUP_INSTALLER_URL="${VITE_SETUP_INSTALLER_URL:-http://127.0.0.1:${SETUP_INSTALLER_PORT}}"
-VITE_DOCS_URL="${VITE_DOCS_URL:-http://127.0.0.1:${DOCS_PORT}/playrunner/docs/}"
+VITE_DOCS_URL="${VITE_DOCS_URL:-http://127.0.0.1:${DOCS_PORT}/playrunner/}"
 
 export WEB_PORT
 export DOCS_PORT

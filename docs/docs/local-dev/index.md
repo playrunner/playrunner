@@ -14,7 +14,7 @@ title: Overview
 
 Project setup now lives in the Tutorials section.
 
-If you need to install dependencies, create the local `.env` files, run the one-time setup flow, or start the app for the first time, use:
+If you need to install dependencies, create the local `.env.local` and service `.env` files, run the one-time setup flow, or start the app for the first time, use:
 
 ➡️ [Getting Started](../tutorials/getting-started)
 

@@ -52,7 +52,7 @@ title: Troubleshooting
    ```
    DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public
    ```
-   If you changed the local Postgres port, confirm the repo-root `.env` matches it as well. Restart the API after changing `.env`.
+   If you changed the local Postgres port, confirm the repo-root `.env.local` matches it as well. Restart the API after changing `.env.local`.
 
 3. **No editor presence SSE client connected.**  
    The Orchestrator only stays alive while at least one browser tab has the Editor open and subscribed to `GET /api/presence/stream`. Check the API terminal for "Editor presence SSE connected" messages.
@@ -65,7 +65,7 @@ title: Troubleshooting
 
 **Fix:**
 
-1. Edit the repo-root `.env`.
+1. Edit the repo-root `.env.local`.
 2. Set a different host port, for example:
    ```dotenv
    POSTGRES_PORT=55432

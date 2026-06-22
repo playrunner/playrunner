@@ -46,12 +46,12 @@ This installs the packages needed for:
 Copy the root example file so the local startup scripts have their default ports and local database settings:
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-This step is recommended if you want to change ports before the first run. If `.env` is missing, `./start-local.sh` will create it from `.env.example` automatically.
+This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
+Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh --setup` creates and updates `apps/api/.env` for you as part of setup.
 
 ---
 
@@ -74,7 +74,7 @@ This route is only available during an explicit setup run. The setup app is gate
 That same command also starts the local Docusaurus docs site. With defaults:
 
 ```text
-http://127.0.0.1:3004/playrunner/docs/
+http://127.0.0.1:3004/playrunner/
 ```
 
 ### What the setup UI does

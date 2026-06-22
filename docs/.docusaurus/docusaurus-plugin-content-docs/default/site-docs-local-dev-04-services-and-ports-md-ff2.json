@@ -1,7 +1,7 @@
 {
   "id": "local-dev/services-and-ports",
   "title": "Services & Ports",
-  "description": "Local development only. The defaults below come from the repo-root .env.example file and can be overridden in a local .env.",
+  "description": "Local development only. The defaults below come from the repo-root .env.local.example file and can be overridden in a local .env.local.",
   "source": "@site/docs/local-dev/04-services-and-ports.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/services-and-ports",

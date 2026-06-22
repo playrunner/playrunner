@@ -383,11 +383,11 @@ export default function Setup() {
                         <p className="mt-2 text-sm leading-relaxed text-muted">
                           Edit the repo-root{' '}
                           <code className="font-mono text-[11px] text-[var(--foreground)]">
-                            .env
+                            .env.local
                           </code>{' '}
                           file before continuing if you want a different local
-                          web or Postgres port. You only need to change the
-                          connection value below if setup should target a
+                          web, docs, or Postgres port. You only need to change
+                          the connection value below if setup should target a
                           different database entirely.
                         </p>
                       </div>

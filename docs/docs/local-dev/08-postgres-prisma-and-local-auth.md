@@ -27,9 +27,9 @@ title: PostgreSQL, Prisma & Local Auth
 postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public
 ```
 
-These values come from the repo-root `.env` file, which is created from `.env.example` on first run if it does not already exist.
+These values come from the repo-root `.env.local` file, which is created from `.env.local.example` on first run if it does not already exist.
 
-If you change `POSTGRES_PORT` in the repo-root `.env`, both the Docker bind and the setup form's default `DATABASE_URL` move with it automatically.
+If you change `POSTGRES_PORT` in the repo-root `.env.local`, both the Docker bind and the setup form's default `DATABASE_URL` move with it automatically.
 
 On the normal startup path it also runs:
 
@@ -41,10 +41,10 @@ npx prisma db push --skip-generate
 
 ### How the local database config flows
 
-1. The repo-root `.env` defines the local web port, setup installer port, and Docker-backed Postgres connection defaults.
+1. The repo-root `.env.local` defines the local web port, setup installer port, and Docker-backed Postgres connection defaults.
 2. `./start-local.sh --setup` starts Postgres with those values and passes the derived `DATABASE_URL` into the setup app.
 3. The setup installer writes the chosen `DATABASE_URL` plus local auth settings into `apps/api/.env`.
-4. `./start-local.sh` later reuses that config, and if you are still using the standard Docker-backed Postgres settings it keeps `apps/api/.env` aligned with the repo-root `.env` before running Prisma bootstrap.
+4. `./start-local.sh` later reuses that config, and if you are still using the standard Docker-backed Postgres settings it keeps `apps/api/.env` aligned with the repo-root `.env.local` before running Prisma bootstrap.
 
 ---
 

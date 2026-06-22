@@ -10,11 +10,11 @@ This package contains the Vite frontend for Playrunner. The standard local workf
 
 Use the repo-root startup flow instead:
 
-1. Copy `.env.example` to `.env` at the repo root if you want to change ports before first run.
+1. Copy `.env.local.example` to `.env.local` at the repo root if you want to change ports before first run.
 2. Run `./start-local.sh --setup` for the one-time setup flow.
 3. Run `./start-local.sh` for the normal app.
 
-The repo-root script loads the local `.env`, exports the correct proxy targets, starts the local docs site, and chooses whether to run the normal app or the dedicated setup app.
+The repo-root script loads the local `.env.local`, exports the correct proxy targets, starts the local docs site, and chooses whether to run the normal app or the dedicated setup app.
 
 ## Standalone Frontend Debugging
 

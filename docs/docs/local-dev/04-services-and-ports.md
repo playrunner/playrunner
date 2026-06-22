@@ -5,7 +5,7 @@ title: Services & Ports
 
 # Services & Ports
 
-> **Local development only.** The defaults below come from the repo-root `.env.example` file and can be overridden in a local `.env`.
+> **Local development only.** The defaults below come from the repo-root `.env.local.example` file and can be overridden in a local `.env.local`.
 
 ---
 
@@ -58,7 +58,7 @@ The setup app exists only for explicit install/setup sessions. It serves the Pos
 **Start command:** `cd docs && npm run start -- --port 3004`
 **Technology:** Docusaurus 3 + React 19 + TypeScript
 
-`./start-local.sh` and `./start-local.sh --setup` also start the Docusaurus site on the host so the product header's `Docs` link can stay local during development. The published path is still `/playrunner/docs/`, so the default local URL is `http://127.0.0.1:3004/playrunner/docs/`.
+`./start-local.sh` and `./start-local.sh --setup` also start the Docusaurus site on the host so the product header's `Docs` link can stay local during development. The default local landing URL is `http://127.0.0.1:3004/playrunner/`.
 
 This service is not part of Docker.
 
@@ -105,7 +105,7 @@ This service is not part of Docker.
 
 - Accepts setup-only requests from the setup wizard
 - Verifies an explicit one-time setup token injected by `./start-local.sh --setup`
-- Uses the repo-root `.env` values to determine the default local Postgres connection shown in setup
+- Uses the repo-root `.env.local` values to determine the default local Postgres connection shown in setup
 - Creates `apps/api/.env` from `apps/api/.env.example` when needed
 - Upserts PostgreSQL connection strings plus local username/password auth settings
 - Writes the Prisma schema and Prisma client helper into `apps/api`

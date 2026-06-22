@@ -17,12 +17,12 @@
 ### 2. Create the local config file
 
 ```bash
-cp .env.example .env
+cp .env.local.example .env.local
 ```
 
-This step is recommended if you want to change ports before the first run. If `.env` is missing, `./start-local.sh` will create it from `.env.example` automatically.
+This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup.
+Edit `.env.local` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup.
 
 ### 3. Run the one-time setup flow
 
@@ -32,7 +32,7 @@ Edit `.env` if you want different local web, docs, or Postgres ports than the de
 
 Then open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3000/setup`.
 
-That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3004/playrunner/docs/`, and the app header's `Docs` link points there during local development.
+That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3004/playrunner/`, and the app header's `Docs` link points there during local development.
 
 ### 4. Start the app
 
@@ -42,7 +42,7 @@ That same command also starts the local Docusaurus site. With defaults, it is av
 
 Then open the URL printed by the script and log in with the username and password you created during setup. With defaults, that is `http://127.0.0.1:3000`.
 
-The local docs site also starts with this command. With defaults, it is `http://127.0.0.1:3004/playrunner/docs/`.
+The local docs site also starts with this command. With defaults, it is `http://127.0.0.1:3004/playrunner/`.
 
 ### Run setup again
 
@@ -64,7 +64,7 @@ cd docs
 npm run start -- --port 3004
 ```
 
-Then open `http://127.0.0.1:3004/playrunner/docs/`.
+Then open `http://127.0.0.1:3004/playrunner/`.
 
 ## License
 

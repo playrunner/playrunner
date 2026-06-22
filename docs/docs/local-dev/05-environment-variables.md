@@ -9,9 +9,9 @@ title: Environment Variables
 
 ---
 
-## Local Startup — `.env`
+## Local Startup — `.env.local`
 
-Copy from `.env.example`.
+Copy from `.env.local.example`.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -27,18 +27,18 @@ Copy from `.env.example`.
 | `VITE_DEFAULT_DATABASE_URL` | _(optional)_ | Override only the database URL prefilled in the setup form |
 | `VITE_DOCS_URL` | Derived from `DOCS_PORT` by default | Optional full override for the header `Docs` link during repo-root local startup |
 
-`./start-local.sh` loads this file first, uses it to start Docker-backed services, and passes the derived defaults into the setup app.
+`./start-local.sh` loads this file first, uses it to start Docker-backed services, and passes the derived defaults into the setup app. If a legacy repo-root `.env` still exists and `.env.local` does not, the script renames it to `.env.local` automatically.
 
 ---
 
 ## API Server — `apps/api/.env`
 
-Created from `apps/api/.env.example` during setup when needed, then updated by the setup installer. During normal local startup, `./start-local.sh` also keeps `DATABASE_URL` aligned with the repo-root `.env` when you are still using the standard Docker-backed Postgres settings.
+Created from `apps/api/.env.example` during setup when needed, then updated by the setup installer. During normal local startup, `./start-local.sh` also keeps `DATABASE_URL` aligned with the repo-root `.env.local` when you are still using the standard Docker-backed Postgres settings.
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `3001` | Port the Express API server listens on |
-| `DATABASE_URL` | Derived from repo-root `.env` by default | Prisma datasource used for app data and workflow execution events. In the standard local flow this resolves to `postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public` unless you explicitly override `DATABASE_URL` in the repo-root `.env`. |
+| `DATABASE_URL` | Derived from repo-root `.env.local` by default | Prisma datasource used for app data and workflow execution events. In the standard local flow this resolves to `postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public` unless you explicitly override `DATABASE_URL` in the repo-root `.env.local`. |
 | `GCP_PROJECT` | `local-dev` | GCP project ID used for Cloud Storage / Cloud Run integrations |
 | `ORCHESTRATOR_PORT` | `3002` | Host port the Orchestrator Docker container is mapped to |
 | `ORCHESTRATOR_URL` | `http://localhost:3002` | Full URL used by the API to communicate with the Orchestrator |
