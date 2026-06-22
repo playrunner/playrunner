@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Database, LockKeyhole } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { Badge, Button, Input } from '@frontend/components/ui';
 import type { RuntimeSetupConfig } from '../lib/setup';
 import { getActiveSetupSessionToken } from '../lib/setup';
@@ -60,15 +60,15 @@ export default function Setup() {
     const fields: string[] = [];
 
     if (!setupForm.databaseUrl.trim()) {
-      fields.push('DATABASE_URL');
+      fields.push('Database URL');
     }
 
     if (!setupForm.username.trim()) {
-      fields.push('LOCAL_AUTH_USERNAME');
+      fields.push('Admin username');
     }
 
     if (!setupForm.password.trim()) {
-      fields.push('LOCAL_AUTH_PASSWORD');
+      fields.push('Admin password');
     }
 
     return fields;
@@ -81,7 +81,7 @@ export default function Setup() {
       setupForm.databaseUrl.trim() &&
       !isValidPostgresUrl(setupForm.databaseUrl)
     ) {
-      fields.push('DATABASE_URL');
+      fields.push('Database URL');
     }
 
     return fields;
@@ -97,7 +97,7 @@ export default function Setup() {
     }
 
     if (setupForm.password.trim().length < 8) {
-      return 'LOCAL_AUTH_PASSWORD must be at least 8 characters.';
+      return 'Admin password must be at least 8 characters.';
     }
 
     if (setupForm.password !== setupForm.confirmPassword) {
@@ -142,8 +142,7 @@ export default function Setup() {
           error?: string;
         } | null;
         throw new Error(
-          payload?.error ??
-            'Failed to write PostgreSQL and local auth setup files.',
+          payload?.error ?? 'Failed to save PostgreSQL and local admin setup.',
         );
       }
 
@@ -152,7 +151,7 @@ export default function Setup() {
       setValidationError(
         error instanceof Error
           ? error.message
-          : 'Failed to write PostgreSQL and local auth setup files.',
+          : 'Failed to save PostgreSQL and local admin setup.',
       );
     } finally {
       setIsSubmitting(false);
@@ -161,7 +160,7 @@ export default function Setup() {
 
   return (
     <div className="min-h-screen bg-background text-[var(--foreground)] font-sans">
-      <div className="mx-auto max-w-4xl px-5 py-8 md:px-8 md:py-12">
+      <div className="mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-12">
         <header className="border-b border-subtle pb-6">
           <div className="space-y-4">
             <Badge variant="outline" className="w-fit gap-2 px-3 py-1">
@@ -177,80 +176,23 @@ export default function Setup() {
                 Connect PostgreSQL and create the first admin login.
               </h1>
               <p className="max-w-3xl text-sm leading-relaxed text-muted">
-                Setup writes the local database and auth config into{' '}
+                Enter a PostgreSQL URL, an admin username, and a password. To
+                rerun setup later, delete{' '}
                 <code className="font-mono text-xs text-[var(--foreground)]">
                   apps/api/.env
                 </code>
-                . Edit{' '}
+                , then start{' '}
                 <code className="font-mono text-xs text-[var(--foreground)]">
-                  .env.local
+                  ./start-local.sh
                 </code>{' '}
-                first only if you want different local ports or different
-                default Postgres settings.
+                again.
               </p>
             </div>
           </div>
         </header>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-          <aside className="space-y-6">
-            <section className={`${SURFACE_CARD_CLASS} p-6`}>
-              <p className={SECTION_LABEL_CLASS}>Required</p>
-              <h2 className="mt-2 text-xl font-medium text-[var(--foreground)]">
-                What you need
-              </h2>
-              <div className="mt-5 space-y-3">
-                <div className={`${INSET_CARD_CLASS} p-4`}>
-                  <Database className="h-4 w-4 text-[var(--foreground)]" />
-                  <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
-                    PostgreSQL URL
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">
-                    Keep the default local Docker value or replace it with your
-                    own PostgreSQL connection string.
-                  </p>
-                </div>
-
-                <div className={`${INSET_CARD_CLASS} p-4`}>
-                  <LockKeyhole className="h-4 w-4 text-[var(--foreground)]" />
-                  <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
-                    Admin username
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">
-                    This is the first local login accepted by the product app.
-                  </p>
-                </div>
-
-                <div className={`${INSET_CARD_CLASS} p-4`}>
-                  <CheckCircle2 className="h-4 w-4 text-[var(--foreground)]" />
-                  <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
-                    Admin password
-                  </p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted">
-                    Choose at least 8 characters. The installer stores only the
-                    password hash.
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            <section className={`${SURFACE_CARD_CLASS} p-6`}>
-              <p className={SECTION_LABEL_CLASS}>Reset</p>
-              <h2 className="mt-2 text-xl font-medium text-[var(--foreground)]">
-                Run setup again
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                Delete the generated API env file, then start a fresh setup
-                session.
-              </p>
-              <pre className={`${CODE_BLOCK_CLASS} mt-4`}>
-                <code>{`rm apps/api/.env
-./start-local.sh`}</code>
-              </pre>
-            </section>
-          </aside>
-
-          <section className={`${SURFACE_CARD_CLASS} p-6 md:p-8`}>
+        <div className="mt-8">
+          <section className={`${SURFACE_CARD_CLASS} w-full p-6 md:p-8`}>
             {phase === 'configure' ? (
               <div className="space-y-6">
                 <div className="border-b border-subtle pb-5">
@@ -258,14 +200,6 @@ export default function Setup() {
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[var(--foreground)]">
                     Configure the local app
                   </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">
-                    The default database URL already targets the local Docker
-                    Postgres container started by{' '}
-                    <code className="font-mono text-xs text-[var(--foreground)]">
-                      ./start-local.sh
-                    </code>{' '}
-                    when setup is active.
-                  </p>
                 </div>
 
                 <div className={`${INSET_CARD_CLASS} p-5`}>
@@ -295,11 +229,6 @@ export default function Setup() {
                       <label className="block text-sm font-medium text-[var(--foreground)]">
                         Admin username
                       </label>
-                      <p className="text-xs text-muted">
-                        <code className="font-mono text-[11px] text-[var(--foreground)]">
-                          LOCAL_AUTH_USERNAME
-                        </code>
-                      </p>
                       <Input
                         placeholder="admin"
                         value={setupForm.username}
@@ -316,11 +245,6 @@ export default function Setup() {
                       <label className="block text-sm font-medium text-[var(--foreground)]">
                         Admin password
                       </label>
-                      <p className="text-xs text-muted">
-                        <code className="font-mono text-[11px] text-[var(--foreground)]">
-                          LOCAL_AUTH_PASSWORD
-                        </code>
-                      </p>
                       <Input
                         type="password"
                         placeholder="Use at least 8 characters"

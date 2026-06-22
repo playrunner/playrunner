@@ -7,6 +7,9 @@ export default {
   "title": "Playrunner",
   "tagline": "Automate your Playwright tests with visual workflows.",
   "favicon": "img/favicon.svg",
+  "customFields": {
+    "localDocsLandingPath": "/"
+  },
   "future": {
     "v4": {
       "removeLegacyPostBuildHeadAttribute": true,
@@ -407,7 +410,6 @@ export default {
   "staticDirectories": [
     "static"
   ],
-  "customFields": {},
   "plugins": [],
   "themes": [],
   "scripts": [],

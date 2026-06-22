@@ -1,42 +1,68 @@
 import crypto from 'crypto';
 import { SignJWT, jwtVerify } from 'jose';
+import { prisma } from '../lib/prisma';
 import { AuthUser } from './auth.types';
 
 const LOCAL_AUTH_ISSUER = 'playrunner-local';
 const LOCAL_AUTH_AUDIENCE = 'playrunner-local';
 const LOCAL_AUTH_SUBJECT = 'local-admin';
+const LOCAL_AUTH_SECRET_OWNER = '__playrunner_local_auth__';
+const LOCAL_AUTH_SECRET_KEYS = {
+  jwtSecret: 'local.auth.jwt_secret',
+  passwordHash: 'local.auth.password_hash',
+  username: 'local.auth.username',
+} as const;
+const LOCAL_AUTH_NOT_CONFIGURED_MESSAGE =
+  'Local auth is not configured. Run ./start-local.sh to reopen setup.';
 
-function getLocalAuthUsername() {
-  const username = process.env.LOCAL_AUTH_USERNAME?.trim();
-  if (!username) {
-    throw new Error(
-      'LOCAL_AUTH_USERNAME is not configured. Run ./start-local.sh to reopen setup.',
+type LocalAuthConfig = {
+  jwtSecret: string;
+  passwordHash: string;
+  username: string;
+};
+
+async function readLocalAuthConfig(): Promise<LocalAuthConfig> {
+  try {
+    const secrets = await prisma.secret.findMany({
+      where: {
+        secretKey: {
+          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
+        },
+        userId: LOCAL_AUTH_SECRET_OWNER,
+      },
+    });
+
+    const values = new Map(
+      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
     );
-  }
+    const username = values.get(LOCAL_AUTH_SECRET_KEYS.username) || '';
+    const passwordHash = values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || '';
+    const jwtSecret = values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || '';
 
-  return username;
+    if (!username || !passwordHash || !jwtSecret) {
+      throw new Error(LOCAL_AUTH_NOT_CONFIGURED_MESSAGE);
+    }
+
+    return {
+      jwtSecret,
+      passwordHash,
+      username,
+    };
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === LOCAL_AUTH_NOT_CONFIGURED_MESSAGE
+    ) {
+      throw error;
+    }
+
+    throw new Error(LOCAL_AUTH_NOT_CONFIGURED_MESSAGE);
+  }
 }
 
-function getLocalAuthPasswordHash() {
-  const passwordHash = process.env.LOCAL_AUTH_PASSWORD_HASH?.trim();
-  if (!passwordHash) {
-    throw new Error(
-      'LOCAL_AUTH_PASSWORD_HASH is not configured. Run ./start-local.sh to reopen setup.',
-    );
-  }
-
-  return passwordHash;
-}
-
-function getLocalAuthSecret() {
-  const secret = process.env.AUTH_JWT_SECRET?.trim();
-  if (!secret) {
-    throw new Error(
-      'AUTH_JWT_SECRET is not configured. Run ./start-local.sh to reopen setup.',
-    );
-  }
-
-  return new TextEncoder().encode(secret);
+async function getLocalAuthSecret() {
+  const config = await readLocalAuthConfig();
+  return new TextEncoder().encode(config.jwtSecret);
 }
 
 function verifyPasswordHash(password: string, storedHash: string) {
@@ -44,7 +70,7 @@ function verifyPasswordHash(password: string, storedHash: string) {
 
   if (algorithm !== 'scrypt' || !salt || !expectedHash) {
     throw new Error(
-      'LOCAL_AUTH_PASSWORD_HASH uses an unexpected format. Re-run ./start-local.sh to reopen setup.',
+      'Stored local auth password data uses an unexpected format. Re-run ./start-local.sh to reopen setup.',
     );
   }
 
@@ -58,20 +84,21 @@ function verifyPasswordHash(password: string, storedHash: string) {
   return crypto.timingSafeEqual(derivedKey, expectedBuffer);
 }
 
-export function isLocalAuthConfigured() {
-  return Boolean(
-    process.env.LOCAL_AUTH_USERNAME?.trim() &&
-    process.env.LOCAL_AUTH_PASSWORD_HASH?.trim() &&
-    process.env.AUTH_JWT_SECRET?.trim(),
-  );
+export async function isLocalAuthConfigured() {
+  try {
+    await readLocalAuthConfig();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function getLocalAuthIssuer() {
   return LOCAL_AUTH_ISSUER;
 }
 
-export function getLocalAuthPublicUser() {
-  const username = getLocalAuthUsername();
+export async function getLocalAuthPublicUser() {
+  const { username } = await readLocalAuthConfig();
 
   return {
     uid: LOCAL_AUTH_SUBJECT,
@@ -80,14 +107,17 @@ export function getLocalAuthPublicUser() {
   };
 }
 
-export function verifyLocalCredentials(username: string, password: string) {
-  const configuredUsername = getLocalAuthUsername();
+export async function verifyLocalCredentials(
+  username: string,
+  password: string,
+) {
+  const config = await readLocalAuthConfig();
 
-  if (username.trim() !== configuredUsername) {
+  if (username.trim() !== config.username) {
     return false;
   }
 
-  return verifyPasswordHash(password, getLocalAuthPasswordHash());
+  return verifyPasswordHash(password, config.passwordHash);
 }
 
 export async function issueLocalAuthToken(username: string) {
@@ -98,11 +128,11 @@ export async function issueLocalAuthToken(username: string) {
     .setSubject(LOCAL_AUTH_SUBJECT)
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(getLocalAuthSecret());
+    .sign(await getLocalAuthSecret());
 }
 
 export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
-  const { payload } = await jwtVerify(token, getLocalAuthSecret(), {
+  const { payload } = await jwtVerify(token, await getLocalAuthSecret(), {
     issuer: LOCAL_AUTH_ISSUER,
     audience: LOCAL_AUTH_AUDIENCE,
   });
@@ -110,7 +140,7 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
   const username =
     typeof payload.username === 'string' && payload.username.trim()
       ? payload.username.trim()
-      : getLocalAuthUsername();
+      : (await readLocalAuthConfig()).username;
 
   return {
     provider: 'local',

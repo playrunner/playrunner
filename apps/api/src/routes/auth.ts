@@ -10,7 +10,7 @@ import {
 export const authRouter = Router();
 
 authRouter.post('/login', async (req, res) => {
-  if (!isLocalAuthConfigured()) {
+  if (!(await isLocalAuthConfigured())) {
     res.status(503).json({
       error:
         'Local auth has not been configured yet. Run ./start-local.sh to complete setup.',
@@ -29,13 +29,13 @@ authRouter.post('/login', async (req, res) => {
   }
 
   try {
-    const isValid = verifyLocalCredentials(username, password);
+    const isValid = await verifyLocalCredentials(username, password);
     if (!isValid) {
       res.status(401).json({ error: 'Invalid username or password.' });
       return;
     }
 
-    const user = getLocalAuthPublicUser();
+    const user = await getLocalAuthPublicUser();
     const token = await issueLocalAuthToken(user.username);
 
     res.json({ token, user });

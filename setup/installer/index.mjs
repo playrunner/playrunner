@@ -2,6 +2,8 @@ import fs from "fs/promises";
 import http from "http";
 import path from "path";
 import crypto from "crypto";
+import { spawn } from "child_process";
+import { createRequire } from "module";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -9,6 +11,12 @@ const __dirname = path.dirname(__filename);
 
 const PORT = parseInt(process.env.SETUP_INSTALLER_PORT || "3003", 10);
 const SETUP_SESSION_TOKEN = process.env.SETUP_SESSION_TOKEN || "";
+const LOCAL_AUTH_SECRET_OWNER = "__playrunner_local_auth__";
+const LOCAL_AUTH_SECRET_KEYS = {
+  jwtSecret: "local.auth.jwt_secret",
+  passwordHash: "local.auth.password_hash",
+  username: "local.auth.username",
+};
 
 function getRepoRoot() {
   return path.resolve(__dirname, "..", "..");
@@ -79,7 +87,7 @@ function normalizeUsername(value) {
   const trimmed = typeof value === "string" ? value.trim() : "";
 
   if (!trimmed) {
-    throw new Error("Missing required field: LOCAL_AUTH_USERNAME");
+    throw new Error("Missing required field: Admin username");
   }
 
   return trimmed;
@@ -89,11 +97,11 @@ function normalizePassword(value) {
   const password = typeof value === "string" ? value : "";
 
   if (!password.trim()) {
-    throw new Error("Missing required field: LOCAL_AUTH_PASSWORD");
+    throw new Error("Missing required field: Admin password");
   }
 
   if (password.trim().length < 8) {
-    throw new Error("LOCAL_AUTH_PASSWORD must be at least 8 characters.");
+    throw new Error("Admin password must be at least 8 characters.");
   }
 
   return password;
@@ -160,40 +168,210 @@ function upsertEnvVariable(lines, key, value) {
   lines[index] = renderedLine;
 }
 
-function ensureEnvVariable(lines, key, createValue) {
-  const existingValue = getEnvVariable(lines, key);
-
-  if (existingValue) {
-    return existingValue;
-  }
-
-  const value = createValue();
-  upsertEnvVariable(lines, key, value);
-  return value;
-}
-
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString("hex");
   const derivedKey = crypto.scryptSync(password, salt, 64).toString("hex");
   return `scrypt$${salt}$${derivedKey}`;
 }
 
-async function ensureApiEnvFile() {
-  const apiDir = getApiDir();
+async function readApiEnvTemplateLines() {
   const envPath = getApiEnvPath();
-  const envExamplePath = path.join(apiDir, ".env.example");
+  const envExamplePath = path.join(getApiDir(), ".env.example");
+  const sourcePath = (await fileExists(envPath)) ? envPath : envExamplePath;
+  const envContents = await fs.readFile(sourcePath, "utf8").catch(() => "");
+  return envContents ? envContents.split(/\r?\n/) : [];
+}
+
+function createApiRequire() {
+  return createRequire(path.join(getApiDir(), "package.json"));
+}
+
+function getLegacyLocalAuthConfig(envLines) {
+  return {
+    jwtSecret: getEnvVariable(envLines, "AUTH_JWT_SECRET"),
+    passwordHash: getEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH"),
+    username: getEnvVariable(envLines, "LOCAL_AUTH_USERNAME"),
+  };
+}
+
+function hasCompleteLocalAuthConfig(config) {
+  return Boolean(config.username && config.passwordHash && config.jwtSecret);
+}
+
+async function withApiPrismaClient(databaseUrl, callback) {
+  const requireFromApi = createApiRequire();
+  const { PrismaClient } = requireFromApi("@prisma/client");
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
 
   try {
-    await fs.access(envPath);
-  } catch {
-    try {
-      await fs.copyFile(envExamplePath, envPath);
-    } catch {
-      await fs.writeFile(envPath, "", "utf8");
+    return await callback(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+function createPrismaCommandEnv(config) {
+  return {
+    ...process.env,
+    DATABASE_URL: config.databaseUrl,
+    DIRECT_URL: config.directUrl || "",
+    SHADOW_DATABASE_URL: config.shadowDatabaseUrl || "",
+  };
+}
+
+async function runCommand(command, args, options = {}) {
+  await new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: "inherit",
+    });
+
+    child.on("error", reject);
+    child.on("exit", (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `Command failed: ${command} ${args.join(" ")} (exit code ${code ?? "unknown"})`,
+        ),
+      );
+    });
+  });
+}
+
+async function ensureApiPrismaReady(config) {
+  const apiDir = getApiDir();
+  const env = createPrismaCommandEnv(config);
+
+  await runCommand("npm", ["run", "prisma:generate"], {
+    cwd: apiDir,
+    env,
+  });
+  await runCommand("npx", ["prisma", "db", "push", "--skip-generate"], {
+    cwd: apiDir,
+    env,
+  });
+}
+
+async function upsertStoredLocalAuthConfig(databaseUrl, config) {
+  const secretValues = [
+    {
+      description: "Local setup admin JWT signing secret.",
+      secretKey: LOCAL_AUTH_SECRET_KEYS.jwtSecret,
+      value: config.jwtSecret,
+    },
+    {
+      description: "Local setup admin password hash.",
+      secretKey: LOCAL_AUTH_SECRET_KEYS.passwordHash,
+      value: config.passwordHash,
+    },
+    {
+      description: "Local setup admin username.",
+      secretKey: LOCAL_AUTH_SECRET_KEYS.username,
+      value: config.username,
+    },
+  ];
+
+  await withApiPrismaClient(databaseUrl, async (prisma) => {
+    for (const secret of secretValues) {
+      await prisma.secret.upsert({
+        where: {
+          userId_secretKey: {
+            userId: LOCAL_AUTH_SECRET_OWNER,
+            secretKey: secret.secretKey,
+          },
+        },
+        update: {
+          value: secret.value,
+          description: secret.description,
+        },
+        create: {
+          userId: LOCAL_AUTH_SECRET_OWNER,
+          secretKey: secret.secretKey,
+          value: secret.value,
+          description: secret.description,
+        },
+      });
     }
+  });
+}
+
+async function readStoredLocalAuthConfig(databaseUrl) {
+  return withApiPrismaClient(databaseUrl, async (prisma) => {
+    const secrets = await prisma.secret.findMany({
+      where: {
+        secretKey: {
+          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
+        },
+        userId: LOCAL_AUTH_SECRET_OWNER,
+      },
+    });
+
+    const values = new Map(
+      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
+    );
+
+    return {
+      jwtSecret: values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || "",
+      passwordHash: values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || "",
+      username: values.get(LOCAL_AUTH_SECRET_KEYS.username) || "",
+    };
+  });
+}
+
+async function seedLocalAuthConfig(config) {
+  await upsertStoredLocalAuthConfig(config.databaseUrl, {
+    jwtSecret: crypto.randomBytes(32).toString("hex"),
+    passwordHash: hashPassword(config.password),
+    username: config.username,
+  });
+}
+
+async function ensureStoredLocalAuthConfig(envPath, envLines, databaseUrl) {
+  const storedConfig = await readStoredLocalAuthConfig(databaseUrl).catch(
+    () => null,
+  );
+
+  if (storedConfig && hasCompleteLocalAuthConfig(storedConfig)) {
+    upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
+    upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
+    upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
+
+    while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
+      envLines.pop();
+    }
+
+    await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
+    return true;
   }
 
-  return envPath;
+  const legacyConfig = getLegacyLocalAuthConfig(envLines);
+  if (!hasCompleteLocalAuthConfig(legacyConfig)) {
+    return false;
+  }
+
+  await upsertStoredLocalAuthConfig(databaseUrl, legacyConfig);
+
+  upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
+  upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
+  upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
+
+  while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
+    envLines.pop();
+  }
+
+  await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
+  return true;
 }
 
 function renderPrismaSchema(config) {
@@ -361,32 +539,23 @@ async function installPostgresFiles(config) {
   const apiDir = getApiDir();
   const prismaDir = path.join(apiDir, "prisma");
   const apiLibDir = path.join(apiDir, "src", "lib");
-  const envPath = await ensureApiEnvFile();
+  const envPath = getApiEnvPath();
 
   await fs.mkdir(prismaDir, { recursive: true });
   await fs.mkdir(apiLibDir, { recursive: true });
 
-  const envContents = await fs.readFile(envPath, "utf8").catch(() => "");
-  const envLines = envContents ? envContents.split(/\r?\n/) : [];
+  const envLines = await readApiEnvTemplateLines();
 
   upsertEnvVariable(envLines, "DATABASE_URL", config.databaseUrl);
   upsertEnvVariable(envLines, "DIRECT_URL", config.directUrl);
   upsertEnvVariable(envLines, "SHADOW_DATABASE_URL", config.shadowDatabaseUrl);
-  upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME", config.username);
-  upsertEnvVariable(
-    envLines,
-    "LOCAL_AUTH_PASSWORD_HASH",
-    hashPassword(config.password),
-  );
-  ensureEnvVariable(envLines, "AUTH_JWT_SECRET", () =>
-    crypto.randomBytes(32).toString("hex"),
-  );
+  upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
+  upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
+  upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
 
   while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
     envLines.pop();
   }
-
-  await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
   await fs.writeFile(
     path.join(prismaDir, "schema.prisma"),
     renderPrismaSchema(config),
@@ -397,6 +566,10 @@ async function installPostgresFiles(config) {
     renderPrismaClientTs(),
     "utf8",
   );
+
+  await ensureApiPrismaReady(config);
+  await seedLocalAuthConfig(config);
+  await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
 }
 
 async function fileExists(filePath) {
@@ -423,17 +596,12 @@ async function getSetupStatus() {
 
   const envContents = await fs.readFile(apiEnvPath, "utf8").catch(() => "");
   const envLines = envContents ? envContents.split(/\r?\n/) : [];
-  const requiredKeys = [
-    "DATABASE_URL",
-    "LOCAL_AUTH_USERNAME",
-    "LOCAL_AUTH_PASSWORD_HASH",
-    "AUTH_JWT_SECRET",
-  ];
+  const databaseUrl = getEnvVariable(envLines, "DATABASE_URL");
 
   return {
-    completed: requiredKeys.every((key) =>
-      Boolean(getEnvVariable(envLines, key)),
-    ),
+    completed: databaseUrl
+      ? await ensureStoredLocalAuthConfig(apiEnvPath, envLines, databaseUrl)
+      : false,
   };
 }
 
@@ -501,7 +669,7 @@ async function handleRequest(req, res) {
         ? "Invalid JSON payload."
         : error instanceof Error
           ? error.message
-          : "Failed to install PostgreSQL, Prisma, and local auth setup files.";
+          : "Failed to install PostgreSQL and local admin setup.";
 
       console.error("Installer service error:", error);
       sendJson(res, statusCode, { error: message });

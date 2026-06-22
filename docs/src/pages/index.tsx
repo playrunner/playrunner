@@ -1,6 +1,7 @@
-import type {ReactNode} from 'react';
+import {useEffect, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
@@ -8,6 +9,10 @@ import Heading from '@theme/Heading';
 import Logo from '@site/static/img/playrunner-icon.svg';
 
 import styles from './index.module.css';
+
+type DocsCustomFields = {
+  localDocsLandingPath?: string;
+};
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -33,6 +38,32 @@ function HomepageHeader() {
 
 export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
+  const customFields = siteConfig.customFields as DocsCustomFields | undefined;
+  const localDocsLandingPath = customFields?.localDocsLandingPath?.trim() || '/';
+  const localDocsLandingUrl = useBaseUrl(localDocsLandingPath);
+  const shouldRedirectToSetupDocs =
+    localDocsLandingPath !== '/' && localDocsLandingPath !== '/playrunner/';
+
+  useEffect(() => {
+    if (!shouldRedirectToSetupDocs) {
+      return;
+    }
+
+    window.location.replace(localDocsLandingUrl);
+  }, [localDocsLandingUrl, shouldRedirectToSetupDocs]);
+
+  if (shouldRedirectToSetupDocs) {
+    return (
+      <Layout
+        title={`Hello from ${siteConfig.title}`}
+        description="Description will go into a meta tag in <head />">
+        <main className="container margin-vert--xl">
+          <p>Opening setup docs…</p>
+        </main>
+      </Layout>
+    );
+  }
+
   return (
     <Layout
       title={`Hello from ${siteConfig.title}`}

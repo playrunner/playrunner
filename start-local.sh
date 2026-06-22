@@ -51,7 +51,9 @@ LOCAL_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRE
 ROOT_DATABASE_URL="${DATABASE_URL:-}"
 VITE_DEFAULT_DATABASE_URL="${VITE_DEFAULT_DATABASE_URL:-${ROOT_DATABASE_URL:-$LOCAL_DATABASE_URL}}"
 VITE_SETUP_INSTALLER_URL="${VITE_SETUP_INSTALLER_URL:-http://127.0.0.1:${SETUP_INSTALLER_PORT}}"
-VITE_DOCS_URL="${VITE_DOCS_URL:-http://127.0.0.1:${DOCS_PORT}/playrunner/}"
+DEFAULT_DOCS_HOME_URL="http://127.0.0.1:${DOCS_PORT}/playrunner/"
+DEFAULT_SETUP_DOCS_URL="${DEFAULT_DOCS_HOME_URL}docs/tutorials/getting-started"
+DOCS_LANDING_PATH="${DOCS_LANDING_PATH:-}"
 
 export WEB_PORT
 export DOCS_PORT
@@ -63,11 +65,12 @@ export POSTGRES_USER
 export POSTGRES_PASSWORD
 export VITE_DEFAULT_DATABASE_URL
 export VITE_SETUP_INSTALLER_URL
-export VITE_DOCS_URL
 
 RUN_SETUP=false
 AUTO_SETUP=false
 EDITION="oss"
+SETUP_COMPLETED=false
+API_ENV_PREPARED=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -154,10 +157,18 @@ ensure_docs_dependencies() {
 }
 
 has_completed_local_setup() {
-    node - "${ROOT_ENV_FILE}" "${API_DIR}/.env" <<'NODE'
+    node - "${ROOT_ENV_FILE}" "${API_DIR}/.env" "${API_DIR}" <<'NODE'
 const fs = require('fs');
+const path = require('path');
+const { createRequire } = require('module');
 
-const [, , rootEnvPath, apiEnvPath] = process.argv;
+const [, , rootEnvPath, apiEnvPath, apiDir] = process.argv;
+const LOCAL_AUTH_SECRET_OWNER = '__playrunner_local_auth__';
+const LOCAL_AUTH_SECRET_KEYS = {
+  jwtSecret: 'local.auth.jwt_secret',
+  passwordHash: 'local.auth.password_hash',
+  username: 'local.auth.username',
+};
 
 function fileExists(filePath) {
   try {
@@ -182,28 +193,183 @@ function parseEnvValue(rawValue = '') {
   return trimmed;
 }
 
+function formatEnvValue(value) {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function getEnvVariable(lines, key) {
+  const line = lines.find((entry) => entry.startsWith(`${key}=`));
+  if (!line) {
+    return '';
+  }
+
+  return parseEnvValue(line.slice(key.length + 1));
+}
+
+function upsertEnvVariable(lines, key, value) {
+  const index = lines.findIndex((line) => line.startsWith(`${key}=`));
+
+  if (!value) {
+    if (index !== -1) {
+      lines.splice(index, 1);
+    }
+    return;
+  }
+
+  const renderedLine = `${key}=${formatEnvValue(value)}`;
+  if (index === -1) {
+    lines.push(renderedLine);
+    return;
+  }
+
+  lines[index] = renderedLine;
+}
+
+function hasCompleteLocalAuthConfig(config) {
+  return Boolean(config.username && config.passwordHash && config.jwtSecret);
+}
+
+function getLegacyLocalAuthConfig(lines) {
+  return {
+    jwtSecret: getEnvVariable(lines, 'AUTH_JWT_SECRET'),
+    passwordHash: getEnvVariable(lines, 'LOCAL_AUTH_PASSWORD_HASH'),
+    username: getEnvVariable(lines, 'LOCAL_AUTH_USERNAME'),
+  };
+}
+
+async function withPrismaClient(databaseUrl, callback) {
+  const requireFromApi = createRequire(path.join(apiDir, 'package.json'));
+  const { PrismaClient } = requireFromApi('@prisma/client');
+  const prisma = new PrismaClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+
+  try {
+    return await callback(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+async function readStoredLocalAuthConfig(databaseUrl) {
+  return withPrismaClient(databaseUrl, async (prisma) => {
+    const secrets = await prisma.secret.findMany({
+      where: {
+        secretKey: {
+          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
+        },
+        userId: LOCAL_AUTH_SECRET_OWNER,
+      },
+    });
+
+    const values = new Map(
+      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
+    );
+
+    return {
+      jwtSecret: values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || '',
+      passwordHash: values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || '',
+      username: values.get(LOCAL_AUTH_SECRET_KEYS.username) || '',
+    };
+  });
+}
+
+async function upsertStoredLocalAuthConfig(databaseUrl, config) {
+  return withPrismaClient(databaseUrl, async (prisma) => {
+    const secretValues = [
+      {
+        description: 'Local setup admin JWT signing secret.',
+        secretKey: LOCAL_AUTH_SECRET_KEYS.jwtSecret,
+        value: config.jwtSecret,
+      },
+      {
+        description: 'Local setup admin password hash.',
+        secretKey: LOCAL_AUTH_SECRET_KEYS.passwordHash,
+        value: config.passwordHash,
+      },
+      {
+        description: 'Local setup admin username.',
+        secretKey: LOCAL_AUTH_SECRET_KEYS.username,
+        value: config.username,
+      },
+    ];
+
+    for (const secret of secretValues) {
+      await prisma.secret.upsert({
+        where: {
+          userId_secretKey: {
+            userId: LOCAL_AUTH_SECRET_OWNER,
+            secretKey: secret.secretKey,
+          },
+        },
+        update: {
+          value: secret.value,
+          description: secret.description,
+        },
+        create: {
+          userId: LOCAL_AUTH_SECRET_OWNER,
+          secretKey: secret.secretKey,
+          value: secret.value,
+          description: secret.description,
+        },
+      });
+    }
+  });
+}
+
+function writeSanitizedEnv(lines) {
+  upsertEnvVariable(lines, 'LOCAL_AUTH_USERNAME');
+  upsertEnvVariable(lines, 'LOCAL_AUTH_PASSWORD_HASH');
+  upsertEnvVariable(lines, 'AUTH_JWT_SECRET');
+
+  while (lines.length > 0 && lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+
+  fs.writeFileSync(apiEnvPath, `${lines.join('\n')}\n`, 'utf8');
+}
+
 if (!fileExists(rootEnvPath) || !fileExists(apiEnvPath)) {
   process.exit(1);
 }
 
-const envLines = fs.readFileSync(apiEnvPath, 'utf8').split(/\r?\n/);
-const requiredKeys = [
-  'DATABASE_URL',
-  'LOCAL_AUTH_USERNAME',
-  'LOCAL_AUTH_PASSWORD_HASH',
-  'AUTH_JWT_SECRET',
-];
+async function main() {
+  const envLines = fs.readFileSync(apiEnvPath, 'utf8').split(/\r?\n/);
+  const databaseUrl = getEnvVariable(envLines, 'DATABASE_URL');
 
-const isComplete = requiredKeys.every((key) => {
-  const line = envLines.find((entry) => entry.startsWith(`${key}=`));
-  if (!line) {
+  if (!databaseUrl) {
     return false;
   }
 
-  return Boolean(parseEnvValue(line.slice(key.length + 1)));
-});
+  const storedConfig = await readStoredLocalAuthConfig(databaseUrl).catch(
+    () => null,
+  );
+  if (storedConfig && hasCompleteLocalAuthConfig(storedConfig)) {
+    writeSanitizedEnv(envLines);
+    return true;
+  }
 
-process.exit(isComplete ? 0 : 1);
+  const legacyConfig = getLegacyLocalAuthConfig(envLines);
+  if (!hasCompleteLocalAuthConfig(legacyConfig)) {
+    return false;
+  }
+
+  await upsertStoredLocalAuthConfig(databaseUrl, legacyConfig);
+  writeSanitizedEnv(envLines);
+  return true;
+}
+
+main()
+  .then((isComplete) => {
+    process.exit(isComplete ? 0 : 1);
+  })
+  .catch(() => {
+    process.exit(1);
+  });
 NODE
 }
 
@@ -325,15 +491,44 @@ NODE
 # 1. Start local Docker-backed services in the background
 ensure_docs_dependencies
 
-if [ "$RUN_SETUP" != "true" ] && ! has_completed_local_setup; then
+echo "📦 Starting local Docker services..."
+docker compose -f "${COMPOSE_FILE}" up -d postgres
+wait_for_compose_service postgres 90
+
+if [ -f "${API_DIR}/.env" ]; then
+    sync_api_database_url
+    bootstrap_api_prisma
+    API_ENV_PREPARED=true
+fi
+
+if has_completed_local_setup; then
+    SETUP_COMPLETED=true
+fi
+
+if [ -z "${VITE_DOCS_URL:-}" ]; then
+    if [ "$SETUP_COMPLETED" = "true" ]; then
+        VITE_DOCS_URL="${DEFAULT_DOCS_HOME_URL}"
+    else
+        VITE_DOCS_URL="${DEFAULT_SETUP_DOCS_URL}"
+    fi
+fi
+
+if [ -z "${DOCS_LANDING_PATH}" ]; then
+    if [ "$SETUP_COMPLETED" = "true" ]; then
+        DOCS_LANDING_PATH="/"
+    else
+        DOCS_LANDING_PATH="/docs/tutorials/getting-started"
+    fi
+fi
+
+export VITE_DOCS_URL
+export DOCS_LANDING_PATH
+
+if [ "$RUN_SETUP" != "true" ] && [ "$SETUP_COMPLETED" != "true" ]; then
     RUN_SETUP=true
     AUTO_SETUP=true
     echo "🛠️  No completed local setup detected. Opening setup automatically."
 fi
-
-echo "📦 Starting local Docker services..."
-docker compose -f "${COMPOSE_FILE}" up -d postgres
-wait_for_compose_service postgres 90
 
 # 2. Build the Orchestrator and Playwright Docker images
 echo "🔨 Building Orchestrator Docker image..."
@@ -417,8 +612,10 @@ else
     unset SETUP_SESSION_TOKEN
     unset VITE_SETUP_MODE
     unset VITE_SETUP_SESSION_TOKEN
-    sync_api_database_url
-    bootstrap_api_prisma
+    if [ "$API_ENV_PREPARED" != "true" ]; then
+        sync_api_database_url
+        bootstrap_api_prisma
+    fi
     echo "✅ Local setup detected. Starting the normal app."
     echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \

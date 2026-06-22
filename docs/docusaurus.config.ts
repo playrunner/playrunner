@@ -8,6 +8,9 @@ const config: Config = {
   title: 'Playrunner',
   tagline: 'Automate your Playwright tests with visual workflows.',
   favicon: 'img/favicon.svg',
+  customFields: {
+    localDocsLandingPath: process.env.DOCS_LANDING_PATH || '/',
+  },
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
