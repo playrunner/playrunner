@@ -5,7 +5,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
-import Logo from '@site/static/img/logo.svg';
+import Logo from '@site/static/img/playrunner-icon.svg';
 
 import styles from './index.module.css';
 

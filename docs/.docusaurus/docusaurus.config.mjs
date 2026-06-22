@@ -72,7 +72,7 @@ export default {
     ]
   ],
   "themeConfig": {
-    "image": "img/logo.svg",
+    "image": "img/playrunner-icon.svg",
     "colorMode": {
       "respectPrefersColorScheme": true,
       "defaultMode": "light",
@@ -82,7 +82,7 @@ export default {
       "title": "Playrunner",
       "logo": {
         "alt": "Playrunner Logo",
-        "src": "img/logo.svg"
+        "src": "img/playrunner-icon.svg"
       },
       "items": [
         {
