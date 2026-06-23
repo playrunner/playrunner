@@ -34,7 +34,7 @@ sequenceDiagram
     E->>A: POST /api/tunnel/start
     A->>T: spawn cloudflared --url http://localhost:3001
     T-->>A: https://<name>.trycloudflare.com
-    A->>A: waitForTunnelReachable (poll until public URL responds)
+    A->>A: waitForTunnelReachable (best-effort DNS warm-up)
     A-->>E: { status: "running", url }
     E->>A: POST /api/workflows/start (retry)
     A->>G: trigger run with editorApiUrl = tunnel URL
@@ -61,7 +61,7 @@ The editor's `runWorkflow` catches the `TUNNEL_REQUIRED` code, stashes the pendi
 1. Verifies `cloudflared` is installed and on your `PATH`.
 2. Spawns `cloudflared tunnel --no-autoupdate --url http://localhost:3001`.
 3. Parses the assigned `https://<name>.trycloudflare.com` URL from cloudflared's output.
-4. **Waits for the URL to become publicly reachable** before reporting success (see below).
+4. **Best-effort waits for the URL to become publicly reachable** to give DNS time to propagate (see below).
 
 ### 4. The run resumes
 
@@ -73,7 +73,9 @@ When the dialog reports the tunnel is running, `handleTunnelStarted` replays the
 
 A freshly created `*.trycloudflare.com` name is registered the moment cloudflared prints it, but it is **not yet globally resolvable**. Handing it to a cloud runner immediately races DNS propagation — and a failed lookup (`ENOTFOUND` / `NXDOMAIN`) can be **negatively cached** for ~2 minutes, so the runner keeps failing even after the name goes live.
 
-To prevent this, `waitForTunnelReachable` polls `GET <url>/api/heartbeat` (up to 60s, every 2s) before marking the tunnel `running`. **Any** HTTP response — even a `404` — proves the public name resolves and routes through the tunnel to the local API; only network/DNS errors are retried. The tunnel is only reported ready once that check passes.
+To smooth this over, `waitForTunnelReachable` waits a short initial delay (so the first probe doesn't poison the local resolver with an early `NXDOMAIN`), then polls `GET <url>/api/heartbeat` (up to 60s, every 2s). **Any** HTTP response — even a `404` — proves the public name resolves and routes through the tunnel to the local API; only network/DNS errors are retried.
+
+This probe is **advisory, not fatal**. It runs against _your machine's_ resolver, whereas the cloud runner resolves through its own. So if local reachability can't be confirmed within the window, the tunnel still proceeds to `running` and logs a warning — the cloud runner may simply need a few more seconds for DNS to propagate.
 
 ---
 
@@ -112,9 +114,10 @@ When this is set the API uses it directly and never asks for a tunnel.
 
 ## Troubleshooting
 
-| Symptom                                                     | Cause / Fix                                                                                                                             |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Dialog error: _cloudflared is not installed…_               | Install `cloudflared` and ensure it's on your `PATH`, then retry.                                                                       |
-| Runner logs show `getaddrinfo ENOTFOUND …trycloudflare.com` | DNS hadn't propagated. The warm-up gate now prevents this; if it recurs, the tunnel URL may have changed — stop and restart the tunnel. |
-| _Tunnel … did not become publicly reachable within 60s_     | cloudflared started but the public URL never responded. Check your network/firewall and that the API is listening on `:3001`.           |
-| Cloud run still fails after tunnel is up                    | Confirm the run was **re-triggered** after the tunnel reported running (the editor does this automatically via the dialog).             |
+| Symptom                                                       | Cause / Fix                                                                                                                                          |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dialog error: _cloudflared is not installed…_                 | Install `cloudflared` and ensure it's on your `PATH`, then retry.                                                                                    |
+| Runner logs show `getaddrinfo ENOTFOUND …trycloudflare.com`   | DNS hadn't propagated yet. Wait a few seconds and re-trigger the run; if it persists, the tunnel URL may have changed — stop and restart the tunnel. |
+| API log: _could not confirm public reachability … Proceeding_ | Advisory only — the local DNS probe didn't resolve in time but the tunnel is up. The cloud runner usually resolves it shortly after.                 |
+| Dialog error: _cloudflared exited (code 1) …_                 | cloudflared failed to start; the message now includes its output. Check your network/firewall and that the API is listening on `:3001`.              |
+| Cloud run still fails after tunnel is up                      | Confirm the run was **re-triggered** after the tunnel reported running (the editor does this automatically via the dialog).                          |

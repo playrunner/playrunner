@@ -7,6 +7,30 @@ const TRYCLOUDFLARE_URL_REGEX = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 const START_TIMEOUT_MS = 30000;
 const REACHABLE_TIMEOUT_MS = 60000;
 const REACHABLE_POLL_INTERVAL_MS = 2000;
+// Give DNS a moment to propagate before the first probe. Probing the instant
+// cloudflared prints the name returns NXDOMAIN, which the OS resolver
+// negatively caches — poisoning every retry within that cache's TTL.
+const REACHABLE_INITIAL_DELAY_MS = 4000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// node's fetch throws a generic "fetch failed"; the actionable detail lives on
+// the `cause` (e.g. ENOTFOUND, ECONNREFUSED, timeouts).
+function describeFetchError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const cause = (err as { cause?: unknown }).cause;
+  if (cause instanceof Error) {
+    const code = (cause as { code?: string }).code;
+    return code
+      ? `${err.message} (${code}: ${cause.message})`
+      : `${err.message} (${cause.message})`;
+  }
+  return err.message;
+}
 
 class TunnelService {
   private process: ChildProcess | null = null;
@@ -55,7 +79,7 @@ class TunnelService {
     }
 
     this.status = 'running';
-    console.log(`[tunnel] ready and publicly reachable at ${this.url}`);
+    console.log(`[tunnel] running at ${this.url}`);
     child.on('exit', () => {
       if (this.process === child) {
         this.process = null;
@@ -77,6 +101,9 @@ class TunnelService {
   private waitForTunnelUrl(child: ChildProcess): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       let settled = false;
+      // Keep recent cloudflared output so failures can report the real reason
+      // (e.g. an auth/network error) instead of an opaque exit code.
+      let output = '';
 
       const finish = (fn: () => void) => {
         if (settled) return;
@@ -87,9 +114,13 @@ class TunnelService {
         fn();
       };
 
+      const tail = () => output.trim().split('\n').slice(-8).join('\n');
+
       // cloudflared prints the assigned URL to stderr.
       const onData = (chunk: Buffer) => {
-        const match = chunk.toString().match(TRYCLOUDFLARE_URL_REGEX);
+        const text = chunk.toString();
+        output += text;
+        const match = text.match(TRYCLOUDFLARE_URL_REGEX);
         if (match) {
           finish(() => resolve(match[0]));
         }
@@ -102,7 +133,9 @@ class TunnelService {
         finish(() =>
           reject(
             new Error(
-              `cloudflared exited (code ${code}) before a tunnel URL was established.`,
+              `cloudflared exited (code ${code}) before a tunnel URL was established.${
+                tail() ? `\n${tail()}` : ''
+              }`,
             ),
           ),
         ),
@@ -113,7 +146,9 @@ class TunnelService {
           finish(() =>
             reject(
               new Error(
-                'Timed out waiting for cloudflared to establish a tunnel.',
+                `Timed out waiting for cloudflared to establish a tunnel.${
+                  tail() ? `\n${tail()}` : ''
+                }`,
               ),
             ),
           ),
@@ -123,10 +158,14 @@ class TunnelService {
   }
 
   // A freshly created *.trycloudflare.com name is registered the moment
-  // cloudflared prints it, but is not yet globally resolvable. Handing it to a
-  // cloud runner immediately races DNS propagation (and a failed lookup gets
-  // negatively cached), so we gate on the public URL being reachable first.
+  // cloudflared prints it, but is not yet globally resolvable. We best-effort
+  // wait for the public URL to respond so DNS has time to propagate before a
+  // cloud runner uses it. This probe runs against *this machine's* resolver, so
+  // it is advisory only — cloud runners resolve via their own resolvers and are
+  // unaffected by a local negative-cache, so we never fail the tunnel on it.
   private async waitForTunnelReachable(url: string): Promise<void> {
+    await delay(REACHABLE_INITIAL_DELAY_MS);
+
     const deadline = Date.now() + REACHABLE_TIMEOUT_MS;
     let lastError = '';
 
@@ -136,19 +175,18 @@ class TunnelService {
         // routes through the tunnel to the local API. We only retry on
         // network/DNS errors, which throw.
         await fetch(`${url}/api/heartbeat`, { method: 'GET' });
+        console.log(`[tunnel] confirmed publicly reachable at ${url}`);
         return;
       } catch (err) {
-        lastError = err instanceof Error ? err.message : String(err);
-        await new Promise((resolve) =>
-          setTimeout(resolve, REACHABLE_POLL_INTERVAL_MS),
-        );
+        lastError = describeFetchError(err);
+        await delay(REACHABLE_POLL_INTERVAL_MS);
       }
     }
 
-    throw new Error(
-      `Tunnel ${url} did not become publicly reachable within ${
-        REACHABLE_TIMEOUT_MS / 1000
-      }s (last error: ${lastError}).`,
+    console.warn(
+      `[tunnel] started but could not confirm public reachability from this ` +
+        `machine within ${REACHABLE_TIMEOUT_MS / 1000}s (last error: ${lastError}). ` +
+        `Proceeding — cloud runners may need a few seconds for DNS to propagate.`,
     );
   }
 

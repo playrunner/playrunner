@@ -249,17 +249,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-687"
   },
-  "/playrunner/docs-847": {
+  "/playrunner/docs-6c0": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docsaba-84d"
     }
   },
-  "/playrunner/docs-0f9": {
+  "/playrunner/docs-94a": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-607-284"
   },
-  "/playrunner/docs-f13": {
+  "/playrunner/docs-8d8": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/category/legal-17f": {
@@ -297,6 +297,10 @@
   "/playrunner/docs/local-dev/postgres-prisma-and-local-auth-087": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-local-dev-postgres-prisma-and-local-auth-99-b-3be"
+  },
+  "/playrunner/docs/local-dev/remote-debugging-26f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-remote-debugging-447-53a"
   },
   "/playrunner/docs/local-dev/services-and-ports-caf": {
     "__comp": "__comp---theme-doc-item-178-a40",

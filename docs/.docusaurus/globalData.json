@@ -51,6 +51,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "local-dev/remote-debugging",
+              "path": "/playrunner/docs/local-dev/remote-debugging",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "local-dev/services-and-ports",
               "path": "/playrunner/docs/local-dev/services-and-ports",
               "sidebar": "tutorialSidebar"

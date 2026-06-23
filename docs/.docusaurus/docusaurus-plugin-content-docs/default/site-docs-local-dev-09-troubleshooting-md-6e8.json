@@ -22,7 +22,7 @@
     "permalink": "/playrunner/docs/local-dev/postgres-prisma-and-local-auth"
   },
   "next": {
-    "title": "Legal",
-    "permalink": "/playrunner/docs/category/legal"
+    "title": "Remote Debugging (Cloud Runners + Tunnel)",
+    "permalink": "/playrunner/docs/local-dev/remote-debugging"
   }
 }

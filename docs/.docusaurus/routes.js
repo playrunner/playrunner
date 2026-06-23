@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '847'),
+    component: ComponentCreator('/playrunner/docs', '6c0'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '0f9'),
+        component: ComponentCreator('/playrunner/docs', '94a'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', 'f13'),
+            component: ComponentCreator('/playrunner/docs', '8d8'),
             routes: [
               {
                 path: '/playrunner/docs/category/legal',
@@ -175,6 +175,12 @@ export default [
               {
                 path: '/playrunner/docs/local-dev/postgres-prisma-and-local-auth',
                 component: ComponentCreator('/playrunner/docs/local-dev/postgres-prisma-and-local-auth', '087'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/remote-debugging',
+                component: ComponentCreator('/playrunner/docs/local-dev/remote-debugging', '26f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
