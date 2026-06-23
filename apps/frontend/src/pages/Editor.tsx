@@ -38,6 +38,7 @@ import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
 
 import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
+import { TunnelDialog } from '../components/TunnelDialog';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { JiraSettingsModal } from '../integrations/jira/JiraSettingsModal';
 import { GithubSettingsModal } from '../integrations/github/GithubSettingsModal';
@@ -709,6 +710,13 @@ export default function Editor() {
     useState<string>(defaultCloudProvider);
   const [cloudProjectId, setCloudProjectId] = useState<string>('');
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
+  const [isTunnelDialogOpen, setIsTunnelDialogOpen] = useState(false);
+  const pendingTunnelRunRef = useRef<{
+    connectionsToRun: Connection[];
+    currentCloudProvider: string;
+    nodesToRun: NodeData[];
+    settings: Record<string, any>;
+  } | null>(null);
   const [connectedCloudIds, setConnectedCloudIds] = useState<Set<string>>(
     new Set(),
   );
@@ -819,16 +827,21 @@ export default function Editor() {
       });
 
       const payload = (await response.json().catch(() => null)) as {
+        code?: string;
         error?: string;
         message?: string;
         testId?: string;
       } | null;
       if (!response.ok) {
-        throw new Error(
+        const error = new Error(
           payload?.error ||
             payload?.message ||
             `Workflow start failed with status ${response.status}`,
         );
+        if (payload?.code) {
+          (error as Error & { code?: string }).code = payload.code;
+        }
+        throw error;
       }
 
       if (!payload?.testId) {
@@ -856,6 +869,64 @@ export default function Editor() {
     },
     [activeWorkflowId, closeExecutionStream, concurrency, handleExecutionEvent],
   );
+
+  const runWorkflow = useCallback(
+    (
+      nodesToRun: NodeData[],
+      connectionsToRun: Connection[],
+      currentCloudProvider: string,
+      settings: Record<string, any>,
+    ) => {
+      startWorkflowExecution(
+        nodesToRun,
+        connectionsToRun,
+        currentCloudProvider,
+        settings,
+      ).catch((err) => {
+        if (
+          err instanceof Error &&
+          (err as Error & { code?: string }).code === 'TUNNEL_REQUIRED'
+        ) {
+          pendingTunnelRunRef.current = {
+            connectionsToRun,
+            currentCloudProvider,
+            nodesToRun,
+            settings,
+          };
+          isSimulationRunning.current = false;
+          setSimulationState('idle');
+          setIsTunnelDialogOpen(true);
+          return;
+        }
+        console.error('Failed to start workflow API:', err);
+        appendOrchestratorLog(
+          `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          'Error',
+        );
+        isSimulationRunning.current = false;
+        setSimulationState('idle');
+      });
+    },
+    [appendOrchestratorLog, startWorkflowExecution],
+  );
+
+  const handleTunnelStarted = useCallback(() => {
+    setIsTunnelDialogOpen(false);
+    const pending = pendingTunnelRunRef.current;
+    pendingTunnelRunRef.current = null;
+    if (!pending) return;
+
+    isSimulationRunning.current = true;
+    setSimulationState('running');
+    setNodeStatus({});
+    setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
+    runWorkflow(
+      pending.nodesToRun,
+      pending.connectionsToRun,
+      pending.currentCloudProvider,
+      pending.settings,
+    );
+  }, [runWorkflow]);
 
   const handlePlay = useCallback(async () => {
     if (isSimulationRunning.current) return;
@@ -897,27 +968,13 @@ export default function Editor() {
       console.warn('auth.currentUser is null when handlePlay is called!');
     }
 
-    startWorkflowExecution(
+    runWorkflow(
       getNodesWithParents(),
       connections,
       currentCloudProvider,
       settings,
-    ).catch((err) => {
-      console.error('Failed to start workflow API:', err);
-      appendOrchestratorLog(
-        `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        'Error',
-      );
-      isSimulationRunning.current = false;
-      setSimulationState('idle');
-    });
-  }, [
-    appendOrchestratorLog,
-    cloudProvider,
-    connections,
-    getNodesWithParents,
-    startWorkflowExecution,
-  ]);
+    );
+  }, [cloudProvider, connections, getNodesWithParents, runWorkflow]);
 
   const handlePlayNode = async (nodeId: string) => {
     if (isSimulationRunning.current) return;
@@ -970,20 +1027,7 @@ export default function Editor() {
         return n;
       });
 
-    startWorkflowExecution(
-      nodesToRun,
-      [],
-      currentCloudProvider,
-      settings,
-    ).catch((err) => {
-      console.error('Failed to start workflow API:', err);
-      appendOrchestratorLog(
-        `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        'Error',
-      );
-      isSimulationRunning.current = false;
-      setSimulationState('idle');
-    });
+    runWorkflow(nodesToRun, [], currentCloudProvider, settings);
   };
 
   const handleStopNode = async (nodeId: string) => {
@@ -1987,6 +2031,13 @@ export default function Editor() {
             }
           />
         ) : null}
+
+        <TunnelDialog
+          isOpen={isTunnelDialogOpen}
+          onClose={() => setIsTunnelDialogOpen(false)}
+          onStarted={handleTunnelStarted}
+          providerLabel={activeCloudProvider?.label || cloudProvider}
+        />
 
         <Modal
           isOpen={isCodeModalOpen}

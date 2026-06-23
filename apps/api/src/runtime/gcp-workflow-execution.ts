@@ -4,6 +4,7 @@ import type {
   WorkflowExecutionRequest,
   WorkflowExecutionResult,
 } from './contracts';
+import type { Request } from 'express';
 import { EDITOR_API_PUBLIC_URL } from '../config';
 import { ensureOrchestratorService } from '../services/cloudrun';
 import { executionEvents } from '../services/execution-events';
@@ -12,7 +13,42 @@ import {
   getStorage,
   refreshGcpAccessTokenIfNeeded,
 } from '../services/gcs';
+import { tunnelService } from '../services/tunnel';
 import { state } from '../state';
+
+function isLocalHost(host: string | undefined): boolean {
+  if (!host) {
+    return false;
+  }
+  const hostname = host
+    .split(':')[0]
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === 'host.docker.internal'
+  );
+}
+
+// Cloud runners call back to this URL. When the API only has a local host and
+// no public/tunnel URL is available, the runners cannot reach it, so we signal
+// the editor to start a tunnel instead of failing mid-execution.
+function resolveEditorApiUrl(
+  req: Request,
+): { editorApiUrl: string } | { tunnelRequired: true } {
+  if (EDITOR_API_PUBLIC_URL) {
+    return { editorApiUrl: EDITOR_API_PUBLIC_URL };
+  }
+  if (tunnelService.isActive()) {
+    return { editorApiUrl: tunnelService.getState().url };
+  }
+  if (isLocalHost(req.get('host'))) {
+    return { tunnelRequired: true };
+  }
+  return { editorApiUrl: `${req.protocol}://${req.get('host')}` };
+}
 
 function missingRunnerSettings(gcp: Record<string, any>): string[] {
   const missing: string[] = [];
@@ -82,6 +118,19 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         status: 401,
       };
     }
+
+    const editorApiResolution = resolveEditorApiUrl(req);
+    if ('tunnelRequired' in editorApiResolution) {
+      return {
+        body: {
+          code: 'TUNNEL_REQUIRED',
+          error:
+            'Cloud runners cannot reach this local Playrunner API. Start a tunnel to expose it, then run again.',
+        },
+        status: 409,
+      };
+    }
+    const editorApiUrl = editorApiResolution.editorApiUrl;
 
     state.gcpCredentials[testId] = {
       accessToken: gcp.accessToken,
@@ -197,8 +246,6 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         `[workflows] Uploaded workflow payload to ${workflowPayloadUri}`,
       );
 
-      const editorApiUrl =
-        EDITOR_API_PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
       const serviceUri = await ensureOrchestratorService(
         gcp.selectedProject,
         refreshedToken,

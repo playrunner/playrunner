@@ -16,6 +16,9 @@ type CloudRunExecution = {
 };
 
 const POLL_INTERVAL_MS = 3000;
+const MAX_TRANSIENT_RETRIES = 4;
+const RETRY_BASE_DELAY_MS = 1000;
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
 const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE =
   'playrunner-{runtime}-{version}-{cpu}cpu-{memory}gi';
@@ -93,21 +96,53 @@ async function cloudRunRequest<T>(
   accessToken: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(cloudRunUrl(resourcePath), {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
+  let lastError: unknown;
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Cloud Run API returned ${response.status}: ${details}`);
+  for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(cloudRunUrl(resourcePath), {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          ...(init.headers || {}),
+        },
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt === MAX_TRANSIENT_RETRIES) {
+        throw error;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** attempt),
+      );
+      continue;
+    }
+
+    if (!response.ok) {
+      const details = await response.text();
+      if (
+        RETRYABLE_STATUS_CODES.has(response.status) &&
+        attempt < MAX_TRANSIENT_RETRIES
+      ) {
+        lastError = new Error(
+          `Cloud Run API returned ${response.status}: ${details}`,
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** attempt),
+        );
+        continue;
+      }
+      throw new Error(`Cloud Run API returned ${response.status}: ${details}`);
+    }
+
+    return response.json() as Promise<T>;
   }
 
-  return response.json() as Promise<T>;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Cloud Run API request failed after retries.');
 }
 
 async function jobExists(

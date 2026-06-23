@@ -30,6 +30,8 @@ graph TD
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
 4. **Pub/Sub**: Facilitates asynchronous, real-time log streaming from the Playwright Runner back to the API Server, which then streams them via SSE to the user's browser.
 
+> **Debugging cloud runs locally?** When the API is running on your machine, cloud runners cannot reach `localhost` to send logs and results back. See [Remote Debugging (Cloud Runners + Tunnel)](./local-dev/10-remote-debugging) for how Playrunner bridges this with an automatic Cloudflare tunnel.
+
 ---
 
 ## Dynamic Provisioning & Authentication

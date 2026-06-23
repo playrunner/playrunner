@@ -103,6 +103,12 @@ export default {
           "href": "https://github.com/playrunner/playrunner",
           "label": "GitHub",
           "position": "right"
+        },
+        {
+          "href": "https://discord.gg/23yz25kat",
+          "position": "right",
+          "className": "header-discord-link",
+          "aria-label": "Join our Discord"
         }
       ],
       "hideOnScroll": false

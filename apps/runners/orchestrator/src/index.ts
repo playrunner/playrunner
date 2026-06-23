@@ -42,16 +42,9 @@ let editorIsAlive = true;
 setInterval(async () => {
   try {
     const res = await fetch(`${EDITOR_API_URL}/api/heartbeat`);
-    const responseText = await res.text().catch(() => '');
     editorIsAlive = res.ok;
-    console.log(
-      `[heartbeat] editor-check status=${res.status} ok=${res.ok} activeWorkflows=${activeWorkflows} editorIsAlive=${editorIsAlive} body=${responseText || '<empty>'}`,
-    );
   } catch {
     editorIsAlive = false;
-    console.log(
-      `[heartbeat] editor-check failed activeWorkflows=${activeWorkflows} editorIsAlive=${editorIsAlive}`,
-    );
   }
 
   if (!editorIsAlive && activeWorkflows === 0) {
@@ -671,9 +664,6 @@ async function executeWorkflow(reqBody: any) {
     throw err;
   } finally {
     activeWorkflows--;
-    console.log(
-      `[heartbeat] workflow-finished activeWorkflows=${activeWorkflows} editorIsAlive=${editorIsAlive}`,
-    );
     if (
       !editorIsAlive &&
       activeWorkflows === 0 &&

@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import type { Response } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
+import { tunnelService } from '../services/tunnel';
 import { state } from '../state';
 
 export const systemRouter = Router();
-const presenceClientIds = new WeakMap<Response, string>();
 
 function isResponseAlive(response: Response) {
   return !response.writableEnded && !response.destroyed;
@@ -12,10 +12,8 @@ function isResponseAlive(response: Response) {
 
 systemRouter.get('/presence/stream', requireAuth, (req, res) => {
   let isClosed = false;
-  const clientId = `presence-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  presenceClientIds.set(res, clientId);
 
-  const cleanup = (reason: string) => {
+  const cleanup = () => {
     if (isClosed) {
       return;
     }
@@ -24,9 +22,6 @@ systemRouter.get('/presence/stream', requireAuth, (req, res) => {
     clearInterval(heartbeatInterval);
     state.presenceSseClients = state.presenceSseClients.filter(
       (client) => client !== res,
-    );
-    console.log(
-      `[presence] disconnected client=${clientId} reason=${reason} remaining=${state.presenceSseClients.length}`,
     );
   };
 
@@ -37,37 +32,48 @@ systemRouter.get('/presence/stream', requireAuth, (req, res) => {
 
   res.write(': connected\n\n');
   state.presenceSseClients.push(res);
-  console.log(
-    `[presence] connected client=${clientId} total=${state.presenceSseClients.length}`,
-  );
 
   const heartbeatInterval = setInterval(() => {
     if (!isResponseAlive(res)) {
-      cleanup('response-not-alive');
+      cleanup();
       return;
     }
 
-    console.log(`[presence] send-heartbeat client=${clientId}`);
     res.write(': heartbeat\n\n');
   }, 15000);
 
-  req.on('close', () => cleanup('request-close'));
-  res.on('close', () => cleanup('response-close'));
-  res.on('error', () => cleanup('response-error'));
+  req.on('close', () => cleanup());
+  res.on('close', () => cleanup());
+  res.on('error', () => cleanup());
 });
 
 systemRouter.get('/heartbeat', (req, res) => {
   state.presenceSseClients = state.presenceSseClients.filter(isResponseAlive);
-  const presenceIds = state.presenceSseClients.map(
-    (client) => presenceClientIds.get(client) ?? 'unknown',
-  );
-  console.log(
-    `[presence] heartbeat-probe presenceClients=${state.presenceSseClients.length} executionClients=${state.executionSseClients.length} ids=${presenceIds.join(',') || 'none'}`,
-  );
 
   if (state.presenceSseClients.length > 0) {
     res.status(200).send('OK');
   } else {
     res.status(404).send('No editor connected');
   }
+});
+
+systemRouter.get('/tunnel/status', requireAuth, (_req, res) => {
+  res.json(tunnelService.getState());
+});
+
+systemRouter.post('/tunnel/start', requireAuth, async (_req, res) => {
+  try {
+    const { url } = await tunnelService.start();
+    res.json({ status: 'running', url });
+  } catch (err) {
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to start tunnel.',
+      status: 'error',
+    });
+  }
+});
+
+systemRouter.post('/tunnel/stop', requireAuth, (_req, res) => {
+  tunnelService.stop();
+  res.json({ status: 'stopped' });
 });
