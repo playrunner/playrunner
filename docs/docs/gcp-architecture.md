@@ -38,7 +38,9 @@ A key benefit of the Playrunner architecture is that **you do not need to manual
 
 What Playrunner does **not** do for you is build or push container images.
 Cloud Run still needs published images for the Orchestrator service and the
-Playwright runner jobs before runtime provisioning can succeed.
+Playwright runner jobs before runtime provisioning can succeed. The repo ships
+`infra/scripts/push-runners.sh` to do this — see
+[Publishing to GCP](./local-dev/06-docker-images#publishing-to-gcp).
 
 When a user initiates a workflow from the web interface targeting GCP:
 

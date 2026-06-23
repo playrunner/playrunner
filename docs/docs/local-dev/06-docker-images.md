@@ -122,3 +122,71 @@ docker build -t playrunner-orchestrator ./apps/runners/orchestrator
 ```
 
 Then restart the Orchestrator container: close and reopen the Editor tab, which triggers `POST /api/runners/start` and spawns a fresh container.
+
+---
+
+## Publishing to GCP
+
+Running workflows against the GCP execution path requires the Orchestrator and Playwright images to be available in a registry that Cloud Run can pull from. The repo ships a helper that builds and pushes them to Google Artifact Registry, redeploys the Orchestrator Cloud Run service, and clears stale Playwright Cloud Run Jobs so they pick up the new image:
+
+```bash
+./infra/scripts/push-runners.sh
+```
+
+### Prerequisites
+
+1. **Connect GCP in the Integrations modal.** The script reads the GCP project, region, Cloud Run service name, and image URI templates straight from the `CloudCredential` row that the modal writes to Postgres. Nothing else stores these values.
+2. **Apply the Terraform under `infra/gcp`** at least once so the `orchestrator` and `playwright-runner` Artifact Registry repositories exist in your project.
+3. **Local tooling on `PATH`:** `docker`, `gcloud`, and `node`. `apps/api/.env` must contain a working `DATABASE_URL` (the script reuses Prisma from `apps/api/node_modules` to read the credential).
+4. **Docker auth for Artifact Registry**, once per region:
+   ```bash
+   gcloud auth configure-docker <region>-docker.pkg.dev
+   ```
+
+### Reading the stored settings
+
+If you want to confirm what the script will use before running it:
+
+```bash
+node infra/scripts/gcp-settings.mjs json
+```
+
+This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/scripts/push-runners.sh --help` for the wrapper script's options.
+
+### Usage
+
+Interactive (confirmation prompt, then menu for orchestrator / playwright / both):
+
+```bash
+./infra/scripts/push-runners.sh
+```
+
+Non-interactive, e.g. for CI:
+
+```bash
+./infra/scripts/push-runners.sh --target both --yes
+```
+
+One-off override (push to a project other than the one saved in the modal):
+
+```bash
+./infra/scripts/push-runners.sh --project-id my-other-project --target orchestrator --yes
+```
+
+All flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--project-id <id>` | Override the stored GCP project ID |
+| `--region <region>` | Override the stored Cloud Run region |
+| `--orchestrator-service-name <n>` | Override the stored Cloud Run service name |
+| `--user-id <id>` | Filter the Postgres lookup when multiple users have GCP credentials |
+| `--target orchestrator\|playwright\|both` | Skip the interactive menu |
+| `--base-path <path>` | `BASE_PATH` build arg for the Orchestrator image (default `.`) |
+| `--yes`, `-y` | Skip the confirmation prompt |
+
+### What it does
+
+- **Orchestrator:** builds `apps/runners/orchestrator` as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --cpu-boost` to roll out the new image.
+- **Playwright:** for both `typescript` and `python`, builds every tag in `config/playwright-runner-versions.json`. The tag flagged `publishAsLatest: true` is additionally pushed as `:latest`. Tags use `playwrightImageUriTemplate` with `{projectId}`, `{runtime}`, and `{version}` substituted.
+- **Job cleanup:** deletes any existing Cloud Run Jobs named `playrunner-*` in the configured region so the next workflow execution recreates them with the new image.
