@@ -15,13 +15,28 @@ type CloudRunExecution = {
   name?: string;
 };
 
+type CloudRunJob = {
+  name?: string;
+  template?: {
+    template?: {
+      containers?: Array<{
+        image?: string;
+        name?: string;
+        resources?: {
+          limits?: Record<string, string>;
+          startupCpuBoost?: boolean;
+        };
+      }>;
+    };
+  };
+};
+
 const POLL_INTERVAL_MS = 3000;
 const MAX_TRANSIENT_RETRIES = 4;
 const RETRY_BASE_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
-const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE =
-  'playrunner-{runtime}-{version}-{cpu}cpu-{memory}gi';
+const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE = 'playrunner-{runtime}';
 
 function requireSetting(value: string | undefined, name: string): string {
   const normalized = value?.trim();
@@ -45,6 +60,25 @@ function requirePositiveNumber(value: unknown, name: string): number {
     );
   }
   return value;
+}
+
+function requirePositiveInteger(value: unknown, name: string): number {
+  const numberValue =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : NaN;
+  if (
+    !Number.isInteger(numberValue) ||
+    !Number.isFinite(numberValue) ||
+    numberValue <= 0
+  ) {
+    throw new Error(
+      `${name} must be provided as a positive integer for GCP Playwright execution.`,
+    );
+  }
+  return numberValue;
 }
 
 function renderTemplate(
@@ -145,16 +179,15 @@ async function cloudRunRequest<T>(
     : new Error('Cloud Run API request failed after retries.');
 }
 
-async function jobExists(
+async function getPlaywrightJob(
   jobPath: string,
   accessToken: string,
-): Promise<boolean> {
+): Promise<CloudRunJob | null> {
   try {
-    await cloudRunRequest(jobPath, accessToken);
-    return true;
+    return await cloudRunRequest<CloudRunJob>(jobPath, accessToken);
   } catch (error: any) {
     if (error.message?.includes('Cloud Run API returned 404')) {
-      return false;
+      return null;
     }
     throw error;
   }
@@ -215,7 +248,50 @@ async function ensurePlaywrightJob(args: {
   const parentPath = `projects/${args.projectId}/locations/${args.location}`;
   const jobPath = `${parentPath}/jobs/${args.jobName}`;
 
-  if (await jobExists(jobPath, args.accessToken)) {
+  const existingJob = await getPlaywrightJob(jobPath, args.accessToken);
+  if (existingJob) {
+    const container = existingJob.template?.template?.containers?.find(
+      (candidate) => candidate.name === 'playwright',
+    );
+    const limits = container?.resources?.limits || {};
+    const hasRequestedTemplate =
+      container?.image === args.imageUri &&
+      limits.cpu === `${args.cpu}` &&
+      limits.memory === `${args.memory}Gi`;
+
+    if (hasRequestedTemplate) {
+      return jobPath;
+    }
+
+    const operation = await cloudRunRequest<CloudRunOperation>(
+      `${jobPath}?updateMask=template.template.containers,template.template.maxRetries`,
+      args.accessToken,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: jobPath,
+          template: {
+            template: {
+              containers: [
+                {
+                  image: args.imageUri,
+                  name: 'playwright',
+                  resources: {
+                    limits: {
+                      cpu: `${args.cpu}`,
+                      memory: `${args.memory}Gi`,
+                    },
+                    startupCpuBoost: true,
+                  },
+                },
+              ],
+              maxRetries: 0,
+            },
+          },
+        }),
+      },
+    );
+    await waitForOperation(operation.name, args.accessToken);
     return jobPath;
   }
 
@@ -236,6 +312,7 @@ async function ensurePlaywrightJob(args: {
                     cpu: `${args.cpu}`,
                     memory: `${args.memory}Gi`,
                   },
+                  startupCpuBoost: true,
                 },
               },
             ],
@@ -261,11 +338,13 @@ async function triggerPlaywrightJob(args: {
   memory: number;
   payloadData: any;
   projectId: string;
+  workers: number;
 }): Promise<string> {
   const jobPath = await ensurePlaywrightJob(args);
   const env = [
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
     { name: 'GCP_PROJECT', value: args.projectId },
+    { name: 'PLAYWRIGHT_WORKERS', value: String(args.workers) },
     ...args.envKeys.map((key) => ({
       name: key,
       value: args.globalEnvVars[key] || '',
@@ -327,6 +406,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
     );
     const cpu = requirePositiveNumber(config.cpu, 'cpu');
     const memory = requirePositiveNumber(config.memory, 'memory');
+    const workers = requirePositiveInteger(config.workers || 1, 'workers');
     const imageUri = resolvePlaywrightCloudImage(
       projectId,
       runtime,
@@ -360,6 +440,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       memory,
       payloadData,
       projectId,
+      workers,
     });
     await publishLog(
       `Playwright Cloud Run Job (${executionName}) finished successfully.`,

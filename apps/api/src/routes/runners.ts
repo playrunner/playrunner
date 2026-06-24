@@ -6,6 +6,8 @@ export const runnersRouter = Router();
 
 // Endpoint to start the runner (called on mount by Editor.tsx)
 runnersRouter.post('/start', requireAuth, async (req, res) => {
-  const result = await apiRuntime.runnerProvisioner.start();
+  const result = await apiRuntime.runnerProvisioner.start(
+    req.body?.cloudProvider,
+  );
   res.status(result.status).json(result.body);
 });

@@ -45,7 +45,7 @@ export interface RunnerProvisionResult {
 }
 
 export interface RunnerProvisioner {
-  start(): Promise<RunnerProvisionResult>;
+  start(cloudProvider?: string): Promise<RunnerProvisionResult>;
 }
 
 export interface CloudProviderDefinition {

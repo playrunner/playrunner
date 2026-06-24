@@ -8,11 +8,7 @@ import type { Request } from 'express';
 import { EDITOR_API_PUBLIC_URL } from '../config';
 import { ensureOrchestratorService } from '../services/cloudrun';
 import { executionEvents } from '../services/execution-events';
-import {
-  ensureBucket,
-  getStorage,
-  refreshGcpAccessTokenIfNeeded,
-} from '../services/gcs';
+import { ensureBucket, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
 import { tunnelService } from '../services/tunnel';
 import { state } from '../state';
 
@@ -234,18 +230,6 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
 
     try {
-      const storage = getStorage(refreshedToken, gcp.selectedProject);
-      const bucket = storage.bucket(bucketName);
-      const file = bucket.file(`executions/${testId}/payload.json`);
-      await file.save(JSON.stringify(body), {
-        contentType: 'application/json',
-      });
-
-      const workflowPayloadUri = `gs://${bucketName}/executions/${testId}/payload.json`;
-      console.log(
-        `[workflows] Uploaded workflow payload to ${workflowPayloadUri}`,
-      );
-
       const serviceUri = await ensureOrchestratorService(
         gcp.selectedProject,
         refreshedToken,
@@ -266,7 +250,6 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
           bucketName,
           executionAuthToken: executionToken,
           testId,
-          workflowPayloadUri,
         }),
       });
 

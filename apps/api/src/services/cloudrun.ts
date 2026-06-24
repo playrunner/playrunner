@@ -2,6 +2,8 @@ import { ServicesClient } from '@google-cloud/run';
 import { OAuth2Client } from 'google-auth-library';
 
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
+const ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
+const ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 
 export interface GcpCloudRunSettings {
   cloudRunLocation?: string;
@@ -29,6 +31,50 @@ function renderTemplate(
 
 function getOrchestratorImageUri(projectId: string, template: string): string {
   return renderTemplate(template, { projectId });
+}
+
+async function ensureWarmService(
+  servicesClient: ServicesClient,
+  service: any,
+  formattedServiceName: string,
+): Promise<string> {
+  const serviceUri = service.uri!;
+  const currentMinInstances = Number(service.scaling?.minInstanceCount || 0);
+  if (currentMinInstances >= ORCHESTRATOR_MIN_INSTANCE_COUNT) {
+    return serviceUri;
+  }
+
+  const scaling: Record<string, number> = {
+    ...(service.scaling || {}),
+    minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+  };
+  const paths = ['scaling.min_instance_count'];
+
+  if (!service.scaling?.maxInstanceCount) {
+    scaling.maxInstanceCount = ORCHESTRATOR_MAX_INSTANCE_COUNT;
+    paths.push('scaling.max_instance_count');
+  }
+
+  try {
+    console.log(
+      `[CloudRun] Updating ${formattedServiceName} to keep ${ORCHESTRATOR_MIN_INSTANCE_COUNT} warm instance.`,
+    );
+    const [updateOperation] = await servicesClient.updateService({
+      service: {
+        name: formattedServiceName,
+        scaling,
+      },
+      updateMask: { paths },
+    });
+    const [updatedService] = await updateOperation.promise();
+    return updatedService.uri || serviceUri;
+  } catch (err: any) {
+    console.error(
+      `[CloudRun] Warning: Failed to update warm instance setting:`,
+      err.message,
+    );
+    return serviceUri;
+  }
 }
 
 export async function ensureOrchestratorService(
@@ -65,7 +111,11 @@ export async function ensureOrchestratorService(
     const [service] = await servicesClient.getService({
       name: formattedServiceName,
     });
-    serviceUri = service.uri!;
+    serviceUri = await ensureWarmService(
+      servicesClient,
+      service,
+      formattedServiceName,
+    );
   } catch (err: any) {
     if (err.code === 5 || err.message.includes('NOT_FOUND')) {
       console.log(
@@ -77,14 +127,20 @@ export async function ensureOrchestratorService(
         parent,
         serviceId: orchestratorServiceName,
         service: {
+          scaling: {
+            minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+          },
           template: {
             scaling: {
-              maxInstanceCount: 10,
+              maxInstanceCount: ORCHESTRATOR_MAX_INSTANCE_COUNT,
             },
             containers: [
               {
                 image: orchestratorImageUri,
                 name: 'orchestrator',
+                resources: {
+                  startupCpuBoost: true,
+                },
               },
             ],
           },

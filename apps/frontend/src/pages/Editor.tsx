@@ -294,6 +294,25 @@ export default function Editor() {
   const presenceStreamRef = useRef<EventSource | null>(null);
   const executionStreamRef = useRef<EventSource | null>(null);
   const runnerStartupSequenceRef = useRef(0);
+  const [isWorkflowLoaded, setIsWorkflowLoaded] = useState(
+    Boolean(initialNodes && initialConnections),
+  );
+  const [cloudProvider, setCloudProvider] =
+    useState<string>(defaultCloudProvider);
+  const [cloudProjectId, setCloudProjectId] = useState<string>('');
+  const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
+  const [isTunnelDialogOpen, setIsTunnelDialogOpen] = useState(false);
+  const pendingTunnelRunRef = useRef<{
+    connectionsToRun: Connection[];
+    currentCloudProvider: string;
+    nodesToRun: NodeData[];
+    settings: Record<string, any>;
+  } | null>(null);
+  const [connectedCloudIds, setConnectedCloudIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   const appendOrchestratorLog = React.useCallback(
     (
@@ -387,6 +406,12 @@ export default function Editor() {
   );
 
   useEffect(() => {
+    if (!isWorkflowLoaded) {
+      setIsOrchestratorReady(false);
+      setOrchestratorStartError(null);
+      return;
+    }
+
     let isDisposed = false;
 
     const unsubscribeRunner = auth.onAuthStateChanged(async (user) => {
@@ -445,9 +470,22 @@ export default function Editor() {
 
         presenceStreamRef.current = presenceStream;
 
+        if (cloudProvider !== 'LOCAL_RUNNER') {
+          appendOrchestratorLog(
+            `${cloudProvider} runner selected. Local Docker orchestrator startup skipped.`,
+            'Info',
+          );
+          setIsOrchestratorReady(true);
+          return;
+        }
+
         const response = await fetch('/api/runners/start', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ cloudProvider }),
         });
         const payload = await response.json().catch(() => null);
         if (isStale()) {
@@ -497,9 +535,11 @@ export default function Editor() {
     };
   }, [
     appendOrchestratorLog,
+    cloudProvider,
     closeExecutionStream,
     closePresenceStream,
     invalidateRunnerStartupSequence,
+    isWorkflowLoaded,
     orchestratorStartAttempt,
   ]);
 
@@ -544,129 +584,136 @@ export default function Editor() {
   };
 
   useEffect(() => {
-    if (initialNodes && initialConnections) return;
+    if (initialNodes && initialConnections) {
+      setIsWorkflowLoaded(true);
+      return;
+    }
 
     const loadWorkflow = async () => {
-      let loaded = false;
-      if (auth.currentUser) {
-        try {
-          const data = await DbAPI.getWorkflow(
-            auth.currentUser.uid,
-            activeWorkflowId,
-          );
-          if (data) {
-            if (data.nodes) setNodes(data.nodes);
-            if (data.connections) setConnections(data.connections);
-            if (data.name) setWorkflowName(data.name);
-            if (data.title) setWorkflowName(data.title);
-            if (data.projectId) setProjectId(data.projectId);
-            if (data.concurrency) setConcurrency(data.concurrency);
-            if (data.cloudProvider)
-              setCloudProvider(normalizeCloudProvider(data.cloudProvider));
-            else if (data.provider)
-              setCloudProvider(normalizeCloudProvider(data.provider));
-            loaded = true;
-          }
-        } catch (err) {
-          console.error(
-            'Failed to load workflow from the local database:',
-            err,
-          );
-        }
-      }
-
-      if (!loaded) {
-        const localData = localStorage.getItem('playrunner_local_workflow');
-        if (localData) {
+      try {
+        let loaded = false;
+        if (auth.currentUser) {
           try {
-            const parsed = JSON.parse(localData);
-            if (parsed.nodes) setNodes(parsed.nodes);
-            if (parsed.connections) setConnections(parsed.connections);
-            if (parsed.name) setWorkflowName(parsed.name);
-            if (parsed.title) setWorkflowName(parsed.title);
-            if (parsed.projectId) setProjectId(parsed.projectId);
-            if (parsed.concurrency) setConcurrency(parsed.concurrency);
-            if (parsed.cloudProvider)
-              setCloudProvider(normalizeCloudProvider(parsed.cloudProvider));
-            else if (parsed.provider)
-              setCloudProvider(normalizeCloudProvider(parsed.provider));
-            loaded = true;
-          } catch (error) {
+            const data = await DbAPI.getWorkflow(
+              auth.currentUser.uid,
+              activeWorkflowId,
+            );
+            if (data) {
+              if (data.nodes) setNodes(data.nodes);
+              if (data.connections) setConnections(data.connections);
+              if (data.name) setWorkflowName(data.name);
+              if (data.title) setWorkflowName(data.title);
+              if (data.projectId) setProjectId(data.projectId);
+              if (data.concurrency) setConcurrency(data.concurrency);
+              if (data.cloudProvider)
+                setCloudProvider(normalizeCloudProvider(data.cloudProvider));
+              else if (data.provider)
+                setCloudProvider(normalizeCloudProvider(data.provider));
+              loaded = true;
+            }
+          } catch (err) {
             console.error(
-              'Failed to parse local workflow from localStorage:',
-              error,
+              'Failed to load workflow from the local database:',
+              err,
             );
           }
         }
-      }
 
-      if (!loaded) {
-        // Load sample or previously saved nodes
-        const sampleNodes: NodeData[] = [
-          {
-            id: 'n1',
-            nodeType: 'playwright',
-            label: 'Playwright',
-            x: 400,
-            y: 300,
-            width: 128,
-            height: 128,
-          },
-          {
-            id: 'n2',
-            nodeType: 'jira',
-            label: 'Jira',
-            x: 800,
-            y: 100,
-            width: 128,
-            height: 128,
-          },
-          {
-            id: 'n3',
-            nodeType: 'google-chat',
-            label: 'Google Chat',
-            x: 800,
-            y: 300,
-            width: 128,
-            height: 128,
-          },
-          {
-            id: 'n4',
-            nodeType: 'asana',
-            label: 'Asana',
-            x: 800,
-            y: 500,
-            width: 128,
-            height: 128,
-          },
-        ];
+        if (!loaded) {
+          const localData = localStorage.getItem('playrunner_local_workflow');
+          if (localData) {
+            try {
+              const parsed = JSON.parse(localData);
+              if (parsed.nodes) setNodes(parsed.nodes);
+              if (parsed.connections) setConnections(parsed.connections);
+              if (parsed.name) setWorkflowName(parsed.name);
+              if (parsed.title) setWorkflowName(parsed.title);
+              if (parsed.projectId) setProjectId(parsed.projectId);
+              if (parsed.concurrency) setConcurrency(parsed.concurrency);
+              if (parsed.cloudProvider)
+                setCloudProvider(normalizeCloudProvider(parsed.cloudProvider));
+              else if (parsed.provider)
+                setCloudProvider(normalizeCloudProvider(parsed.provider));
+              loaded = true;
+            } catch (error) {
+              console.error(
+                'Failed to parse local workflow from localStorage:',
+                error,
+              );
+            }
+          }
+        }
 
-        const sampleConnections: Connection[] = [
-          {
-            id: 'c1',
-            sourceId: 'n1',
-            targetId: 'n2',
-            sourcePort: 'right',
-            targetPort: 'left',
-          },
-          {
-            id: 'c2',
-            sourceId: 'n1',
-            targetId: 'n3',
-            sourcePort: 'right',
-            targetPort: 'left',
-          },
-          {
-            id: 'c3',
-            sourceId: 'n1',
-            targetId: 'n4',
-            sourcePort: 'right',
-            targetPort: 'left',
-          },
-        ];
+        if (!loaded) {
+          // Load sample or previously saved nodes
+          const sampleNodes: NodeData[] = [
+            {
+              id: 'n1',
+              nodeType: 'playwright',
+              label: 'Playwright',
+              x: 400,
+              y: 300,
+              width: 128,
+              height: 128,
+            },
+            {
+              id: 'n2',
+              nodeType: 'jira',
+              label: 'Jira',
+              x: 800,
+              y: 100,
+              width: 128,
+              height: 128,
+            },
+            {
+              id: 'n3',
+              nodeType: 'google-chat',
+              label: 'Google Chat',
+              x: 800,
+              y: 300,
+              width: 128,
+              height: 128,
+            },
+            {
+              id: 'n4',
+              nodeType: 'asana',
+              label: 'Asana',
+              x: 800,
+              y: 500,
+              width: 128,
+              height: 128,
+            },
+          ];
 
-        setNodes(sampleNodes);
-        setConnections(sampleConnections);
+          const sampleConnections: Connection[] = [
+            {
+              id: 'c1',
+              sourceId: 'n1',
+              targetId: 'n2',
+              sourcePort: 'right',
+              targetPort: 'left',
+            },
+            {
+              id: 'c2',
+              sourceId: 'n1',
+              targetId: 'n3',
+              sourcePort: 'right',
+              targetPort: 'left',
+            },
+            {
+              id: 'c3',
+              sourceId: 'n1',
+              targetId: 'n4',
+              sourcePort: 'right',
+              targetPort: 'left',
+            },
+          ];
+
+          setNodes(sampleNodes);
+          setConnections(sampleConnections);
+        }
+      } finally {
+        setIsWorkflowLoaded(true);
       }
     };
 
@@ -705,23 +752,6 @@ export default function Editor() {
     y: number;
     nodeId: string;
   } | null>(null);
-
-  const [cloudProvider, setCloudProvider] =
-    useState<string>(defaultCloudProvider);
-  const [cloudProjectId, setCloudProjectId] = useState<string>('');
-  const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
-  const [isTunnelDialogOpen, setIsTunnelDialogOpen] = useState(false);
-  const pendingTunnelRunRef = useRef<{
-    connectionsToRun: Connection[];
-    currentCloudProvider: string;
-    nodesToRun: NodeData[];
-    settings: Record<string, any>;
-  } | null>(null);
-  const [connectedCloudIds, setConnectedCloudIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
 
   const getNodesWithParents = useCallback(() => {
     return nodes.map((node) => {

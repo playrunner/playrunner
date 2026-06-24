@@ -15,6 +15,40 @@ type RunnerEventContext = {
 
 let runnerEventContext: RunnerEventContext | null = null;
 
+const BUNDLED_NODE_PACKAGES = new Set([
+  '@playwright/test',
+  'playwright',
+  'ts-node',
+  'typescript',
+]);
+
+function normalizeWorkers(value: unknown): number {
+  const parsed =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : 1;
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.min(100, Math.floor(parsed));
+}
+
+function getDependencyNames(packageJson: Record<string, any>): string[] {
+  const dependencyBlocks = [
+    packageJson.dependencies,
+    packageJson.devDependencies,
+    packageJson.optionalDependencies,
+    packageJson.peerDependencies,
+  ];
+  return dependencyBlocks.flatMap((dependencies) =>
+    dependencies && typeof dependencies === 'object'
+      ? Object.keys(dependencies)
+      : [],
+  );
+}
+
 async function publishEvent(payload: Record<string, unknown>) {
   if (
     !runnerEventContext?.executionToken ||
@@ -72,37 +106,123 @@ async function publishLog(message: string, level: 'info' | 'error' = 'info') {
   });
 }
 
-async function runTypescriptTest(workingDir: string): Promise<void> {
-  await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
-
-  if (fs.existsSync(path.join(workingDir, 'package.json'))) {
-    await publishLog('Installing npm dependencies...');
-    await new Promise<void>((resolve, reject) => {
-      const install = spawn('npm', ['install'], { cwd: workingDir });
-      install.stdout.on('data', (data) =>
-        console.log(`[npm]: ${data.toString().trim()}`),
-      );
-      install.stderr.on('data', (data) =>
-        console.error(`[npm error]: ${data.toString().trim()}`),
-      );
-      install.on('close', (code) =>
-        code === 0
-          ? resolve()
-          : reject(new Error(`npm install failed with code ${code}`)),
-      );
-    });
+async function installTypescriptDependencies(
+  workingDir: string,
+): Promise<void> {
+  const packageJsonPath = path.join(workingDir, 'package.json');
+  if (!fs.existsSync(packageJsonPath)) {
+    return;
   }
 
-  const args = ['playwright', 'test'];
+  const nodeModulesPath = path.join(workingDir, 'node_modules');
+  if (fs.existsSync(nodeModulesPath)) {
+    await publishLog('Using existing node_modules directory.');
+    return;
+  }
+
+  let packageJson: Record<string, any>;
+  try {
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  } catch (error: any) {
+    throw new Error(`Failed to parse package.json: ${error.message}`);
+  }
+
+  const dependencyNames = getDependencyNames(packageJson);
+  const hasExternalDependencies = dependencyNames.some(
+    (name) => !BUNDLED_NODE_PACKAGES.has(name) && !name.startsWith('@types/'),
+  );
+
+  if (!hasExternalDependencies) {
+    await publishLog(
+      'Using runner-bundled Playwright dependencies; skipping npm install.',
+    );
+    return;
+  }
+
+  const hasLockfile = fs.existsSync(path.join(workingDir, 'package-lock.json'));
+  const args = hasLockfile
+    ? ['ci', '--prefer-offline', '--no-audit', '--no-fund']
+    : ['install', '--prefer-offline', '--no-audit', '--no-fund'];
+  await publishLog(
+    hasLockfile
+      ? 'Installing npm dependencies with npm ci...'
+      : 'Installing npm dependencies...',
+  );
+  await new Promise<void>((resolve, reject) => {
+    const install = spawn('npm', args, { cwd: workingDir });
+    install.stdout.on('data', (data) =>
+      console.log(`[npm]: ${data.toString().trim()}`),
+    );
+    install.stderr.on('data', (data) =>
+      console.error(`[npm error]: ${data.toString().trim()}`),
+    );
+    install.on('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`npm ${args[0]} failed with code ${code}`)),
+    );
+  });
+}
+
+function resolvePlaywrightCommand(workingDir: string): {
+  args: string[];
+  command: string;
+} {
+  const localBin = path.join(workingDir, 'node_modules', '.bin', 'playwright');
+  if (fs.existsSync(localBin)) {
+    return { command: localBin, args: ['test'] };
+  }
+
+  const runnerBin = path.join(
+    process.cwd(),
+    'node_modules',
+    '.bin',
+    'playwright',
+  );
+  if (fs.existsSync(runnerBin)) {
+    return { command: runnerBin, args: ['test'] };
+  }
+
+  return { command: 'npx', args: ['--no-install', 'playwright', 'test'] };
+}
+
+function prepareInlineTypescriptTest(
+  testScript: string,
+  nodeId?: string,
+): string {
+  const safeNodeId = (nodeId || 'default').replace(/[^a-zA-Z0-9_-]/g, '-');
+  const workingDir = path.join(process.cwd(), 'inline-tests', safeNodeId);
+  fs.rmSync(workingDir, { force: true, recursive: true });
+  fs.mkdirSync(workingDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(workingDir, 'playrunner-inline.spec.ts'),
+    testScript,
+  );
+  return workingDir;
+}
+
+async function runTypescriptTest(
+  workingDir: string,
+  workers: number,
+): Promise<void> {
+  await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
+
+  await installTypescriptDependencies(workingDir);
+
+  const command = resolvePlaywrightCommand(workingDir);
+  const args = [...command.args];
   let configMsg = 'default config';
   if (fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))) {
     args.push('--config', 'playwright.service.config.ts');
     configMsg = 'playwright.service.config.ts';
   }
+  args.push('--workers', String(workers));
 
-  await publishLog(`Running npx playwright test using ${configMsg}...`);
+  await publishLog(
+    `Running Playwright test using ${configMsg} with ${workers} worker${workers === 1 ? '' : 's'}...`,
+  );
   await new Promise<void>((resolve, reject) => {
-    const testProc = spawn('npx', args, { cwd: workingDir });
+    const testProc = spawn(command.command, args, { cwd: workingDir });
     testProc.stdout.on('data', (data) =>
       console.log(`[playwright]: ${data.toString().trim()}`),
     );
@@ -427,6 +547,19 @@ async function run() {
 
   let testLanguage = payload?.data?.testLanguage || 'typescript';
 
+  if (
+    payload?.data?.action === 'run' &&
+    typeof payload?.data?.testScript === 'string' &&
+    payload.data.testScript.trim()
+  ) {
+    workingDir = prepareInlineTypescriptTest(
+      payload.data.testScript,
+      payload?.data?.nodeId,
+    );
+    testLanguage = 'typescript';
+    await publishLog('Prepared inline Playwright script.');
+  }
+
   if (isCloned) {
     if (
       fs.existsSync(path.join(workingDir, 'requirements.txt')) ||
@@ -440,12 +573,15 @@ async function run() {
     testLanguage = payload?.data?.testLanguage || 'typescript';
   }
 
+  const workers = normalizeWorkers(
+    payload?.data?.workers || process.env.PLAYWRIGHT_WORKERS,
+  );
   let testFailed = false;
   try {
     if (testLanguage === 'python') {
       await runPythonTest(workingDir);
     } else {
-      await runTypescriptTest(workingDir);
+      await runTypescriptTest(workingDir, workers);
     }
 
     await publishLog('Job complete.');

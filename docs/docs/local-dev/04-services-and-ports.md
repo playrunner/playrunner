@@ -143,9 +143,9 @@ docker run --rm \
 | `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`              |
 | `GET`  | `/health`  | Health check — returns `200 OK` when the container is up        |
 
-### Heartbeat & Graceful Shutdown
+### Orchestrator Lifecycle
 
-The Orchestrator pings `EDITOR_API_URL/api/heartbeat` every 5 seconds. If the heartbeat returns a non-OK response (meaning no Editor tab is open) **and** there are no active workflows running, the Orchestrator process exits with code `0`, which causes the `--rm` Docker container to be removed automatically.
+The Orchestrator is a standby runner. Once started, it stays up until the container or process is stopped explicitly. It no longer exits just because the editor heartbeat is unavailable.
 
 ---
 
@@ -166,8 +166,8 @@ The runner receives its entire configuration through the `PAYLOAD` environment v
 
 1. Clones the target GitHub repository (if configured)
 2. Uses the runtime selected on the Playwright node (`TypeScript` or `Python`)
-3. Runs `npx playwright test` (TypeScript) or `pytest` (Python)
+3. Runs `playwright test` (TypeScript) or `pytest` (Python)
 4. Tarballs `playwright-report/` and `test-results/` and POSTs them to the API
-5. Publishes step-by-step logs to the Pub/Sub topic throughout
+5. Publishes step-by-step logs through the API execution event endpoints
 
 The image version used is controlled by the `playwrightVersion` field on each Playwright node's config in the editor. The available values come from `config/playwright-runner-versions.json`.

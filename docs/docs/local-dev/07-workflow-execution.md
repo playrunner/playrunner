@@ -25,6 +25,7 @@ A workflow is a directed acyclic graph (DAG) of nodes. When triggered, the syste
 ### 1. User clicks "Run" in the Editor
 
 The Editor sends `POST /api/workflows/start` with:
+
 - `nodes` — array of all nodes (id, nodeType, label, config, parentId)
 - `connections` — array of edges (sourceId, targetId, type)
 - `settings` — all integration credentials (GitHub, Slack, etc.)
@@ -44,20 +45,22 @@ The Orchestrator responds `200 { status: 'started' }` immediately (async executi
 
 The Orchestrator supports four connection types between nodes:
 
-| Type | Behaviour |
-|---|---|
-| `sequential` | Runs after the source node completes. If any `success`/`failure` connections also exist on the source, this type only runs on success. |
-| `concurrent` | Starts immediately when the source node starts (fire-and-forget, not awaited) |
-| `success` | Runs only if the source node completed with `success` or `warning` state |
-| `failure` | Runs only if the source node completed with `error` state |
-| `independent` | Always runs after source, regardless of outcome |
+| Type          | Behaviour                                                                                                                              |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `sequential`  | Runs after the source node completes. If any `success`/`failure` connections also exist on the source, this type only runs on success. |
+| `concurrent`  | Starts immediately when the source node starts (fire-and-forget, not awaited)                                                          |
+| `success`     | Runs only if the source node completed with `success` or `warning` state                                                               |
+| `failure`     | Runs only if the source node completed with `error` state                                                                              |
+| `independent` | Always runs after source, regardless of outcome                                                                                        |
 
 ### 4. Node Processing by Type
 
 #### `environment`
+
 Logs the node label. Global variables have already been extracted in step 2.
 
 #### `playwright`
+
 1. Logs resource configuration (CPU, memory, workers)
 2. Builds `docker run` arguments:
    - Pub/Sub emulator env vars
@@ -68,12 +71,15 @@ Logs the node label. Global variables have already been extracted in step 2.
 5. Awaits the container to exit — success = `0`, failure = non-zero or `null` (killed)
 
 #### `slack`
+
 Checks if Slack credentials exist in `settings`. Logs a warning if missing, simulates a message send if present.
 
 #### `github`
+
 Checks if GitHub credentials exist in `settings`. Logs and sets node state accordingly.
 
 #### All other types
+
 Logs the node label and completes with `success`.
 
 ### 5. Playwright Runner Container
@@ -86,7 +92,7 @@ Inside the container (`apps/runners/playwright/src/index.ts`):
    - Clones to `/app/repo` with `--depth 1` (shallow clone)
    - Sets `workingDir` to `/app/repo/{folder}`
 3. **Auto-detects language**: if `requirements.txt` or `pytest.ini` is found → Python, otherwise TypeScript
-4. **TypeScript tests**: runs `npm install` then `npx playwright test` (using `playwright.service.config.ts` if present)
+4. **TypeScript tests**: reuses runner-bundled Playwright packages when possible; otherwise installs project dependencies with `npm ci` when a lockfile exists, falling back to `npm install`; then runs `playwright test` with the configured worker count (using `playwright.service.config.ts` if present)
 5. **Python tests**: runs `pip3 install -r requirements.txt` then `pytest`
 6. **Uploads outputs**: tarballs `playwright-report/` and `test-results/`, POSTs to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`
 7. Exits with `0` (success) or `1` (test failure)
@@ -112,13 +118,13 @@ Throughout the entire flow, the Playwright runner and Orchestrator call `POST /a
 
 Each node transitions through these states, persisted as `node_state` events:
 
-| State | Meaning |
-|---|---|
-| `idle` | Not yet started |
-| `running` | Currently executing |
-| `success` | Completed successfully |
+| State     | Meaning                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `idle`    | Not yet started                                                        |
+| `running` | Currently executing                                                    |
+| `success` | Completed successfully                                                 |
 | `warning` | Completed but with missing optional config (e.g. no Slack credentials) |
-| `error` | Failed |
+| `error`   | Failed                                                                 |
 
 ---
 

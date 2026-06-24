@@ -36,25 +36,6 @@ function resolvePlaywrightRuntime(
 const activeProcesses: Record<string, ReturnType<typeof spawn>> = {};
 const activeNodePublishers: Record<string, WorkflowEventPublisher> = {};
 
-let activeWorkflows = 0;
-let editorIsAlive = true;
-
-setInterval(async () => {
-  try {
-    const res = await fetch(`${EDITOR_API_URL}/api/heartbeat`);
-    editorIsAlive = res.ok;
-  } catch {
-    editorIsAlive = false;
-  }
-
-  if (!editorIsAlive && activeWorkflows === 0) {
-    console.log(
-      'Lost heartbeat to editor and no workflows in progress. Shutting down gracefully.',
-    );
-    process.exit(0);
-  }
-}, 5000);
-
 async function postWorkflowEvent(args: {
   editorApiUrl: string;
   executionId: string;
@@ -149,7 +130,6 @@ function createWorkflowEventPublisher(
 }
 
 async function executeWorkflow(reqBody: any) {
-  activeWorkflows++;
   const eventPublisher = createWorkflowEventPublisher(reqBody);
   const { publishEvent, publishLog, publishNodeState } = eventPublisher;
   let terminalEventPublished = false;
@@ -299,8 +279,6 @@ async function executeWorkflow(reqBody: any) {
           });
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-
         let finalState: 'success' | 'error' | 'warning' = 'success';
 
         if (type === 'environment') {
@@ -347,6 +325,7 @@ async function executeWorkflow(reqBody: any) {
               testId,
               testLanguage: runtime,
               playwrightVersion: config.playwrightVersion || 'latest',
+              workers,
               editorApiUrl:
                 reqBody.editorApiUrl ||
                 EDITOR_API_URL ||
@@ -662,18 +641,6 @@ async function executeWorkflow(reqBody: any) {
       });
     }
     throw err;
-  } finally {
-    activeWorkflows--;
-    if (
-      !editorIsAlive &&
-      activeWorkflows === 0 &&
-      process.env.JOB_MODE !== 'true'
-    ) {
-      console.log(
-        'Lost heartbeat to editor and workflow completed. Shutting down gracefully.',
-      );
-      process.exit(0);
-    }
   }
 }
 

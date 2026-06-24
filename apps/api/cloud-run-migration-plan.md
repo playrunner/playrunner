@@ -21,12 +21,11 @@ In `apps/api/src/routes/runners.ts`, short-circuit the local Docker spawn if the
 
 When `POST /api/workflows/start` is called and `cloudProvider === 'GCP'`:
 
-1. **Upload Payload to GCS:** Since Cloud Run Jobs cannot receive HTTP POST bodies natively, save the `req.body` (the workflow JSON) to the GCS bucket created for the workflow (e.g., `gs://bucket-name/testId-workflow.json`).
+1. **Load Workflow from the API/Database:** The workflow is stored in Postgres and can be retrieved through `/api/store/workflows/:id`. Do not write workflow payloads to GCS.
 2. **Instantiate Run Client:** Initialize the `@google-cloud/run` client using the user's OAuth `accessToken` (from `state.gcpCredentials[testId]`).
-3. **Execute Job:**
-   - Check if an Orchestrator Cloud Run Job exists in the selected GCP project. If not, create it dynamically.
-   - Trigger an execution of the Orchestrator Job.
-   - Use `env` overrides during the execution trigger to pass variables like `WORKFLOW_PAYLOAD_URI=gs://bucket-name/testId-workflow.json`, `TEST_ID`, and `GCP_PROJECT`.
+3. **Execute Service:**
+   - Check if the Orchestrator Cloud Run Service exists in the selected GCP project. If not, create it dynamically.
+   - Invoke the Orchestrator Service over HTTP with the workflow execution payload.
 
 ## 3. Orchestrator Updates (`apps/runners/orchestrator`)
 
@@ -34,10 +33,9 @@ The Orchestrator needs to adapt from being a long-running HTTP server to a run-t
 
 ### A. Job Execution Mode (`index.ts`)
 
-1. **Detect Mode:** On startup, check for `process.env.JOB_MODE`.
-2. **Fetch Payload:** If in job mode, the Orchestrator should download the workflow JSON from GCS using the provided `WORKFLOW_PAYLOAD_URI`.
-3. **Run DAG:** Execute the workflow immediately instead of starting an Express server.
-4. **Exit:** Once the workflow is complete, exit the process (`process.exit(0)`) so the Cloud Run Job execution finishes successfully.
+1. **Service Mode:** Run the Orchestrator as a Cloud Run Service with an `/execute` endpoint.
+2. **Run DAG:** Execute the workflow payload received from the API.
+3. **Respond Immediately:** Return once execution is accepted; stream progress through the API event endpoints.
 
 ### B. Spawn Playwright Cloud Run Jobs
 
@@ -55,7 +53,7 @@ Ensure the Playwright runner script expects to run to completion and shuts down 
 ## Summary of Execution Flow (GCP Mode)
 
 1. **Frontend:** Clicks Play -> Calls `/api/workflows/start`.
-2. **API:** Uploads workflow JSON to GCS -> Triggers `playrunner-orchestrator` Cloud Run Job.
-3. **Orchestrator Job:** Starts -> Pulls JSON from GCS -> Evaluates DAG.
-4. **Orchestrator Job:** For each Playwright node -> Triggers `playrunner-playwright` Cloud Run Job execution -> Polls until complete.
-5. **Orchestrator Job:** Finishes workflow -> Exits -> Execution marked Successful.
+2. **API:** Loads/receives the workflow payload -> invokes the `playrunner-orchestrator` Cloud Run Service.
+3. **Orchestrator Service:** Evaluates the DAG from the API payload.
+4. **Orchestrator Service:** For each Playwright node -> Triggers `playrunner-playwright` Cloud Run Job execution -> Polls until complete.
+5. **Orchestrator Service:** Publishes a terminal workflow event when execution completes.
