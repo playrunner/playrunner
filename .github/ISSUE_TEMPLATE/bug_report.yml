@@ -1,7 +1,6 @@
----
-name: Bug Report 🪲
+name: Bug Report
 description: Create a bug report to help us improve
-title: '[Bug]: '
+title: "[Bug]: "
 body:
   - type: markdown
     attributes:
@@ -11,21 +10,20 @@ body:
     attributes:
       value: |
         ## Troubleshoot
-        If Playwright is not behaving the way you expect, we'd ask you to look at the [documentation](https://playwright.dev/docs/intro) and search the issue tracker for evidence supporting your expectation.
-        Please make reasonable efforts to troubleshoot and rule out issues with your code, the configuration, or any 3rd party libraries you might be using.
-        Playwright offers [several debugging tools](https://playwright.dev/docs/debug) that you can use to troubleshoot your issues.
+        If Playrunner is not behaving the way you expect, please review the [documentation](https://playrunner.github.io/playrunner/docs/) and search existing issues for related reports.
+        Please make reasonable efforts to troubleshoot and rule out issues with your local setup, workflow configuration, runner image, cloud provider configuration, or any third-party service you might be using.
   - type: markdown
     attributes:
       value: |
         ## Ask for help through appropriate channels
-        If you feel unsure about the cause of the problem, consider asking for help on for example [StackOverflow](https://stackoverflow.com/questions/ask) or our [Discord channel](https://aka.ms/playwright/discord) before posting a bug report. The issue tracker is not a help forum.
+        If you feel unsure about the cause of the problem, consider asking for help in our [Discord channel](https://discord.gg/23yz25kat) before posting a bug report. The issue tracker is not a help forum.
   - type: markdown
     attributes:
       value: |
         ## Make a minimal reproduction
-        To file the report, you will need a GitHub repository with a minimal (but complete) example and simple/clear steps on how to reproduce the bug.
-        The simpler you can make it, the more likely we are to successfully verify and fix the bug. You can create a new project with `npm init playwright@latest new-project` and then add the test code there.
-        Please make sure you only include the code and the dependencies absolutely necessary for your repro. Due to the security considerations, we can only run the code we trust. Major web frameworks are Ok to use, but smaller convenience libraries are not.
+        To file the report, please provide a minimal (but complete) example and simple/clear steps on how to reproduce the bug. Link to a GitHub repository when the issue depends on workflow code, test code, or configuration files.
+        The simpler you can make it, the more likely we are to successfully verify and fix the bug. Include only the workflow, configuration, test files, and dependencies needed to reproduce the problem.
+        Do not include credentials, tokens, private repository contents, or production data.
   - type: markdown
     attributes:
       value: |
@@ -36,11 +34,10 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version
+      label: Playrunner version
       description: |
-        The version of Playwright you are using.
-        Is it the [latest](https://github.com/microsoft/playwright/releases)? Test and see if the bug has already been fixed.
-      placeholder: ex. 1.41.1
+        The Playrunner version, tag, branch, or commit SHA you are using.
+      placeholder: ex. v0.1.0, main, or abc1234
     validations:
       required: true
   - type: textarea
@@ -51,9 +48,9 @@ body:
       placeholder: |
         Example steps (replace with your own):
         1. Clone my repo at https://github.com/<myuser>/example
-        2. npm install
-        3. npm run test
-        4. You should see the error come up
+        2. Run ./start-local.sh
+        3. Open http://127.0.0.1:3000 and import the included workflow
+        4. Run the workflow and observe the error in the execution log
     validations:
       required: true
   - type: textarea
@@ -82,21 +79,23 @@ body:
     validations:
       required: false
   - type: textarea
-    id: envinfo
+    id: environment
     attributes:
       label: Environment
       description: |
-        Please paste the output of running `npx envinfo --preset playwright`.
+        Please include the relevant local or deployment environment details.
         This will be automatically formatted as a code block, so no need for backticks.
       placeholder: |
         System:
-          OS: Linux 6.2 Ubuntu 22.04.3 LTS 22.04.3 LTS (Jammy Jellyfish)
-          CPU: (8) arm64
+          OS: macOS 15.5
         Binaries:
-          Node: 18.19.0 - ~/.nvm/versions/node/v18.19.0/bin/node
-          npm: 10.2.3 - ~/.nvm/versions/node/v18.19.0/bin/npm
-        npmPackages:
-          @playwright/test: 1.41.1 => 1.41.1
+          Node: 20.19.0
+          npm: 10.8.2
+          Docker: 27.5.1
+        Playrunner:
+          Startup command: ./start-local.sh
+          Runner: Local Docker or GCP Cloud Run
+          Browser/runtime: chromium / TypeScript
       render: shell
     validations:
       required: true

@@ -1,0 +1,30 @@
+name: Documentation
+description: Submit a request to add or update documentation
+title: "[Docs]: "
+labels: ["Documentation :book:"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Thank you for helping us improve the Playrunner documentation.
+
+        Please check the current [Playrunner documentation](https://playrunner.github.io/playrunner/docs/) before opening an issue here.
+  - type: textarea
+    id: links
+    attributes:
+      label: Page(s)
+      description: |
+        Links to one or more documentation pages that should be modified.
+        If you are reporting an issue with a specific section of a page, try to link directly to the nearest anchor.
+        If you are suggesting that a new page be created, link to the parent of the proposed page.
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: |
+        Describe the change you are requesting.
+        Include the workflow, setup step, integration, or local development area affected when relevant.
+    validations:
+      required: true
