@@ -16,12 +16,14 @@ title: Troubleshooting
 **Causes & fixes:**
 
 1. **The `playrunner-orchestrator` image hasn't been built.**
+
    ```bash
    docker build -t playrunner-orchestrator ./apps/runners/orchestrator
    ```
 
 2. **Port 3002 is already in use.**
    Find and kill the process using the port:
+
    ```bash
    lsof -i :3002
    kill -9 <PID>
@@ -42,6 +44,7 @@ title: Troubleshooting
 **Causes & fixes:**
 
 1. **PostgreSQL is not running or `DATABASE_URL` is wrong.**
+
    ```bash
    docker compose up -d postgres
    docker ps  # confirm postgres is up
@@ -49,13 +52,15 @@ title: Troubleshooting
 
 2. **`DATABASE_URL` is missing in the API's environment.**
    Confirm `apps/api/.env` contains:
+
    ```
    DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public
    ```
+
    If you changed the local Postgres port, confirm the repo-root `.env.local` matches it as well. Restart the API after changing `.env.local`.
 
-3. **No editor presence SSE client connected.**  
-   The Orchestrator only stays alive while at least one browser tab has the Editor open and subscribed to `GET /api/presence/stream`. Check the API terminal for "Editor presence SSE connected" messages.
+3. **The Orchestrator cannot post execution events back to the API.**
+   Confirm `EDITOR_API_URL_DOCKER` points to the API from inside Docker, usually `http://host.docker.internal:3001` on Docker Desktop. Restart the Orchestrator after changing this value.
 
 ---
 
@@ -117,6 +122,7 @@ For the Orchestrator (spawned by the API), you would need to modify `apps/api/sr
 The Vite dev server uses HMR (Hot Module Replacement) by default. If HMR is disabled (`DISABLE_HMR=true`), you'll need to manually refresh the browser.
 
 Check whether HMR is disabled:
+
 ```bash
 echo $DISABLE_HMR
 ```
@@ -163,9 +169,9 @@ docker logs -f <container-id>
 
 ## Rebuilding After Code Changes
 
-| Changed code location | Action required |
-|---|---|
-| `apps/api/src/**` | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`) |
-| `apps/frontend/src/**` | Vite HMR handles this automatically |
+| Changed code location              | Action required                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `apps/api/src/**`                  | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)                            |
+| `apps/frontend/src/**`             | Vite HMR handles this automatically                                                               |
 | `apps/runners/orchestrator/src/**` | `docker build -t playrunner-orchestrator ./apps/runners/orchestrator`, then reopen the Editor tab |
-| `apps/runners/playwright/src/**` | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |
+| `apps/runners/playwright/src/**`   | Rebuild the configured Playwright runner images, for example via `./start-local.sh`               |
