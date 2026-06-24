@@ -91,11 +91,252 @@ interface DrawingConnection {
   isForward: boolean; // true if drawing from source to target, false if drawing from target to source
 }
 
+type WorkflowStartupPhase =
+  | 'preparing'
+  | 'requesting'
+  | 'orchestrator-triggered'
+  | 'workflow-starting'
+  | 'analyzing'
+  | 'waiting-for-node'
+  | 'failed';
+
+interface WorkflowStartupStatus {
+  detail: string;
+  message: string;
+  phase: WorkflowStartupPhase;
+  providerId: string;
+  startedAt: number;
+  updatedAt: number;
+}
+
+interface WorkflowStartupUpdate {
+  detail: string;
+  message: string;
+  phase: WorkflowStartupPhase;
+}
+
 const availableCloudProviders = CLOUD_PROVIDERS;
 const defaultCloudProvider = getDefaultCloudProviderId();
+const WORKFLOW_STARTUP_STEPS = [
+  'Request',
+  'Orchestrator',
+  'Workflow',
+  'Graph',
+  'Nodes',
+];
 
 function normalizeCloudProvider(raw: string): string {
   return raw.toUpperCase();
+}
+
+function getCloudProviderLabel(providerId: string): string {
+  if (providerId === 'LOCAL_RUNNER') {
+    return 'Local Runner';
+  }
+
+  return (
+    getCloudProvider(providerId)?.label || normalizeCloudProvider(providerId)
+  );
+}
+
+function formatElapsedTime(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes.toString().padStart(2, '0')}:${seconds
+    .toString()
+    .padStart(2, '0')}`;
+}
+
+function getWorkflowStartupStepIndex(phase: WorkflowStartupPhase): number {
+  switch (phase) {
+    case 'preparing':
+    case 'requesting':
+      return 0;
+    case 'orchestrator-triggered':
+      return 1;
+    case 'workflow-starting':
+      return 2;
+    case 'analyzing':
+      return 3;
+    case 'waiting-for-node':
+      return 4;
+    case 'failed':
+      return 0;
+  }
+}
+
+function getWorkflowStartupUpdateFromEvent(
+  data: Record<string, any>,
+): WorkflowStartupUpdate | null {
+  const message = typeof data.message === 'string' ? data.message : '';
+  const level = typeof data.level === 'string' ? data.level : '';
+
+  if (data.type === 'workflow_failed' || level === 'error') {
+    return {
+      detail: message || 'Workflow startup failed before node execution.',
+      message: 'Workflow startup failed',
+      phase: 'failed',
+    };
+  }
+
+  if (message === 'Workflow execution requested.') {
+    return {
+      detail: 'Preparing cloud resources and runner settings.',
+      message: 'Workflow execution requested',
+      phase: 'requesting',
+    };
+  }
+
+  if (message === 'Orchestrator Cloud Run Service triggered successfully.') {
+    return {
+      detail: 'Waiting for the workflow to start in the cloud orchestrator.',
+      message: 'Orchestrator triggered',
+      phase: 'orchestrator-triggered',
+    };
+  }
+
+  if (message === 'Waiting for Cloud Run orchestrator to become ready.') {
+    return {
+      detail: 'Checking Cloud Run service health before starting the workflow.',
+      message: 'Starting Cloud Run orchestrator',
+      phase: 'orchestrator-triggered',
+    };
+  }
+
+  if (message.startsWith('Cloud Run orchestrator is not ready yet')) {
+    return {
+      detail: message,
+      message: 'Waiting for Cloud Run orchestrator',
+      phase: 'orchestrator-triggered',
+    };
+  }
+
+  if (message === 'Cloud Run orchestrator is ready.') {
+    return {
+      detail: 'Sending workflow execution request to the orchestrator.',
+      message: 'Cloud Run orchestrator ready',
+      phase: 'orchestrator-triggered',
+    };
+  }
+
+  if (message.startsWith('Cloud Run orchestrator invoke returned')) {
+    return {
+      detail: message,
+      message: 'Retrying orchestrator trigger',
+      phase: 'orchestrator-triggered',
+    };
+  }
+
+  if (message === 'Workflow execution started.') {
+    return {
+      detail: 'Cloud orchestrator accepted the workflow.',
+      message: 'Workflow execution started',
+      phase: 'workflow-starting',
+    };
+  }
+
+  if (/^Analyzing \d+ workflow connections\.\.\.$/.test(message)) {
+    return {
+      detail: message,
+      message: 'Analyzing workflow graph',
+      phase: 'analyzing',
+    };
+  }
+
+  if (/^Connection .+ is marked as \[[A-Z]+\]$/.test(message)) {
+    return {
+      detail: 'Workflow graph analyzed. Waiting for the first node.',
+      message: 'Waiting for first node to start',
+      phase: 'waiting-for-node',
+    };
+  }
+
+  return null;
+}
+
+function WorkflowStartupStatusPanel({
+  elapsedMs,
+  status,
+}: {
+  elapsedMs: number;
+  status: WorkflowStartupStatus;
+}) {
+  const providerLabel = getCloudProviderLabel(status.providerId);
+  const isFailed = status.phase === 'failed';
+  const currentStepIndex = getWorkflowStartupStepIndex(status.phase);
+
+  return (
+    <div
+      className="pointer-events-none absolute left-3 right-14 top-3 z-30 sm:left-1/2 sm:right-auto sm:w-[520px] sm:max-w-[calc(100vw-8rem)] sm:-translate-x-1/2"
+      aria-live="polite"
+    >
+      <div
+        className={cn(
+          'rounded-xl border bg-[var(--surface)]/95 px-4 py-3 shadow-sm backdrop-blur',
+          isFailed ? 'border-red-500/30' : 'border-[var(--border)]',
+        )}
+      >
+        <div className="flex items-start gap-3">
+          <div
+            className={cn(
+              'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border',
+              isFailed
+                ? 'border-red-500/20 bg-red-500/10 text-red-500'
+                : 'border-[var(--border)] bg-[var(--surface-hover)] text-[var(--foreground)]',
+            )}
+          >
+            {isFailed ? (
+              <XCircle className="h-4 w-4" />
+            ) : (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <p className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--foreground)]">
+                {status.message}
+              </p>
+              <Badge
+                variant={isFailed ? 'danger' : 'outline'}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {providerLabel}
+              </Badge>
+              <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
+                {formatElapsedTime(elapsedMs)} elapsed
+              </span>
+            </div>
+            <p className="truncate text-xs leading-relaxed text-muted">
+              {status.detail}
+            </p>
+            <div className="flex items-center gap-1.5">
+              {WORKFLOW_STARTUP_STEPS.map((step, index) => (
+                <div
+                  key={step}
+                  className="flex min-w-0 flex-1 items-center gap-1.5"
+                >
+                  <span
+                    className={cn(
+                      'h-1.5 flex-1 rounded-full transition-colors',
+                      !isFailed && index <= currentStepIndex
+                        ? 'bg-[var(--accent)]'
+                        : 'bg-[var(--border)]',
+                      isFailed && index === currentStepIndex && 'bg-red-500',
+                    )}
+                  />
+                  <span className="hidden shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted sm:inline">
+                    {step}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CloudProviderDropdown({
@@ -291,6 +532,9 @@ export default function Editor() {
   >(null);
   const [orchestratorStartAttempt, setOrchestratorStartAttempt] = useState(0);
   const [orchestratorLogs, setOrchestratorLogs] = useState<LogItem[]>([]);
+  const [workflowStartupStatus, setWorkflowStartupStatus] =
+    useState<WorkflowStartupStatus | null>(null);
+  const [workflowStartupNow, setWorkflowStartupNow] = useState(Date.now());
   const presenceStreamRef = useRef<EventSource | null>(null);
   const executionStreamRef = useRef<EventSource | null>(null);
   const runnerStartupSequenceRef = useRef(0);
@@ -332,6 +576,60 @@ export default function Editor() {
     [],
   );
 
+  const beginWorkflowStartupStatus = useCallback((providerId: string) => {
+    if (providerId === 'LOCAL_RUNNER') {
+      setWorkflowStartupStatus(null);
+      return;
+    }
+
+    const now = Date.now();
+    const providerLabel = getCloudProviderLabel(providerId);
+    setWorkflowStartupNow(now);
+    setWorkflowStartupStatus({
+      detail: 'Loading credentials and preparing the workflow request.',
+      message: `Starting workflow in ${providerLabel}`,
+      phase: 'preparing',
+      providerId,
+      startedAt: now,
+      updatedAt: now,
+    });
+  }, []);
+
+  const updateWorkflowStartupStatus = useCallback(
+    (update: WorkflowStartupUpdate) => {
+      const now = Date.now();
+      setWorkflowStartupNow(now);
+      setWorkflowStartupStatus((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          ...update,
+          updatedAt: now,
+        };
+      });
+    },
+    [],
+  );
+
+  const clearWorkflowStartupStatus = useCallback(() => {
+    setWorkflowStartupStatus(null);
+  }, []);
+
+  useEffect(() => {
+    if (!workflowStartupStatus || workflowStartupStatus.phase === 'failed') {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setWorkflowStartupNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [workflowStartupStatus]);
+
   const closePresenceStream = useCallback(() => {
     if (presenceStreamRef.current) {
       console.info('[presence] closing editor presence stream');
@@ -353,12 +651,19 @@ export default function Editor() {
   const handleExecutionEvent = useCallback(
     (data: Record<string, any>) => {
       const timestamp = data.timestamp ? new Date(data.timestamp) : new Date();
+      const startupUpdate = getWorkflowStartupUpdateFromEvent(data);
+      if (startupUpdate) {
+        updateWorkflowStartupStatus(startupUpdate);
+      }
 
       if (
         data.type === 'node_state' &&
         typeof data.nodeId === 'string' &&
         typeof data.state === 'string'
       ) {
+        if (data.state === 'running') {
+          clearWorkflowStartupStatus();
+        }
         setNodeStatus((prev) => ({ ...prev, [data.nodeId]: data.state }));
         return;
       }
@@ -379,11 +684,18 @@ export default function Editor() {
       ) {
         isSimulationRunning.current = false;
         setSimulationState('idle');
+        if (data.type !== 'workflow_failed') {
+          clearWorkflowStartupStatus();
+        }
         closeExecutionStream();
       }
 
       if (typeof data.message !== 'string' || data.message.length === 0) {
         return;
+      }
+
+      if (data.message.startsWith('Processing node:')) {
+        clearWorkflowStartupStatus();
       }
 
       let logType: LogItem['type'] = 'Log';
@@ -402,7 +714,11 @@ export default function Editor() {
         },
       ]);
     },
-    [closeExecutionStream],
+    [
+      clearWorkflowStartupStatus,
+      closeExecutionStream,
+      updateWorkflowStartupStatus,
+    ],
   );
 
   useEffect(() => {
@@ -840,6 +1156,16 @@ export default function Editor() {
         throw new Error('You must be signed in to run workflows.');
       }
 
+      if (currentCloudProvider !== 'LOCAL_RUNNER') {
+        updateWorkflowStartupStatus({
+          detail: 'Requesting execution and triggering the cloud orchestrator.',
+          message: `Starting workflow in ${getCloudProviderLabel(
+            currentCloudProvider,
+          )}`,
+          phase: 'requesting',
+        });
+      }
+
       const response = await fetch('/api/workflows/start', {
         method: 'POST',
         headers: {
@@ -878,6 +1204,14 @@ export default function Editor() {
         throw new Error('Workflow start response did not include a testId.');
       }
 
+      if (currentCloudProvider !== 'LOCAL_RUNNER') {
+        updateWorkflowStartupStatus({
+          detail: 'Workflow request accepted. Connecting to live events.',
+          message: 'Waiting for workflow events',
+          phase: 'orchestrator-triggered',
+        });
+      }
+
       closeExecutionStream();
       const eventSource = new EventSource(
         `/api/executions/${encodeURIComponent(payload.testId)}/stream?token=${encodeURIComponent(token)}`,
@@ -897,7 +1231,13 @@ export default function Editor() {
       };
       executionStreamRef.current = eventSource;
     },
-    [activeWorkflowId, closeExecutionStream, concurrency, handleExecutionEvent],
+    [
+      activeWorkflowId,
+      closeExecutionStream,
+      concurrency,
+      handleExecutionEvent,
+      updateWorkflowStartupStatus,
+    ],
   );
 
   const runWorkflow = useCallback(
@@ -917,6 +1257,7 @@ export default function Editor() {
           err instanceof Error &&
           (err as Error & { code?: string }).code === 'TUNNEL_REQUIRED'
         ) {
+          clearWorkflowStartupStatus();
           pendingTunnelRunRef.current = {
             connectionsToRun,
             currentCloudProvider,
@@ -929,6 +1270,13 @@ export default function Editor() {
           return;
         }
         console.error('Failed to start workflow API:', err);
+        if (currentCloudProvider !== 'LOCAL_RUNNER') {
+          updateWorkflowStartupStatus({
+            detail: err instanceof Error ? err.message : 'Unknown error',
+            message: 'Workflow startup failed',
+            phase: 'failed',
+          });
+        }
         appendOrchestratorLog(
           `Failed to start workflow: ${err instanceof Error ? err.message : 'Unknown error'}`,
           'Error',
@@ -937,7 +1285,12 @@ export default function Editor() {
         setSimulationState('idle');
       });
     },
-    [appendOrchestratorLog, startWorkflowExecution],
+    [
+      appendOrchestratorLog,
+      clearWorkflowStartupStatus,
+      startWorkflowExecution,
+      updateWorkflowStartupStatus,
+    ],
   );
 
   const handleTunnelStarted = useCallback(() => {
@@ -950,13 +1303,14 @@ export default function Editor() {
     setSimulationState('running');
     setNodeStatus({});
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
+    beginWorkflowStartupStatus(pending.currentCloudProvider);
     runWorkflow(
       pending.nodesToRun,
       pending.connectionsToRun,
       pending.currentCloudProvider,
       pending.settings,
     );
-  }, [runWorkflow]);
+  }, [beginWorkflowStartupStatus, runWorkflow]);
 
   const handlePlay = useCallback(async () => {
     if (isSimulationRunning.current) return;
@@ -966,6 +1320,7 @@ export default function Editor() {
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
+    beginWorkflowStartupStatus(currentCloudProvider);
 
     let settings: Record<string, any> = {};
     if (auth.currentUser) {
@@ -1004,7 +1359,13 @@ export default function Editor() {
       currentCloudProvider,
       settings,
     );
-  }, [cloudProvider, connections, getNodesWithParents, runWorkflow]);
+  }, [
+    beginWorkflowStartupStatus,
+    cloudProvider,
+    connections,
+    getNodesWithParents,
+    runWorkflow,
+  ]);
 
   const handlePlayNode = async (nodeId: string) => {
     if (isSimulationRunning.current) return;
@@ -1014,6 +1375,7 @@ export default function Editor() {
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
+    beginWorkflowStartupStatus(currentCloudProvider);
 
     let settings: Record<string, any> = {};
     if (auth.currentUser) {
@@ -1128,17 +1490,22 @@ export default function Editor() {
     }
   }, [nodes, shouldAutoSave, handleSaveWorkflow]);
 
-  const handleCloudProviderChange = useCallback((nextProvider: string) => {
-    setCloudProvider(nextProvider);
-    localStorage.setItem('primaryCloud', nextProvider);
-    setShouldAutoSave(true);
-  }, []);
+  const handleCloudProviderChange = useCallback(
+    (nextProvider: string) => {
+      clearWorkflowStartupStatus();
+      setCloudProvider(nextProvider);
+      localStorage.setItem('primaryCloud', nextProvider);
+      setShouldAutoSave(true);
+    },
+    [clearWorkflowStartupStatus],
+  );
 
   const handleStop = useCallback(() => {
     isSimulationRunning.current = false;
     setSimulationState('idle');
     setNodeStatus({});
-  }, []);
+    clearWorkflowStartupStatus();
+  }, [clearWorkflowStartupStatus]);
 
   // Add keyboard listeners for deletion and saving
   useEffect(() => {
@@ -2007,6 +2374,12 @@ export default function Editor() {
     handleAddNode,
   ]);
 
+  const workflowStartupElapsedMs = workflowStartupStatus
+    ? (workflowStartupStatus.phase === 'failed'
+        ? workflowStartupStatus.updatedAt
+        : workflowStartupNow) - workflowStartupStatus.startedAt
+    : 0;
+
   if (!isOrchestratorReady) {
     if (orchestratorStartError) {
       return (
@@ -2111,6 +2484,13 @@ export default function Editor() {
           isOpen={isGithubSettingsOpen}
           onClose={() => setIsGithubSettingsOpen(false)}
         />
+
+        {workflowStartupStatus ? (
+          <WorkflowStartupStatusPanel
+            elapsedMs={workflowStartupElapsedMs}
+            status={workflowStartupStatus}
+          />
+        ) : null}
 
         {/* Mini Toolbar — top right */}
         <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-1">

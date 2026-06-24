@@ -12,6 +12,14 @@ import { ensureBucket, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
 import { tunnelService } from '../services/tunnel';
 import { state } from '../state';
 
+const ORCHESTRATOR_HEALTH_MAX_ATTEMPTS = 8;
+const ORCHESTRATOR_INVOKE_MAX_ATTEMPTS = 3;
+const ORCHESTRATOR_RETRY_BASE_DELAY_MS = 1000;
+const ORCHESTRATOR_RETRY_MAX_DELAY_MS = 10000;
+const ORCHESTRATOR_RETRYABLE_STATUS_CODES = new Set([
+  408, 429, 500, 502, 503, 504,
+]);
+
 function isLocalHost(host: string | undefined): boolean {
   if (!host) {
     return false;
@@ -62,6 +70,152 @@ function missingRunnerSettings(gcp: Record<string, any>): string[] {
   }
 
   return missing;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelayMs(attemptIndex: number): number {
+  return Math.min(
+    ORCHESTRATOR_RETRY_BASE_DELAY_MS * 2 ** attemptIndex,
+    ORCHESTRATOR_RETRY_MAX_DELAY_MS,
+  );
+}
+
+async function readResponseDetails(response: Response): Promise<string> {
+  const details = await response.text().catch(() => '');
+  const normalizedDetails = details.trim().replace(/\s+/g, ' ');
+  const renderedDetails = normalizedDetails
+    ? `: ${normalizedDetails.slice(0, 500)}`
+    : '';
+
+  return `${response.status} ${response.statusText}${renderedDetails}`;
+}
+
+async function publishGcpWorkflowLog(
+  logTransport: LogTransport,
+  params: {
+    level?: 'debug' | 'error' | 'info' | 'warning' | 'warn';
+    message: string;
+    testId: string;
+    type?: string;
+    workflowId?: string;
+  },
+) {
+  try {
+    await logTransport.publish(
+      JSON.stringify({
+        cloudProvider: 'GCP',
+        executionId: params.testId,
+        level: params.level || 'info',
+        message: params.message,
+        testId: params.testId,
+        timestamp: new Date().toISOString(),
+        type: params.type || 'log',
+        workflowId: params.workflowId,
+      }),
+    );
+  } catch {
+    // Ignore best-effort log transport failures.
+  }
+}
+
+async function waitForOrchestratorServiceReady(
+  serviceUri: string,
+  logTransport: LogTransport,
+  testId: string,
+  workflowId?: string,
+): Promise<void> {
+  await publishGcpWorkflowLog(logTransport, {
+    message: 'Waiting for Cloud Run orchestrator to become ready.',
+    testId,
+    workflowId,
+  });
+
+  let lastError = 'No health check response.';
+
+  for (let attempt = 0; attempt < ORCHESTRATOR_HEALTH_MAX_ATTEMPTS; attempt++) {
+    try {
+      const response = await fetch(`${serviceUri}/health`, { method: 'GET' });
+      if (response.ok) {
+        await publishGcpWorkflowLog(logTransport, {
+          message: 'Cloud Run orchestrator is ready.',
+          testId,
+          workflowId,
+        });
+        return;
+      }
+
+      lastError = await readResponseDetails(response);
+    } catch (error: any) {
+      lastError = error?.message || 'Health check request failed.';
+    }
+
+    if (attempt === ORCHESTRATOR_HEALTH_MAX_ATTEMPTS - 1) {
+      break;
+    }
+
+    const delayMs = getRetryDelayMs(attempt);
+    await publishGcpWorkflowLog(logTransport, {
+      message: `Cloud Run orchestrator is not ready yet (${lastError}). Retrying in ${Math.round(delayMs / 1000)}s.`,
+      testId,
+      workflowId,
+    });
+    await sleep(delayMs);
+  }
+
+  throw new Error(
+    `Cloud Run orchestrator did not become ready after ${ORCHESTRATOR_HEALTH_MAX_ATTEMPTS} checks. Last health check: ${lastError}`,
+  );
+}
+
+async function invokeOrchestratorService(
+  serviceUri: string,
+  requestBody: Record<string, any>,
+  logTransport: LogTransport,
+  testId: string,
+  workflowId?: string,
+): Promise<void> {
+  let lastError = 'No invocation response.';
+
+  for (let attempt = 0; attempt < ORCHESTRATOR_INVOKE_MAX_ATTEMPTS; attempt++) {
+    let response: Response;
+
+    try {
+      response = await fetch(`${serviceUri}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+    } catch (error: any) {
+      throw new Error(
+        `Failed to execute orchestrator service: ${error?.message || 'Request failed'}`,
+      );
+    }
+
+    if (response.ok) {
+      return;
+    }
+
+    lastError = await readResponseDetails(response);
+    if (
+      !ORCHESTRATOR_RETRYABLE_STATUS_CODES.has(response.status) ||
+      attempt === ORCHESTRATOR_INVOKE_MAX_ATTEMPTS - 1
+    ) {
+      break;
+    }
+
+    const delayMs = getRetryDelayMs(attempt);
+    await publishGcpWorkflowLog(logTransport, {
+      message: `Cloud Run orchestrator invoke returned ${lastError}. Retrying in ${Math.round(delayMs / 1000)}s.`,
+      testId,
+      workflowId,
+    });
+    await sleep(delayMs);
+  }
+
+  throw new Error(`Failed to execute orchestrator service: ${lastError}`);
 }
 
 export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
@@ -240,24 +394,27 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         },
       );
 
-      const executeResponse = await fetch(`${serviceUri}/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      await waitForOrchestratorServiceReady(
+        serviceUri,
+        this.logTransport,
+        testId,
+        workflowId,
+      );
+
+      await invokeOrchestratorService(
+        serviceUri,
+        {
           ...body,
           editorApiUrl,
           gcpProject: gcp.selectedProject,
           bucketName,
           executionAuthToken: executionToken,
           testId,
-        }),
-      });
-
-      if (!executeResponse.ok) {
-        throw new Error(
-          `Failed to execute orchestrator service: ${executeResponse.statusText}`,
-        );
-      }
+        },
+        this.logTransport,
+        testId,
+        workflowId,
+      );
 
       try {
         await this.logTransport.publish(
