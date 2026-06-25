@@ -55,13 +55,38 @@ class TunnelService {
   private url = '';
   private status: TunnelStatus = 'stopped';
   private error = '';
+  private startedAtMs = 0;
+  private lastReachableAtMs = 0;
 
   getState() {
-    return { error: this.error, status: this.status, url: this.url };
+    return {
+      error: this.error,
+      lastReachableAt: this.lastReachableAtMs
+        ? new Date(this.lastReachableAtMs).toISOString()
+        : null,
+      startedAt: this.startedAtMs
+        ? new Date(this.startedAtMs).toISOString()
+        : null,
+      status: this.status,
+      url: this.url,
+    };
   }
 
   isActive(): boolean {
     return this.status === 'running' && Boolean(this.url);
+  }
+
+  hasConfirmedReachability(url = this.url): boolean {
+    return Boolean(url && this.url === url && this.lastReachableAtMs);
+  }
+
+  isWithinReachabilityGracePeriod(url = this.url, graceMs: number): boolean {
+    return Boolean(
+      url &&
+      this.url === url &&
+      this.startedAtMs &&
+      Date.now() - this.startedAtMs < graceMs,
+    );
   }
 
   async assertReachable(url = this.url): Promise<void> {
@@ -73,6 +98,9 @@ class TunnelService {
       // Any HTTP response (even 404) proves the public name resolves and
       // routes through the tunnel to the local API. Network/DNS failures throw.
       await fetchWithTimeout(new URL('/api/heartbeat', url).toString());
+      if (this.url === url) {
+        this.lastReachableAtMs = Date.now();
+      }
     } catch (err) {
       throw new Error(
         `Cloudflare tunnel ${url} is not reachable: ${describeFetchError(err)}`,
@@ -89,6 +117,8 @@ class TunnelService {
     this.status = 'error';
     this.error = message;
     this.url = '';
+    this.startedAtMs = 0;
+    this.lastReachableAtMs = 0;
   }
 
   async start(): Promise<{ url: string }> {
@@ -104,6 +134,8 @@ class TunnelService {
     this.status = 'starting';
     this.error = '';
     this.url = '';
+    this.startedAtMs = 0;
+    this.lastReachableAtMs = 0;
 
     const child = spawn(
       'cloudflared',
@@ -114,12 +146,15 @@ class TunnelService {
 
     try {
       this.url = await this.waitForTunnelUrl(child);
+      this.startedAtMs = Date.now();
       await this.waitForTunnelReachable(this.url);
     } catch (err) {
       this.status = 'error';
       this.error = err instanceof Error ? err.message : String(err);
       this.cleanupProcess();
       this.url = '';
+      this.startedAtMs = 0;
+      this.lastReachableAtMs = 0;
       throw err;
     }
 
@@ -141,6 +176,8 @@ class TunnelService {
     this.status = 'stopped';
     this.url = '';
     this.error = '';
+    this.startedAtMs = 0;
+    this.lastReachableAtMs = 0;
   }
 
   private waitForTunnelUrl(child: ChildProcess): Promise<string> {

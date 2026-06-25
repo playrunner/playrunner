@@ -33,6 +33,7 @@ import {
   Paintbrush,
   ArrowLeft,
   Monitor,
+  Clock,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
@@ -75,6 +76,25 @@ type ConnectionType =
   | 'independent'
   | 'success'
   | 'failure';
+
+type NodeExecutionStatus =
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
+
+function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
+  return (
+    value === 'idle' ||
+    value === 'pending' ||
+    value === 'running' ||
+    value === 'success' ||
+    value === 'error' ||
+    value === 'warning'
+  );
+}
 
 interface Connection {
   id: string;
@@ -659,7 +679,8 @@ export default function Editor() {
       if (
         data.type === 'node_state' &&
         typeof data.nodeId === 'string' &&
-        typeof data.state === 'string'
+        typeof data.state === 'string' &&
+        isNodeExecutionStatus(data.state)
       ) {
         if (data.state === 'running') {
           clearWorkflowStartupStatus();
@@ -1056,7 +1077,7 @@ export default function Editor() {
     'idle',
   );
   const [nodeStatus, setNodeStatus] = useState<
-    Record<string, 'idle' | 'running' | 'success' | 'error' | 'warning'>
+    Record<string, NodeExecutionStatus>
   >({});
   const isSimulationRunning = useRef(false);
 
@@ -2924,6 +2945,7 @@ export default function Editor() {
                   </div>
 
                   {!isNodeConfigured(node) &&
+                    status !== 'pending' &&
                     status !== 'running' &&
                     status !== 'success' &&
                     status !== 'error' &&
@@ -2944,6 +2966,14 @@ export default function Editor() {
                   {status === 'running' && (
                     <div className="absolute top-2 right-2 flex items-center justify-center text-blue-400 z-10 drop-shadow-sm">
                       <Loader2 className="w-5 h-5 animate-spin" />
+                    </div>
+                  )}
+                  {status === 'pending' && (
+                    <div
+                      className="absolute top-2 right-2 flex items-center justify-center text-sky-300 z-10 drop-shadow-sm"
+                      title="Playwright runner starting"
+                    >
+                      <Clock className="w-5 h-5 animate-pulse" />
                     </div>
                   )}
                   {status === 'success' && (

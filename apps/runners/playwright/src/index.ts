@@ -106,6 +106,16 @@ async function publishLog(message: string, level: 'info' | 'error' = 'info') {
   });
 }
 
+async function publishNodeState(
+  state: 'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning',
+) {
+  await publishEvent({
+    state,
+    timestamp: new Date().toISOString(),
+    type: 'node_state',
+  });
+}
+
 async function installTypescriptDependencies(
   workingDir: string,
 ): Promise<void> {
@@ -485,6 +495,7 @@ async function run() {
   };
 
   const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
+  await publishNodeState('running');
   await publishLog(
     `Playwright runner container started in ${envType}. Test ID: ${testId}`,
   );

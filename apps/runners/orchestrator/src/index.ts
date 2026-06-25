@@ -10,7 +10,13 @@ const EDITOR_API_URL = process.env.EDITOR_API_URL || 'http://localhost:3001';
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
-type WorkflowNodeState = 'idle' | 'running' | 'success' | 'error' | 'warning';
+type WorkflowNodeState =
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
 
 type WorkflowEventPublisher = {
   executionId: string;
@@ -264,7 +270,10 @@ async function executeWorkflow(reqBody: any) {
         if (!node) return;
         const type = (node.nodeType || node.label).toLowerCase();
 
-        await publishNodeState(node.id, 'running');
+        await publishNodeState(
+          node.id,
+          type === 'playwright' ? 'pending' : 'running',
+        );
 
         const outgoing = processedConnections.filter(
           (c) => c.sourceId === node.id,

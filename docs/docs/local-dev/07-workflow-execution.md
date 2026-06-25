@@ -121,6 +121,7 @@ Each node transitions through these states, persisted as `node_state` events:
 | State     | Meaning                                                                |
 | --------- | ---------------------------------------------------------------------- |
 | `idle`    | Not yet started                                                        |
+| `pending` | Playwright runner is being provisioned but has not started executing   |
 | `running` | Currently executing                                                    |
 | `success` | Completed successfully                                                 |
 | `warning` | Completed but with missing optional config (e.g. no Slack credentials) |

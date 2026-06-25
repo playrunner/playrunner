@@ -20,6 +20,7 @@ const CALLBACK_TUNNEL_MONITOR_INITIAL_DELAY_MS = 5000;
 const CALLBACK_TUNNEL_MONITOR_INTERVAL_MS = 10000;
 const CALLBACK_TUNNEL_MONITOR_MAX_DURATION_MS = 6 * 60 * 60 * 1000;
 const CALLBACK_TUNNEL_MONITOR_MAX_FAILURES = 2;
+const CALLBACK_TUNNEL_REACHABILITY_GRACE_MS = 3 * 60 * 1000;
 const ORCHESTRATOR_RETRYABLE_STATUS_CODES = new Set([
   408, 429, 500, 502, 503, 504,
 ]);
@@ -142,6 +143,20 @@ function buildTunnelCallbackFailureMessage(reason: string): string {
   return `Cloudflare tunnel callback URL is no longer reachable. Restart the tunnel and run the workflow again. Details: ${reason}`;
 }
 
+function isTunnelReachabilityFailureFatal(editorApiUrl: string): boolean {
+  if (!isCurrentTunnelCallbackUrl(editorApiUrl)) {
+    return false;
+  }
+
+  return (
+    tunnelService.hasConfirmedReachability(editorApiUrl) ||
+    !tunnelService.isWithinReachabilityGracePeriod(
+      editorApiUrl,
+      CALLBACK_TUNNEL_REACHABILITY_GRACE_MS,
+    )
+  );
+}
+
 async function assertTunnelCallbackReady(editorApiUrl: string): Promise<void> {
   if (!isCurrentTunnelCallbackUrl(editorApiUrl)) {
     return;
@@ -151,6 +166,12 @@ async function assertTunnelCallbackReady(editorApiUrl: string): Promise<void> {
     await tunnelService.assertReachable(editorApiUrl);
   } catch (error) {
     const message = buildTunnelCallbackFailureMessage(getErrorMessage(error));
+    if (!isTunnelReachabilityFailureFatal(editorApiUrl)) {
+      console.warn(
+        `[workflows] GCP callback tunnel is not locally reachable yet; continuing while DNS propagates. ${message}`,
+      );
+      return;
+    }
     tunnelService.markUnreachable(message, editorApiUrl);
     throw new Error(message);
   }
@@ -255,8 +276,17 @@ function startTunnelCallbackMonitor(params: {
       failureCount = 0;
       schedule(CALLBACK_TUNNEL_MONITOR_INTERVAL_MS);
     } catch (error) {
-      failureCount += 1;
       const message = buildTunnelCallbackFailureMessage(getErrorMessage(error));
+
+      if (!isTunnelReachabilityFailureFatal(params.editorApiUrl)) {
+        console.warn(
+          `[workflows] GCP callback tunnel probe deferred for ${params.testId}: ${message}`,
+        );
+        schedule(CALLBACK_TUNNEL_MONITOR_INTERVAL_MS);
+        return;
+      }
+
+      failureCount += 1;
 
       if (failureCount >= CALLBACK_TUNNEL_MONITOR_MAX_FAILURES) {
         await failExecution(message);
