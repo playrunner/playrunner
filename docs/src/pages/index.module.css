@@ -1,15 +1,11 @@
 .heroBanner {
   padding: 5rem 0 4.5rem;
-  text-align: center;
+  text-align: left;
   position: relative;
   overflow: hidden;
   background: var(--ifm-background-surface-color);
   border-bottom: 1px solid var(--ifm-color-emphasis-200);
   color: var(--ifm-font-color-base);
-}
-
-.heroInner {
-  max-width: 900px;
 }
 
 .heroLogo {
@@ -28,16 +24,16 @@
 }
 
 .heroTitle {
-  max-width: 840px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   color: var(--ifm-font-color-base);
   font-size: clamp(2.5rem, 4vw, 4rem);
   line-height: 1.05;
 }
 
 .heroSubtitle {
-  max-width: 760px;
-  margin: 1.25rem auto 0;
+  max-width: none;
+  margin: 1.25rem 0 0;
   color: var(--ifm-color-content-secondary);
   font-size: 1.25rem;
   line-height: 1.6;
@@ -46,10 +42,80 @@
 .heroActions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-top: 2rem;
+}
+
+.githubStars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.githubStarsButton,
+.githubStarsCount {
+  min-height: 2.45rem;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-card-background-color);
+  color: var(--ifm-font-color-base);
+  box-shadow: var(--ifm-global-shadow-lw);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  transition:
+    border-color var(--ifm-transition-fast) var(--ifm-transition-timing-default),
+    color var(--ifm-transition-fast) var(--ifm-transition-timing-default);
+}
+
+.githubStarsButton:hover,
+.githubStarsCount:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.githubStarsButton {
+  gap: 0.45rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.5rem;
+}
+
+.githubStarsCount {
+  min-width: 4.1rem;
+  justify-content: center;
+  position: relative;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+}
+
+.githubStarsCount::before {
+  content: '';
+  width: 0.55rem;
+  height: 0.55rem;
+  position: absolute;
+  left: -0.35rem;
+  top: 50%;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  border-left: 1px solid var(--ifm-color-emphasis-300);
+  background: var(--ifm-card-background-color);
+  transform: translateY(-50%) rotate(45deg);
+  transition: border-color var(--ifm-transition-fast)
+    var(--ifm-transition-timing-default);
+}
+
+.githubStarsCount:hover::before {
+  border-color: var(--ifm-color-primary);
+}
+
+.githubStarsIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+  flex: 0 0 auto;
 }
 
 .section {
@@ -202,6 +268,10 @@
   .heroActions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .githubStars {
+    justify-content: center;
   }
 
   .heroActions :global(.button) {

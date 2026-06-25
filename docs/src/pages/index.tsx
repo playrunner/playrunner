@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
@@ -24,6 +24,16 @@ type GettingStartedLink = {
   description: string;
   to: string;
 };
+
+type GitHubRepositoryResponse = {
+  stargazers_count?: number;
+};
+
+const githubRepositoryOwner = 'playrunner';
+const githubRepositoryName = 'playrunner';
+const githubRepositoryUrl = `https://github.com/${githubRepositoryOwner}/${githubRepositoryName}`;
+const githubStargazersUrl = `${githubRepositoryUrl}/stargazers`;
+const githubFallbackStarCount = '1';
 
 const contributorReasons: ContributorReason[] = [
   {
@@ -80,10 +90,105 @@ const gettingStartedLinks: GettingStartedLink[] = [
   },
 ];
 
+function formatStarCount(count: number): string {
+  if (count < 1000) {
+    return count.toLocaleString('en-US');
+  }
+
+  if (count < 1_000_000) {
+    const thousands = count / 1000;
+    const displayValue =
+      thousands >= 10 ? Math.floor(thousands) : Math.floor(thousands * 10) / 10;
+    return `${displayValue.toLocaleString('en-US')}k+`;
+  }
+
+  const millions = count / 1_000_000;
+  const displayValue =
+    millions >= 10 ? Math.floor(millions) : Math.floor(millions * 10) / 10;
+  return `${displayValue.toLocaleString('en-US')}m+`;
+}
+
+function GitHubIcon(): ReactNode {
+  return (
+    <svg
+      className={styles.githubStarsIcon}
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        fill="currentColor"
+        d="M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.63 5.47 7.71.4.07.55-.18.55-.39 0-.19-.01-.83-.01-1.5-2.01.38-2.53-.5-2.69-.96-.09-.24-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.61.82-2.18-.08-.21-.36-1.04.08-2.15 0 0 .67-.22 2.2.83A7.48 7.48 0 0 1 8 3.93c.68 0 1.36.09 2 .27 1.53-1.05 2.2-.83 2.2-.83.44 1.11.16 1.94.08 2.15.51.57.82 1.29.82 2.18 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .21.15.46.55.39A8.06 8.06 0 0 0 16 8.13C16 3.64 12.42 0 8 0Z"
+      />
+    </svg>
+  );
+}
+
+function GitHubStarsBadge(): ReactNode {
+  const [starCount, setStarCount] = useState<string>(githubFallbackStarCount);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadStarCount() {
+      try {
+        const response = await fetch(
+          `https://api.github.com/repos/${githubRepositoryOwner}/${githubRepositoryName}`,
+          { signal: controller.signal },
+        );
+
+        if (!response.ok) {
+          return;
+        }
+
+        const repository = (await response.json()) as GitHubRepositoryResponse;
+
+        if (typeof repository.stargazers_count === 'number') {
+          setStarCount(formatStarCount(repository.stargazers_count));
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setStarCount(githubFallbackStarCount);
+        }
+      }
+    }
+
+    loadStarCount();
+
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <div
+      className={styles.githubStars}
+      aria-label={`GitHub stars for ${githubRepositoryOwner}/${githubRepositoryName}`}
+    >
+      <a
+        className={styles.githubStarsButton}
+        href={githubRepositoryUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <GitHubIcon />
+        <span>Star</span>
+      </a>
+      <a
+        className={styles.githubStarsCount}
+        href={githubStargazersUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${githubRepositoryOwner}/${githubRepositoryName} has ${starCount} GitHub stars`}
+      >
+        <span aria-live="polite">{starCount}</span>
+      </a>
+    </div>
+  );
+}
+
 function HomepageHeader() {
   return (
     <header className={clsx('hero', styles.heroBanner)}>
-      <div className={clsx('container', styles.heroInner)}>
+      <div className="container">
         <Logo
           className={styles.heroLogo}
           role="img"
@@ -91,7 +196,8 @@ function HomepageHeader() {
         />
         <p className={styles.eyebrow}>Open-source Playwright orchestration</p>
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
-          <span style={{ color: 'var(--ifm-color-primary)' }}>Playrunner</span> - help build the open-source orchestration layer for Playwright
+          <span style={{ color: 'var(--ifm-color-primary)' }}>Playrunner</span>{' '}
+          - help build the open-source orchestration layer for Playwright
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
           Playrunner helps teams run, debug, analyse, and improve Playwright
@@ -105,6 +211,7 @@ function HomepageHeader() {
           >
             Start contributing
           </Link>
+          <GitHubStarsBadge />
           <Link
             className="button button--secondary button--lg"
             to="/docs/overview"

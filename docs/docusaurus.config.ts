@@ -4,6 +4,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+const baseUrl = '/playrunner/';
+
 const config: Config = {
   title: 'Playrunner',
   tagline: 'Open-source orchestration for Playwright test automation.',
@@ -19,7 +21,7 @@ const config: Config = {
 
   // Production URL (update if/when hosted)
   url: 'https://playrunner.github.io',
-  baseUrl: '/playrunner/',
+  baseUrl,
 
   // GitHub pages deployment config
   organizationName: 'playrunner',
@@ -135,7 +137,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Concept AI PTY LTD. Playrunner is distributed under the Playrunner Sustainable Use License.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Concept AI PTY LTD. Playrunner is distributed under the <a href="${baseUrl}docs/legal/license">Playrunner Sustainable Use License</a>.`,
     },
     prism: {
       theme: prismThemes.github,
