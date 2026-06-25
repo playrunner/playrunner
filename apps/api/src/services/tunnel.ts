@@ -7,6 +7,7 @@ const TRYCLOUDFLARE_URL_REGEX = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 const START_TIMEOUT_MS = 30000;
 const REACHABLE_TIMEOUT_MS = 60000;
 const REACHABLE_POLL_INTERVAL_MS = 2000;
+const REACHABLE_PROBE_TIMEOUT_MS = 5000;
 // Give DNS a moment to propagate before the first probe. Probing the instant
 // cloudflared prints the name returns NXDOMAIN, which the OS resolver
 // negatively caches — poisoning every retry within that cache's TTL.
@@ -22,6 +23,9 @@ function describeFetchError(err: unknown): string {
   if (!(err instanceof Error)) {
     return String(err);
   }
+  if (err.name === 'AbortError') {
+    return 'request timed out';
+  }
   const cause = (err as { cause?: unknown }).cause;
   if (cause instanceof Error) {
     const code = (cause as { code?: string }).code;
@@ -30,6 +34,20 @@ function describeFetchError(err: unknown): string {
       : `${err.message} (${cause.message})`;
   }
   return err.message;
+}
+
+function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, REACHABLE_PROBE_TIMEOUT_MS);
+
+  return fetch(url, {
+    method: 'GET',
+    signal: controller.signal,
+  }).finally(() => {
+    clearTimeout(timeout);
+  });
 }
 
 class TunnelService {
@@ -44,6 +62,33 @@ class TunnelService {
 
   isActive(): boolean {
     return this.status === 'running' && Boolean(this.url);
+  }
+
+  async assertReachable(url = this.url): Promise<void> {
+    if (!url) {
+      throw new Error('No Cloudflare tunnel URL is available.');
+    }
+
+    try {
+      // Any HTTP response (even 404) proves the public name resolves and
+      // routes through the tunnel to the local API. Network/DNS failures throw.
+      await fetchWithTimeout(new URL('/api/heartbeat', url).toString());
+    } catch (err) {
+      throw new Error(
+        `Cloudflare tunnel ${url} is not reachable: ${describeFetchError(err)}`,
+      );
+    }
+  }
+
+  markUnreachable(message: string, expectedUrl?: string) {
+    if (expectedUrl && this.url !== expectedUrl) {
+      return;
+    }
+
+    this.cleanupProcess();
+    this.status = 'error';
+    this.error = message;
+    this.url = '';
   }
 
   async start(): Promise<{ url: string }> {
@@ -171,10 +216,7 @@ class TunnelService {
 
     while (Date.now() < deadline) {
       try {
-        // Any HTTP response (even 404) proves the public name resolves and
-        // routes through the tunnel to the local API. We only retry on
-        // network/DNS errors, which throw.
-        await fetch(`${url}/api/heartbeat`, { method: 'GET' });
+        await this.assertReachable(url);
         console.log(`[tunnel] confirmed publicly reachable at ${url}`);
         return;
       } catch (err) {

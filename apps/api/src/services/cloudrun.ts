@@ -33,44 +33,81 @@ function getOrchestratorImageUri(projectId: string, template: string): string {
   return renderTemplate(template, { projectId });
 }
 
-async function ensureWarmService(
+async function ensureServiceConfiguration(
   servicesClient: ServicesClient,
   service: any,
   formattedServiceName: string,
+  orchestratorImageUri: string,
 ): Promise<string> {
   const serviceUri = service.uri!;
   const currentMinInstances = Number(service.scaling?.minInstanceCount || 0);
-  if (currentMinInstances >= ORCHESTRATOR_MIN_INSTANCE_COUNT) {
+  const currentImage = service.template?.containers?.[0]?.image;
+  const shouldUpdateMinInstances =
+    currentMinInstances < ORCHESTRATOR_MIN_INSTANCE_COUNT;
+  const shouldUpdateImage = currentImage !== orchestratorImageUri;
+
+  if (!shouldUpdateMinInstances && !shouldUpdateImage) {
     return serviceUri;
   }
 
-  const scaling: Record<string, number> = {
-    ...(service.scaling || {}),
-    minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+  const update: Record<string, any> = {
+    name: formattedServiceName,
   };
-  const paths = ['scaling.min_instance_count'];
+  const paths: string[] = [];
 
-  if (!service.scaling?.maxInstanceCount) {
-    scaling.maxInstanceCount = ORCHESTRATOR_MAX_INSTANCE_COUNT;
-    paths.push('scaling.max_instance_count');
+  if (shouldUpdateMinInstances) {
+    update.scaling = {
+      ...(service.scaling || {}),
+      minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+    };
+    paths.push('scaling.min_instance_count');
+  }
+
+  if (shouldUpdateImage) {
+    update.template = {
+      ...(service.template || {}),
+    };
+  }
+
+  if (shouldUpdateImage) {
+    const containers =
+      service.template?.containers && service.template.containers.length > 0
+        ? service.template.containers.map((container: any, index: number) =>
+            index === 0
+              ? {
+                  ...container,
+                  image: orchestratorImageUri,
+                  name: container.name || 'orchestrator',
+                }
+              : container,
+          )
+        : [
+            {
+              image: orchestratorImageUri,
+              name: 'orchestrator',
+              resources: {
+                startupCpuBoost: true,
+              },
+            },
+          ];
+
+    update.template.containers = containers;
+    paths.push('template.containers');
   }
 
   try {
     console.log(
-      `[CloudRun] Updating ${formattedServiceName} to keep ${ORCHESTRATOR_MIN_INSTANCE_COUNT} warm instance.`,
+      `[CloudRun] Updating ${formattedServiceName} configuration${shouldUpdateImage ? ` to image ${orchestratorImageUri}` : ''}.`,
     );
     const [updateOperation] = await servicesClient.updateService({
-      service: {
-        name: formattedServiceName,
-        scaling,
-      },
+      service: update,
       updateMask: { paths },
     });
     const [updatedService] = await updateOperation.promise();
     return updatedService.uri || serviceUri;
   } catch (err: any) {
     console.error(
-      `[CloudRun] Warning: Failed to update warm instance setting:`,
+      `[CloudRun] Warning: Failed to update orchestrator service configuration:`,
       err.message,
     );
     return serviceUri;
@@ -111,10 +148,11 @@ export async function ensureOrchestratorService(
     const [service] = await servicesClient.getService({
       name: formattedServiceName,
     });
-    serviceUri = await ensureWarmService(
+    serviceUri = await ensureServiceConfiguration(
       servicesClient,
       service,
       formattedServiceName,
+      orchestratorImageUri,
     );
   } catch (err: any) {
     if (err.code === 5 || err.message.includes('NOT_FOUND')) {

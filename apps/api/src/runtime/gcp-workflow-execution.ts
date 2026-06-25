@@ -16,9 +16,17 @@ const ORCHESTRATOR_HEALTH_MAX_ATTEMPTS = 8;
 const ORCHESTRATOR_INVOKE_MAX_ATTEMPTS = 3;
 const ORCHESTRATOR_RETRY_BASE_DELAY_MS = 1000;
 const ORCHESTRATOR_RETRY_MAX_DELAY_MS = 10000;
+const CALLBACK_TUNNEL_MONITOR_INITIAL_DELAY_MS = 5000;
+const CALLBACK_TUNNEL_MONITOR_INTERVAL_MS = 10000;
+const CALLBACK_TUNNEL_MONITOR_MAX_DURATION_MS = 6 * 60 * 60 * 1000;
+const CALLBACK_TUNNEL_MONITOR_MAX_FAILURES = 2;
 const ORCHESTRATOR_RETRYABLE_STATUS_CODES = new Set([
   408, 429, 500, 502, 503, 504,
 ]);
+const callbackTunnelMonitorTimers = new Map<
+  string,
+  ReturnType<typeof setTimeout>
+>();
 
 function isLocalHost(host: string | undefined): boolean {
   if (!host) {
@@ -119,6 +127,150 @@ async function publishGcpWorkflowLog(
   } catch {
     // Ignore best-effort log transport failures.
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isCurrentTunnelCallbackUrl(editorApiUrl: string): boolean {
+  const tunnelState = tunnelService.getState();
+  return tunnelState.status === 'running' && tunnelState.url === editorApiUrl;
+}
+
+function buildTunnelCallbackFailureMessage(reason: string): string {
+  return `Cloudflare tunnel callback URL is no longer reachable. Restart the tunnel and run the workflow again. Details: ${reason}`;
+}
+
+async function assertTunnelCallbackReady(editorApiUrl: string): Promise<void> {
+  if (!isCurrentTunnelCallbackUrl(editorApiUrl)) {
+    return;
+  }
+
+  try {
+    await tunnelService.assertReachable(editorApiUrl);
+  } catch (error) {
+    const message = buildTunnelCallbackFailureMessage(getErrorMessage(error));
+    tunnelService.markUnreachable(message, editorApiUrl);
+    throw new Error(message);
+  }
+}
+
+async function appendGcpWorkflowFailure(
+  testId: string,
+  workflowId: string | undefined,
+  message: string,
+): Promise<void> {
+  const status = await executionEvents.getExecutionStatus(testId);
+  if (status !== 'running') {
+    return;
+  }
+
+  await executionEvents.appendEvent(testId, {
+    cloudProvider: 'GCP',
+    executionId: testId,
+    level: 'error',
+    message,
+    testId,
+    timestamp: new Date().toISOString(),
+    type: 'workflow_failed',
+    workflowId,
+  });
+}
+
+function startTunnelCallbackMonitor(params: {
+  editorApiUrl: string;
+  testId: string;
+  workflowId?: string;
+}): void {
+  if (!isCurrentTunnelCallbackUrl(params.editorApiUrl)) {
+    return;
+  }
+
+  const existingTimer = callbackTunnelMonitorTimers.get(params.testId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const startedAt = Date.now();
+  let failureCount = 0;
+
+  const stop = () => {
+    const timer = callbackTunnelMonitorTimers.get(params.testId);
+    if (timer) {
+      clearTimeout(timer);
+    }
+    callbackTunnelMonitorTimers.delete(params.testId);
+  };
+
+  const failExecution = async (message: string, markTunnel = true) => {
+    stop();
+    if (markTunnel) {
+      tunnelService.markUnreachable(message, params.editorApiUrl);
+    }
+    await appendGcpWorkflowFailure(params.testId, params.workflowId, message);
+  };
+
+  const schedule = (delayMs: number) => {
+    const timer = setTimeout(() => {
+      void check().catch((error) => {
+        console.error(
+          `[workflows] GCP callback tunnel monitor failed for ${params.testId}:`,
+          error,
+        );
+        schedule(CALLBACK_TUNNEL_MONITOR_INTERVAL_MS);
+      });
+    }, delayMs);
+    callbackTunnelMonitorTimers.set(params.testId, timer);
+  };
+
+  const check = async (): Promise<void> => {
+    const status = await executionEvents.getExecutionStatus(params.testId);
+    if (
+      status !== 'running' ||
+      Date.now() - startedAt > CALLBACK_TUNNEL_MONITOR_MAX_DURATION_MS
+    ) {
+      stop();
+      return;
+    }
+
+    const tunnelState = tunnelService.getState();
+    if (tunnelState.status !== 'running' || !tunnelState.url) {
+      await failExecution(
+        'Cloudflare tunnel stopped before the cloud workflow finished. Restart the tunnel and run the workflow again.',
+      );
+      return;
+    }
+
+    if (tunnelState.url !== params.editorApiUrl) {
+      await failExecution(
+        'Cloudflare tunnel URL changed before the cloud workflow finished. Restart the workflow so cloud runners use the current tunnel URL.',
+        false,
+      );
+      return;
+    }
+
+    try {
+      await tunnelService.assertReachable(params.editorApiUrl);
+      failureCount = 0;
+      schedule(CALLBACK_TUNNEL_MONITOR_INTERVAL_MS);
+    } catch (error) {
+      failureCount += 1;
+      const message = buildTunnelCallbackFailureMessage(getErrorMessage(error));
+
+      if (failureCount >= CALLBACK_TUNNEL_MONITOR_MAX_FAILURES) {
+        await failExecution(message);
+        return;
+      }
+
+      console.warn(
+        `[workflows] GCP callback tunnel probe failed for ${params.testId}: ${message}`,
+      );
+      schedule(CALLBACK_TUNNEL_MONITOR_INTERVAL_MS);
+    }
+  };
+
+  schedule(CALLBACK_TUNNEL_MONITOR_INITIAL_DELAY_MS);
 }
 
 async function waitForOrchestratorServiceReady(
@@ -282,6 +434,18 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
     const editorApiUrl = editorApiResolution.editorApiUrl;
 
+    try {
+      await assertTunnelCallbackReady(editorApiUrl);
+    } catch (error) {
+      return {
+        body: {
+          code: 'TUNNEL_REQUIRED',
+          error: getErrorMessage(error),
+        },
+        status: 409,
+      };
+    }
+
     state.gcpCredentials[testId] = {
       accessToken: gcp.accessToken,
       refreshToken: gcp.refreshToken,
@@ -401,6 +565,8 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         workflowId,
       );
 
+      await assertTunnelCallbackReady(editorApiUrl);
+
       await invokeOrchestratorService(
         serviceUri,
         {
@@ -431,6 +597,12 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       } catch (error) {
         console.error('Failed to persist workflow start event', error);
       }
+
+      startTunnelCallbackMonitor({
+        editorApiUrl,
+        testId,
+        workflowId,
+      });
 
       return {
         body: {

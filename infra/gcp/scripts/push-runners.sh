@@ -2,7 +2,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+PLAYWRIGHT_CONFIG_SCRIPT="${REPO_ROOT}/infra/scripts/playwright-runner-config.mjs"
 cd "${REPO_ROOT}"
 
 PROJECT_ID=""
@@ -151,12 +152,12 @@ push_playwright() {
     echo "Building Playwright Runner..."
     echo "======================================"
     local default_tag latest_tag
-    default_tag="$(node "${SCRIPT_DIR}/playwright-runner-config.mjs" default-tag)"
-    latest_tag="$(node "${SCRIPT_DIR}/playwright-runner-config.mjs" latest-tag)"
+    default_tag="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" default-tag)"
+    latest_tag="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" latest-tag)"
     local versions=()
     while IFS= read -r version; do
         versions+=("$version")
-    done < <(node "${SCRIPT_DIR}/playwright-runner-config.mjs" tags)
+    done < <(node "${PLAYWRIGHT_CONFIG_SCRIPT}" tags)
 
     local pw_ctx="${REPO_ROOT}/apps/runners/playwright"
     local built_images=()
@@ -233,4 +234,3 @@ esac
 
 echo ""
 echo "Done!"
-

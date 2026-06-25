@@ -154,6 +154,15 @@ class ExecutionEventsService {
     });
   }
 
+  async getExecutionStatus(executionId: string) {
+    const execution = await prisma.workflowExecution.findUnique({
+      select: { status: true },
+      where: { id: executionId },
+    });
+
+    return execution?.status ?? null;
+  }
+
   async verifyExecutionToken(executionId: string, token: string) {
     const execution = await prisma.workflowExecution.findUnique({
       where: { id: executionId },

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..', '..');
+const repoRoot = path.resolve(__dirname, '..', '..', '..');
 const apiDir = path.join(repoRoot, 'apps', 'api');
 const apiEnvPath = path.join(apiDir, '.env');
 
@@ -130,7 +130,7 @@ function emit(cmd, data) {
       break;
     default:
       fail(
-        'Usage: node infra/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-image-uri-template|playwright-image-uri-template|json> [--user-id <id>]',
+        'Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-image-uri-template|playwright-image-uri-template|json> [--user-id <id>]',
       );
   }
 }

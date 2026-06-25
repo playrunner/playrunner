@@ -60,7 +60,7 @@ docker build \
   ./apps/runners/playwright
 ```
 
-`start-local.sh`, `infra/scripts/push-runners.sh`, and the Playwright settings modal all read from `config/playwright-runner-versions.json`.
+`start-local.sh`, `infra/gcp/scripts/push-runners.sh`, and the Playwright settings modal all read from `config/playwright-runner-versions.json`.
 
 **Base image:** `mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}`  
 **Entry point:** `node dist/index.js`
@@ -130,7 +130,7 @@ Then restart the Orchestrator container: close and reopen the Editor tab, which 
 Running workflows against the GCP execution path requires the Orchestrator and Playwright images to be available in a registry that Cloud Run can pull from. The repo ships a helper that builds and pushes them to Google Artifact Registry, redeploys the Orchestrator Cloud Run service, and clears stale Playwright Cloud Run Jobs so they pick up the new image:
 
 ```bash
-./infra/scripts/push-runners.sh
+./infra/gcp/scripts/push-runners.sh
 ```
 
 ### Prerequisites
@@ -148,29 +148,29 @@ Running workflows against the GCP execution path requires the Orchestrator and P
 If you want to confirm what the script will use before running it:
 
 ```bash
-node infra/scripts/gcp-settings.mjs json
+node infra/gcp/scripts/gcp-settings.mjs json
 ```
 
-This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/scripts/push-runners.sh --help` for the wrapper script's options.
+This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/gcp/scripts/push-runners.sh --help` for the wrapper script's options.
 
 ### Usage
 
 Interactive (confirmation prompt, then menu for orchestrator / playwright / both):
 
 ```bash
-./infra/scripts/push-runners.sh
+./infra/gcp/scripts/push-runners.sh
 ```
 
 Non-interactive, e.g. for CI:
 
 ```bash
-./infra/scripts/push-runners.sh --target both --yes
+./infra/gcp/scripts/push-runners.sh --target both --yes
 ```
 
 One-off override (push to a project other than the one saved in the modal):
 
 ```bash
-./infra/scripts/push-runners.sh --project-id my-other-project --target orchestrator --yes
+./infra/gcp/scripts/push-runners.sh --project-id my-other-project --target orchestrator --yes
 ```
 
 All flags:
