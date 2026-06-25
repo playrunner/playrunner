@@ -1,11 +1,77 @@
 .features {
-  display: flex;
-  align-items: center;
-  padding: 2rem 0;
+  padding: 4rem 0;
   width: 100%;
 }
 
-.featureSvg {
-  height: 200px;
-  width: 200px;
+.sectionHeader {
+  max-width: 760px;
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--ifm-color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--ifm-font-color-base);
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.sectionCopy {
+  margin: 1rem 0 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.areaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.areaCard {
+  min-height: 11rem;
+  padding: 1.25rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 0.75rem;
+  background: var(--ifm-card-background-color);
+  box-shadow: var(--ifm-global-shadow-lw);
+}
+
+.areaTitle {
+  margin: 0 0 0.75rem;
+  color: var(--ifm-font-color-base);
+  font-size: 1.05rem;
+  line-height: 1.35;
+}
+
+.areaDescription {
+  margin: 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+@media screen and (max-width: 996px) {
+  .features {
+    padding: 3rem 0;
+  }
+
+  .areaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .areaGrid {
+    grid-template-columns: 1fr;
+  }
 }

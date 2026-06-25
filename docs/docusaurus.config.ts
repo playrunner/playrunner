@@ -1,12 +1,12 @@
-import {themes as prismThemes} from 'prism-react-renderer';
-import type {Config} from '@docusaurus/types';
+import { themes as prismThemes } from 'prism-react-renderer';
+import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
   title: 'Playrunner',
-  tagline: 'Automate your Playwright tests with visual workflows.',
+  tagline: 'Open-source orchestration for Playwright test automation.',
   favicon: 'img/favicon.svg',
   customFields: {
     localDocsLandingPath: process.env.DOCS_LANDING_PATH || '/',
@@ -38,8 +38,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl:
-            'https://github.com/playrunner/playrunner/tree/main/docs/',
+          editUrl: 'https://github.com/playrunner/playrunner/tree/main/docs/',
           routeBasePath: 'docs',
         },
         blog: {
@@ -48,8 +47,7 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          editUrl:
-            'https://github.com/playrunner/playrunner/tree/main/docs/',
+          editUrl: 'https://github.com/playrunner/playrunner/tree/main/docs/',
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
           onUntruncatedBlogPosts: 'warn',
@@ -79,7 +77,7 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
+        { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://github.com/playrunner/playrunner',
           label: 'GitHub',
@@ -99,26 +97,33 @@ const config: Config = {
         {
           title: 'Tutorials',
           items: [
-            {label: 'Getting Started', to: '/docs/tutorials/getting-started'},
-            {label: 'Create Your First Workflow', to: '/docs/tutorials/create-your-first-workflow'},
-            {label: 'Connect GitHub', to: '/docs/tutorials/connect-github'},
-            {label: 'Run Your First Test', to: '/docs/tutorials/run-your-first-test'},
+            { label: 'Getting Started', to: '/docs/tutorials/getting-started' },
+            {
+              label: 'Create Your First Workflow',
+              to: '/docs/tutorials/create-your-first-workflow',
+            },
+            { label: 'Connect GitHub', to: '/docs/tutorials/connect-github' },
+            {
+              label: 'Run Your First Test',
+              to: '/docs/tutorials/run-your-first-test',
+            },
           ],
         },
         {
           title: 'Development',
           items: [
-            {label: 'Overview', to: '/docs/local-dev'},
-            {label: 'Getting Started', to: '/docs/tutorials/getting-started'},
-            {label: 'Services & Ports', to: '/docs/local-dev/services-and-ports'},
-            {label: 'Troubleshooting', to: '/docs/local-dev/troubleshooting'},
+            { label: 'Overview', to: '/docs/local-dev' },
+            { label: 'Getting Started', to: '/docs/tutorials/getting-started' },
+            {
+              label: 'Services & Ports',
+              to: '/docs/local-dev/services-and-ports',
+            },
+            { label: 'Troubleshooting', to: '/docs/local-dev/troubleshooting' },
           ],
         },
         {
           title: 'Blog',
-          items: [
-            {label: 'Blog', to: '/blog'},
-          ],
+          items: [{ label: 'Blog', to: '/blog' }],
         },
         {
           title: 'More',

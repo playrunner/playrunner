@@ -1,57 +1,218 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
 .heroBanner {
-  padding: 4rem 0;
+  padding: 5rem 0 4.5rem;
   text-align: center;
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(22, 163, 74, 0.16), transparent 26%),
-    radial-gradient(circle at top right, rgba(239, 68, 68, 0.12), transparent 22%),
-    linear-gradient(180deg, #2c2c2c 0%, #242526 54%, #1f2021 100%);
-  color: #f5f7f8;
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  color: var(--ifm-font-color-base);
 }
 
-.heroBanner :global(.hero__title),
-.heroBanner :global(.hero__subtitle) {
-  color: #f5f7f8;
+.heroInner {
+  max-width: 900px;
 }
 
-.heroBanner :global(.button.button--secondary) {
-  background: #f5f7f8;
-  border-color: #f5f7f8;
-  color: #1f2021;
+.heroLogo {
+  height: 4rem;
+  width: 4rem;
+  margin-bottom: 1.25rem;
 }
 
-.heroBanner :global(.button.button--secondary:hover) {
-  background: #0f766e;
-  border-color: #0f766e;
-  color: #f7fbf9;
+.eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--ifm-color-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  max-width: 840px;
+  margin: 0 auto;
+  color: var(--ifm-font-color-base);
+  font-size: clamp(2.5rem, 4vw, 4rem);
+  line-height: 1.05;
+}
+
+.heroSubtitle {
+  max-width: 760px;
+  margin: 1.25rem auto 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.section {
+  padding: 4rem 0;
+}
+
+.sectionTint {
+  background: var(--ifm-background-surface-color);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.sectionGrid,
+.inviteLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 3rem;
+  align-items: start;
+}
+
+.sectionHeader {
+  max-width: 760px;
+  margin-bottom: 2rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--ifm-font-color-base);
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.leadText {
+  margin: 0;
+  color: var(--ifm-font-color-base);
+  font-size: 1.25rem;
+  line-height: 1.65;
+}
+
+.bodyText {
+  margin: 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.reasonGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.reasonCard,
+.startLink {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 0.75rem;
+  background: var(--ifm-card-background-color);
+  box-shadow: var(--ifm-global-shadow-lw);
+}
+
+.reasonCard {
+  padding: 1.25rem;
+}
+
+.cardTitle {
+  margin: 0 0 0.75rem;
+  color: var(--ifm-font-color-base);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.cardText {
+  margin: 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.startList {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 880px;
+}
+
+.startLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+  transition:
+    border-color var(--ifm-transition-fast) var(--ifm-transition-timing-default),
+    transform var(--ifm-transition-fast) var(--ifm-transition-timing-default);
+}
+
+.startLink:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.startLink span:first-child {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.startLink strong {
+  font-size: 1rem;
+}
+
+.startLink span span {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 @media screen and (max-width: 996px) {
   .heroBanner {
-    padding: 2rem;
+    padding: 3.5rem 1rem;
+  }
+
+  .section {
+    padding: 3rem 0;
+  }
+
+  .sectionGrid,
+  .inviteLayout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .reasonGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+@media screen and (max-width: 640px) {
+  .heroTitle {
+    font-size: 2.25rem;
+  }
 
-.heroTitle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
+  .heroSubtitle,
+  .leadText {
+    font-size: 1.05rem;
+  }
 
-.heroLogo {
-  height: 1em;
-  width: 1em;
+  .heroActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .heroActions :global(.button) {
+    width: 100%;
+  }
+
+  .reasonGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .startLink {
+    align-items: flex-start;
+  }
 }

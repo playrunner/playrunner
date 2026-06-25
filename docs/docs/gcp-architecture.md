@@ -30,7 +30,7 @@ graph TD
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
 4. **Pub/Sub**: Facilitates asynchronous, real-time log streaming from the Playwright Runner back to the API Server, which then streams them via SSE to the user's browser.
 
-> **Debugging cloud runs locally?** When the API is running on your machine, cloud runners cannot reach `localhost` to send logs and results back. See [Remote Debugging (Cloud Runners + Tunnel)](./local-dev/10-remote-debugging) for how Playrunner bridges this with an automatic Cloudflare tunnel.
+> **Debugging cloud runs locally?** When the API is running on your machine, cloud runners cannot reach `localhost` to send logs and results back. See [Remote Debugging (Cloud Runners + Tunnel)](./local-dev/remote-debugging) for how Playrunner bridges this with an automatic Cloudflare tunnel.
 
 ---
 
@@ -42,7 +42,7 @@ What Playrunner does **not** do for you is build or push container images.
 Cloud Run still needs published images for the Orchestrator service and the
 Playwright runner jobs before runtime provisioning can succeed. The repo ships
 `infra/gcp/scripts/push-runners.sh` to do this — see
-[Publishing to GCP](./local-dev/06-docker-images#publishing-to-gcp).
+[Publishing to GCP](./local-dev/docker-images#publishing-to-gcp).
 
 When a user initiates a workflow from the web interface targeting GCP:
 
