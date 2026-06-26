@@ -75,6 +75,5 @@ it as a hosted or white-label service, or embed it into a commercial offering
 where a material part of the value comes from Playrunner itself without
 separate written permission.
 
-This is not an OSI-approved open source license. See
-[`LICENSE`](LICENSE) and [`docs/docs/legal/license.md`](docs/docs/legal/license.md)
-for the full terms.
+This is not an OSI-approved open source license. See [`LICENSE`](LICENSE) for
+the full terms.

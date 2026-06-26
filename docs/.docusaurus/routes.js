@@ -79,25 +79,19 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '705'),
+    component: ComponentCreator('/playrunner/docs', 'd1e'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', 'e6b'),
+        component: ComponentCreator('/playrunner/docs', '2bd'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '959'),
+            component: ComponentCreator('/playrunner/docs', '802'),
             routes: [
               {
                 path: '/playrunner/docs/category/cloud-architecture',
                 component: ComponentCreator('/playrunner/docs/category/cloud-architecture', '0c4'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/category/legal',
-                component: ComponentCreator('/playrunner/docs/category/legal', '17f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -128,12 +122,6 @@ export default [
               {
                 path: '/playrunner/docs/contributing',
                 component: ComponentCreator('/playrunner/docs/contributing', '85b'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/legal/license',
-                component: ComponentCreator('/playrunner/docs/legal/license', '544'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

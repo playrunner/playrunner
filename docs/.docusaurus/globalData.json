@@ -36,11 +36,6 @@
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "legal/license",
-              "path": "/playrunner/docs/legal/license",
-              "sidebar": "tutorialSidebar"
-            },
-            {
               "id": "local-dev/connecting-integrations",
               "path": "/playrunner/docs/local-dev/connecting-integrations",
               "sidebar": "tutorialSidebar"
@@ -133,11 +128,6 @@
             {
               "id": "/category/cloud-architecture",
               "path": "/playrunner/docs/category/cloud-architecture",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "/category/legal",
-              "path": "/playrunner/docs/category/legal",
               "sidebar": "tutorialSidebar"
             }
           ],

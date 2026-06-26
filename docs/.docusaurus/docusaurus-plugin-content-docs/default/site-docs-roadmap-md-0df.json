@@ -20,9 +20,5 @@
   "previous": {
     "title": "Remote Debugging (Cloud Runners + Tunnel)",
     "permalink": "/playrunner/docs/local-dev/remote-debugging"
-  },
-  "next": {
-    "title": "Legal",
-    "permalink": "/playrunner/docs/category/legal"
   }
 }

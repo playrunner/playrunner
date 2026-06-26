@@ -206,26 +206,22 @@
     },
     "content": "4c678320"
   },
-  "/playrunner/docs-705": {
+  "/playrunner/docs-d1e": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/playrunner/docs-e6b": {
+  "/playrunner/docs-2bd": {
     "__comp": "a7bd4aaa",
     "__props": "60756d28"
   },
-  "/playrunner/docs-959": {
+  "/playrunner/docs-802": {
     "__comp": "a94703ab"
   },
   "/playrunner/docs/category/cloud-architecture-0c4": {
     "__comp": "14eb3368",
     "__props": "350b9be0"
-  },
-  "/playrunner/docs/category/legal-17f": {
-    "__comp": "14eb3368",
-    "__props": "a29ba2e4"
   },
   "/playrunner/docs/cloud-architecture/aws-734": {
     "__comp": "17896441",
@@ -246,10 +242,6 @@
   "/playrunner/docs/contributing-85b": {
     "__comp": "17896441",
     "content": "4d54d076"
-  },
-  "/playrunner/docs/legal/license-544": {
-    "__comp": "17896441",
-    "content": "7a094ce2"
   },
   "/playrunner/docs/local-dev/-cb6": {
     "__comp": "17896441",

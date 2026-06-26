@@ -197,7 +197,7 @@ export default {
           ]
         }
       ],
-      "copyright": "Copyright © 2026 Concept AI PTY LTD. Playrunner is distributed under the <a href=\"/playrunner/docs/legal/license\">Playrunner Sustainable Use License</a>."
+      "copyright": "Copyright © 2026 Concept AI PTY LTD. Playrunner is distributed under the <a href=\"https://github.com/playrunner/playrunner/blob/main/LICENSE\">Playrunner Sustainable Use License</a>."
     },
     "prism": {
       "theme": {
