@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState } from 'react';
 
 export interface Integration {
   id: string;
@@ -10,7 +10,7 @@ export interface Integration {
   disabled?: boolean;
   disabledReason?: string;
   isPremiumFeature?: boolean;
-  nodeType?: "trigger" | "action" | "config";
+  nodeType?: 'trigger' | 'action' | 'config';
   color?: string;
   SettingsModal?: React.FC<{ isOpen: boolean; onClose: () => void }>;
   requiresAuth?: boolean;
@@ -68,8 +68,8 @@ export interface IntegrationModalProps {
 }
 
 export interface IntegrationButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "tertiary" | "danger" | "ghost";
-  size?: "default" | "sm" | "icon";
+  variant?: 'primary' | 'secondary' | 'tertiary' | 'danger' | 'ghost';
+  size?: 'default' | 'sm' | 'icon';
 }
 
 export interface IntegrationSdkUiComponents {
@@ -113,7 +113,7 @@ export function useIntegrationHost() {
 
   if (!host) {
     throw new Error(
-      "Integration packages must be rendered inside IntegrationSdkProvider.",
+      'Integration packages must be rendered inside IntegrationSdkProvider.',
     );
   }
 
@@ -152,7 +152,7 @@ export function IntegrationSetupGuide({
 
 export function IntegrationCopyableCode({
   value,
-  label = "Copy value",
+  label = 'Copy value',
 }: {
   value: string;
   label?: string;
@@ -176,7 +176,7 @@ export function IntegrationCopyableCode({
         className="absolute top-2 right-2 rounded bg-[var(--background)] px-2 py-1 text-[10px] font-medium text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
         title={label}
       >
-        {copied ? "Copied" : "Copy"}
+        {copied ? 'Copied' : 'Copy'}
       </button>
     </div>
   );
@@ -194,7 +194,7 @@ export function IntegrationSettingsModal({
   onDisconnect,
   children,
   primaryActionLabel,
-  primaryActionPendingLabel = "Working...",
+  primaryActionPendingLabel = 'Working...',
   primaryActionDisabled,
   primaryActionPending,
   onPrimaryAction,

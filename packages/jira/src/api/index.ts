@@ -1,25 +1,25 @@
-import { Router } from "express";
+import { Router } from 'express';
 
 export const jiraRouter = Router();
 
 export const jiraApiContribution = {
-  id: "jira",
-  mountPath: "/api/jira",
+  id: 'jira',
+  mountPath: '/api/jira',
   router: jiraRouter,
 };
 
-jiraRouter.post("/token", async (req, res) => {
+jiraRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
 
   try {
-    const jRes = await fetch("https://auth.atlassian.com/oauth/token", {
-      method: "POST",
+    const jRes = await fetch('https://auth.atlassian.com/oauth/token', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
-        grant_type: "authorization_code",
+        grant_type: 'authorization_code',
         client_id,
         client_secret,
         code,
@@ -33,35 +33,35 @@ jiraRouter.post("/token", async (req, res) => {
       const data = JSON.parse(text);
 
       if (!jRes.ok) {
-        console.error("Jira Token exchange failed:", data);
+        console.error('Jira Token exchange failed:', data);
         return res.status(jRes.status).json(data);
       }
 
       return res.json(data);
     } catch {
-      console.error("Token exchange failed. Jira returned non-JSON:", text);
+      console.error('Token exchange failed. Jira returned non-JSON:', text);
       return res
         .status(500)
-        .json({ error: "Failed to exchange token", details: text });
+        .json({ error: 'Failed to exchange token', details: text });
     }
   } catch (err) {
-    console.error("Token exchange error:", err);
-    return res.status(500).json({ error: "Failed to exchange token" });
+    console.error('Token exchange error:', err);
+    return res.status(500).json({ error: 'Failed to exchange token' });
   }
 });
 
-jiraRouter.post("/refresh", async (req, res) => {
+jiraRouter.post('/refresh', async (req, res) => {
   const { refresh_token, client_id, client_secret } = req.body;
 
   try {
-    const jRes = await fetch("https://auth.atlassian.com/oauth/token", {
-      method: "POST",
+    const jRes = await fetch('https://auth.atlassian.com/oauth/token', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
       body: JSON.stringify({
-        grant_type: "refresh_token",
+        grant_type: 'refresh_token',
         client_id,
         client_secret,
         refresh_token,
@@ -74,33 +74,33 @@ jiraRouter.post("/refresh", async (req, res) => {
       const data = JSON.parse(text);
 
       if (!jRes.ok) {
-        console.error("Jira Token refresh failed:", data);
+        console.error('Jira Token refresh failed:', data);
         return res.status(jRes.status).json(data);
       }
 
       return res.json(data);
     } catch {
-      console.error("Token refresh failed. Jira returned non-JSON:", text);
+      console.error('Token refresh failed. Jira returned non-JSON:', text);
       return res
         .status(500)
-        .json({ error: "Failed to refresh token", details: text });
+        .json({ error: 'Failed to refresh token', details: text });
     }
   } catch (err) {
-    console.error("Token refresh error:", err);
-    return res.status(500).json({ error: "Failed to refresh token" });
+    console.error('Token refresh error:', err);
+    return res.status(500).json({ error: 'Failed to refresh token' });
   }
 });
 
-jiraRouter.get("/projects", async (req, res) => {
-  const token = req.headers["x-jira-auth"];
+jiraRouter.get('/projects', async (req, res) => {
+  const token = req.headers['x-jira-auth'];
 
   if (!token) {
-    return res.status(401).json({ error: "Missing x-jira-auth header" });
+    return res.status(401).json({ error: 'Missing x-jira-auth header' });
   }
 
   try {
     const resourceRes = await fetch(
-      "https://api.atlassian.com/oauth/token/accessible-resources",
+      'https://api.atlassian.com/oauth/token/accessible-resources',
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -123,7 +123,7 @@ jiraRouter.get("/projects", async (req, res) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          Accept: "application/json",
+          Accept: 'application/json',
         },
       },
     );
@@ -136,7 +136,7 @@ jiraRouter.get("/projects", async (req, res) => {
     const projects = await projectsRes.json();
     return res.json({ cloudId, projects });
   } catch (err) {
-    console.error("Failed to fetch Jira projects:", err);
-    return res.status(500).json({ error: "Failed to fetch Jira projects" });
+    console.error('Failed to fetch Jira projects:', err);
+    return res.status(500).json({ error: 'Failed to fetch Jira projects' });
   }
 });

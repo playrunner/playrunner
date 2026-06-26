@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   IntegrationCopyableCode,
   IntegrationConfigField,
   IntegrationSettingsModal,
   IntegrationSetupGuide,
   useIntegrationHost,
-} from "@playrunner/integration-sdk";
-import { jiraIconUrl } from "./icon";
+} from '@playrunner/integration-sdk';
+import { jiraIconUrl } from './icon';
 
 interface JiraSettingsModalProps {
   isOpen: boolean;
@@ -15,8 +15,8 @@ interface JiraSettingsModalProps {
 
 export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
   const { auth, store, ui } = useIntegrationHost();
-  const [jiraClientId, setJiraClientId] = useState("");
-  const [jiraClientSecret, setJiraClientSecret] = useState("");
+  const [jiraClientId, setJiraClientId] = useState('');
+  const [jiraClientSecret, setJiraClientSecret] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
@@ -31,20 +31,20 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
       if (!isOpen || !auth.currentUser) return;
 
       try {
-        const data = await store.getIntegration(auth.currentUser.uid, "jira");
+        const data = await store.getIntegration(auth.currentUser.uid, 'jira');
 
         if (!data || !isMounted) return;
 
         if (data.clientId) {
           setJiraClientId(data.clientId);
-          setJiraClientSecret(data.clientSecret || "");
+          setJiraClientSecret(data.clientSecret || '');
         }
 
         if (data.clientId && data.accessToken) {
           setAuthSuccess(true);
         }
       } catch (error) {
-        console.error("Failed to fetch Jira credentials", error);
+        console.error('Failed to fetch Jira credentials', error);
       }
     };
 
@@ -53,8 +53,8 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
     } else {
       setAuthSuccess(false);
       setIsAuthenticating(false);
-      setJiraClientId("");
-      setJiraClientSecret("");
+      setJiraClientId('');
+      setJiraClientSecret('');
     }
 
     return () => {
@@ -65,7 +65,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
   const closePopup = () => {
     if (popupRef.current) {
       popupRef.current.postMessage(
-        { type: "oauth_close" },
+        { type: 'oauth_close' },
         window.location.origin,
       );
     }
@@ -78,7 +78,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
       const currentUser = auth.currentUser;
 
       if (currentUser) {
-        await store.saveIntegration(currentUser.uid, "jira", {
+        await store.saveIntegration(currentUser.uid, 'jira', {
           clientId: jiraClientId,
           clientSecret: jiraClientSecret,
           updatedAt: new Date().toISOString(),
@@ -87,9 +87,9 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
 
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
-        if (event.data?.type !== "oauth_callback") return;
+        if (event.data?.type !== 'oauth_callback') return;
 
-        window.removeEventListener("message", messageListener);
+        window.removeEventListener('message', messageListener);
 
         if (
           !event.data?.success ||
@@ -103,10 +103,10 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
 
         try {
           const token = await auth.currentUser.getIdToken();
-          const tokenRes = await fetch("/api/jira/token", {
-            method: "POST",
+          const tokenRes = await fetch('/api/jira/token', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
             body: JSON.stringify({
@@ -125,7 +125,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
             );
           }
 
-          await store.saveIntegration(auth.currentUser.uid, "jira", {
+          await store.saveIntegration(auth.currentUser.uid, 'jira', {
             clientId: jiraClientId,
             clientSecret: jiraClientSecret,
             code: event.data.params.code,
@@ -143,14 +143,14 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
         } catch (error) {
           const message =
             error instanceof Error ? error.message : String(error);
-          console.error("Failed to save auth code:", error);
+          console.error('Failed to save auth code:', error);
           setIsAuthenticating(false);
           alert(`Failed to authenticate with Jira. Details: ${message}`);
           closePopup();
         }
       };
 
-      window.addEventListener("message", messageListener);
+      window.addEventListener('message', messageListener);
 
       const redirectUri = encodeURIComponent(callbackUrl);
       const authUrl = `https://auth.atlassian.com/authorize?audience=api.atlassian.com&client_id=${jiraClientId}&scope=read:jira-work%20write:jira-work%20offline_access&redirect_uri=${redirectUri}&state=123&response_type=code&prompt=consent`;
@@ -161,7 +161,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
 
       popupRef.current = window.open(
         authUrl,
-        "JiraOAuth",
+        'JiraOAuth',
         `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${top}, left=${left}`,
       );
 
@@ -169,11 +169,11 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
         if (!popupRef.current || popupRef.current.closed) {
           window.clearInterval(checkPopup);
           setIsAuthenticating(false);
-          window.removeEventListener("message", messageListener);
+          window.removeEventListener('message', messageListener);
         }
       }, 500);
     } catch (error) {
-      console.error("Failed to save credentials", error);
+      console.error('Failed to save credentials', error);
       setIsAuthenticating(false);
     }
   };
@@ -182,12 +182,12 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
     if (!auth.currentUser) return;
 
     try {
-      await store.deleteIntegration(auth.currentUser.uid, "jira");
+      await store.deleteIntegration(auth.currentUser.uid, 'jira');
       setAuthSuccess(false);
-      setJiraClientId("");
-      setJiraClientSecret("");
+      setJiraClientId('');
+      setJiraClientSecret('');
     } catch (error) {
-      console.error("Failed to disconnect Jira", error);
+      console.error('Failed to disconnect Jira', error);
     }
   };
 
@@ -214,7 +214,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
     >
       <IntegrationSetupGuide>
         <li>
-          Go to the{" "}
+          Go to the{' '}
           <a
             href="https://developer.atlassian.com/console/myapps/"
             target="_blank"
@@ -226,16 +226,16 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
           .
         </li>
         <li>
-          Click <strong>Create</strong> and select{" "}
+          Click <strong>Create</strong> and select{' '}
           <strong>OAuth 2.0 integration</strong>.
         </li>
         <li>
-          Give your app a name and agree to the terms, then click{" "}
+          Give your app a name and agree to the terms, then click{' '}
           <strong>Create</strong>.
         </li>
         <li>
           In the left menu, select <strong>Permissions</strong> and add the Jira
-          API. Grant <code>read:jira-work</code> and{" "}
+          API. Grant <code>read:jira-work</code> and{' '}
           <code>write:jira-work</code> scopes.
         </li>
         <li>
@@ -244,7 +244,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
           <IntegrationCopyableCode value={callbackUrl} />
         </li>
         <li>
-          Go back to <strong>Settings</strong> to find your{" "}
+          Go back to <strong>Settings</strong> to find your{' '}
           <strong>Client ID</strong> and <strong>Secret</strong>.
         </li>
         <li>Copy and paste them below.</li>

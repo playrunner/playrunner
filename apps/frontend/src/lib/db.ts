@@ -112,11 +112,21 @@ async function saveIntegrationRecord(integrationId: string, data: any) {
   });
 }
 
+async function deleteIntegrationRecord(integrationId: string) {
+  await apiRequest(`/api/store/integrations/${integrationId}`, {
+    method: 'DELETE',
+  });
+}
+
 async function saveCloudCredentialRecord(providerId: string, data: any) {
   await apiRequest(`/api/store/cloud-credentials/${providerId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+function isBadGithubRefreshTokenError(tokenData: any) {
+  return tokenData?.error === 'bad_refresh_token';
 }
 
 async function refreshGithubTokenIfNeeded(
@@ -167,6 +177,14 @@ async function refreshGithubTokenIfNeeded(
         await saveIntegrationRecord('github', integrationData);
         console.log('GitHub token refreshed successfully.');
       } else {
+        if (isBadGithubRefreshTokenError(tokenData)) {
+          console.warn(
+            'GitHub refresh token is invalid or expired. Clearing the saved GitHub connection; reconnect GitHub to continue.',
+          );
+          await deleteIntegrationRecord('github');
+          return null;
+        }
+
         console.error(
           'Failed to refresh GitHub token, no access_token returned:',
           tokenData,
@@ -405,10 +423,16 @@ export const DbAPI = {
     const results = payload.integrations;
 
     if (results['github']) {
-      results['github'] = await refreshGithubTokenIfNeeded(
+      const githubIntegration = await refreshGithubTokenIfNeeded(
         userId,
         results['github'],
       );
+
+      if (githubIntegration) {
+        results['github'] = githubIntegration;
+      } else {
+        delete results['github'];
+      }
     }
 
     if (results['jira']) {
