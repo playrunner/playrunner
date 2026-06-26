@@ -1,0 +1,29 @@
+{
+  "id": "cloud-architecture/aws",
+  "title": "AWS Cloud Architecture",
+  "description": "This page is a placeholder for the planned AWS cloud runner architecture.",
+  "source": "@site/docs/cloud-architecture/aws.md",
+  "sourceDirName": "cloud-architecture",
+  "slug": "/cloud-architecture/aws",
+  "permalink": "/playrunner/docs/cloud-architecture/aws",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/cloud-architecture/aws.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "AWS Cloud Architecture",
+    "sidebar_label": "AWS"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "GCP",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp"
+  },
+  "next": {
+    "title": "Azure",
+    "permalink": "/playrunner/docs/cloud-architecture/azure"
+  }
+}

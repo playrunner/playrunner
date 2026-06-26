@@ -18,8 +18,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "GCP Cloud Architecture",
-    "permalink": "/playrunner/docs/gcp-architecture"
+    "title": "Contributing",
+    "permalink": "/playrunner/docs/contributing"
   },
   "next": {
     "title": "Getting Started",

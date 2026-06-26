@@ -18,11 +18,11 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Overview",
-    "permalink": "/playrunner/docs/overview"
+    "title": "Azure",
+    "permalink": "/playrunner/docs/cloud-architecture/azure"
   },
   "next": {
-    "title": "GCP Cloud Architecture",
-    "permalink": "/playrunner/docs/gcp-architecture"
+    "title": "Tutorials",
+    "permalink": "/playrunner/docs/tutorials/"
   }
 }

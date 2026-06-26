@@ -11,13 +11,23 @@
           "mainDocId": "overview",
           "docs": [
             {
-              "id": "contributing",
-              "path": "/playrunner/docs/contributing",
+              "id": "cloud-architecture/aws",
+              "path": "/playrunner/docs/cloud-architecture/aws",
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "gcp-architecture",
-              "path": "/playrunner/docs/gcp-architecture",
+              "id": "cloud-architecture/azure",
+              "path": "/playrunner/docs/cloud-architecture/azure",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "cloud-architecture/gcp",
+              "path": "/playrunner/docs/cloud-architecture/gcp",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "contributing",
+              "path": "/playrunner/docs/contributing",
               "sidebar": "tutorialSidebar"
             },
             {
@@ -113,6 +123,11 @@
             {
               "id": "tutorials/understanding-reports",
               "path": "/playrunner/docs/tutorials/understanding-reports",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "/category/cloud-architecture",
+              "path": "/playrunner/docs/category/cloud-architecture",
               "sidebar": "tutorialSidebar"
             },
             {

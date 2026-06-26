@@ -29,10 +29,16 @@ const config: Config = {
 
   onBrokenLinks: 'warn',
 
+  markdown: {
+    mermaid: true,
+  },
+
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
   },
+
+  themes: ['@docusaurus/theme-mermaid'],
 
   presets: [
     [

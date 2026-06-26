@@ -37,6 +37,23 @@ export default {
   "organizationName": "playrunner",
   "projectName": "playrunner",
   "onBrokenLinks": "warn",
+  "markdown": {
+    "mermaid": true,
+    "format": "mdx",
+    "emoji": true,
+    "mdx1Compat": {
+      "comments": false,
+      "admonitions": false,
+      "headingIds": false
+    },
+    "anchors": {
+      "maintainCase": false
+    },
+    "hooks": {
+      "onBrokenMarkdownLinks": "warn",
+      "onBrokenMarkdownImages": "throw"
+    }
+  },
   "i18n": {
     "defaultLocale": "en",
     "locales": [
@@ -45,6 +62,9 @@ export default {
     "path": "i18n",
     "localeConfigs": {}
   },
+  "themes": [
+    "@docusaurus/theme-mermaid"
+  ],
   "presets": [
     [
       "classic",
@@ -388,6 +408,13 @@ export default {
         }
       ]
     },
+    "mermaid": {
+      "theme": {
+        "dark": "dark",
+        "light": "default"
+      },
+      "options": {}
+    },
     "docs": {
       "versionPersistence": "localStorage",
       "sidebar": {
@@ -417,28 +444,10 @@ export default {
     "static"
   ],
   "plugins": [],
-  "themes": [],
   "scripts": [],
   "headTags": [],
   "stylesheets": [],
   "clientModules": [],
   "titleDelimiter": "|",
-  "noIndex": false,
-  "markdown": {
-    "format": "mdx",
-    "mermaid": false,
-    "emoji": true,
-    "mdx1Compat": {
-      "comments": false,
-      "admonitions": false,
-      "headingIds": false
-    },
-    "anchors": {
-      "maintainCase": false
-    },
-    "hooks": {
-      "onBrokenMarkdownLinks": "warn",
-      "onBrokenMarkdownImages": "throw"
-    }
-  }
+  "noIndex": false
 };
