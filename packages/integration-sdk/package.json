@@ -1,0 +1,54 @@
+{
+  "name": "@playrunner/integration-sdk",
+  "version": "0.1.0",
+  "description": "Shared contracts and UI helpers for Playrunner integration packages.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "author": "Concept AI PTY LTD",
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "express": "^5.0.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "typescript": "~5.8.2"
+  }
+}

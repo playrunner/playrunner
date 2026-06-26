@@ -1,0 +1,24 @@
+{
+  "id": "integration-packages/jira",
+  "title": "Jira Package",
+  "description": "@playrunner/jira is the reference integration package.",
+  "source": "@site/docs/integration-packages/jira.md",
+  "sourceDirName": "integration-packages",
+  "slug": "/integration-packages/jira",
+  "permalink": "/playrunner/docs/integration-packages/jira",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/integration-packages/jira.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Jira Package"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/integration-packages/"
+  }
+}

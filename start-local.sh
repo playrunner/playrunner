@@ -7,7 +7,10 @@ BASE_DIR="${BASE_DIR:-$WORKSPACE_ROOT}"
 PREMIUM_DIR="${PREMIUM_DIR:-$WORKSPACE_ROOT/premium}"
 COMPOSE_FILE="${BASE_DIR}/docker-compose.yml"
 API_DIR="${BASE_DIR}/apps/api"
+FRONTEND_DIR="${BASE_DIR}/apps/frontend"
 DOCS_DIR="${BASE_DIR}/docs"
+INTEGRATION_SDK_DIR="${BASE_DIR}/packages/integration-sdk"
+JIRA_PACKAGE_DIR="${BASE_DIR}/packages/jira"
 ROOT_ENV_FILE="${BASE_DIR}/.env.local"
 ROOT_ENV_EXAMPLE_FILE="${BASE_DIR}/.env.local.example"
 LEGACY_ROOT_ENV_FILE="${BASE_DIR}/.env"
@@ -147,13 +150,23 @@ wait_for_compose_service() {
     exit 1
 }
 
-ensure_docs_dependencies() {
-    if [ -d "${DOCS_DIR}/node_modules" ]; then
+ensure_dependency_dir() {
+    local dependency_dir="$1"
+
+    if [ -d "${dependency_dir}/node_modules" ]; then
         return 0
     fi
 
-    echo "Missing ${DOCS_DIR}/node_modules. Run ./install-local.sh first."
+    echo "Missing ${dependency_dir}/node_modules. Run ./install-local.sh first."
     exit 1
+}
+
+ensure_local_dependencies() {
+    ensure_dependency_dir "${INTEGRATION_SDK_DIR}"
+    ensure_dependency_dir "${JIRA_PACKAGE_DIR}"
+    ensure_dependency_dir "${API_DIR}"
+    ensure_dependency_dir "${FRONTEND_DIR}"
+    ensure_dependency_dir "${DOCS_DIR}"
 }
 
 has_completed_local_setup() {
@@ -489,7 +502,7 @@ NODE
 }
 
 # 1. Start local Docker-backed services in the background
-ensure_docs_dependencies
+ensure_local_dependencies
 
 echo "📦 Starting local Docker services..."
 docker compose -f "${COMPOSE_FILE}" up -d postgres

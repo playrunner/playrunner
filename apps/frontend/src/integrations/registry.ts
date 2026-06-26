@@ -1,5 +1,5 @@
 import type { Integration } from './types';
-import { jiraIntegration } from './jira';
+import { jiraIntegration } from '@playrunner/jira';
 import { githubIntegration } from './github';
 import { playwrightIntegration } from './playwright';
 import { javascriptIntegration } from './javascript';

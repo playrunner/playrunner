@@ -10,7 +10,7 @@ import { systemRouter } from './routes/system';
 import { executionsRouter } from './routes/executions';
 import { authRouter } from './routes/auth';
 import { gcpRouter } from './routes/integrations/gcp';
-import { jiraRouter } from './routes/integrations/jira';
+import { jiraRouter } from '@playrunner/jira/api';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';

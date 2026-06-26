@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 LOCAL_PACKAGE_DIRS=(
+  "packages/integration-sdk"
+  "packages/jira"
   "apps/api"
   "apps/frontend"
   "apps/runners/orchestrator"
@@ -35,3 +37,4 @@ echo ""
 echo "Local development dependencies installed."
 echo "apps/setup reuses apps/frontend/node_modules and does not need a separate install."
 echo "docs is installed here because ./start-local.sh also starts the local Docusaurus site."
+echo "packages/* are installed here because app package links resolve through those package folders."

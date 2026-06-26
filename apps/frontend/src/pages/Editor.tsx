@@ -41,7 +41,7 @@ import { useHeader } from '../components/PageLayout';
 import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
 import { TunnelDialog } from '../components/TunnelDialog';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
-import { JiraSettingsModal } from '../integrations/jira/JiraSettingsModal';
+import { JiraSettingsModal } from '@playrunner/jira';
 import { GithubSettingsModal } from '../integrations/github/GithubSettingsModal';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
 import { Button } from '../components/ui';

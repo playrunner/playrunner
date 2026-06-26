@@ -36,6 +36,16 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/index",
+              "path": "/playrunner/docs/integration-packages/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "integration-packages/jira",
+              "path": "/playrunner/docs/integration-packages/jira",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "local-dev/connecting-integrations",
               "path": "/playrunner/docs/local-dev/connecting-integrations",
               "sidebar": "tutorialSidebar"

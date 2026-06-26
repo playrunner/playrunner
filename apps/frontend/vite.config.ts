@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
     env.ENABLE_PREMIUM !== 'false',
     env.PREMIUM_WEB_RUNTIME_PATH,
   );
+  const repoRoot = path.resolve(__dirname, '../..');
   const webNodeModulesDir = path.resolve(__dirname, 'node_modules');
   console.log(`Proxying API requests to: ${apiProxyTarget}`);
 
@@ -28,6 +29,14 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': path.resolve(__dirname, '.'),
         '@edition-runtime': editionRuntimePath,
+        '@playrunner/integration-sdk': path.resolve(
+          repoRoot,
+          'packages/integration-sdk/src/frontend/index.tsx',
+        ),
+        '@playrunner/jira': path.resolve(
+          repoRoot,
+          'packages/jira/src/frontend/index.tsx',
+        ),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(
           webNodeModulesDir,

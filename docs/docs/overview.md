@@ -11,10 +11,11 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 
 ## What's in these docs?
 
-| Section                    | Description                                    |
-| -------------------------- | ---------------------------------------------- |
-| [Tutorials](./tutorials)   | Step-by-step guides to get up and running      |
-| [Development](./local-dev) | Deep reference for the local development stack |
+| Section                                        | Description                                    |
+| ---------------------------------------------- | ---------------------------------------------- |
+| [Tutorials](./tutorials)                       | Step-by-step guides to get up and running      |
+| [Development](./local-dev)                     | Deep reference for the local development stack |
+| [Integration Packages](./integration-packages) | Package structure for deployable integrations  |
 
 ---
 

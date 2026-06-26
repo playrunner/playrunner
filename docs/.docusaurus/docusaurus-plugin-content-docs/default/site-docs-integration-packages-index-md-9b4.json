@@ -1,0 +1,28 @@
+{
+  "id": "integration-packages/index",
+  "title": "Overview",
+  "description": "Integration packages keep an external service integration in one deployable unit:",
+  "source": "@site/docs/integration-packages/index.md",
+  "sourceDirName": "integration-packages",
+  "slug": "/integration-packages/",
+  "permalink": "/playrunner/docs/integration-packages/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/integration-packages/index.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "title": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Roadmap",
+    "permalink": "/playrunner/docs/roadmap"
+  },
+  "next": {
+    "title": "Jira Package",
+    "permalink": "/playrunner/docs/integration-packages/jira"
+  }
+}

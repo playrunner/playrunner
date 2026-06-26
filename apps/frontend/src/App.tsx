@@ -25,6 +25,8 @@ import OAuthCallback from './pages/OAuthCallback';
 import { ThemeProvider } from './components/ThemeProvider';
 import { PageLayout } from './components/PageLayout';
 import { auth } from './lib/auth';
+import { IntegrationSdkProvider } from '@playrunner/integration-sdk';
+import { integrationSdkHost } from './integrations/sdkHost';
 
 function RequireAuth() {
   const [user, setUser] = useState(auth.currentUser);
@@ -92,7 +94,9 @@ function AppShell() {
 export default function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <AppShell />
+      <IntegrationSdkProvider host={integrationSdkHost}>
+        <AppShell />
+      </IntegrationSdkProvider>
     </ThemeProvider>
   );
 }
