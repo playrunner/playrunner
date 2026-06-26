@@ -19,18 +19,21 @@ graph TD
     A -->|API Calls & SSE| C(API Server - Cloud Run Service)
     C -->|Trigger Workflow| D(Orchestrator - Cloud Run Service)
     D -->|Spawn Playwright Execution| E[Playwright Runner - Cloud Run Job]
-    E -->|Publish Real-time Logs| F(Pub/Sub Topic)
-    F -->|Push Subscription| C
+    D -->|Publish logs and state| F(Pub/Sub Topic)
+    E -->|Publish logs, state, and output events| F
+    F -->|Pull subscription| C
+    C -->|Persist trace| G[(PostgreSQL)]
+    G -->|Execution-scoped SSE| A
 ```
 
 ## Service Breakdown
 
-1. **API Server (Cloud Run Service)**: Handles HTTP requests from the frontend, manages authentication, proxies to Jira/Github integrations, and maintains Server-Sent Events (SSE) connections to stream live logs to the browser.
+1. **API Server (Cloud Run Service)**: Handles HTTP requests from the frontend, manages authentication, proxies to Jira/Github integrations, persists every workflow event to PostgreSQL, and maintains Server-Sent Events (SSE) connections to stream live logs to the browser.
 2. **Orchestrator (Cloud Run Service)**: A lightweight Node.js event-loop dispatcher that traverses your visual workflow graphs. It manages state, evaluates dependencies, and triggers the actual Playwright tests using Cloud Run Job executions.
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
-4. **Pub/Sub**: Facilitates asynchronous, real-time log streaming from the Playwright Runner back to the API Server, which then streams them via SSE to the user's browser.
+4. **Pub/Sub**: The default GCP event transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes each message to PostgreSQL, then acknowledges it.
 
-> **Debugging cloud runs locally?** When the API is running on your machine, cloud runners cannot reach `localhost` to send logs and results back. See [Remote Debugging (Cloud Runners + Tunnel)](./local-dev/remote-debugging) for how Playrunner bridges this with an automatic Cloudflare tunnel.
+> **Debugging cloud runs locally?** The default GCP Pub/Sub transport does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. The Cloudflare tunnel path is retained only for legacy callback mode. See [Remote Debugging (Cloud Runners + Tunnel)](./local-dev/remote-debugging).
 
 ---
 
@@ -48,17 +51,19 @@ When a user initiates a workflow from the web interface targeting GCP:
 
 1. **On-the-fly Provisioning**: The Node.js API Server automatically checks if the `playrunner-orchestrator` Cloud Run Service exists in the user's selected GCP project. If not, it uses the `@google-cloud/run` SDK to dynamically create and configure the service on the fly.
 2. **Stateless Authentication**: The API Server passes the workflow payload to the Orchestrator, which securely injects the user's OAuth2 access token into the payload.
-3. **Impersonation-less Execution**: The Orchestrator, running in Cloud Run, uses this OAuth2 token to instantiate its own GCP clients (`JobsClient`, `ExecutionsClient`). This ensures that the Orchestrator runs exactly as the authenticated user, without requiring complex IAM role assignments to the default Compute Engine Service Account.
+3. **Impersonation-less Execution**: The Orchestrator, running in Cloud Run, uses this OAuth2 token to instantiate its own GCP clients (`JobsClient`, `ExecutionsClient`) and publish workflow events to Pub/Sub. This ensures that the Orchestrator runs exactly as the authenticated user, without requiring complex IAM role assignments to the default Compute Engine Service Account.
 
 In practice that means:
 
 - `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` must point at an Orchestrator image that is already available in a registry Cloud Run can pull from.
 - `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` must point at Playwright runner images that are already available in a registry Cloud Run can pull from.
 - `GCS_BUCKET_PREFIX` controls the per-workflow output buckets Playrunner creates before handing execution off to Cloud Run.
+- The connected GCP user must have permission to publish workflow events and create/use execution-scoped Pub/Sub subscriptions.
 
 The Terraform under `infra/gcp` creates Artifact Registry repositories named
-`orchestrator` and `playwright-runner`, which match the default examples used in
-the env-var docs.
+`orchestrator` and `playwright-runner`, plus the shared Pub/Sub workflow events
+topic. The API creates and deletes execution-scoped filtered subscriptions on
+that topic at runtime.
 
 ---
 

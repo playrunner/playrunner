@@ -57,6 +57,7 @@ function buildStoredPayload(
   execution: WorkflowExecution,
   event: WorkflowEventDraft,
   occurredAt: Date,
+  sourceEventId?: string,
   workflowId?: string,
   nodeId?: string,
   type?: string,
@@ -69,6 +70,7 @@ function buildStoredPayload(
     ...basePayload,
     cloudProvider:
       normalizeString(basePayload.cloudProvider) ?? execution.cloudProvider,
+    eventId: sourceEventId ?? normalizeString(basePayload.eventId) ?? null,
     executionId: execution.id,
     level: level ?? normalizeString(basePayload.level) ?? null,
     message: message ?? normalizeString(basePayload.message) ?? null,
@@ -180,6 +182,8 @@ class ExecutionEventsService {
 
   async appendEvent(executionId: string, event: WorkflowEventDraft) {
     const execution = await getExecutionOrThrow(executionId);
+    const sourceEventId =
+      normalizeString(event.eventId) ?? normalizeString(event.sourceEventId);
     const type =
       normalizeString(event.type) ??
       (normalizeString(event.message) ? 'log' : 'event');
@@ -193,6 +197,7 @@ class ExecutionEventsService {
       execution,
       event,
       occurredAt,
+      sourceEventId,
       workflowId,
       nodeId,
       type,
@@ -200,19 +205,33 @@ class ExecutionEventsService {
       message,
     );
 
-    const storedEvent = await prisma.workflowEvent.create({
-      data: {
-        executionId: execution.id,
-        userId: execution.userId,
-        workflowId: workflowId ?? null,
-        nodeId: nodeId ?? null,
-        type,
-        level: level ?? null,
-        message: message ?? null,
-        payload: toJsonValue(payload),
-        occurredAt,
-      },
-    });
+    let storedEvent: WorkflowEvent;
+    try {
+      storedEvent = await prisma.workflowEvent.create({
+        data: {
+          executionId: execution.id,
+          sourceEventId: sourceEventId ?? null,
+          userId: execution.userId,
+          workflowId: workflowId ?? null,
+          nodeId: nodeId ?? null,
+          type,
+          level: level ?? null,
+          message: message ?? null,
+          payload: toJsonValue(payload),
+          occurredAt,
+        },
+      });
+    } catch (error: any) {
+      if (sourceEventId && error?.code === 'P2002') {
+        const existingEvent = await prisma.workflowEvent.findUnique({
+          where: { sourceEventId },
+        });
+        if (existingEvent?.executionId === execution.id) {
+          return toStreamableEvent(existingEvent);
+        }
+      }
+      throw error;
+    }
 
     if (
       type === 'workflow_completed' ||

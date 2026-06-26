@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import crypto from 'crypto';
 import express from 'express';
 import { orchestratorRuntime } from './runtime';
 
@@ -28,6 +29,14 @@ type WorkflowEventPublisher = {
   ) => Promise<void>;
   publishNodeState: (nodeId: string, state: WorkflowNodeState) => Promise<void>;
 };
+
+type GcpPubSubEventTransport = {
+  projectId?: string;
+  topicName?: string;
+  type?: 'gcp_pubsub';
+};
+
+const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 
 function resolvePlaywrightRuntime(
   config: Record<string, any>,
@@ -79,6 +88,62 @@ async function postWorkflowEvent(args: {
   }
 }
 
+function getString(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+async function publishGcpPubSubEvent(args: {
+  accessToken: string;
+  executionId: string;
+  executionToken: string;
+  payload: Record<string, unknown>;
+  projectId: string;
+  topicName: string;
+}) {
+  const eventId = getString(args.payload.eventId) || crypto.randomUUID();
+  const payload: Record<string, unknown> = {
+    executionAuthToken: args.executionToken,
+    executionId: args.executionId,
+    testId: args.executionId,
+    ...args.payload,
+    eventId,
+  };
+  const eventType = getString(payload.type) || 'event';
+  const response = await fetch(
+    `${PUBSUB_API_BASE_URL}/projects/${args.projectId}/topics/${args.topicName}:publish`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${args.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            attributes: {
+              cloudProvider: getString(payload.cloudProvider) || 'GCP',
+              eventId,
+              eventType,
+              executionId: args.executionId,
+            },
+            data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
+              'base64',
+            ),
+            orderingKey: args.executionId,
+          },
+        ],
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => '');
+    throw new Error(
+      `Pub/Sub publish failed (${response.status}): ${details.slice(0, 500)}`,
+    );
+  }
+}
+
 function createWorkflowEventPublisher(
   reqBody: Record<string, any>,
 ): WorkflowEventPublisher {
@@ -88,6 +153,10 @@ function createWorkflowEventPublisher(
       ? reqBody.executionAuthToken
       : '';
   const editorApiUrl = reqBody.editorApiUrl || EDITOR_API_URL;
+  const eventTransport = reqBody.eventTransport as
+    | GcpPubSubEventTransport
+    | undefined;
+  const gcpAccessToken = getString(reqBody.settings?.gcp?.accessToken);
   const basePayload = {
     cloudProvider: reqBody.cloudProvider || 'LOCAL_RUNNER',
     workflowId: reqBody.workflowId || null,
@@ -101,15 +170,42 @@ function createWorkflowEventPublisher(
       return;
     }
 
-    await postWorkflowEvent({
-      editorApiUrl,
-      executionId,
-      executionToken,
-      payload: {
-        ...basePayload,
-        ...payload,
-      },
-    });
+    const mergedPayload = {
+      ...basePayload,
+      ...payload,
+      eventId: getString(payload.eventId) || crypto.randomUUID(),
+    };
+
+    try {
+      if (
+        eventTransport?.type === 'gcp_pubsub' &&
+        eventTransport.projectId &&
+        eventTransport.topicName &&
+        gcpAccessToken
+      ) {
+        await publishGcpPubSubEvent({
+          accessToken: gcpAccessToken,
+          executionId,
+          executionToken,
+          payload: mergedPayload,
+          projectId: eventTransport.projectId,
+          topicName: eventTransport.topicName,
+        });
+        return;
+      }
+
+      await postWorkflowEvent({
+        editorApiUrl,
+        executionId,
+        executionToken,
+        payload: mergedPayload,
+      });
+    } catch (error) {
+      console.error(
+        `Failed to publish workflow event for ${executionId}:`,
+        error,
+      );
+    }
   };
 
   return {
@@ -339,6 +435,7 @@ async function executeWorkflow(reqBody: any) {
                 reqBody.editorApiUrl ||
                 EDITOR_API_URL ||
                 'http://host.docker.internal:3001',
+              eventTransport: reqBody.eventTransport,
               bucketName: reqBody.bucketName || bucketName || null,
               cloudProvider,
             },

@@ -114,19 +114,25 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '6c0'),
+    component: ComponentCreator('/playrunner/docs', '09c'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '94a'),
+        component: ComponentCreator('/playrunner/docs', '32b'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '8d8'),
+            component: ComponentCreator('/playrunner/docs', 'a0e'),
             routes: [
               {
                 path: '/playrunner/docs/category/legal',
                 component: ComponentCreator('/playrunner/docs/category/legal', '17f'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/contributing',
+                component: ComponentCreator('/playrunner/docs/contributing', '85b'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -205,6 +211,12 @@ export default [
               {
                 path: '/playrunner/docs/overview',
                 component: ComponentCreator('/playrunner/docs/overview', '925'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/roadmap',
+                component: ComponentCreator('/playrunner/docs/roadmap', '32f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

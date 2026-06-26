@@ -11,11 +11,17 @@ title: Remote Debugging (Cloud Runners + Tunnel)
 
 ## The Problem
 
-When you run a workflow locally, every service is on `localhost` and the Playwright runner reaches the API at `http://host.docker.internal:3001`.
+When you run a local Docker workflow, every service is on `localhost` and the Playwright runner reaches the API at `http://host.docker.internal:3001`.
 
-A **cloud** runner is different. The Orchestrator and Playwright Runner execute inside GCP (Cloud Run), and they call **back** to your API to publish logs, node states, and outputs. They need a **publicly reachable address** for your API — and `http://localhost:3001` is not reachable from GCP.
+A GCP runner is different. The Orchestrator and Playwright Runner execute inside GCP (Cloud Run). By default, they publish logs, node states, and output events to GCP Pub/Sub. Your local API pulls those messages over outbound HTTPS, writes them to PostgreSQL, and streams them to the editor. This path does **not** require a tunnel.
 
-If the API only knows about a local host and no public address is configured, it cannot hand the runner a usable callback URL, so the run would fail mid-execution. To avoid that, the API detects the situation **up front** and asks the editor to open a tunnel first.
+The tunnel flow below only applies when you explicitly opt into the legacy callback transport:
+
+```bash
+GCP_EVENT_TRANSPORT=callback
+```
+
+In callback mode, cloud runners call **back** to your API to publish logs, node states, and outputs. They need a **publicly reachable address** for your API, and `http://localhost:3001` is not reachable from GCP. If the API only knows about a local host and no public address is configured, it detects the situation up front and asks the editor to open a tunnel first.
 
 ---
 
@@ -28,7 +34,7 @@ sequenceDiagram
     participant T as cloudflared
     participant G as Cloud Runner (GCP)
 
-    E->>A: POST /api/workflows/start (cloudProvider = GCP)
+    E->>A: POST /api/workflows/start (cloudProvider = GCP, callback mode)
     A-->>E: 409 { code: "TUNNEL_REQUIRED" }
     E->>E: Show TunnelDialog
     E->>A: POST /api/tunnel/start
@@ -43,7 +49,7 @@ sequenceDiagram
 
 ### 1. The 409 `TUNNEL_REQUIRED` signal
 
-When a workflow targets a cloud provider, the API resolves a callback URL in `resolveEditorApiUrl` (`apps/api/src/runtime/gcp-workflow-execution.ts`):
+When a workflow targets GCP with `GCP_EVENT_TRANSPORT=callback`, the API resolves a callback URL in `resolveEditorApiUrl` (`apps/api/src/runtime/gcp-workflow-execution.ts`):
 
 1. If `EDITOR_API_PUBLIC_URL` is set, use it (no tunnel needed).
 2. Else, if a tunnel is already active, use the tunnel URL.
@@ -91,13 +97,13 @@ This probe is **advisory, not fatal**. It runs against _your machine's_ resolver
 
 ## Skipping the tunnel
 
-If your API is already reachable at a stable public address (for example a deployed environment or a permanent tunnel you manage yourself), set:
+If you are using callback mode and your API is already reachable at a stable public address (for example a deployed environment or a permanent tunnel you manage yourself), set:
 
 ```bash
 EDITOR_API_PUBLIC_URL=https://your-public-api.example.com
 ```
 
-When this is set the API uses it directly and never asks for a tunnel.
+When this is set the API uses it directly and never asks for a tunnel. It is not needed for the default Pub/Sub transport.
 
 ---
 

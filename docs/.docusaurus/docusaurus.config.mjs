@@ -5,7 +5,7 @@
  */
 export default {
   "title": "Playrunner",
-  "tagline": "Automate your Playwright tests with visual workflows.",
+  "tagline": "Open-source orchestration for Playwright test automation.",
   "favicon": "img/favicon.svg",
   "customFields": {
     "localDocsLandingPath": "/"
@@ -177,7 +177,7 @@ export default {
           ]
         }
       ],
-      "copyright": "Copyright © 2026 Concept AI PTY LTD. Playrunner is distributed under the Playrunner Sustainable Use License."
+      "copyright": "Copyright © 2026 Concept AI PTY LTD. Playrunner is distributed under the <a href=\"/playrunner/docs/legal/license\">Playrunner Sustainable Use License</a>."
     },
     "prism": {
       "theme": {

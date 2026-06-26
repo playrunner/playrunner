@@ -6,6 +6,11 @@ import type {
 } from './contracts';
 import type { Request } from 'express';
 import { EDITOR_API_PUBLIC_URL } from '../config';
+import {
+  ensureGcpPubSubEventStream,
+  resolveGcpEventTransportMode,
+  stopGcpPubSubEventStream,
+} from '../services/gcp-pubsub-events';
 import { ensureOrchestratorService } from '../services/cloudrun';
 import { executionEvents } from '../services/execution-events';
 import { ensureBucket, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
@@ -414,6 +419,9 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     const { workflowId, settings } = body;
     const gcp = settings?.gcp;
     const userId = req.authUser?.providerUserId;
+    const eventTransportMode = resolveGcpEventTransportMode(
+      gcp?.eventTransport,
+    );
 
     if (!gcp?.accessToken) {
       return {
@@ -451,29 +459,33 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
-    const editorApiResolution = resolveEditorApiUrl(req);
-    if ('tunnelRequired' in editorApiResolution) {
-      return {
-        body: {
-          code: 'TUNNEL_REQUIRED',
-          error:
-            'Cloud runners cannot reach this local Playrunner API. Start a tunnel to expose it, then run again.',
-        },
-        status: 409,
-      };
-    }
-    const editorApiUrl = editorApiResolution.editorApiUrl;
+    let editorApiUrl =
+      EDITOR_API_PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+    if (eventTransportMode === 'callback') {
+      const editorApiResolution = resolveEditorApiUrl(req);
+      if ('tunnelRequired' in editorApiResolution) {
+        return {
+          body: {
+            code: 'TUNNEL_REQUIRED',
+            error:
+              'Cloud runners cannot reach this local Playrunner API. Start a tunnel to expose it, then run again.',
+          },
+          status: 409,
+        };
+      }
+      editorApiUrl = editorApiResolution.editorApiUrl;
 
-    try {
-      await assertTunnelCallbackReady(editorApiUrl);
-    } catch (error) {
-      return {
-        body: {
-          code: 'TUNNEL_REQUIRED',
-          error: getErrorMessage(error),
-        },
-        status: 409,
-      };
+      try {
+        await assertTunnelCallbackReady(editorApiUrl);
+      } catch (error) {
+        return {
+          body: {
+            code: 'TUNNEL_REQUIRED',
+            error: getErrorMessage(error),
+          },
+          status: 409,
+        };
+      }
     }
 
     state.gcpCredentials[testId] = {
@@ -512,22 +524,46 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
 
     let bucketName = '';
+    let eventTransport:
+      | {
+          projectId: string;
+          subscriptionName: string;
+          topicName: string;
+          type: 'gcp_pubsub';
+        }
+      | undefined;
     let refreshedToken = gcp.accessToken;
+    let gcpSetupStep = 'refresh GCP access token';
 
     try {
       refreshedToken =
         (await refreshGcpAccessTokenIfNeeded(gcp)) || gcp.accessToken;
       if (refreshedToken) {
         state.gcpCredentials[testId].accessToken = refreshedToken;
+        body.settings.gcp.accessToken = refreshedToken;
+      }
+
+      if (eventTransportMode === 'pubsub') {
+        gcpSetupStep = 'configure GCP Pub/Sub workflow event transport';
+        eventTransport = await ensureGcpPubSubEventStream({
+          creds: state.gcpCredentials[testId],
+          executionId: testId,
+          projectId: gcp.selectedProject,
+        });
+        body.eventTransport = eventTransport;
       }
 
       if (workflowId) {
+        gcpSetupStep = 'create GCS bucket';
         const result = await ensureBucket(
           workflowId,
           refreshedToken,
           gcp.selectedProject,
         );
         if (!result) {
+          if (eventTransportMode === 'pubsub') {
+            stopGcpPubSubEventStream(testId);
+          }
           try {
             await this.logTransport.publish(
               JSON.stringify({
@@ -555,12 +591,15 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         body.bucketName = bucketName;
       }
     } catch (err: any) {
+      if (eventTransportMode === 'pubsub') {
+        stopGcpPubSubEventStream(testId);
+      }
       try {
         await this.logTransport.publish(
           JSON.stringify({
             executionId: testId,
             level: 'error',
-            message: `Failed to create GCS bucket: ${err.message}`,
+            message: `Failed to ${gcpSetupStep}: ${err.message}`,
             testId,
             timestamp: new Date().toISOString(),
             type: 'workflow_failed',
@@ -572,7 +611,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       }
 
       return {
-        body: { error: `Failed to create GCS bucket: ${err.message}`, testId },
+        body: { error: `Failed to ${gcpSetupStep}: ${err.message}`, testId },
         status: 500,
       };
     }
@@ -595,13 +634,16 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         workflowId,
       );
 
-      await assertTunnelCallbackReady(editorApiUrl);
+      if (eventTransportMode === 'callback') {
+        await assertTunnelCallbackReady(editorApiUrl);
+      }
 
       await invokeOrchestratorService(
         serviceUri,
         {
           ...body,
           editorApiUrl,
+          eventTransport,
           gcpProject: gcp.selectedProject,
           bucketName,
           executionAuthToken: executionToken,
@@ -628,11 +670,13 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         console.error('Failed to persist workflow start event', error);
       }
 
-      startTunnelCallbackMonitor({
-        editorApiUrl,
-        testId,
-        workflowId,
-      });
+      if (eventTransportMode === 'callback') {
+        startTunnelCallbackMonitor({
+          editorApiUrl,
+          testId,
+          workflowId,
+        });
+      }
 
       return {
         body: {
@@ -644,6 +688,9 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
+      if (eventTransportMode === 'pubsub') {
+        stopGcpPubSubEventStream(testId);
+      }
 
       try {
         await this.logTransport.publish(

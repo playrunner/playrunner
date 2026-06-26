@@ -55,6 +55,7 @@ model WorkflowExecution {
 model WorkflowEvent {
   id          BigInt            @id @default(autoincrement())
   executionId String
+  sourceEventId String?         @unique
   userId      String
   workflowId  String?
   nodeId      String?

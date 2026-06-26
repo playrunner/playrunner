@@ -33,12 +33,11 @@ Playrunner is a workflow orchestration platform for running automated Playwright
 | **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)          |
 | **Playwright Runner** | TypeScript + Python  | —      | Docker container (spawned by the Orchestrator) |
 
-There is also a supporting infrastructure service:
+There is also one supporting host service:
 
-| Service                           | Port              | How it runs                             |
-| --------------------------------- | ----------------- | --------------------------------------- |
-| **Docs Site**                     | `3004` by default | Host process via `./start-local.sh`     |
-| **Google Cloud Pub/Sub Emulator** | `8085`            | Docker container (via `docker compose`) |
+| Service       | Port              | How it runs                         |
+| ------------- | ----------------- | ----------------------------------- |
+| **Docs Site** | `3004` by default | Host process via `./start-local.sh` |
 
 ---
 
@@ -58,15 +57,12 @@ Orchestrator (Docker, :3002)
   │  spawns per node execution
   ▼
 Playwright Runner (Docker, ephemeral)
-  │  publishes logs via Pub/Sub
+  │  posts logs / state / output events
   ▼
-Pub/Sub Emulator (:8085)
-  │  messages forwarded via SSE
-  ▼
-API Server  →  SSE stream  →  Web App (real-time log panel)
+API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
 ```
 
-Pub/Sub is the message bus that decouples the Playwright runner (running inside Docker) from the API server. The API subscribes to the topic and forwards messages to any connected browser via **Server-Sent Events (SSE)**.
+Local Docker workflows use direct API callbacks because every service can reach the API on the host. GCP workflows use GCP Pub/Sub by default: the cloud runner publishes events to a GCP topic, the local API pulls them over outbound HTTPS, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**.
 
 ---
 
@@ -81,6 +77,6 @@ playrunner/
 │       ├── orchestrator/      # Orchestrator runner (Docker image)
 │       └── playwright/        # Playwright test runner (Docker image)
 ├── docs/                      # This documentation (Docusaurus)
-├── docker-compose.yml         # Pub/Sub emulator only
+├── docker-compose.yml         # Docker-backed Postgres
 └── start-local.sh             # One-command local startup script
 ```

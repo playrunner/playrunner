@@ -9,11 +9,18 @@ const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 type RunnerEventContext = {
   editorApiUrl: string;
   executionToken: string;
+  eventTransport?: {
+    projectId?: string;
+    topicName?: string;
+    type?: 'gcp_pubsub';
+  };
+  gcpAccessToken?: string;
   nodeId?: string;
   testId: string;
 };
 
 let runnerEventContext: RunnerEventContext | null = null;
+const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 
 const BUNDLED_NODE_PACKAGES = new Set([
   '@playwright/test',
@@ -49,6 +56,68 @@ function getDependencyNames(packageJson: Record<string, any>): string[] {
   );
 }
 
+function getString(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
+  if (
+    !runnerEventContext?.eventTransport?.projectId ||
+    !runnerEventContext.eventTransport.topicName ||
+    !runnerEventContext.gcpAccessToken ||
+    !runnerEventContext.executionToken ||
+    !runnerEventContext.testId
+  ) {
+    return false;
+  }
+
+  const eventId = getString(payload.eventId) || crypto.randomUUID();
+  const eventPayload: Record<string, unknown> = {
+    executionAuthToken: runnerEventContext.executionToken,
+    executionId: runnerEventContext.testId,
+    nodeId: runnerEventContext.nodeId,
+    testId: runnerEventContext.testId,
+    ...payload,
+    eventId,
+  };
+  const eventType = getString(eventPayload.type) || 'event';
+  const response = await fetch(
+    `${PUBSUB_API_BASE_URL}/projects/${runnerEventContext.eventTransport.projectId}/topics/${runnerEventContext.eventTransport.topicName}:publish`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${runnerEventContext.gcpAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            attributes: {
+              cloudProvider: 'GCP',
+              eventId,
+              eventType,
+              executionId: runnerEventContext.testId,
+            },
+            data: Buffer.from(JSON.stringify(eventPayload), 'utf8').toString(
+              'base64',
+            ),
+            orderingKey: runnerEventContext.testId,
+          },
+        ],
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => '');
+    throw new Error(
+      `Pub/Sub publish failed (${response.status}): ${details.slice(0, 500)}`,
+    );
+  }
+
+  return true;
+}
+
 async function publishEvent(payload: Record<string, unknown>) {
   if (
     !runnerEventContext?.executionToken ||
@@ -59,6 +128,10 @@ async function publishEvent(payload: Record<string, unknown>) {
   }
 
   try {
+    if (await publishGcpPubSubEvent(payload)) {
+      return;
+    }
+
     const response = await fetch(
       new URL(
         `/api/executions/${runnerEventContext.testId}/events`,
@@ -490,6 +563,8 @@ async function run() {
     editorApiUrl:
       payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
     executionToken: payload?.data?.executionAuthToken || '',
+    eventTransport: payload?.data?.eventTransport,
+    gcpAccessToken: payload?.settings?.gcp?.accessToken,
     nodeId: payload?.data?.nodeId,
     testId,
   };

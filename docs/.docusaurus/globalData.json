@@ -11,6 +11,11 @@
           "mainDocId": "overview",
           "docs": [
             {
+              "id": "contributing",
+              "path": "/playrunner/docs/contributing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "gcp-architecture",
               "path": "/playrunner/docs/gcp-architecture",
               "sidebar": "tutorialSidebar"
@@ -73,6 +78,11 @@
             {
               "id": "overview",
               "path": "/playrunner/docs/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "roadmap",
+              "path": "/playrunner/docs/roadmap",
               "sidebar": "tutorialSidebar"
             },
             {

@@ -63,7 +63,7 @@ Logs the node label. Global variables have already been extracted in step 2.
 
 1. Logs resource configuration (CPU, memory, workers)
 2. Builds `docker run` arguments:
-   - Pub/Sub emulator env vars
+   - The selected event transport config (`callback` for local Docker, GCP Pub/Sub for GCP runners)
    - User-defined environment variables (resolved from the Environment node)
    - The full `PAYLOAD` JSON containing repo config, GitHub tokens, `nodeId`, and `testId`
 3. Selects image tag from `config.playwrightVersion` (falls back to `latest`)
@@ -94,7 +94,7 @@ Inside the container (`apps/runners/playwright/src/index.ts`):
 3. **Auto-detects language**: if `requirements.txt` or `pytest.ini` is found → Python, otherwise TypeScript
 4. **TypeScript tests**: reuses runner-bundled Playwright packages when possible; otherwise installs project dependencies with `npm ci` when a lockfile exists, falling back to `npm install`; then runs `playwright test` with the configured worker count (using `playwright.service.config.ts` if present)
 5. **Python tests**: runs `pip3 install -r requirements.txt` then `pytest`
-6. **Uploads outputs**: tarballs `playwright-report/` and `test-results/`, POSTs to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`
+6. **Uploads outputs**: local Docker runs tarball `playwright-report/` and `test-results/` and POST them to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`; GCP runs upload artifacts directly to GCS and publish the resulting `node_output` event through Pub/Sub.
 7. Exits with `0` (success) or `1` (test failure)
 
 ### 6. Output Processing (API)
@@ -110,7 +110,7 @@ When the API receives `POST /api/outputs/:testId/:nodeId`:
 
 ### 7. Real-Time Logs via SSE
 
-Throughout the entire flow, the Playwright runner and Orchestrator call `POST /api/executions/:executionId/events` with a signed per-execution token. The API stores those events in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
+Throughout local Docker workflows, the Playwright runner and Orchestrator call `POST /api/executions/:executionId/events` with a signed per-execution token. For GCP workflows, they publish the same signed event payloads to GCP Pub/Sub. In both cases, the API stores every accepted event in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
 
 ---
 

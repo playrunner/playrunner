@@ -1,0 +1,28 @@
+{
+  "id": "contributing",
+  "title": "Contributing",
+  "description": "Playrunner is an early developer tool project for Playwright orchestration. The",
+  "source": "@site/docs/contributing.md",
+  "sourceDirName": ".",
+  "slug": "/contributing",
+  "permalink": "/playrunner/docs/contributing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/contributing.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "Contributing"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/overview"
+  },
+  "next": {
+    "title": "GCP Cloud Architecture",
+    "permalink": "/playrunner/docs/gcp-architecture"
+  }
+}

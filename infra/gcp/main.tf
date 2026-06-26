@@ -13,6 +13,10 @@ provider "google" {
 }
 
 locals {
+  project_services = toset([
+    "pubsub.googleapis.com",
+  ])
+
   artifact_repositories = {
     orchestrator = {
       repository_id = "orchestrator"
@@ -25,6 +29,14 @@ locals {
   }
 }
 
+resource "google_project_service" "services" {
+  for_each = local.project_services
+
+  project            = var.project_id
+  service            = each.value
+  disable_on_destroy = false
+}
+
 resource "google_artifact_registry_repository" "repositories" {
   for_each = local.artifact_repositories
 
@@ -32,6 +44,14 @@ resource "google_artifact_registry_repository" "repositories" {
   repository_id = each.value.repository_id
   description   = each.value.description
   format        = "DOCKER"
+}
+
+resource "google_pubsub_topic" "workflow_events" {
+  name = var.workflow_events_topic_name
+
+  depends_on = [
+    google_project_service.services,
+  ]
 }
 
 resource "google_artifact_registry_repository_iam_member" "repo_reader" {

@@ -34,6 +34,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
     "globals": "^17.6.0",
     "prettier": "3.8.4",
     "prisma": "^6.17.1",

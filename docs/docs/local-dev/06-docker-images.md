@@ -69,13 +69,13 @@ docker build \
 
 ## Image Tags
 
-| Tag | Playwright Version | Notes |
-|---|---|---|
-| `playrunner-playwright-runner-typescript:latest` | Tag with `publishAsLatest: true` | Alias for the current latest configured TypeScript runner |
-| `playrunner-playwright-runner-typescript:<configured-tag>` | Matching configured tag | One TypeScript image per entry in `config/playwright-runner-versions.json` |
-| `playrunner-playwright-runner-python:latest` | Tag with `publishAsLatest: true` | Alias for the current latest configured Python runner |
-| `playrunner-playwright-runner-python:<configured-tag>` | Matching configured tag | One Python image per entry in `config/playwright-runner-versions.json` |
-| `playrunner-orchestrator` | — | The orchestrator image (no version tagging) |
+| Tag                                                        | Playwright Version               | Notes                                                                      |
+| ---------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------------- |
+| `playrunner-playwright-runner-typescript:latest`           | Tag with `publishAsLatest: true` | Alias for the current latest configured TypeScript runner                  |
+| `playrunner-playwright-runner-typescript:<configured-tag>` | Matching configured tag          | One TypeScript image per entry in `config/playwright-runner-versions.json` |
+| `playrunner-playwright-runner-python:latest`               | Tag with `publishAsLatest: true` | Alias for the current latest configured Python runner                      |
+| `playrunner-playwright-runner-python:<configured-tag>`     | Matching configured tag          | One Python image per entry in `config/playwright-runner-versions.json`     |
+| `playrunner-orchestrator`                                  | —                                | The orchestrator image (no version tagging)                                |
 
 The Playwright node in the editor exposes a `playwrightVersion` config field and a runtime selector. The Orchestrator uses both values to choose the Docker image tag (for example `playrunner-playwright-runner-python:v1.59.0-jammy`).
 
@@ -136,7 +136,7 @@ Running workflows against the GCP execution path requires the Orchestrator and P
 ### Prerequisites
 
 1. **Connect GCP in the Integrations modal.** The script reads the GCP project, region, Cloud Run service name, and image URI templates straight from the `CloudCredential` row that the modal writes to Postgres. Nothing else stores these values.
-2. **Apply the Terraform under `infra/gcp`** at least once so the `orchestrator` and `playwright-runner` Artifact Registry repositories exist in your project.
+2. **Apply the Terraform under `infra/gcp`** at least once so the `orchestrator` and `playwright-runner` Artifact Registry repositories and the shared workflow-events Pub/Sub topic exist in your project.
 3. **Local tooling on `PATH`:** `docker`, `gcloud`, and `node`. `apps/api/.env` must contain a working `DATABASE_URL` (the script reuses Prisma from `apps/api/node_modules` to read the credential).
 4. **Docker auth for Artifact Registry**, once per region:
    ```bash
@@ -175,15 +175,15 @@ One-off override (push to a project other than the one saved in the modal):
 
 All flags:
 
-| Flag | Effect |
-| --- | --- |
-| `--project-id <id>` | Override the stored GCP project ID |
-| `--region <region>` | Override the stored Cloud Run region |
-| `--orchestrator-service-name <n>` | Override the stored Cloud Run service name |
-| `--user-id <id>` | Filter the Postgres lookup when multiple users have GCP credentials |
-| `--target orchestrator\|playwright\|both` | Skip the interactive menu |
-| `--base-path <path>` | `BASE_PATH` build arg for the Orchestrator image (default `.`) |
-| `--yes`, `-y` | Skip the confirmation prompt |
+| Flag                                      | Effect                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| `--project-id <id>`                       | Override the stored GCP project ID                                  |
+| `--region <region>`                       | Override the stored Cloud Run region                                |
+| `--orchestrator-service-name <n>`         | Override the stored Cloud Run service name                          |
+| `--user-id <id>`                          | Filter the Postgres lookup when multiple users have GCP credentials |
+| `--target orchestrator\|playwright\|both` | Skip the interactive menu                                           |
+| `--base-path <path>`                      | `BASE_PATH` build arg for the Orchestrator image (default `.`)      |
+| `--yes`, `-y`                             | Skip the confirmation prompt                                        |
 
 ### What it does
 

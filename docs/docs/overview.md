@@ -11,9 +11,9 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 
 ## What's in these docs?
 
-| Section | Description |
-|---|---|
-| [Tutorials](./tutorials) | Step-by-step guides to get up and running |
+| Section                    | Description                                    |
+| -------------------------- | ---------------------------------------------- |
+| [Tutorials](./tutorials)   | Step-by-step guides to get up and running      |
 | [Development](./local-dev) | Deep reference for the local development stack |
 
 ---
@@ -34,12 +34,9 @@ Orchestrator (Docker, :3002)
   │  spawns per node execution
   ▼
 Playwright Runner (Docker, ephemeral)
-  │  publishes logs via Pub/Sub
+  │  posts logs / state / output events
   ▼
-Pub/Sub Emulator (:8085)
-  │  messages forwarded via SSE
-  ▼
-API Server  →  SSE stream  →  Web App (real-time log panel)
+API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
 ```
 
 ---

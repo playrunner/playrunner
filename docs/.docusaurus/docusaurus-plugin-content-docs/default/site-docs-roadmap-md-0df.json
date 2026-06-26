@@ -1,0 +1,28 @@
+{
+  "id": "roadmap",
+  "title": "Roadmap",
+  "description": "Playrunner is early. The current roadmap is focused on making Playwright test",
+  "source": "@site/docs/roadmap.md",
+  "sourceDirName": ".",
+  "slug": "/roadmap",
+  "permalink": "/playrunner/docs/roadmap",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/roadmap.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Roadmap"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Remote Debugging (Cloud Runners + Tunnel)",
+    "permalink": "/playrunner/docs/local-dev/remote-debugging"
+  },
+  "next": {
+    "title": "Legal",
+    "permalink": "/playrunner/docs/category/legal"
+  }
+}

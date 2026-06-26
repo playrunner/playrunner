@@ -20,7 +20,6 @@ title: Services & Ports
 | Setup Installer        | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
 | Orchestrator           | `3002`            | `localhost:3002`                 | Docker container, port-mapped `3002:8080`                    |
 | PostgreSQL             | `5432` by default | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
-| Pub/Sub Emulator       | `8085`            | `localhost:8085`                 | Docker container via `docker compose`                        |
 
 ---
 
@@ -69,7 +68,7 @@ This service is not part of Docker.
 
 **Location:** `apps/api`  
 **Start command:** `cd apps/api && npm start` (runs `tsx src/index.ts`)  
-**Technology:** Express 5 + TypeScript + Google Cloud Pub/Sub SDK
+**Technology:** Express 5 + TypeScript + PostgreSQL-backed execution event stream
 
 ### What the API does
 
@@ -151,7 +150,9 @@ The Orchestrator is a standby runner. Once started, it stays up until the contai
 
 ## Event Transport
 
-Workflow events no longer go through Pub/Sub. The API writes each log line, node state change, and output event to PostgreSQL, and the editor subscribes to `GET /api/executions/:executionId/stream` for the specific run it started.
+Local Docker workflow events use direct API callbacks. The API writes each log line, node state change, and output event to PostgreSQL, and the editor subscribes to `GET /api/executions/:executionId/stream` for the specific run it started.
+
+GCP workflow events use GCP Pub/Sub by default. The API creates an execution-scoped pull subscription, persists each Pub/Sub message to PostgreSQL, acknowledges the message only after the DB write succeeds, and then serves the same SSE stream to the editor.
 
 ---
 
