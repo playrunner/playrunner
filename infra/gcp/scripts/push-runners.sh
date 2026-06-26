@@ -30,8 +30,9 @@ while [ $# -gt 0 ]; do
 Usage: $(basename "$0") [options]
 
 Builds and pushes the Playrunner orchestrator and Playwright runner images to
-Google Artifact Registry, redeploys the orchestrator Cloud Run service, and
-deletes stale Playwright Cloud Run Jobs so they pick up the new image.
+Google Artifact Registry, configures Docker auth for the target registry host,
+redeploys the orchestrator Cloud Run service, and deletes stale Playwright
+Cloud Run Jobs so they pick up the new image.
 
 GCP settings (project, region, service name, image URI templates) are read from
 the CloudCredential row that the Integrations modal writes to Postgres. CLI
@@ -89,6 +90,21 @@ substitute() {
     printf '%s' "$result"
 }
 
+image_registry_host() {
+    local image="$1"
+    printf '%s' "${image%%/*}"
+}
+
+configure_docker_auth() {
+    local host="$1"
+    if [ -z "$host" ]; then
+        return
+    fi
+
+    echo "Configuring Docker auth for ${host}..."
+    gcloud auth configure-docker "${host}" --quiet
+}
+
 ORCHESTRATOR_IMAGE="$(substitute "$ORCHESTRATOR_TEMPLATE" "projectId=${PROJECT_ID}")"
 
 echo "GCP Project:               $PROJECT_ID"
@@ -128,6 +144,8 @@ push_orchestrator() {
     echo "======================================"
     echo "Building Orchestrator..."
     echo "======================================"
+    configure_docker_auth "$(image_registry_host "${ORCHESTRATOR_IMAGE}")"
+
     docker build \
         --platform linux/amd64 \
         --build-arg BASE_PATH="${BASE_PATH}" \
@@ -151,6 +169,13 @@ push_playwright() {
     echo "======================================"
     echo "Building Playwright Runner..."
     echo "======================================"
+    local registry_probe_image
+    registry_probe_image="$(substitute "$PLAYWRIGHT_TEMPLATE" \
+        "projectId=${PROJECT_ID}" \
+        "runtime=typescript" \
+        "version=latest")"
+    configure_docker_auth "$(image_registry_host "${registry_probe_image}")"
+
     local default_tag latest_tag
     default_tag="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" default-tag)"
     latest_tag="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" latest-tag)"

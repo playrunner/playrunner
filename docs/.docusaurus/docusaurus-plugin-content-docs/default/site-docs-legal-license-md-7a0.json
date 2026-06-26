@@ -1,7 +1,7 @@
 {
   "id": "legal/license",
   "title": "License",
-  "description": "Playrunner is source-available under the Playrunner Sustainable Use License",
+  "description": "The authoritative license text lives in the repository root:",
   "source": "@site/docs/legal/license.md",
   "sourceDirName": "legal",
   "slug": "/legal/license",

@@ -127,6 +127,10 @@ Then restart the Orchestrator container: close and reopen the Editor tab, which 
 
 ## Publishing to GCP
 
+For the end-to-end infrastructure and GCP integration runbook, see
+[GCP Setup](../cloud-architecture/gcp/setup). This section documents the image
+publishing helper itself.
+
 Running workflows against the GCP execution path requires the Orchestrator and Playwright images to be available in a registry that Cloud Run can pull from. The repo ships a helper that builds and pushes them to Google Artifact Registry, redeploys the Orchestrator Cloud Run service, and clears stale Playwright Cloud Run Jobs so they pick up the new image:
 
 ```bash
@@ -136,12 +140,9 @@ Running workflows against the GCP execution path requires the Orchestrator and P
 ### Prerequisites
 
 1. **Connect GCP in the Integrations modal.** The script reads the GCP project, region, Cloud Run service name, and image URI templates straight from the `CloudCredential` row that the modal writes to Postgres. Nothing else stores these values.
-2. **Apply the Terraform under `infra/gcp`** at least once so the `orchestrator` and `playwright-runner` Artifact Registry repositories and the shared workflow-events Pub/Sub topic exist in your project.
+2. **Apply the Terraform under `infra/gcp`** at least once so the required GCP APIs are enabled and the `orchestrator` and `playwright-runner` Artifact Registry repositories and shared workflow-events Pub/Sub topic exist in your project.
 3. **Local tooling on `PATH`:** `docker`, `gcloud`, and `node`. `apps/api/.env` must contain a working `DATABASE_URL` (the script reuses Prisma from `apps/api/node_modules` to read the credential).
-4. **Docker auth for Artifact Registry**, once per region:
-   ```bash
-   gcloud auth configure-docker <region>-docker.pkg.dev
-   ```
+4. **GCloud authentication:** run `gcloud auth login` before publishing. The push script configures Docker's Artifact Registry credential helper for the target registry host automatically.
 
 ### Reading the stored settings
 
@@ -187,6 +188,7 @@ All flags:
 
 ### What it does
 
+- **Docker auth:** configures Docker for the target Artifact Registry host with `gcloud auth configure-docker`.
 - **Orchestrator:** builds `apps/runners/orchestrator` as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --cpu-boost` to roll out the new image.
 - **Playwright:** for both `typescript` and `python`, builds every tag in `config/playwright-runner-versions.json`. The tag flagged `publishAsLatest: true` is additionally pushed as `:latest`. Tags use `playwrightImageUriTemplate` with `{projectId}`, `{runtime}`, and `{version}` substituted.
 - **Job cleanup:** deletes any existing Cloud Run Jobs named `playrunner-*` in the configured region so the next workflow execution recreates them with the new image.

@@ -1,12 +1,15 @@
 ---
 sidebar_position: 1
 title: GCP Cloud Architecture
-sidebar_label: GCP
+sidebar_label: Overview
 ---
 
 # Google Cloud Platform (GCP) Architecture
 
 Playrunner is designed to be easily deployable to Google Cloud Platform, providing a massively scalable, auto-scaling execution environment for your visual Playwright workflows.
+
+Need the concrete setup flow? Start with [GCP Setup](./setup) for the
+Terraform, saved GCP settings, and runner image publishing steps.
 
 ---
 
@@ -34,7 +37,7 @@ graph TD
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
 4. **Pub/Sub**: The default GCP event transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes each message to PostgreSQL, then acknowledges it.
 
-> **Debugging cloud runs locally?** The default GCP Pub/Sub transport does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. The Cloudflare tunnel path is retained only for legacy callback mode. See [Remote Debugging (Cloud Runners + Tunnel)](../local-dev/remote-debugging).
+> **Debugging cloud runs locally?** The default GCP Pub/Sub transport does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. The Cloudflare tunnel path is retained only for legacy callback mode. See [Remote Debugging (Cloud Runners + Tunnel)](../../local-dev/remote-debugging).
 
 ---
 
@@ -45,8 +48,9 @@ A key benefit of the Playrunner architecture is that **you do not need to manual
 What Playrunner does **not** do for you is build or push container images.
 Cloud Run still needs published images for the Orchestrator service and the
 Playwright runner jobs before runtime provisioning can succeed. The repo ships
-`infra/gcp/scripts/push-runners.sh` to do this — see
-[Publishing to GCP](../local-dev/docker-images#publishing-to-gcp).
+`infra/gcp/scripts/push-runners.sh` to do this. For the full setup order, see
+[GCP Setup](./setup). For script details, see
+[Publishing to GCP](../../local-dev/docker-images#publishing-to-gcp).
 
 When a user initiates a workflow from the web interface targeting GCP:
 
@@ -65,6 +69,12 @@ The Terraform under `infra/gcp` creates Artifact Registry repositories named
 `orchestrator` and `playwright-runner`, plus the shared Pub/Sub workflow events
 topic. The API creates and deletes execution-scoped filtered subscriptions on
 that topic at runtime.
+
+The GCP settings saved after OAuth are runtime pointers into that infrastructure.
+The selected project and Cloud Run region should match the Terraform
+`project_id` and `region`, and the saved image URI templates should render to
+the Terraform-created Artifact Registry repository URLs. The setup runbook has
+the exact matching checklist.
 
 ---
 

@@ -23,5 +23,10 @@ end-to-end test automation.
 2. Read the open issues and pick a small, well-scoped task.
 3. Open a pull request with the smallest useful change and a clear explanation.
 
+## Contributor License Agreement
+
+By submitting a contribution, you agree to the repository root
+[Contributor License Agreement](https://github.com/playrunner/playrunner/blob/main/CONTRIBUTOR_LICENSE_AGREEMENT.md).
+
 If you are not sure where to start, open a GitHub discussion and describe the
 area you want to work on.

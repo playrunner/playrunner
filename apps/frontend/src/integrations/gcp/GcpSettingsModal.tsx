@@ -586,7 +586,7 @@ export function GcpSettingsModal({
                     }
                     setRunnerSettingsSaved(false);
                   }}
-                  placeholder="australia-southeast1"
+                  placeholder="us-central1"
                 />
               </div>
               <div>

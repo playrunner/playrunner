@@ -19,8 +19,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "GCP",
-    "permalink": "/playrunner/docs/cloud-architecture/gcp"
+    "title": "Setup",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/setup"
   },
   "next": {
     "title": "Azure",

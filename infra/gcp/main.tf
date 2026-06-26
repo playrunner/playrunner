@@ -14,7 +14,11 @@ provider "google" {
 
 locals {
   project_services = toset([
+    "artifactregistry.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
     "pubsub.googleapis.com",
+    "run.googleapis.com",
+    "storage.googleapis.com",
   ])
 
   artifact_repositories = {
@@ -44,6 +48,10 @@ resource "google_artifact_registry_repository" "repositories" {
   repository_id = each.value.repository_id
   description   = each.value.description
   format        = "DOCKER"
+
+  depends_on = [
+    google_project_service.services,
+  ]
 }
 
 resource "google_pubsub_topic" "workflow_events" {

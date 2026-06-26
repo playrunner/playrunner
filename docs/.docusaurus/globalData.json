@@ -21,8 +21,13 @@
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "cloud-architecture/gcp",
-              "path": "/playrunner/docs/cloud-architecture/gcp",
+              "id": "cloud-architecture/gcp/index",
+              "path": "/playrunner/docs/cloud-architecture/gcp/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "cloud-architecture/gcp/setup",
+              "path": "/playrunner/docs/cloud-architecture/gcp/setup",
               "sidebar": "tutorialSidebar"
             },
             {

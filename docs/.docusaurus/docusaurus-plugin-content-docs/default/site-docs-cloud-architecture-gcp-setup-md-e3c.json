@@ -1,0 +1,29 @@
+{
+  "id": "cloud-architecture/gcp/setup",
+  "title": "GCP Setup",
+  "description": "Use this runbook when you want Playrunner to execute workflows on Google Cloud.",
+  "source": "@site/docs/cloud-architecture/gcp/setup.md",
+  "sourceDirName": "cloud-architecture/gcp",
+  "slug": "/cloud-architecture/gcp/setup",
+  "permalink": "/playrunner/docs/cloud-architecture/gcp/setup",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/cloud-architecture/gcp/setup.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "GCP Setup",
+    "sidebar_label": "Setup"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/"
+  },
+  "next": {
+    "title": "AWS",
+    "permalink": "/playrunner/docs/cloud-architecture/aws"
+  }
+}
