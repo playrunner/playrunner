@@ -41,8 +41,7 @@ import { useHeader } from '../components/PageLayout';
 import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
 import { TunnelDialog } from '../components/TunnelDialog';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
-import { JiraSettingsModal } from '@playrunner/jira';
-import { GithubSettingsModal } from '@playrunner/github';
+import { getIntegration } from '../integrations/registry';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
 import { Button } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
@@ -1122,10 +1121,13 @@ export default function Editor() {
       console.error('Failed to copy JSON', err);
     }
   };
-  const [isJiraSettingsOpen, setIsJiraSettingsOpen] = useState(false);
-  const [isGithubSettingsOpen, setIsGithubSettingsOpen] = useState(false);
+  const [activeIntegrationSettingsId, setActiveIntegrationSettingsId] =
+    useState<string | null>(null);
   const activeCloudProvider = getCloudProvider(cloudProvider);
   const ActiveCloudSettingsModal = activeCloudProvider?.SettingsModal;
+  const ActiveIntegrationSettingsModal = activeIntegrationSettingsId
+    ? getIntegration(activeIntegrationSettingsId)?.SettingsModal
+    : undefined;
 
   // Keep syncing state if another tab changes the cloud provider
   useEffect(() => {
@@ -2213,14 +2215,11 @@ export default function Editor() {
     };
   };
 
-  // Monochrome SVGs that must be rendered via CSS mask so they inherit text color
-  const MASK_NODE_IDS = new Set(['github', 'openai', 'webhooks', 'whatsapp']);
-
   const renderNodeIcon = (nodeTypeId: string) => {
     const nodeType = NODE_TYPES.find((n) => n.id === nodeTypeId);
     if (nodeType) {
       if (nodeType.iconSrc) {
-        if (MASK_NODE_IDS.has(nodeType.id)) {
+        if (nodeType.iconRenderMode === 'mask') {
           return (
             <div
               className="w-16 h-16 bg-current pointer-events-none"
@@ -2496,15 +2495,12 @@ export default function Editor() {
           </div>
         </Modal>
 
-        <JiraSettingsModal
-          isOpen={isJiraSettingsOpen}
-          onClose={() => setIsJiraSettingsOpen(false)}
-        />
-
-        <GithubSettingsModal
-          isOpen={isGithubSettingsOpen}
-          onClose={() => setIsGithubSettingsOpen(false)}
-        />
+        {ActiveIntegrationSettingsModal ? (
+          <ActiveIntegrationSettingsModal
+            isOpen={!!activeIntegrationSettingsId}
+            onClose={() => setActiveIntegrationSettingsId(null)}
+          />
+        ) : null}
 
         {workflowStartupStatus ? (
           <WorkflowStartupStatusPanel
@@ -3338,13 +3334,28 @@ export default function Editor() {
             const matchedType = NODE_TYPES.find((n) => n.id === node.nodeType);
             if (matchedType) {
               if (matchedType.iconSrc) {
-                iconElement = (
-                  <img
-                    src={matchedType.iconSrc}
-                    alt={node.label}
-                    className="w-5 h-5 object-contain"
-                  />
-                );
+                iconElement =
+                  matchedType.iconRenderMode === 'mask' ? (
+                    <div
+                      className="w-5 h-5 bg-current"
+                      style={{
+                        WebkitMaskImage: `url(${matchedType.iconSrc})`,
+                        WebkitMaskSize: 'contain',
+                        WebkitMaskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center',
+                        maskImage: `url(${matchedType.iconSrc})`,
+                        maskSize: 'contain',
+                        maskRepeat: 'no-repeat',
+                        maskPosition: 'center',
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={matchedType.iconSrc}
+                      alt={node.label}
+                      className="w-5 h-5 object-contain"
+                    />
+                  );
               } else if (matchedType.fallbackIcon) {
                 iconElement = (
                   <matchedType.fallbackIcon
@@ -3403,17 +3414,18 @@ export default function Editor() {
                   onLabelChange={handleNodeLabelChange}
                   incomingNodes={incomingNodes}
                   onConnectOAuth={(provider) => {
-                    if (node.nodeType === 'jira') {
-                      setIsJiraSettingsOpen(true);
-                    } else if (
-                      provider === 'github' ||
-                      (!provider && node.nodeType === 'playwright')
-                    ) {
-                      setIsGithubSettingsOpen(true);
-                    } else if (provider === 'bitbucket') {
-                      alert('Bitbucket integration is stubbed.');
-                    } else if (node.nodeType === 'github') {
-                      setIsGithubSettingsOpen(true);
+                    const nodeIntegration = getIntegration(node.nodeType);
+                    const integrationId =
+                      provider ||
+                      nodeIntegration?.authProviderId ||
+                      nodeIntegration?.authProviders?.[0]?.id ||
+                      node.nodeType;
+                    const integration = getIntegration(integrationId);
+
+                    if (integration?.SettingsModal) {
+                      setActiveIntegrationSettingsId(integrationId);
+                    } else if (integrationId) {
+                      alert(`${integrationId} integration is not ready yet.`);
                     }
                   }}
                   className="w-full h-full border-0 rounded-none shadow-none"

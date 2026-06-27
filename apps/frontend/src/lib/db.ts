@@ -1,4 +1,5 @@
 import { auth } from './auth';
+import { getIntegration as getRegisteredIntegration } from '../integrations/registry';
 
 async function getAuthenticatedUser() {
   if (auth.currentUser) {
@@ -125,131 +126,23 @@ async function saveCloudCredentialRecord(providerId: string, data: any) {
   });
 }
 
-function isBadGithubRefreshTokenError(tokenData: any) {
-  return tokenData?.error === 'bad_refresh_token';
-}
-
-async function refreshGithubTokenIfNeeded(
-  userId: string,
+async function refreshStoredIntegrationIfNeeded(
+  integrationId: string,
   integrationData: any,
 ) {
-  if (
-    !integrationData ||
-    !integrationData.accessToken ||
-    !integrationData.refreshToken ||
-    !integrationData.expiresAt
-  ) {
+  const refreshStoredIntegration =
+    getRegisteredIntegration(integrationId)?.refreshStoredIntegration;
+
+  if (!refreshStoredIntegration || !integrationData) {
     return integrationData;
   }
 
-  if (Date.now() + 5 * 60 * 1000 > integrationData.expiresAt) {
-    try {
-      console.log('GitHub token is expired or expiring soon, refreshing...');
-      const res = await fetch('/api/github/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiHeaders()),
-        },
-        body: JSON.stringify({
-          refresh_token: integrationData.refreshToken,
-          client_id: integrationData.clientId,
-          client_secret: integrationData.clientSecret,
-        }),
-      });
-
-      const tokenData = await res.json();
-
-      if (tokenData.access_token) {
-        integrationData.accessToken = tokenData.access_token;
-        if (tokenData.refresh_token) {
-          integrationData.refreshToken = tokenData.refresh_token;
-        }
-        if (tokenData.expires_in) {
-          integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
-        }
-        if (tokenData.refresh_token_expires_in) {
-          integrationData.refreshTokenExpiresAt =
-            Date.now() + tokenData.refresh_token_expires_in * 1000;
-        }
-        integrationData.updatedAt = new Date().toISOString();
-
-        await saveIntegrationRecord('github', integrationData);
-        console.log('GitHub token refreshed successfully.');
-      } else {
-        if (isBadGithubRefreshTokenError(tokenData)) {
-          console.warn(
-            'GitHub refresh token is invalid or expired. Clearing the saved GitHub connection; reconnect GitHub to continue.',
-          );
-          await deleteIntegrationRecord('github');
-          return null;
-        }
-
-        console.error(
-          'Failed to refresh GitHub token, no access_token returned:',
-          tokenData,
-        );
-      }
-    } catch (error) {
-      console.error('Failed to refresh GitHub token:', error);
-    }
-  }
-
-  return integrationData;
-}
-
-async function refreshJiraTokenIfNeeded(userId: string, integrationData: any) {
-  if (
-    !integrationData ||
-    !integrationData.accessToken ||
-    !integrationData.refreshToken ||
-    !integrationData.expiresAt
-  ) {
-    return integrationData;
-  }
-
-  if (Date.now() + 5 * 60 * 1000 > integrationData.expiresAt) {
-    try {
-      console.log('Jira token is expired or expiring soon, refreshing...');
-      const res = await fetch('/api/jira/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(await getApiHeaders()),
-        },
-        body: JSON.stringify({
-          refresh_token: integrationData.refreshToken,
-          client_id: integrationData.clientId,
-          client_secret: integrationData.clientSecret,
-        }),
-      });
-
-      const tokenData = await res.json();
-
-      if (tokenData.access_token) {
-        integrationData.accessToken = tokenData.access_token;
-        if (tokenData.refresh_token) {
-          integrationData.refreshToken = tokenData.refresh_token;
-        }
-        if (tokenData.expires_in) {
-          integrationData.expiresAt = Date.now() + tokenData.expires_in * 1000;
-        }
-        integrationData.updatedAt = new Date().toISOString();
-
-        await saveIntegrationRecord('jira', integrationData);
-        console.log('Jira token refreshed successfully.');
-      } else {
-        console.error(
-          'Failed to refresh Jira token, no access_token returned:',
-          tokenData,
-        );
-      }
-    } catch (error) {
-      console.error('Failed to refresh Jira token:', error);
-    }
-  }
-
-  return integrationData;
+  return await refreshStoredIntegration({
+    integrationData,
+    getApiHeaders,
+    saveIntegration: (data) => saveIntegrationRecord(integrationId, data),
+    deleteIntegration: () => deleteIntegrationRecord(integrationId),
+  });
 }
 
 async function refreshGcpTokenIfNeeded(userId: string, credentialData: any) {
@@ -395,19 +288,13 @@ export const DbAPI = {
     });
   },
 
-  async getIntegration(userId: string, integrationId: string) {
+  async getIntegration(_userId: string, integrationId: string) {
     const payload = await apiRequest<{ integration: any | null }>(
       `/api/store/integrations/${integrationId}`,
     );
     let data = payload.integration;
 
-    if (integrationId === 'github' && data) {
-      data = await refreshGithubTokenIfNeeded(userId, data);
-    }
-
-    if (integrationId === 'jira' && data) {
-      data = await refreshJiraTokenIfNeeded(userId, data);
-    }
+    data = await refreshStoredIntegrationIfNeeded(integrationId, data);
 
     return data;
   },
@@ -416,27 +303,23 @@ export const DbAPI = {
     await saveIntegrationRecord(integrationId, data);
   },
 
-  async getAllIntegrations(userId: string) {
+  async getAllIntegrations(_userId: string) {
     const payload = await apiRequest<{ integrations: Record<string, any> }>(
       '/api/store/integrations',
     );
     const results = payload.integrations;
 
-    if (results['github']) {
-      const githubIntegration = await refreshGithubTokenIfNeeded(
-        userId,
-        results['github'],
+    for (const integrationId of Object.keys(results)) {
+      const refreshedIntegration = await refreshStoredIntegrationIfNeeded(
+        integrationId,
+        results[integrationId],
       );
 
-      if (githubIntegration) {
-        results['github'] = githubIntegration;
+      if (refreshedIntegration) {
+        results[integrationId] = refreshedIntegration;
       } else {
-        delete results['github'];
+        delete results[integrationId];
       }
-    }
-
-    if (results['jira']) {
-      results['jira'] = await refreshJiraTokenIfNeeded(userId, results['jira']);
     }
 
     return results;

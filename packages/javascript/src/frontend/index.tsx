@@ -11,6 +11,7 @@ export const javascriptIntegration: Integration = {
   nodeType: 'action',
   color: 'text-yellow-500',
   requiresAuth: false,
+  showInIntegrationsPage: false,
   ConfigPanel: JavascriptConfigPanel,
 };
 

@@ -10,6 +10,9 @@ export const playwrightIntegration: Integration = {
   description: "Connect to your Playwright testing suite",
   icon: playwrightIconUrl,
   nodeType: "trigger",
+  nodeSelectorOrder: 10,
+  showAuthenticationPanel: false,
+  showInIntegrationsPage: false,
   authProviders: [
     { id: "github", label: "GitHub" },
     { id: "bitbucket", label: "Bitbucket" },

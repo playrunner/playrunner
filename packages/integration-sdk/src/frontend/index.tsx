@@ -6,18 +6,27 @@ export interface Integration {
   category: string;
   description: string;
   icon: string | React.ComponentType<{ className?: string }>;
+  iconRenderMode?: 'image' | 'mask';
   connected?: boolean;
   disabled?: boolean;
   disabledReason?: string;
   isPremiumFeature?: boolean;
   nodeType?: 'trigger' | 'action' | 'config';
   color?: string;
+  nodeSelectorOrder?: number;
+  showAuthenticationPanel?: boolean;
+  showInIntegrationsPage?: boolean;
+  showInNodeSelector?: boolean;
+  showInputPanel?: boolean;
   SettingsModal?: React.FC<{ isOpen: boolean; onClose: () => void }>;
   requiresAuth?: boolean;
   authProviderId?: string;
   authProviders?: { id: string; label: string }[];
   getAuthPath?: (uid: string) => string;
   ConfigPanel?: React.FC<IntegrationConfigPanelProps>;
+  refreshStoredIntegration?: (
+    context: IntegrationRefreshContext,
+  ) => Promise<any | null>;
 }
 
 export interface IntegrationConfigPanelProps {
@@ -29,6 +38,13 @@ export interface IntegrationConfigPanelProps {
   onConnectOAuth?: (providerId?: string) => void;
   integrationData?: any;
   onLabelChange?: (newLabel: string) => void;
+}
+
+export interface IntegrationRefreshContext {
+  integrationData: any;
+  getApiHeaders: () => Promise<Record<string, string>>;
+  saveIntegration: (data: any) => Promise<void>;
+  deleteIntegration: () => Promise<void>;
 }
 
 export interface IntegrationAuthUser {

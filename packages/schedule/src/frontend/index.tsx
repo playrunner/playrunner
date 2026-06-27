@@ -11,6 +11,8 @@ export const scheduleIntegration: Integration = {
   nodeType: 'trigger',
   color: 'text-white',
   requiresAuth: false,
+  nodeSelectorOrder: 30,
+  showInputPanel: false,
   ConfigPanel: ScheduleConfigPanel,
 };
 

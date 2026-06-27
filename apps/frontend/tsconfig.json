@@ -17,6 +17,9 @@
       "@playrunner/integration-sdk": [
         "../../packages/integration-sdk/src/frontend/index.tsx"
       ],
+      "@playrunner/integration-registry": [
+        "../../packages/integration-registry/src/frontend/index.ts"
+      ],
       "@playrunner/environment": [
         "../../packages/environment/src/frontend/index.tsx"
       ],

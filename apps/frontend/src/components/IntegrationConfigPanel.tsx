@@ -135,6 +135,11 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     return () => unsubscribe();
   }, [authProvider, currentIntegration, nodeId, onChange]);
 
+  const showInputPanel = currentIntegration?.showInputPanel !== false;
+  const showAuthenticationPanel =
+    currentIntegration?.requiresAuth !== false &&
+    currentIntegration?.showAuthenticationPanel !== false;
+
   return (
     <div
       ref={containerRef}
@@ -145,7 +150,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       onPointerDown={onPointerDown}
     >
       {/* Left Column: Input */}
-      {nodeType !== 'environment' && nodeType !== 'schedule' && (
+      {showInputPanel && (
         <>
           <div
             style={{ width: `${leftWidth}%` }}
@@ -183,11 +188,27 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                   );
                   const NodeIcon = matchedIntegration ? (
                     typeof matchedIntegration.icon === 'string' ? (
-                      <img
-                        src={matchedIntegration.icon}
-                        alt={inNode.label}
-                        className="w-4 h-4 object-contain"
-                      />
+                      matchedIntegration.iconRenderMode === 'mask' ? (
+                        <div
+                          className="w-4 h-4 bg-current"
+                          style={{
+                            WebkitMaskImage: `url(${matchedIntegration.icon})`,
+                            WebkitMaskSize: 'contain',
+                            WebkitMaskRepeat: 'no-repeat',
+                            WebkitMaskPosition: 'center',
+                            maskImage: `url(${matchedIntegration.icon})`,
+                            maskSize: 'contain',
+                            maskRepeat: 'no-repeat',
+                            maskPosition: 'center',
+                          }}
+                        />
+                      ) : (
+                        <img
+                          src={matchedIntegration.icon}
+                          alt={inNode.label}
+                          className="w-4 h-4 object-contain"
+                        />
+                      )
                     ) : (
                       <matchedIntegration.icon
                         className={cn('w-4 h-4', matchedIntegration.color)}
@@ -607,14 +628,13 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       {/* Middle Column: Data / Config */}
       <div
         style={{
-          width:
-            nodeType === 'environment' || nodeType === 'schedule'
-              ? `${100 - rightWidth}%`
-              : `${100 - leftWidth - rightWidth}%`,
+          width: !showInputPanel
+            ? `${100 - rightWidth}%`
+            : `${100 - leftWidth - rightWidth}%`,
         }}
         className={cn(
           'flex flex-col overflow-hidden',
-          nodeType !== 'environment' && nodeType !== 'schedule' && 'bg-surface',
+          showInputPanel && 'bg-surface',
         )}
       >
         <div className="h-14 p-4 border-b border-subtle flex items-center justify-between shrink-0">
@@ -623,88 +643,85 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           </h3>
         </div>
         <div className="flex-1 overflow-y-auto w-full p-6 space-y-6">
-          {currentIntegration?.requiresAuth !== false &&
-            currentIntegration?.id !== 'playwright' && (
-              <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between border-b border-subtle pb-2">
-                  <h4 className="text-sm font-medium text-[var(--foreground)]">
-                    Authentication
-                  </h4>
-                  {isConnected ? (
-                    <button
-                      onClick={() => onConnectOAuth?.()}
-                      className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium"
-                    >
-                      Configure Connection
-                    </button>
-                  ) : currentIntegration?.authProviders ? (
-                    <select
-                      defaultValue=""
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          onChange(nodeId, {
-                            ...config,
-                            authProvider: e.target.value,
-                          });
-                          onConnectOAuth?.(e.target.value);
-                        }
-                        e.target.value = ''; // reset after selection
-                      }}
-                      className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-2 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
-                      style={{ paddingRight: '1rem' }}
-                    >
-                      <option value="" disabled>
-                        Connect Provider...
+          {showAuthenticationPanel && (
+            <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between border-b border-subtle pb-2">
+                <h4 className="text-sm font-medium text-[var(--foreground)]">
+                  Authentication
+                </h4>
+                {isConnected ? (
+                  <button
+                    onClick={() => onConnectOAuth?.()}
+                    className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium"
+                  >
+                    Configure Connection
+                  </button>
+                ) : currentIntegration?.authProviders ? (
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        onChange(nodeId, {
+                          ...config,
+                          authProvider: e.target.value,
+                        });
+                        onConnectOAuth?.(e.target.value);
+                      }
+                      e.target.value = ''; // reset after selection
+                    }}
+                    className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-2 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
+                    style={{ paddingRight: '1rem' }}
+                  >
+                    <option value="" disabled>
+                      Connect Provider...
+                    </option>
+                    {currentIntegration.authProviders.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
                       </option>
-                      {currentIntegration.authProviders.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : currentIntegration?.authProviderId ? (
-                    <button
-                      onClick={() => onConnectOAuth?.()}
-                      className="text-xs bg-[var(--accent)] hover:bg-[var(--accent)]/90 px-3 py-1 rounded-md text-[var(--accent-foreground)] transition-colors font-medium"
-                    >
-                      Connect{' '}
-                      {currentIntegration.authProviderId
-                        .charAt(0)
-                        .toUpperCase() +
-                        currentIntegration.authProviderId.slice(1)}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onConnectOAuth?.()}
-                      className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium"
-                    >
-                      Connect
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        isConnected ? 'bg-green-400' : 'bg-red-400',
-                      )}
-                    ></div>
-                    <span className="text-sm text-[var(--foreground)]">
-                      {isConnected
-                        ? currentIntegration?.authProviderId
-                          ? `Connected (${currentIntegration.authProviderId.charAt(0).toUpperCase() + currentIntegration.authProviderId.slice(1)})`
-                          : 'Connected'
-                        : 'Not Connected'}
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-muted">
-                  Connect your account to allow this node to perform actions on
-                  your behalf.
-                </p>
+                    ))}
+                  </select>
+                ) : currentIntegration?.authProviderId ? (
+                  <button
+                    onClick={() => onConnectOAuth?.()}
+                    className="text-xs bg-[var(--accent)] hover:bg-[var(--accent)]/90 px-3 py-1 rounded-md text-[var(--accent-foreground)] transition-colors font-medium"
+                  >
+                    Connect{' '}
+                    {currentIntegration.authProviderId.charAt(0).toUpperCase() +
+                      currentIntegration.authProviderId.slice(1)}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onConnectOAuth?.()}
+                    className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-3 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium"
+                  >
+                    Connect
+                  </button>
+                )}
               </div>
-            )}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={cn(
+                      'w-2 h-2 rounded-full',
+                      isConnected ? 'bg-green-400' : 'bg-red-400',
+                    )}
+                  ></div>
+                  <span className="text-sm text-[var(--foreground)]">
+                    {isConnected
+                      ? currentIntegration?.authProviderId
+                        ? `Connected (${currentIntegration.authProviderId.charAt(0).toUpperCase() + currentIntegration.authProviderId.slice(1)})`
+                        : 'Connected'
+                      : 'Not Connected'}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                Connect your account to allow this node to perform actions on
+                your behalf.
+              </p>
+            </div>
+          )}
 
           {currentIntegration?.ConfigPanel ? (
             <currentIntegration.ConfigPanel

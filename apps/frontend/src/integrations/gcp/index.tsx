@@ -9,5 +9,6 @@ export const gcpIntegration: Integration = {
   icon: '/images/integrations/gcp.svg',
   nodeType: 'trigger',
   getAuthPath: (uid) => `users/${uid}/cloud_credentials/gcp`,
+  showInNodeSelector: false,
   SettingsModal: (props) => GcpSettingsModal({ ...props, cloudId: 'gcp' }),
 };

@@ -81,7 +81,7 @@ export default function Integrations() {
   }, []);
 
   const displayIntegrations = INTEGRATIONS.filter(
-    (i) => i.id !== 'playwright' && i.id !== 'code' && i.id !== 'environment',
+    (i) => i.showInIntegrationsPage !== false,
   );
 
   return (
@@ -129,9 +129,7 @@ export default function Integrations() {
                   <div className="w-12 h-12 rounded-lg bg-background border border-subtle flex items-center justify-center p-2 shadow-sm">
                     {integration.icon ? (
                       typeof integration.icon === 'string' ? (
-                        ['github', 'openai', 'webhooks', 'whatsapp'].includes(
-                          integration.id,
-                        ) ? (
+                        integration.iconRenderMode === 'mask' ? (
                           <div
                             className="w-full h-full bg-current"
                             style={{

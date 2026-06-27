@@ -2,6 +2,7 @@ import type { Integration } from '@playrunner/integration-sdk';
 import { JiraConfigPanel } from './JiraConfigPanel';
 import { JiraSettingsModal } from './JiraSettingsModal';
 import { jiraIconUrl } from './icon';
+import { refreshJiraTokenIfNeeded } from './tokenRefresh';
 
 export const jiraIntegration: Integration = {
   id: 'jira',
@@ -10,9 +11,11 @@ export const jiraIntegration: Integration = {
   description: 'Create and sync Jira tickets',
   icon: jiraIconUrl,
   nodeType: 'action',
+  nodeSelectorOrder: 40,
   getAuthPath: (uid) => `users/${uid}/integrations/jira`,
   SettingsModal: JiraSettingsModal,
   ConfigPanel: JiraConfigPanel,
+  refreshStoredIntegration: refreshJiraTokenIfNeeded,
 };
 
 export { JiraConfigPanel } from './JiraConfigPanel';

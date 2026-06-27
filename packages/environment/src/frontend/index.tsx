@@ -11,6 +11,9 @@ export const environmentIntegration: Integration = {
   nodeType: 'config',
   color: 'text-blue-500',
   requiresAuth: false,
+  nodeSelectorOrder: 20,
+  showInIntegrationsPage: false,
+  showInputPanel: false,
   ConfigPanel: EnvironmentConfigPanel,
 };
 

@@ -33,6 +33,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/integration-sdk/src/frontend/index.tsx',
         ),
+        '@playrunner/integration-registry': path.resolve(
+          repoRoot,
+          'packages/integration-registry/src/frontend/index.ts',
+        ),
         '@playrunner/environment': path.resolve(
           repoRoot,
           'packages/environment/src/frontend/index.tsx',

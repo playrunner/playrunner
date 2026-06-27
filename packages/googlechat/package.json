@@ -1,0 +1,43 @@
+{
+  "name": "@playrunner/googlechat",
+  "version": "0.1.0",
+  "description": "Google Chat integration package placeholder for Playrunner.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "author": "Concept AI PTY LTD",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "@playrunner/integration-sdk": "^0.1.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}

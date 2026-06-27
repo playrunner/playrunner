@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "noEmit": true,
+    "paths": {
+      "@playrunner/integration-sdk": [
+        "../integration-sdk/src/frontend/index.tsx"
+      ]
+    }
+  },
+  "include": ["src"]
+}

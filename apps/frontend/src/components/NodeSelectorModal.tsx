@@ -14,29 +14,26 @@ type AppNodeType = {
   label: string;
   type: string;
   iconSrc?: string;
+  iconRenderMode?: 'image' | 'mask';
   fallbackIcon?: any;
   color?: string;
   fallbackText?: string;
+  nodeSelectorOrder?: number;
 };
 
-// Create NODE_TYPES dynamically from standard integrations plus built-in system nodes
-const HIDDEN_CANVAS_NODES = ['aws', 'azure', 'gcp'];
-
 export const NODE_TYPES: AppNodeType[] = [
-  ...INTEGRATIONS.filter((i) => !HIDDEN_CANVAS_NODES.includes(i.id)).map(
-    (i) => ({
-      id: i.id,
-      label: i.name,
-      type: i.nodeType || 'action',
-      color: i.color,
-      ...(typeof i.icon === 'string'
-        ? { iconSrc: i.icon }
-        : { fallbackIcon: i.icon }),
-    }),
-  ),
+  ...INTEGRATIONS.filter((i) => i.showInNodeSelector !== false).map((i) => ({
+    id: i.id,
+    label: i.name,
+    type: i.nodeType || 'action',
+    color: i.color,
+    iconRenderMode: i.iconRenderMode,
+    nodeSelectorOrder: i.nodeSelectorOrder,
+    ...(typeof i.icon === 'string'
+      ? { iconSrc: i.icon }
+      : { fallbackIcon: i.icon }),
+  })),
 ];
-
-const PINNED_IDS = ['playwright', 'environment', 'schedule', 'jira', 'slack'];
 
 export function NodeSelectorModal({
   isOpen,
@@ -51,11 +48,14 @@ export function NodeSelectorModal({
   const filteredNodes = NODE_TYPES.filter((n) =>
     n.label.toLowerCase().includes(search.toLowerCase()),
   );
-  const pinnedNodes = filteredNodes.filter((n) => PINNED_IDS.includes(n.id));
-  const otherNodes = filteredNodes.filter((n) => !PINNED_IDS.includes(n.id));
-  // Sort pinned nodes in the defined order
+  const pinnedNodes = filteredNodes.filter(
+    (n) => typeof n.nodeSelectorOrder === 'number',
+  );
+  const otherNodes = filteredNodes.filter(
+    (n) => typeof n.nodeSelectorOrder !== 'number',
+  );
   pinnedNodes.sort(
-    (a, b) => PINNED_IDS.indexOf(a.id) - PINNED_IDS.indexOf(b.id),
+    (a, b) => (a.nodeSelectorOrder ?? 0) - (b.nodeSelectorOrder ?? 0),
   );
 
   const renderNodeButton = (node: AppNodeType) => (
@@ -66,7 +66,7 @@ export function NodeSelectorModal({
     >
       <div className="w-10 h-10 rounded-lg bg-background border border-subtle flex items-center justify-center shrink-0 shadow-sm p-1.5">
         {node.iconSrc ? (
-          ['github', 'openai', 'webhooks', 'whatsapp'].includes(node.id) ? (
+          node.iconRenderMode === 'mask' ? (
             <div
               className="w-full h-full bg-current"
               style={{

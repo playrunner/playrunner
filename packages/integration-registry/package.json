@@ -1,0 +1,47 @@
+{
+  "name": "@playrunner/integration-registry",
+  "version": "0.1.0",
+  "description": "Package-owned integration registry for Playrunner.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "author": "Concept AI PTY LTD",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.ts",
+      "import": "./src/frontend/index.ts",
+      "require": "./src/frontend/index.ts",
+      "default": "./src/frontend/index.ts"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.ts",
+      "import": "./src/frontend/index.ts",
+      "require": "./src/frontend/index.ts",
+      "default": "./src/frontend/index.ts"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "peerDependencies": {
+    "@playrunner/integration-sdk": "^0.1.0",
+    "express": "^5.0.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  }
+}
