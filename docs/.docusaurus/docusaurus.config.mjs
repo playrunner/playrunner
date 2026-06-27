@@ -179,11 +179,15 @@ export default {
           ]
         },
         {
-          "title": "Blog",
+          "title": "Discuss",
           "items": [
             {
               "label": "Blog",
               "to": "/blog"
+            },
+            {
+              "label": "Discord",
+              "href": "https://discord.gg/23yz25kat"
             }
           ]
         },
