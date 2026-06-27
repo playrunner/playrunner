@@ -3,41 +3,6 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/playrunner/__docusaurus/debug',
-    component: ComponentCreator('/playrunner/__docusaurus/debug', 'e37'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/config',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/config', '568'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/content',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/content', '231'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/globalData',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData', '878'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/metadata',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata', 'baa'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/registry',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/registry', '6eb'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/routes',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/routes', '585'),
-    exact: true
-  },
-  {
     path: '/playrunner/blog',
     component: ComponentCreator('/playrunner/blog', 'c4d'),
     exact: true
@@ -114,19 +79,19 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', 'b49'),
+    component: ComponentCreator('/playrunner/docs', '27d'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', 'd89'),
+        component: ComponentCreator('/playrunner/docs', '9f2'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '313'),
+            component: ComponentCreator('/playrunner/docs', 'b03'),
             routes: [
               {
-                path: '/playrunner/docs/category/cloud-architecture',
-                component: ComponentCreator('/playrunner/docs/category/cloud-architecture', '0c4'),
+                path: '/playrunner/docs/category/runner-architecture',
+                component: ComponentCreator('/playrunner/docs/category/runner-architecture', 'b7c'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -151,6 +116,12 @@ export default [
               {
                 path: '/playrunner/docs/cloud-architecture/gcp/setup',
                 component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/setup', 'bd0'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/cloud-architecture/local',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/local', '440'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

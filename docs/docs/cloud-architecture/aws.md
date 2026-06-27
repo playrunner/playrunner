@@ -1,9 +1,9 @@
 ---
-sidebar_position: 2
-title: AWS Cloud Architecture
+sidebar_position: 3
+title: AWS Runner Architecture
 sidebar_label: AWS
 ---
 
-# AWS Cloud Architecture
+# AWS Runner Architecture
 
-This page is a placeholder for the planned AWS cloud runner architecture.
+This page is a placeholder for the planned AWS runner architecture.

@@ -1,7 +1,7 @@
 {
   "id": "cloud-architecture/azure",
-  "title": "Azure Cloud Architecture",
-  "description": "This page is a placeholder for the planned Azure cloud runner architecture.",
+  "title": "Azure Runner Architecture",
+  "description": "This page is a placeholder for the planned Azure runner architecture.",
   "source": "@site/docs/cloud-architecture/azure.md",
   "sourceDirName": "cloud-architecture",
   "slug": "/cloud-architecture/azure",
@@ -11,10 +11,10 @@
   "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/cloud-architecture/azure.md",
   "tags": [],
   "version": "current",
-  "sidebarPosition": 3,
+  "sidebarPosition": 4,
   "frontMatter": {
-    "sidebar_position": 3,
-    "title": "Azure Cloud Architecture",
+    "sidebar_position": 4,
+    "title": "Azure Runner Architecture",
     "sidebar_label": "Azure"
   },
   "sidebar": "tutorialSidebar",

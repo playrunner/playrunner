@@ -1,9 +1,9 @@
 ---
-sidebar_position: 3
-title: Azure Cloud Architecture
+sidebar_position: 4
+title: Azure Runner Architecture
 sidebar_label: Azure
 ---
 
-# Azure Cloud Architecture
+# Azure Runner Architecture
 
-This page is a placeholder for the planned Azure cloud runner architecture.
+This page is a placeholder for the planned Azure runner architecture.

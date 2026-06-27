@@ -1,6 +1,6 @@
 {
   "id": "cloud-architecture/gcp/index",
-  "title": "GCP Cloud Architecture",
+  "title": "GCP Runner Architecture",
   "description": "Playrunner is designed to be easily deployable to Google Cloud Platform, providing a massively scalable, auto-scaling execution environment for your visual Playwright workflows.",
   "source": "@site/docs/cloud-architecture/gcp/index.md",
   "sourceDirName": "cloud-architecture/gcp",
@@ -14,13 +14,13 @@
   "sidebarPosition": 1,
   "frontMatter": {
     "sidebar_position": 1,
-    "title": "GCP Cloud Architecture",
+    "title": "GCP Runner Architecture",
     "sidebar_label": "Overview"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Cloud Architecture",
-    "permalink": "/playrunner/docs/category/cloud-architecture"
+    "title": "Local",
+    "permalink": "/playrunner/docs/cloud-architecture/local"
   },
   "next": {
     "title": "Setup",
