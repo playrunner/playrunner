@@ -2,19 +2,60 @@
 sidebar_position: 7
 sidebar_label: Playwright
 title: Playwright Integration
+description: Trigger Playwright test runs from Playrunner workflows.
+hide_title: true
 ---
 
-# Playwright Integration
+import {
+  IntegrationCallout,
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/playwright` contains the built-in Playwright test runner trigger node.
+<IntegrationHero
+  name="Playwright"
+  packageName="@playrunner/playwright"
+  description="Trigger Playwright test runs from workflow nodes with repository, script, artifact, and runner configuration built into the package."
+  icon="playwright"
+  installCommand="npm install @playrunner/playwright @playrunner/github"
+  npmUrl="https://www.npmjs.com/package/@playrunner/playwright"
+  badges={['Trigger node', 'GitHub dependency', 'Runner config']}
+  facts={[
+    { label: 'Node type', value: 'Trigger' },
+    { label: 'Peer dependency', value: '@playrunner/github' },
+    { label: 'Backend mount', value: '/api/playwright' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Runner configuration panel">
+    Exports `playwrightIntegration` and `PlaywrightConfigPanel` for repository
+    selection, inline script editing, zip upload metadata, environment
+    injection, and runner resources.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/playwright @playrunner/github
-```
+  <IntegrationCard eyebrow="Dependency" title="GitHub-backed auth">
+    Repository authentication uses `GithubSettingsModal` from
+    `@playrunner/github`, so both packages must be installed.
+  </IntegrationCard>
 
-npm: [@playrunner/playwright](https://www.npmjs.com/package/@playrunner/playwright) (placeholder until published)
+  <IntegrationCard eyebrow="Execution" title="Workflow runner infrastructure">
+    Playwright execution is handled by workflow runner infrastructure rather
+    than package-local API endpoints.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Assets" title="Package-owned icon">
+    The Playwright SVG lives inside the package and is resolved by the frontend
+    entrypoint.
+  </IntegrationCard>
+</IntegrationGrid>
+
+<IntegrationCallout title="Install GitHub with Playwright">
+Playwright has a dependency on GitHub repository authentication. Install
+`@playrunner/github` alongside Playwright and keep the GitHub integration
+registered in the host app.
+</IntegrationCallout>
 
 ## Exports
 

@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/index",
   "title": "Overview",
-  "description": "Integrations ship external service nodes in deployable npm packages:",
+  "description": "Installable Playrunner integrations, package structure, SDK usage, and persistence model.",
   "source": "@site/docs/integration-packages/index.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/",
@@ -14,7 +14,9 @@
   "sidebarPosition": 1,
   "frontMatter": {
     "sidebar_position": 1,
-    "title": "Overview"
+    "title": "Overview",
+    "description": "Installable Playrunner integrations, package structure, SDK usage, and persistence model.",
+    "hide_title": true
   },
   "sidebar": "tutorialSidebar",
   "previous": {

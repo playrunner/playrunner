@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/playwright",
   "title": "Playwright Integration",
-  "description": "@playrunner/playwright contains the built-in Playwright test runner trigger node.",
+  "description": "Trigger Playwright test runs from Playrunner workflows.",
   "source": "@site/docs/integration-packages/playwright.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/playwright",
@@ -15,7 +15,9 @@
   "frontMatter": {
     "sidebar_position": 7,
     "sidebar_label": "Playwright",
-    "title": "Playwright Integration"
+    "title": "Playwright Integration",
+    "description": "Trigger Playwright test runs from Playrunner workflows.",
+    "hide_title": true
   },
   "sidebar": "tutorialSidebar",
   "previous": {

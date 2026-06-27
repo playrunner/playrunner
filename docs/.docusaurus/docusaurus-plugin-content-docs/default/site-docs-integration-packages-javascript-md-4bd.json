@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/javascript",
   "title": "JavaScript Integration",
-  "description": "@playrunner/javascript contains the built-in JavaScript code node.",
+  "description": "Run custom JavaScript inside Playrunner workflow nodes.",
   "source": "@site/docs/integration-packages/javascript.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/javascript",
@@ -15,7 +15,9 @@
   "frontMatter": {
     "sidebar_position": 3,
     "sidebar_label": "JavaScript",
-    "title": "JavaScript Integration"
+    "title": "JavaScript Integration",
+    "description": "Run custom JavaScript inside Playrunner workflow nodes.",
+    "hide_title": true
   },
   "sidebar": "tutorialSidebar",
   "previous": {

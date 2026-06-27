@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/github",
   "title": "GitHub Integration",
-  "description": "@playrunner/github contains the built-in GitHub connection and OAuth proxy routes.",
+  "description": "Connect GitHub repositories and install app credentials for Playrunner workflows.",
   "source": "@site/docs/integration-packages/github.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/github",
@@ -15,7 +15,9 @@
   "frontMatter": {
     "sidebar_position": 4,
     "sidebar_label": "GitHub",
-    "title": "GitHub Integration"
+    "title": "GitHub Integration",
+    "description": "Connect GitHub repositories and install app credentials for Playrunner workflows.",
+    "hide_title": true
   },
   "sidebar": "tutorialSidebar",
   "previous": {

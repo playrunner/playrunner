@@ -2,19 +2,52 @@
 sidebar_position: 6
 sidebar_label: Schedule
 title: Schedule Integration
+description: Start Playrunner workflows on recurring schedules.
+hide_title: true
 ---
 
-# Schedule Integration
+import {
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/schedule` contains the built-in recurring schedule trigger node.
+<IntegrationHero
+  name="Schedule"
+  packageName="@playrunner/schedule"
+  description="Start workflows on recurring schedules with frequency, interval, timezone, and cron summary state built into the node."
+  icon="schedule"
+  installCommand="npm install @playrunner/schedule"
+  npmUrl="https://www.npmjs.com/package/@playrunner/schedule"
+  badges={['Trigger node', 'Recurring runs', 'No auth']}
+  facts={[
+    { label: 'Node type', value: 'Trigger' },
+    { label: 'Integration id', value: 'schedule' },
+    { label: 'Backend mount', value: '/api/schedule' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Schedule configuration UI">
+    Exports `scheduleIntegration` and `ScheduleConfigPanel` for frequency,
+    interval, timezone, and cron summary state.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/schedule
-```
+  <IntegrationCard eyebrow="Workflow model" title="Trigger node config">
+    Schedule settings are node-specific, so they belong in the workflow node
+    `config` rather than account-level integration storage.
+  </IntegrationCard>
 
-npm: [@playrunner/schedule](https://www.npmjs.com/package/@playrunner/schedule) (placeholder until published)
+  <IntegrationCard eyebrow="Backend" title="Consistent API shape">
+    Exports `scheduleRouter`, mounted at `/api/schedule`, even though the current
+    Schedule node has no backend endpoints.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Icon" title="Lucide source">
+    Uses the `AlarmClock` icon from `lucide-react`, so it does not need a
+    packaged image asset.
+  </IntegrationCard>
+</IntegrationGrid>
 
 ## Exports
 

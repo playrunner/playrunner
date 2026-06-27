@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/jira",
   "title": "Jira Integration",
-  "description": "@playrunner/jira is the reference integration.",
+  "description": "Create and sync Jira tickets from Playrunner workflows.",
   "source": "@site/docs/integration-packages/jira.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/jira",
@@ -15,7 +15,9 @@
   "frontMatter": {
     "sidebar_position": 2,
     "sidebar_label": "Jira",
-    "title": "Jira Integration"
+    "title": "Jira Integration",
+    "description": "Create and sync Jira tickets from Playrunner workflows.",
+    "hide_title": true
   },
   "sidebar": "tutorialSidebar",
   "previous": {

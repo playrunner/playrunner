@@ -13,6 +13,15 @@
   --ifm-color-primary-lightest: #6ed4c8;
   --ifm-code-font-size: 94%;
   --docusaurus-highlighted-code-line-bg: rgba(15, 118, 110, 0.08);
+  --integration-border: rgba(17, 24, 39, 0.1);
+  --integration-chip: rgba(255, 255, 255, 0.72);
+  --integration-hero-start: rgba(15, 118, 110, 0.14);
+  --integration-icon-border: rgba(255, 255, 255, 0.42);
+  --integration-muted: #667085;
+  --integration-shadow: rgba(15, 23, 42, 0.08);
+  --integration-surface: #ffffff;
+  --integration-surface-strong: #f6f8fb;
+  --integration-text: #3f4754;
 }
 
 [data-theme='dark'] {
@@ -24,6 +33,15 @@
   --ifm-color-primary-lighter: #98f5e7;
   --ifm-color-primary-lightest: #c7fbf4;
   --docusaurus-highlighted-code-line-bg: rgba(94, 234, 212, 0.12);
+  --integration-border: rgba(255, 255, 255, 0.12);
+  --integration-chip: rgba(255, 255, 255, 0.06);
+  --integration-hero-start: rgba(94, 234, 212, 0.12);
+  --integration-icon-border: rgba(255, 255, 255, 0.18);
+  --integration-muted: #aab4c3;
+  --integration-shadow: rgba(0, 0, 0, 0.22);
+  --integration-surface: #161b22;
+  --integration-surface-strong: #10141b;
+  --integration-text: #d0d7e2;
 }
 
 /* Navbar logo: preserve the SVG's authored colours in both themes */

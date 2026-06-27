@@ -2,19 +2,53 @@
 sidebar_position: 4
 sidebar_label: GitHub
 title: GitHub Integration
+description: Connect GitHub repositories and install app credentials for Playrunner workflows.
+hide_title: true
 ---
 
-# GitHub Integration
+import {
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/github` contains the built-in GitHub connection and OAuth proxy routes.
+<IntegrationHero
+  name="GitHub"
+  packageName="@playrunner/github"
+  description="Connect GitHub repositories and install app credentials for Playrunner workflows that need repository access."
+  icon="github"
+  installCommand="npm install @playrunner/github"
+  npmUrl="https://www.npmjs.com/package/@playrunner/github"
+  badges={['OAuth', 'API routes', 'Repository access']}
+  facts={[
+    { label: 'Node type', value: 'Trigger' },
+    { label: 'Auth path', value: 'users/{uid}/integrations/github' },
+    { label: 'Backend mount', value: '/api/github' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Settings and registration">
+    Exports `githubIntegration` and `GithubSettingsModal`. The integration keeps
+    the existing `github` id so saved workflow auth references continue to
+    resolve.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/github
-```
+  <IntegrationCard eyebrow="Backend" title="OAuth proxy routes">
+    Exports `githubRouter`, mounted by the host API at `/api/github`, for token
+    exchange and refresh calls.
+  </IntegrationCard>
 
-npm: [@playrunner/github](https://www.npmjs.com/package/@playrunner/github) (placeholder until published)
+  <IntegrationCard eyebrow="Used by Playwright" title="Repository auth">
+    Playwright reuses `GithubSettingsModal` for repository authentication, so
+    GitHub must stay installed and registered when Playwright is installed.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Assets" title="Package-owned icon">
+    The GitHub SVG lives inside the package and the frontend no longer needs a
+    duplicate public asset.
+  </IntegrationCard>
+</IntegrationGrid>
 
 ## Exports
 
@@ -25,9 +59,7 @@ import { githubRouter } from "@playrunner/github/api";
 
 ## Frontend
 
-The frontend entrypoint exports `githubIntegration`, which keeps the existing integration id as `github` so saved workflow auth references continue to resolve.
-
-The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers GitHub in `apps/frontend/src/integrations/registry.ts`, and Playwright reuses `GithubSettingsModal` for repository auth.
+The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers GitHub in `apps/frontend/src/integrations/registry.ts`.
 
 ## API
 

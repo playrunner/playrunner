@@ -2,19 +2,52 @@
 sidebar_position: 2
 sidebar_label: Jira
 title: Jira Integration
+description: Create and sync Jira tickets from Playrunner workflows.
+hide_title: true
 ---
 
-# Jira Integration
+import {
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/jira` is the reference integration.
+<IntegrationHero
+  name="Jira"
+  packageName="@playrunner/jira"
+  description="Create and sync Jira tickets from Playrunner workflows with OAuth-backed project access."
+  icon="jira"
+  installCommand="npm install @playrunner/jira"
+  npmUrl="https://www.npmjs.com/package/@playrunner/jira"
+  badges={['Action node', 'OAuth', 'Project sync']}
+  facts={[
+    { label: 'Node type', value: 'Action' },
+    { label: 'Auth path', value: 'users/{uid}/integrations/jira' },
+    { label: 'Backend mount', value: '/api/jira' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Reference package UI">
+    Exports `jiraIntegration`, `JiraConfigPanel`, and `JiraSettingsModal` for
+    the canvas node, settings flow, and node configuration panel.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/jira
-```
+  <IntegrationCard eyebrow="Backend" title="Token and project routes">
+    Exports `jiraRouter`, mounted by the host API at `/api/jira`, for OAuth token
+    exchange, token refresh, and project lookup.
+  </IntegrationCard>
 
-npm: [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira) (placeholder until published)
+  <IntegrationCard eyebrow="SDK usage" title="Host services only">
+    Jira uses SDK UI helpers and reads Playrunner host services through
+    `useIntegrationHost`, keeping package code decoupled from app internals.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Assets" title="Package-owned icon">
+    The Jira SVG lives inside the package and is resolved by the frontend
+    entrypoint.
+  </IntegrationCard>
+</IntegrationGrid>
 
 ## Exports
 

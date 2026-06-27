@@ -2,19 +2,52 @@
 sidebar_position: 5
 sidebar_label: Environment
 title: Environment Integration
+description: Configure reusable environment variables and inject them into Playrunner workflow nodes.
+hide_title: true
 ---
 
-# Environment Integration
+import {
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/environment` contains the built-in environment variable config node and shared environment variable table.
+<IntegrationHero
+  name="Environment"
+  packageName="@playrunner/environment"
+  description="Configure reusable environment variables and inject them into workflow nodes from a shared package-owned UI."
+  icon="environment"
+  installCommand="npm install @playrunner/environment"
+  npmUrl="https://www.npmjs.com/package/@playrunner/environment"
+  badges={['Config node', 'Variables table', 'Shared storage']}
+  facts={[
+    { label: 'Node type', value: 'Config' },
+    { label: 'Integration id', value: 'environment' },
+    { label: 'Backend mount', value: '/api/environment' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Environment config node">
+    Exports `environmentIntegration`, `EnvironmentConfigPanel`, `VariablesTable`,
+    and environment types used by the host Environments page.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/environment
-```
+  <IntegrationCard eyebrow="Persistence" title="Shared environment store">
+    Environment persistence uses shared store routes under
+    `/api/store/environments`, exposed to packages through the SDK host.
+  </IntegrationCard>
 
-npm: [@playrunner/environment](https://www.npmjs.com/package/@playrunner/environment) (placeholder until published)
+  <IntegrationCard eyebrow="Backend" title="Consistent API shape">
+    Exports `environmentRouter`, mounted at `/api/environment`, even though
+    environment records use the shared store routes.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Icon" title="Lucide source">
+    Uses the `Settings` icon from `lucide-react`, so it does not need a packaged
+    image asset.
+  </IntegrationCard>
+</IntegrationGrid>
 
 ## Exports
 

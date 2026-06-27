@@ -2,19 +2,52 @@
 sidebar_position: 3
 sidebar_label: JavaScript
 title: JavaScript Integration
+description: Run custom JavaScript inside Playrunner workflow nodes.
+hide_title: true
 ---
 
-# JavaScript Integration
+import {
+  IntegrationCard,
+  IntegrationGrid,
+  IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-`@playrunner/javascript` contains the built-in JavaScript code node.
+<IntegrationHero
+  name="JavaScript"
+  packageName="@playrunner/javascript"
+  description="Run custom JavaScript inside Playrunner workflows using the shared integration SDK UI contract."
+  icon="javascript"
+  installCommand="npm install @playrunner/javascript"
+  npmUrl="https://www.npmjs.com/package/@playrunner/javascript"
+  badges={['Action node', 'Code editor', 'No auth']}
+  facts={[
+    { label: 'Node type', value: 'Action' },
+    { label: 'Integration id', value: 'code' },
+    { label: 'Backend mount', value: '/api/javascript' },
+  ]}
+/>
 
-## Install
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Code-node configuration">
+    Exports `javascriptIntegration` and `JavascriptConfigPanel`. The integration
+    keeps the existing `code` id so saved workflows continue to resolve.
+  </IntegrationCard>
 
-```bash
-npm install @playrunner/javascript
-```
+  <IntegrationCard eyebrow="SDK usage" title="Shared config fields">
+    Uses `@playrunner/integration-sdk` for config field layout and host-provided
+    UI primitives.
+  </IntegrationCard>
 
-npm: [@playrunner/javascript](https://www.npmjs.com/package/@playrunner/javascript) (placeholder until published)
+  <IntegrationCard eyebrow="Backend" title="Consistent API shape">
+    Exports `javascriptRouter`, mounted at `/api/javascript`, even though the
+    current JavaScript node has no backend endpoints.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Icon" title="Lucide source">
+    Uses the `Code2` icon from `lucide-react`, so it does not need a packaged
+    image asset.
+  </IntegrationCard>
+</IntegrationGrid>
 
 ## Exports
 

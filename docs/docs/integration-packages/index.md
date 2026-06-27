@@ -1,15 +1,72 @@
 ---
 sidebar_position: 1
 title: Overview
+description: Installable Playrunner integrations, package structure, SDK usage, and persistence model.
+hide_title: true
 ---
 
-# Integrations
+import {
+  IntegrationDirectory,
+  IntegrationDirectoryHero,
+  IntegrationDirectoryItem,
+} from '@site/src/components/IntegrationPage';
 
-Integrations ship external service nodes in deployable npm packages:
+<IntegrationDirectoryHero title="Integrations">
+Install Playrunner nodes as public npm packages. Each integration ships its
+frontend registration, configuration UI, backend routes, and package-owned
+assets as a deployable unit.
+</IntegrationDirectoryHero>
 
-- frontend registration and configuration UI
-- backend API routes
-- image assets required by the integration
+<IntegrationDirectory>
+  <IntegrationDirectoryItem
+    name="Jira"
+    packageName="@playrunner/jira"
+    description="Create and sync Jira tickets from Playrunner workflows."
+    icon="jira"
+    href="/docs/integration-packages/jira"
+    installCommand="npm install @playrunner/jira"
+  />
+  <IntegrationDirectoryItem
+    name="JavaScript"
+    packageName="@playrunner/javascript"
+    description="Run custom JavaScript inside workflow nodes."
+    icon="javascript"
+    href="/docs/integration-packages/javascript"
+    installCommand="npm install @playrunner/javascript"
+  />
+  <IntegrationDirectoryItem
+    name="GitHub"
+    packageName="@playrunner/github"
+    description="Connect repositories and manage GitHub auth."
+    icon="github"
+    href="/docs/integration-packages/github"
+    installCommand="npm install @playrunner/github"
+  />
+  <IntegrationDirectoryItem
+    name="Environment"
+    packageName="@playrunner/environment"
+    description="Manage reusable environment variables for workflow nodes."
+    icon="environment"
+    href="/docs/integration-packages/environment"
+    installCommand="npm install @playrunner/environment"
+  />
+  <IntegrationDirectoryItem
+    name="Schedule"
+    packageName="@playrunner/schedule"
+    description="Trigger workflows on recurring schedules."
+    icon="schedule"
+    href="/docs/integration-packages/schedule"
+    installCommand="npm install @playrunner/schedule"
+  />
+  <IntegrationDirectoryItem
+    name="Playwright"
+    packageName="@playrunner/playwright"
+    description="Run Playwright test workflows with repository-backed config."
+    icon="playwright"
+    href="/docs/integration-packages/playwright"
+    installCommand="npm install @playrunner/playwright @playrunner/github"
+  />
+</IntegrationDirectory>
 
 The current integrations are `@playrunner/environment` in `packages/environment`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
