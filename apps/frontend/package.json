@@ -20,10 +20,12 @@
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
+    "@playrunner/environment": "file:../../packages/environment",
     "@playrunner/github": "file:../../packages/github",
     "@playrunner/integration-sdk": "file:../../packages/integration-sdk",
     "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",
+    "@playrunner/schedule": "file:../../packages/schedule",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",

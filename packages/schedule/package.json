@@ -1,0 +1,76 @@
+{
+  "name": "@playrunner/schedule",
+  "version": "0.1.0",
+  "description": "Schedule integration package for Playrunner.",
+  "license": "SEE LICENSE IN ../../LICENSE",
+  "author": "Concept AI PTY LTD",
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "peerDependencies": {
+    "@playrunner/integration-sdk": "^0.1.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/express": "^5.0.6",
+    "@types/react": "^19.2.14",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "lucide-react": "^0.546.0",
+    "prettier": "3.8.4",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.61.1"
+  }
+}

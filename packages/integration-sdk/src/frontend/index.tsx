@@ -51,6 +51,14 @@ export interface IntegrationStore {
     data: any,
   ) => Promise<void>;
   deleteIntegration: (userId: string, integrationId: string) => Promise<void>;
+  getEnvironments?: (userId: string) => Promise<any[]>;
+  saveEnvironment?: (
+    userId: string,
+    environmentId: string,
+    data: any,
+  ) => Promise<void>;
+  deleteEnvironment?: (userId: string, environmentId: string) => Promise<void>;
+  saveSecret?: (userId: string, secretKey: string, data: any) => Promise<void>;
 }
 
 export interface IntegrationModalProps {

@@ -5,9 +5,11 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 LOCAL_PACKAGE_DIRS=(
   "packages/integration-sdk"
+  "packages/environment"
   "packages/github"
   "packages/javascript"
   "packages/jira"
+  "packages/schedule"
   "apps/api"
   "apps/frontend"
   "apps/runners/orchestrator"

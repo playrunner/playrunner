@@ -1,19 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { cn } from '../../lib/utils';
 import { Upload, Search, ChevronDown } from 'lucide-react';
-import { auth } from '../../lib/auth';
-import { DbAPI } from '../../lib/db';
+import {
+  type IntegrationConfigPanelProps,
+  useIntegrationHost,
+} from '@playrunner/integration-sdk';
+import { cn } from './cn';
 import type { EnvVar, SavedEnvironment } from './types';
 import { VariablesTable } from './VariablesTable';
 
-interface EnvironmentConfigPanelProps {
-  nodeId: string;
-  nodeLabel?: string;
-  config: Record<string, any>;
-  onChange: (nodeId: string, newConfig: Record<string, any>) => void;
+interface EnvironmentConfigPanelProps extends IntegrationConfigPanelProps {
   className?: string;
   onPointerDown?: (e: React.PointerEvent) => void;
-  onLabelChange?: (newLabel: string) => void;
 }
 
 export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
@@ -25,6 +22,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   onPointerDown,
   onLabelChange,
 }) => {
+  const { auth, store } = useIntegrationHost();
   const [variables, setVariables] = useState<EnvVar[]>(() => {
     const initial = (
       Array.isArray(config.variables) ? config.variables : []
@@ -64,11 +62,14 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const [isLoadingEnvs, setIsLoadingEnvs] = useState(false);
   const initializedRef = useRef(false);
   const currentUserId = auth.currentUser?.uid;
+  const getEnvironments = store.getEnvironments;
+  const saveEnvironment = store.saveEnvironment;
+  const saveSecret = store.saveSecret;
 
   useEffect(() => {
-    if (!currentUserId) return;
+    if (!currentUserId || !getEnvironments) return;
     setIsLoadingEnvs(true);
-    DbAPI.getEnvironments(currentUserId)
+    getEnvironments(currentUserId)
       .then((envs) => {
         setSavedEnvironments(envs);
         const linkedEnv = envs.find((e) => e.id === config.environmentId);
@@ -78,7 +79,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       })
       .catch(console.error)
       .finally(() => setIsLoadingEnvs(false));
-  }, [config.environmentId, currentUserId]);
+  }, [config.environmentId, currentUserId, getEnvironments]);
 
   useEffect(() => {
     if (
@@ -148,13 +149,13 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   }, [variables]);
 
   const syncToSavedEnvironment = (vars: EnvVar[]) => {
-    if (!linkedEnvId || !auth.currentUser) return;
+    if (!linkedEnvId || !auth.currentUser || !saveEnvironment) return;
     const env = savedEnvironments.find((e) => e.id === linkedEnvId);
     if (!env) return;
     const validVars = vars.filter(
       (v) => v.key || v.initialValue || v.currentValue,
     );
-    DbAPI.saveEnvironment(auth.currentUser.uid, linkedEnvId, {
+    saveEnvironment(auth.currentUser.uid, linkedEnvId, {
       ...env,
       variables: validVars,
     }).catch(console.error);
@@ -227,7 +228,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   };
 
   const handleToggleGlobal = async (checked: boolean) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !saveEnvironment) return;
     if (checked) {
       if (dropdownEnvId !== '__create_new__') {
         setLinkedEnvId(dropdownEnvId);
@@ -236,7 +237,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
           const validVars = variables.filter(
             (v) => v.key || v.initialValue || v.currentValue,
           );
-          DbAPI.saveEnvironment(auth.currentUser.uid, dropdownEnvId, {
+          saveEnvironment(auth.currentUser.uid, dropdownEnvId, {
             ...env,
             variables: validVars,
           }).catch(console.error);
@@ -273,7 +274,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
           updatedAt: now,
         };
         try {
-          await DbAPI.saveEnvironment(auth.currentUser.uid, envId, newEnv);
+          await saveEnvironment(auth.currentUser.uid, envId, newEnv);
           setLinkedEnvId(envId);
           setDropdownEnvId(envId);
           setSavedEnvironments((prev) => [...prev, newEnv]);
@@ -386,12 +387,12 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   };
 
   const convertToSecret = async (id: string) => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !saveSecret) return;
     const v = variables.find((v) => v.id === id);
     if (!v) return;
 
     try {
-      await DbAPI.saveSecret(auth.currentUser.uid, v.key, {
+      await saveSecret(auth.currentUser.uid, v.key, {
         value: v.currentValue,
         description: `Secret for ${v.key}`,
       });

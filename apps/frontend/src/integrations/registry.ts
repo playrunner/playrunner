@@ -3,8 +3,8 @@ import { jiraIntegration } from '@playrunner/jira';
 import { githubIntegration } from '@playrunner/github';
 import { playwrightIntegration } from './playwright';
 import { javascriptIntegration } from '@playrunner/javascript';
-import { environmentIntegration } from './environment';
-import { scheduleIntegration } from './schedule';
+import { environmentIntegration } from '@playrunner/environment';
+import { scheduleIntegration } from '@playrunner/schedule';
 import { editionIntegrations } from '@edition-runtime';
 
 function createPremiumIntegrationStub(

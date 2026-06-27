@@ -1,4 +1,4 @@
-import type { Integration } from '../types';
+import type { Integration } from '@playrunner/integration-sdk';
 import { ScheduleConfigPanel } from './ScheduleConfigPanel';
 import { AlarmClock } from 'lucide-react';
 
@@ -13,3 +13,5 @@ export const scheduleIntegration: Integration = {
   requiresAuth: false,
   ConfigPanel: ScheduleConfigPanel,
 };
+
+export { ScheduleConfigPanel } from './ScheduleConfigPanel';

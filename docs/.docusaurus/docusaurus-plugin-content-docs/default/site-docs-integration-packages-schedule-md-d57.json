@@ -1,0 +1,24 @@
+{
+  "id": "integration-packages/schedule",
+  "title": "Schedule Package",
+  "description": "@playrunner/schedule contains the built-in recurring schedule trigger node.",
+  "source": "@site/docs/integration-packages/schedule.md",
+  "sourceDirName": "integration-packages",
+  "slug": "/integration-packages/schedule",
+  "permalink": "/playrunner/docs/integration-packages/schedule",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/integration-packages/schedule.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 6,
+  "frontMatter": {
+    "sidebar_position": 6,
+    "title": "Schedule Package"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Environment Package",
+    "permalink": "/playrunner/docs/integration-packages/environment"
+  }
+}

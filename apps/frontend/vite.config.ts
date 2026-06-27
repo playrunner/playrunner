@@ -33,6 +33,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/integration-sdk/src/frontend/index.tsx',
         ),
+        '@playrunner/environment': path.resolve(
+          repoRoot,
+          'packages/environment/src/frontend/index.tsx',
+        ),
         '@playrunner/github': path.resolve(
           repoRoot,
           'packages/github/src/frontend/index.tsx',
@@ -44,6 +48,10 @@ export default defineConfig(({ mode }) => {
         '@playrunner/javascript': path.resolve(
           repoRoot,
           'packages/javascript/src/frontend/index.tsx',
+        ),
+        '@playrunner/schedule': path.resolve(
+          repoRoot,
+          'packages/schedule/src/frontend/index.tsx',
         ),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(

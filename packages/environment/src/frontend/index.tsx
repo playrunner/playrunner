@@ -1,4 +1,4 @@
-import type { Integration } from '../types';
+import type { Integration } from '@playrunner/integration-sdk';
 import { EnvironmentConfigPanel } from './EnvironmentConfigPanel';
 import { Settings } from 'lucide-react';
 
@@ -13,3 +13,7 @@ export const environmentIntegration: Integration = {
   requiresAuth: false,
   ConfigPanel: EnvironmentConfigPanel,
 };
+
+export { EnvironmentConfigPanel } from './EnvironmentConfigPanel';
+export { VariablesTable } from './VariablesTable';
+export type { EnvVar, SavedEnvironment } from './types';

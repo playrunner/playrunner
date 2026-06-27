@@ -36,6 +36,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/environment",
+              "path": "/playrunner/docs/integration-packages/environment",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "integration-packages/github",
               "path": "/playrunner/docs/integration-packages/github",
               "sidebar": "tutorialSidebar"
@@ -53,6 +58,11 @@
             {
               "id": "integration-packages/jira",
               "path": "/playrunner/docs/integration-packages/jira",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "integration-packages/schedule",
+              "path": "/playrunner/docs/integration-packages/schedule",
               "sidebar": "tutorialSidebar"
             },
             {

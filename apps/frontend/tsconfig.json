@@ -17,10 +17,16 @@
       "@playrunner/integration-sdk": [
         "../../packages/integration-sdk/src/frontend/index.tsx"
       ],
+      "@playrunner/environment": [
+        "../../packages/environment/src/frontend/index.tsx"
+      ],
       "@playrunner/github": ["../../packages/github/src/frontend/index.tsx"],
       "@playrunner/jira": ["../../packages/jira/src/frontend/index.tsx"],
       "@playrunner/javascript": [
         "../../packages/javascript/src/frontend/index.tsx"
+      ],
+      "@playrunner/schedule": [
+        "../../packages/schedule/src/frontend/index.tsx"
       ],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]

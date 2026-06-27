@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { cn } from '../../lib/utils';
+import type { IntegrationConfigPanelProps } from '@playrunner/integration-sdk';
+import { cn } from './cn';
 import {
   Clock,
   Calendar,
@@ -98,15 +99,7 @@ const COMMON_TIMEZONES = [
   'Pacific/Auckland',
 ];
 
-interface ScheduleConfigPanelProps {
-  nodeId: string;
-  config: Record<string, any>;
-  onChange: (nodeId: string, newConfig: Record<string, any>) => void;
-  isConnected: boolean;
-  onConnectOAuth?: () => void;
-}
-
-export const ScheduleConfigPanel: React.FC<ScheduleConfigPanelProps> = ({
+export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   nodeId,
   config,
   onChange,

@@ -4,11 +4,8 @@ import { Button, Input, Badge } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
-import type {
-  SavedEnvironment,
-  EnvVar,
-} from '../integrations/environment/types';
-import { VariablesTable } from '../integrations/environment/VariablesTable';
+import type { SavedEnvironment, EnvVar } from '@playrunner/environment';
+import { VariablesTable } from '@playrunner/environment';
 
 export default function Environments() {
   const [environments, setEnvironments] = useState<SavedEnvironment[]>([]);

@@ -10,6 +10,10 @@ export const integrationSdkHost: IntegrationSdkHost = {
     getIntegration: DbAPI.getIntegration,
     saveIntegration: DbAPI.saveIntegration,
     deleteIntegration: DbAPI.deleteIntegration,
+    getEnvironments: DbAPI.getEnvironments,
+    saveEnvironment: DbAPI.saveEnvironment,
+    deleteEnvironment: DbAPI.deleteEnvironment,
+    saveSecret: DbAPI.saveSecret,
   },
   ui: {
     Button,
