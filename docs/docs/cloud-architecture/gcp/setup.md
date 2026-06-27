@@ -56,10 +56,12 @@ a reason to name the Cloud Run service differently.
 - Cleaned-up cached Playwright Cloud Run Jobs so the next workflow run recreates
   them with the latest image
 
-The default GCP event path is Pub/Sub. Cloud runners publish events to the
+The GCP runner messaging path is Pub/Sub. Cloud runners publish events to the
 shared topic, the API creates an execution-scoped filtered subscription, writes
-each accepted event to PostgreSQL, acknowledges the Pub/Sub message, and streams
-the same execution back to the editor with SSE.
+each accepted execution event to PostgreSQL, acknowledges the Pub/Sub message,
+and streams the same execution back to the editor with SSE. Runner control and
+runner status messages use the same topic with filtered subscriptions owned by
+the Orchestrator/runner path.
 
 ## Prerequisites
 
@@ -82,8 +84,8 @@ For local evaluation, the simplest IAM path is to use a project owner account.
 For tighter IAM, the account applying Terraform needs permission to enable
 project services and create Artifact Registry repositories and Pub/Sub topics.
 The GCP account connected inside Playrunner needs permission to manage Cloud Run
-services/jobs, Storage buckets, Pub/Sub topics/subscriptions, and to pull images
-from Artifact Registry in the selected project.
+services/jobs, Storage buckets, Pub/Sub topics/subscriptions, publish Pub/Sub
+messages, and pull images from Artifact Registry in the selected project.
 
 ## 1. Choose a Project and Region
 
@@ -274,14 +276,18 @@ Run `./infra/gcp/scripts/push-runners.sh --help` for all flags.
 Keep the local Playrunner API and web app running. In the editor, select the
 GCP runner and run the workflow.
 
-On the default Pub/Sub transport, no tunnel is required for local debugging. The
-cloud runners publish execution events to Pub/Sub, your local API pulls those
-messages over outbound HTTPS, persists them to PostgreSQL, and streams them to
-the editor.
+On the Pub/Sub transport, no tunnel is required for local debugging. The cloud
+runners publish execution events to Pub/Sub, your local API pulls those messages
+over outbound HTTPS, persists them to PostgreSQL, and streams them to the editor.
+The Orchestrator also uses Pub/Sub `runner_control` messages to start prepared
+Playwright jobs and `runner_status` messages to observe readiness/start/failure.
 
 The first run may create or update the Orchestrator Cloud Run service and
 Playwright Cloud Run Jobs. Later runs reuse those resources unless the image
 template, runner version, CPU, memory, or runtime selection requires a new job.
+At execution time, the Orchestrator starts Playwright jobs early so they can
+prepare dependencies, then sends the Pub/Sub start signal only when the DAG
+reaches the corresponding Playwright node.
 
 ## When to Rerun `push-runners.sh`
 
@@ -303,7 +309,8 @@ normally required.
 | `GCP setting "..." is empty` | Reopen the GCP modal and save project, region, service name, and image templates. |
 | Docker push is denied | The push script runs `gcloud auth configure-docker` automatically. Check that `gcloud auth login` is using the expected account and that the account can push to Artifact Registry. |
 | Cloud Run cannot pull the image | Confirm the image URI template matches the Terraform-created repository and that the image was pushed. |
-| Pub/Sub setup fails | Confirm Terraform applied cleanly, the topic name matches `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`, and the connected GCP user can create subscriptions. |
+| Pub/Sub setup fails | Confirm Terraform applied cleanly, the topic name matches `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`, and the connected GCP user can create subscriptions and publish messages. |
+| Playwright job prepares but never starts | Confirm the Orchestrator can publish `runner_control` messages and the Playwright job can pull its filtered control subscription on the shared topic. |
 | Workflow outputs fail to upload | Confirm the connected GCP user can create and write to Storage buckets in the selected project. |
 
 For local debugging of cloud-runner messaging, see

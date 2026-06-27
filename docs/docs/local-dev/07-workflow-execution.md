@@ -38,8 +38,9 @@ The Orchestrator responds `200 { status: 'started' }` immediately (async executi
 
 1. **Extracts global environment variables** from all `Environment` nodes in the graph
 2. **Resolves implicit connections**: if a node has a `parentId` and no explicit connection exists to it from that parent, a sequential connection is added automatically
-3. **Identifies start nodes**: any node with no incoming connections
-4. **Walks the graph** in DAG order, calling `processNode()` for each
+3. **Prepares Playwright runners**: scans the full workflow for Playwright nodes and starts each runner in preparation mode so dependency installation can happen before the DAG reaches the node
+4. **Identifies start nodes**: any node with no incoming connections
+5. **Walks the graph** in DAG order, calling `processNode()` for each
 
 ### 3. DAG Traversal & Connection Types
 
@@ -68,8 +69,9 @@ Logs the node label. Global variables have already been extracted in step 2.
    - The full `PAYLOAD` JSON containing repo config, GitHub tokens, `nodeId`, and `testId`
 3. Selects image tag from `config.playwrightVersion` (falls back to `latest`)
 4. Starts or reuses the prepared Playwright runner
-5. Signals the runner over Pub/Sub when the node is ready to execute
-6. Awaits the container to exit — success = `0`, failure = non-zero or `null` (killed)
+5. Waits for the prepared runner's `runner_status=ready` message when needed
+6. Signals the runner over Pub/Sub with a `runner_control=start` message when the node is ready to execute
+7. Awaits the container or Cloud Run Job execution to exit — success = `0`, failure = non-zero or `null` (killed)
 
 #### `slack`
 
@@ -94,7 +96,7 @@ Inside the container (`apps/runners/playwright/src/index.ts`):
    - Sets `workingDir` to `/app/repo/{folder}`
 3. **Auto-detects language**: if `requirements.txt` or `pytest.ini` is found → Python, otherwise TypeScript
 4. **Preparation**: installs dependencies before execution starts. TypeScript reuses runner-bundled Playwright packages when possible; otherwise it uses `npm ci` when a lockfile exists, falling back to `npm install`. Python installs `requirements.txt` when present.
-5. Waits for a Pub/Sub start signal from the Orchestrator
+5. Publishes `runner_status=ready`, then waits for a Pub/Sub start signal from the Orchestrator
 6. Runs `playwright test` (TypeScript) or `pytest` (Python)
 7. **Uploads outputs**: local Docker runs tarball `playwright-report/` and `test-results/` and POSTs the archive to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`; GCP runs upload artifacts directly to GCS. In both modes, the resulting `node_output` event is published through Pub/Sub.
 8. Exits with `0` (success) or `1` (test failure)

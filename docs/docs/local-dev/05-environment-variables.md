@@ -118,8 +118,14 @@ The Playwright runner does **not** use a `.env` file. Its entire configuration i
     "editorApiUrl": "http://host.docker.internal:3001",
     "eventTransport": {
       "type": "gcp_pubsub",
-      "projectId": "my-gcp-project",
+      "projectId": "playrunner-local",
       "topicName": "playrunner-workflow-events"
+    },
+    "runnerControl": {
+      "controlSubscriptionName": "projects/playrunner-local/subscriptions/playrunner-runner-control-...",
+      "statusSubscriptionName": "projects/playrunner-local/subscriptions/playrunner-runner-status-...",
+      "topicName": "playrunner-workflow-events",
+      "type": "gcp_pubsub"
     }
   },
   "github": {
@@ -130,6 +136,11 @@ The Playwright runner does **not** use a `.env` file. Its entire configuration i
   }
 }
 ```
+
+`eventTransport` and `runnerControl` use the same payload shape for local Docker
+and GCP. Local Docker varies only by environment: `PUBSUB_EMULATOR_HOST` points
+the Pub/Sub client at the emulator. GCP omits that emulator variable and uses the
+managed Pub/Sub API.
 
 The runner also receives these additional environment variables:
 

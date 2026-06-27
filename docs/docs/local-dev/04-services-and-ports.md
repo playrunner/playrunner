@@ -126,25 +126,33 @@ The Orchestrator runs inside Docker and is given access to the host's Docker soc
 
 ```bash
 docker run --rm \
+  --name playrunner-orchestrator-local \
   -p 3002:8080 \
   -e PORT=8080 \
-  -e GCP_PROJECT=local-dev \
   -e EDITOR_API_URL=http://host.docker.internal:3001 \
+  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8085 \
+  -e GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=playrunner-workflow-events \
   -v /var/run/docker.sock:/var/run/docker.sock \
   playrunner-orchestrator
 ```
 
 ### Orchestrator Endpoints
 
-| Method | Path       | Description                                                     |
-| ------ | ---------- | --------------------------------------------------------------- |
-| `POST` | `/execute` | Accepts a workflow (nodes + connections + settings) and runs it |
-| `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`              |
-| `GET`  | `/health`  | Health check — returns `200 OK` when the container is up        |
+| Method | Path       | Description                                                                                         |
+| ------ | ---------- | --------------------------------------------------------------------------------------------------- |
+| `POST` | `/execute` | Accepts a workflow (nodes + connections + settings) and runs it                                     |
+| `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`                                                  |
+| `GET`  | `/health`  | Health check — returns `200 OK` when the container is up                                            |
+| `GET`  | `/runtime` | Runtime metadata used by the API to confirm the local runner has Pub/Sub control/status configured |
 
 ### Orchestrator Lifecycle
 
 The Orchestrator is a standby runner. Once started, it stays up until the container or process is stopped explicitly. It no longer exits just because the editor heartbeat is unavailable.
+
+When the editor mounts, `/api/runners/start` checks both `/health` and
+`/runtime`. If a stale container is still bound to port `3002` but does not
+report the expected local Pub/Sub metadata, the API stops that container and
+starts a fresh `playrunner-orchestrator-local` container from the current image.
 
 ---
 
@@ -152,7 +160,7 @@ The Orchestrator is a standby runner. Once started, it stays up until the contai
 
 Local Docker and GCP workflow events both use messaging transport. Local Docker runs publish to the Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub.
 
-For each execution, the API creates an execution-scoped pull subscription, persists each Pub/Sub message to PostgreSQL, acknowledges the message only after the DB write succeeds, and then serves the same SSE stream to the editor.
+For each execution, the API creates an execution-scoped pull subscription, persists each accepted execution event to PostgreSQL, acknowledges the message only after the DB write succeeds, and then serves the same SSE stream to the editor. Runner control/status messages use the same Pub/Sub topic and filtered subscriptions consumed by the Orchestrator and runner.
 
 ---
 
@@ -167,8 +175,9 @@ The runner receives its entire configuration through the `PAYLOAD` environment v
 
 1. Clones the target GitHub repository (if configured)
 2. Uses the runtime selected on the Playwright node (`TypeScript` or `Python`)
-3. Runs `playwright test` (TypeScript) or `pytest` (Python)
-4. Tarballs `playwright-report/` and `test-results/` and uploads them to the configured output destination
-5. Publishes step-by-step logs, node states, and output events through Pub/Sub
+3. Installs/prepares dependencies, then waits for a Pub/Sub start signal
+4. Runs `playwright test` (TypeScript) or `pytest` (Python)
+5. Tarballs `playwright-report/` and `test-results/` and uploads them to the configured output destination
+6. Publishes step-by-step logs, node states, runner status, and output events through Pub/Sub
 
 The image version used is controlled by the `playwrightVersion` field on each Playwright node's config in the editor. The available values come from `config/playwright-runner-versions.json`.

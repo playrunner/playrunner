@@ -11,9 +11,20 @@ title: Remote Runner Messaging
 
 ## Message Flow
 
-Local Docker workflows publish logs, node states, output events, and runner control signals through the local Pub/Sub emulator. The Playwright runner still reaches the API at `http://host.docker.internal:3001` to upload compressed output archives.
+Local Docker workflows publish logs, node states, output events, `runner_control`
+messages, and `runner_status` messages through the local Pub/Sub emulator. The
+Playwright runner still reaches the API at `http://host.docker.internal:3001`
+to upload compressed output archives.
 
-GCP workflows use the same messaging architecture against GCP Pub/Sub. The Orchestrator and Playwright Runner execute inside GCP, publish messages to GCP Pub/Sub, and your local API pulls those messages over outbound HTTPS, writes them to PostgreSQL, and streams them to the editor.
+GCP workflows use the same messaging architecture against GCP Pub/Sub. The
+Orchestrator and Playwright Runner execute inside GCP, publish messages to GCP
+Pub/Sub, and your local API pulls execution events over outbound HTTPS, writes
+them to PostgreSQL, and streams them to the editor.
+
+For runner control/status, the Orchestrator creates filtered Pub/Sub
+subscriptions for a specific `testId` and `nodeId`, publishes a `runner_control`
+start/cancel message when the workflow reaches the node, and waits for
+`runner_status` messages such as `ready`, `started`, or `failed`.
 
 Future cloud runners should follow the same shape with their provider-native messaging service. AWS should use its AWS messaging transport, and Azure should use its Azure messaging transport.
 
@@ -27,7 +38,7 @@ Future cloud runners should follow the same shape with their provider-native mes
 | Local runner waits forever | Confirm `PUBSUB_EMULATOR_HOST_DOCKER` points to the emulator from inside Docker, usually `host.docker.internal:8085`. |
 | GCP logs do not appear | Confirm Terraform created the workflow events topic and the connected GCP user can create filtered pull subscriptions. |
 | GCP runner does not start tests | Confirm the Orchestrator can publish runner control messages to the workflow events topic and the Playwright job has the current runner image. |
-| Editor stream connects but is empty | Confirm the API process is pulling messages and writing execution events to PostgreSQL. |
+| Editor stream connects but is empty | Confirm the API process is pulling execution events and writing them to PostgreSQL. |
 
 ---
 

@@ -81,9 +81,11 @@ The Playwright node in the editor exposes a `playwrightVersion` config field and
 
 ---
 
-## How the Orchestrator Spawns Playwright Containers
+## How the Orchestrator Prepares Playwright Containers
 
-When the Orchestrator processes a Playwright node, it runs the equivalent of:
+When the Orchestrator receives a workflow, it scans the whole graph for
+Playwright nodes and starts their containers in preparation mode before the DAG
+reaches those nodes. Locally, each prepared runner starts with the equivalent of:
 
 ```bash
 docker run --rm \
@@ -94,7 +96,7 @@ docker run --rm \
   playrunner-playwright-runner-typescript:<configured-tag>
 ```
 
-The `--rm` flag ensures the container is deleted after it exits. No Docker volumes are mounted for the Playwright runner — local output archives are uploaded to the API via HTTP before the container exits, while logs, states, control signals, and output events go through Pub/Sub.
+The `--rm` flag ensures the container is deleted after it exits. No Docker volumes are mounted for the Playwright runner — local output archives are uploaded to the API via HTTP before the container exits, while logs, states, `runner_control`, `runner_status`, and output events go through Pub/Sub.
 
 ---
 

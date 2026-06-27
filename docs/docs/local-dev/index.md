@@ -31,7 +31,7 @@ Playrunner is a workflow orchestration platform for running automated Playwright
 | **Web App**           | React + Vite         | `3000` | `npm run dev` (host process)                   |
 | **API**               | Express + TypeScript | `3001` | `npm start` (host process)                     |
 | **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)          |
-| **Playwright Runner** | TypeScript + Python  | —      | Docker container (spawned by the Orchestrator) |
+| **Playwright Runner** | TypeScript + Python  | —      | Docker container (prepared and started by the Orchestrator) |
 
 There is also one supporting host service:
 
@@ -55,15 +55,15 @@ API Server (Express, :3001)
   │  spawns on first Editor open
   ▼
 Orchestrator (Docker, :3002)
-  │  spawns per node execution
+  │  prepares Playwright runners early, then starts them by Pub/Sub control message
   ▼
 Playwright Runner (Docker, ephemeral)
-  │  publishes logs / state / output events
+  │  publishes runner status / logs / state / output events
   ▼
 Pub/Sub Emulator  →  API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
 ```
 
-Local Docker and GCP workflows use the same Pub/Sub event transport. Local runs publish to the Docker Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub; in both cases the API pulls messages, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**.
+Local Docker and GCP workflows use the same Pub/Sub messaging shape. Local runs publish to the Docker Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub; in both cases the API pulls execution events, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**. Runner control/status messages use the same topic and filtered subscriptions.
 
 ---
 

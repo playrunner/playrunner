@@ -29,7 +29,24 @@ title: Troubleshooting
    kill -9 <PID>
    ```
 
-3. **Docker socket permission issue.**
+3. **A stale Orchestrator container is answering `/health`.**
+   Current local runners also expose `/runtime` with Pub/Sub metadata. Check it:
+
+   ```bash
+   curl http://localhost:3002/runtime
+   ```
+
+   If it returns `404` or does not show `"runnerControl":"pubsub"`, reopen the
+   editor or call `/api/runners/start`; the API should stop the stale container
+   bound to port `3002` and start a fresh `playrunner-orchestrator-local`
+   container. You can also stop it manually:
+
+   ```bash
+   docker ps --filter publish=3002
+   docker stop <container-id>
+   ```
+
+4. **Docker socket permission issue.**
    On Linux, the API process may not have permission to access `/var/run/docker.sock`. Add your user to the `docker` group:
    ```bash
    sudo usermod -aG docker $USER
@@ -111,7 +128,7 @@ Docker Desktop on Mac/Windows provides `host.docker.internal` automatically. On 
 docker run --add-host host.docker.internal:host-gateway ...
 ```
 
-For the Orchestrator (spawned by the API), you would need to modify `apps/api/src/routes/runners.ts` to add this flag to the `docker run` arguments.
+For the Orchestrator (spawned by the API), you would need to modify `apps/api/src/runtime/orchestrator-runner.ts` to add this flag to the `docker run` arguments.
 
 ---
 

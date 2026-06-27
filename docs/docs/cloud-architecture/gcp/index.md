@@ -21,11 +21,12 @@ When deployed to GCP, the local docker-based services are mapped directly to sca
 graph TD
     A[Browser / Web App] -->|HTTPS Requests| B(Web Hosting)
     A -->|API Calls & SSE| C(API Server - Cloud Run Service)
-    C -->|Trigger Workflow| D(Orchestrator - Cloud Run Service)
-    D -->|Spawn Playwright Execution| E[Playwright Runner - Cloud Run Job]
-    D -->|Publish logs and state| F(Pub/Sub Topic)
-    E -->|Publish logs, state, and output events| F
-    F -->|Pull subscription| C
+    C -->|Trigger Workflow over HTTP| D(Orchestrator - Cloud Run Service)
+    D -->|Start prepared runner job| E[Playwright Runner - Cloud Run Job]
+    D -->|runner_control, logs, node state| F(Pub/Sub Topic)
+    E -->|runner_status, logs, node state, output events| F
+    F -->|Execution event pull subscription| C
+    F -->|Runner control/status filtered subscriptions| D
     C -->|Persist trace| G[(PostgreSQL)]
     G -->|Execution-scoped SSE| A
 ```
@@ -33,11 +34,11 @@ graph TD
 ## Service Breakdown
 
 1. **API Server (Cloud Run Service)**: Handles HTTP requests from the frontend, manages authentication, proxies to Jira/Github integrations, persists every workflow event to PostgreSQL, and maintains Server-Sent Events (SSE) connections to stream live logs to the browser.
-2. **Orchestrator (Cloud Run Service)**: A lightweight Node.js event-loop dispatcher that traverses your visual workflow graphs. It manages state, evaluates dependencies, and triggers the actual Playwright tests using Cloud Run Job executions.
-3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
-4. **Pub/Sub**: The default GCP event transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes each message to PostgreSQL, then acknowledges it.
+2. **Orchestrator (Cloud Run Service)**: A lightweight Node.js event-loop dispatcher that traverses your visual workflow graphs. It manages state, evaluates dependencies, prepares Playwright Cloud Run Jobs early, and signals them over Pub/Sub when their workflow node is ready to execute.
+3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads, environment variables, event transport, and runner control metadata) to these Jobs.
+4. **Pub/Sub**: The default and required GCP runner messaging transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes execution events to PostgreSQL, then acknowledges them. Runner control/status messages also use the same topic, but they are consumed by the Orchestrator/runner path rather than stored as user-facing execution logs.
 
-> **Debugging cloud runs locally?** GCP Pub/Sub does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. See [Remote Runner Messaging](../../local-dev/remote-debugging).
+> **Runner messaging uses Pub/Sub.** GCP runners publish logs, node states, status, and output events to Pub/Sub. A local API can still debug cloud runs because it pulls Pub/Sub messages over outbound HTTPS; no tunnel is required. See [Remote Runner Messaging](../../local-dev/remote-debugging).
 
 ---
 
@@ -63,7 +64,7 @@ In practice that means:
 - `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` must point at an Orchestrator image that is already available in a registry Cloud Run can pull from.
 - `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` must point at Playwright runner images that are already available in a registry Cloud Run can pull from.
 - `GCS_BUCKET_PREFIX` controls the per-workflow output buckets Playrunner creates before handing execution off to Cloud Run.
-- The connected GCP user must have permission to publish workflow events and create/use execution-scoped Pub/Sub subscriptions.
+- The connected GCP user must have permission to publish Pub/Sub messages and create/use the execution event plus runner control/status subscriptions on the shared topic.
 
 The Terraform under `infra/gcp` creates Artifact Registry repositories named
 `orchestrator` and `playwright-runner`, plus the shared Pub/Sub workflow events
@@ -75,6 +76,23 @@ The selected project and Cloud Run region should match the Terraform
 `project_id` and `region`, and the saved image URI templates should render to
 the Terraform-created Artifact Registry repository URLs. The setup runbook has
 the exact matching checklist.
+
+---
+
+## Workflow Execution Lifecycle
+
+1. The editor sends `POST /api/workflows/start` to the API.
+2. The API creates the workflow execution record, configures the execution-scoped Pub/Sub event subscription, ensures the Orchestrator Cloud Run service exists, and invokes the service's `/execute` endpoint.
+3. The Orchestrator loads the full workflow, scans the entire graph for Playwright nodes, and starts their Cloud Run Jobs in preparation mode before the DAG reaches those nodes.
+4. Each Playwright runner prepares dependencies, including repository checkout and package installation, then publishes a `runner_status` message such as `ready`. It does not start the Playwright test yet.
+5. When DAG traversal reaches a Playwright node, the Orchestrator waits for the prepared runner to be ready, publishes a `runner_control` start message containing the `nodeId` and `testId`, then waits for the Cloud Run Job execution to complete.
+6. The runner publishes `started`, node-state, log, output, and terminal events through Pub/Sub. The API persists accepted execution events to PostgreSQL and streams them to the editor through SSE.
+7. GCP Playwright outputs are uploaded to GCS. The runner publishes the resulting `node_output` event through Pub/Sub so the DB trace and editor stream stay consistent.
+
+This keeps provisioning distinct from execution: a Playwright node can be
+`pending` while its runner is being prepared, but it should only become
+`running` after the runner has received the start signal and actually begins
+test execution.
 
 ---
 
