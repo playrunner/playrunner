@@ -1,11 +1,20 @@
 ---
 sidebar_position: 5
-title: Environment Package
+sidebar_label: Environment
+title: Environment Integration
 ---
 
-# Environment Package
+# Environment Integration
 
 `@playrunner/environment` contains the built-in environment variable config node and shared environment variable table.
+
+## Install
+
+```bash
+npm install @playrunner/environment
+```
+
+npm: [@playrunner/environment](https://www.npmjs.com/package/@playrunner/environment) (placeholder until published)
 
 ## Exports
 
@@ -23,7 +32,7 @@ import { environmentRouter } from "@playrunner/environment/api";
 
 The frontend entrypoint exports `environmentIntegration`, which keeps the existing integration id as `environment` so saved workflows continue to resolve their config nodes.
 
-The package uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers Environment in `apps/frontend/src/integrations/registry.ts`, and the Environments page reuses the package's `VariablesTable` and environment types.
+The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers Environment in `apps/frontend/src/integrations/registry.ts`, and the Environments page reuses the package's `VariablesTable` and environment types.
 
 ## API
 
@@ -31,4 +40,4 @@ The API entrypoint exports an empty `environmentRouter`, mounted by the host API
 
 ## Assets
 
-The Environment package uses the `Settings` icon from `lucide-react`, so it does not need a packaged image asset.
+Environment uses the `Settings` icon from `lucide-react`, so it does not need a packaged image asset.

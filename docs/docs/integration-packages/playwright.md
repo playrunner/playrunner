@@ -1,11 +1,20 @@
 ---
 sidebar_position: 7
-title: Playwright Package
+sidebar_label: Playwright
+title: Playwright Integration
 ---
 
-# Playwright Package
+# Playwright Integration
 
 `@playrunner/playwright` contains the built-in Playwright test runner trigger node.
+
+## Install
+
+```bash
+npm install @playrunner/playwright @playrunner/github
+```
+
+npm: [@playrunner/playwright](https://www.npmjs.com/package/@playrunner/playwright) (placeholder until published)
 
 ## Exports
 
@@ -21,15 +30,15 @@ import { playwrightRouter } from "@playrunner/playwright/api";
 
 The frontend entrypoint exports `playwrightIntegration`, which keeps the existing integration id as `playwright` so saved workflows continue to resolve their test runner nodes.
 
-The package owns the Playwright configuration UI, including repository selection, inline script editing, zip upload metadata, environment variable injection, and runner resource settings.
+Playwright owns the configuration UI, including repository selection, inline script editing, zip upload metadata, environment variable injection, and runner resource settings.
 
 ## GitHub Dependency
 
-Playwright repository authentication still uses GitHub. The package imports `GithubSettingsModal` from `@playrunner/github` and declares `@playrunner/github` as a peer dependency. The host app must install both packages and keep the GitHub integration registered.
+Playwright repository authentication still uses GitHub. It imports `GithubSettingsModal` from `@playrunner/github` and declares `@playrunner/github` as a peer dependency. The host app must install both integrations and keep GitHub registered.
 
 ## API
 
-The API entrypoint exports an empty `playwrightRouter`, mounted by the host API at `/api/playwright`. The current Playwright node executes through workflow runner infrastructure rather than package-local API endpoints, but the package still exposes an API entrypoint so all extracted integration packages have the same frontend/API shape.
+The API entrypoint exports an empty `playwrightRouter`, mounted by the host API at `/api/playwright`. The current Playwright node executes through workflow runner infrastructure rather than package-local API endpoints, but Playwright still exposes an API entrypoint so all integrations have the same frontend/API shape.
 
 ## Assets
 

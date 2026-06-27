@@ -1,6 +1,6 @@
 {
   "id": "integration-packages/github",
-  "title": "GitHub Package",
+  "title": "GitHub Integration",
   "description": "@playrunner/github contains the built-in GitHub connection and OAuth proxy routes.",
   "source": "@site/docs/integration-packages/github.md",
   "sourceDirName": "integration-packages",
@@ -14,15 +14,16 @@
   "sidebarPosition": 4,
   "frontMatter": {
     "sidebar_position": 4,
-    "title": "GitHub Package"
+    "sidebar_label": "GitHub",
+    "title": "GitHub Integration"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "JavaScript Package",
+    "title": "JavaScript",
     "permalink": "/playrunner/docs/integration-packages/javascript"
   },
   "next": {
-    "title": "Environment Package",
+    "title": "Environment",
     "permalink": "/playrunner/docs/integration-packages/environment"
   }
 }

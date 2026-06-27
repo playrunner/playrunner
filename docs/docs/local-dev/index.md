@@ -77,7 +77,7 @@ playrunner/
 │       ├── orchestrator/      # Orchestrator runner (Docker image)
 │       └── playwright/        # Playwright test runner (Docker image)
 ├── docs/                      # This documentation (Docusaurus)
-├── packages/                  # Integration SDK and integration packages
+├── packages/                  # Integration SDK and integrations
 ├── docker-compose.yml         # Docker-backed Postgres
 └── start-local.sh             # One-command local startup script
 ```

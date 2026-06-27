@@ -1,6 +1,6 @@
 {
   "id": "integration-packages/environment",
-  "title": "Environment Package",
+  "title": "Environment Integration",
   "description": "@playrunner/environment contains the built-in environment variable config node and shared environment variable table.",
   "source": "@site/docs/integration-packages/environment.md",
   "sourceDirName": "integration-packages",
@@ -14,15 +14,16 @@
   "sidebarPosition": 5,
   "frontMatter": {
     "sidebar_position": 5,
-    "title": "Environment Package"
+    "sidebar_label": "Environment",
+    "title": "Environment Integration"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "GitHub Package",
+    "title": "GitHub",
     "permalink": "/playrunner/docs/integration-packages/github"
   },
   "next": {
-    "title": "Schedule Package",
+    "title": "Schedule",
     "permalink": "/playrunner/docs/integration-packages/schedule"
   }
 }

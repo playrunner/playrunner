@@ -1,6 +1,6 @@
 {
   "id": "integration-packages/javascript",
-  "title": "JavaScript Package",
+  "title": "JavaScript Integration",
   "description": "@playrunner/javascript contains the built-in JavaScript code node.",
   "source": "@site/docs/integration-packages/javascript.md",
   "sourceDirName": "integration-packages",
@@ -14,15 +14,16 @@
   "sidebarPosition": 3,
   "frontMatter": {
     "sidebar_position": 3,
-    "title": "JavaScript Package"
+    "sidebar_label": "JavaScript",
+    "title": "JavaScript Integration"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Jira Package",
+    "title": "Jira",
     "permalink": "/playrunner/docs/integration-packages/jira"
   },
   "next": {
-    "title": "GitHub Package",
+    "title": "GitHub",
     "permalink": "/playrunner/docs/integration-packages/github"
   }
 }

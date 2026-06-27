@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/index",
   "title": "Overview",
-  "description": "Integration packages keep an external service integration in one deployable unit:",
+  "description": "Integrations ship external service nodes in deployable npm packages:",
   "source": "@site/docs/integration-packages/index.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/",
@@ -22,7 +22,7 @@
     "permalink": "/playrunner/docs/roadmap"
   },
   "next": {
-    "title": "Jira Package",
+    "title": "Jira",
     "permalink": "/playrunner/docs/integration-packages/jira"
   }
 }

@@ -1,6 +1,6 @@
 {
   "id": "integration-packages/playwright",
-  "title": "Playwright Package",
+  "title": "Playwright Integration",
   "description": "@playrunner/playwright contains the built-in Playwright test runner trigger node.",
   "source": "@site/docs/integration-packages/playwright.md",
   "sourceDirName": "integration-packages",
@@ -14,11 +14,12 @@
   "sidebarPosition": 7,
   "frontMatter": {
     "sidebar_position": 7,
-    "title": "Playwright Package"
+    "sidebar_label": "Playwright",
+    "title": "Playwright Integration"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Schedule Package",
+    "title": "Schedule",
     "permalink": "/playrunner/docs/integration-packages/schedule"
   }
 }

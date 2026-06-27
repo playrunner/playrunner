@@ -1,11 +1,20 @@
 ---
 sidebar_position: 2
-title: Jira Package
+sidebar_label: Jira
+title: Jira Integration
 ---
 
-# Jira Package
+# Jira Integration
 
-`@playrunner/jira` is the reference integration package.
+`@playrunner/jira` is the reference integration.
+
+## Install
+
+```bash
+npm install @playrunner/jira
+```
+
+npm: [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira) (placeholder until published)
 
 ## Exports
 
@@ -20,7 +29,7 @@ import { jiraRouter } from "@playrunner/jira/api";
 
 ## Frontend
 
-The frontend entrypoint exports `jiraIntegration`, which includes the integration metadata, SVG icon URL, settings modal, and node config panel. The package uses SDK UI helpers and reads Playrunner host services through `useIntegrationHost`.
+The frontend entrypoint exports `jiraIntegration`, which includes the integration metadata, SVG icon URL, settings modal, and node config panel. Jira uses SDK UI helpers and reads Playrunner host services through `useIntegrationHost`.
 
 The host app registers Jira in `apps/frontend/src/integrations/registry.ts`.
 

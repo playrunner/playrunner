@@ -1,11 +1,20 @@
 ---
 sidebar_position: 4
-title: GitHub Package
+sidebar_label: GitHub
+title: GitHub Integration
 ---
 
-# GitHub Package
+# GitHub Integration
 
 `@playrunner/github` contains the built-in GitHub connection and OAuth proxy routes.
+
+## Install
+
+```bash
+npm install @playrunner/github
+```
+
+npm: [@playrunner/github](https://www.npmjs.com/package/@playrunner/github) (placeholder until published)
 
 ## Exports
 
@@ -18,7 +27,7 @@ import { githubRouter } from "@playrunner/github/api";
 
 The frontend entrypoint exports `githubIntegration`, which keeps the existing integration id as `github` so saved workflow auth references continue to resolve.
 
-The package uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers GitHub in `apps/frontend/src/integrations/registry.ts`, and the Playwright integration reuses `GithubSettingsModal` for repository auth.
+The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers GitHub in `apps/frontend/src/integrations/registry.ts`, and Playwright reuses `GithubSettingsModal` for repository auth.
 
 ## API
 
