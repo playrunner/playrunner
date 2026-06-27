@@ -72,6 +72,9 @@ export default defineConfig(({ mode }) => {
       hmr: process.env.DISABLE_HMR !== 'true',
       port: 3000,
       host: true,
+      fs: {
+        allow: [repoRoot],
+      },
       proxy: {
         '/api': {
           target: apiProxyTarget,

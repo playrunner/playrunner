@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
 import { useIntegrationHost } from '@playrunner/integration-sdk';
-import { githubIconUrl } from './icon';
+import { GithubIcon } from './GithubIcon';
 
 interface GithubSettingsModalProps {
   isOpen: boolean;
@@ -243,21 +243,7 @@ export function GithubSettingsModal({
       onClose={onClose}
       zIndex={70}
       title="Connect to GitHub"
-      icon={
-        <div
-          className="w-5 h-5 bg-[var(--foreground)]"
-          style={{
-            WebkitMaskImage: `url(${githubIconUrl})`,
-            WebkitMaskSize: 'contain',
-            WebkitMaskRepeat: 'no-repeat',
-            WebkitMaskPosition: 'center',
-            maskImage: `url(${githubIconUrl})`,
-            maskSize: 'contain',
-            maskRepeat: 'no-repeat',
-            maskPosition: 'center',
-          }}
-        />
-      }
+      icon={<GithubIcon className="w-5 h-5 text-[var(--foreground)]" />}
       footer={
         !authSuccess ? (
           <button
