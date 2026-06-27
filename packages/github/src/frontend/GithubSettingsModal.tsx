@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
-import { Input } from '../../components/ui/Input';
-import { auth } from '../../lib/auth';
-import { DbAPI } from '../../lib/db';
-import { Modal } from '../../components/ui/Modal';
+import { useIntegrationHost } from '@playrunner/integration-sdk';
+import { githubIconUrl } from './icon';
 
 interface GithubSettingsModalProps {
   isOpen: boolean;
@@ -14,6 +12,9 @@ export function GithubSettingsModal({
   isOpen,
   onClose,
 }: GithubSettingsModalProps) {
+  const { auth, store, ui } = useIntegrationHost();
+  const Input = ui.Input;
+  const Modal = ui.Modal;
   const [githubAppName, setGithubAppName] = useState('');
   const [githubClientId, setGithubClientId] = useState('');
   const [githubClientSecret, setGithubClientSecret] = useState('');
@@ -36,7 +37,7 @@ export function GithubSettingsModal({
     const fetchCredentials = async () => {
       if (isOpen && auth.currentUser) {
         try {
-          const data = await DbAPI.getIntegration(
+          const data = await store.getIntegration(
             auth.currentUser.uid,
             'github',
           );
@@ -74,14 +75,16 @@ export function GithubSettingsModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen]);
+  }, [auth, isOpen, store]);
 
   const handleAuthenticateGithub = async () => {
     try {
       setIsAuthenticating(true);
 
-      if (auth.currentUser) {
-        await DbAPI.saveIntegration(auth.currentUser.uid, 'github', {
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        await store.saveIntegration(currentUser.uid, 'github', {
           appName: githubAppName,
           clientId: githubClientId,
           clientSecret: githubClientSecret,
@@ -145,7 +148,7 @@ export function GithubSettingsModal({
                     event.data.params.installation_id;
                 }
 
-                await DbAPI.saveIntegration(
+                await store.saveIntegration(
                   auth.currentUser.uid,
                   'github',
                   integrationData,
@@ -223,7 +226,7 @@ export function GithubSettingsModal({
   const handleDisconnect = async () => {
     if (!auth.currentUser) return;
     try {
-      await DbAPI.deleteIntegration(auth.currentUser.uid, 'github');
+      await store.deleteIntegration(auth.currentUser.uid, 'github');
       setAuthSuccess(false);
       setGithubAppName('');
       setGithubClientId('');
@@ -244,11 +247,11 @@ export function GithubSettingsModal({
         <div
           className="w-5 h-5 bg-[var(--foreground)]"
           style={{
-            WebkitMaskImage: 'url(/images/integrations/github.svg)',
+            WebkitMaskImage: `url(${githubIconUrl})`,
             WebkitMaskSize: 'contain',
             WebkitMaskRepeat: 'no-repeat',
             WebkitMaskPosition: 'center',
-            maskImage: 'url(/images/integrations/github.svg)',
+            maskImage: `url(${githubIconUrl})`,
             maskSize: 'contain',
             maskRepeat: 'no-repeat',
             maskPosition: 'center',
@@ -326,7 +329,7 @@ export function GithubSettingsModal({
               >
                 Change Credentials
               </button>
-              <span className="text-muted text-xs">•</span>
+              <span className="text-muted text-xs">/</span>
               <button
                 onClick={handleDisconnect}
                 className="text-xs text-red-500 hover:text-red-400 underline transition-colors"

@@ -2,6 +2,12 @@ import { Router } from 'express';
 
 export const githubRouter = Router();
 
+export const githubApiContribution = {
+  id: 'github',
+  mountPath: '/api/github',
+  router: githubRouter,
+};
+
 // Proxy endpoint to exchange GitHub OAuth code for an access token to bypass CORS
 githubRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret } = req.body;

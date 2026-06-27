@@ -1,6 +1,6 @@
 import type { Integration } from '../types';
 import { PlaywrightConfigPanel } from './PlaywrightConfigPanel';
-import { GithubSettingsModal } from '../github/GithubSettingsModal';
+import { GithubSettingsModal } from '@playrunner/github';
 
 export const playwrightIntegration: Integration = {
   id: 'playwright',

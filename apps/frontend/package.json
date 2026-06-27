@@ -20,6 +20,7 @@
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
+    "@playrunner/github": "file:../../packages/github",
     "@playrunner/integration-sdk": "file:../../packages/integration-sdk",
     "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",

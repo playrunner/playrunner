@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { PORT } from './config';
-import { githubRouter } from './routes/integrations/github';
+import { githubRouter } from '@playrunner/github/api';
 import { runnersRouter } from './routes/runners';
 import { workflowsRouter } from './routes/workflows';
 import { outputsRouter } from './routes/outputs';

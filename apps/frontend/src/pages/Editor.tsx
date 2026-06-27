@@ -42,7 +42,7 @@ import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
 import { TunnelDialog } from '../components/TunnelDialog';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { JiraSettingsModal } from '@playrunner/jira';
-import { GithubSettingsModal } from '../integrations/github/GithubSettingsModal';
+import { GithubSettingsModal } from '@playrunner/github';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
 import { Button } from '../components/ui';
 import { Modal } from '../components/ui/Modal';

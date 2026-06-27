@@ -10,6 +10,7 @@ API_DIR="${BASE_DIR}/apps/api"
 FRONTEND_DIR="${BASE_DIR}/apps/frontend"
 DOCS_DIR="${BASE_DIR}/docs"
 INTEGRATION_SDK_DIR="${BASE_DIR}/packages/integration-sdk"
+GITHUB_PACKAGE_DIR="${BASE_DIR}/packages/github"
 JAVASCRIPT_PACKAGE_DIR="${BASE_DIR}/packages/javascript"
 JIRA_PACKAGE_DIR="${BASE_DIR}/packages/jira"
 ROOT_ENV_FILE="${BASE_DIR}/.env.local"
@@ -164,6 +165,7 @@ ensure_dependency_dir() {
 
 ensure_local_dependencies() {
     ensure_dependency_dir "${INTEGRATION_SDK_DIR}"
+    ensure_dependency_dir "${GITHUB_PACKAGE_DIR}"
     ensure_dependency_dir "${JAVASCRIPT_PACKAGE_DIR}"
     ensure_dependency_dir "${JIRA_PACKAGE_DIR}"
     ensure_dependency_dir "${API_DIR}"

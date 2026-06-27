@@ -1,6 +1,6 @@
 import type { Integration } from './types';
 import { jiraIntegration } from '@playrunner/jira';
-import { githubIntegration } from './github';
+import { githubIntegration } from '@playrunner/github';
 import { playwrightIntegration } from './playwright';
 import { javascriptIntegration } from '@playrunner/javascript';
 import { environmentIntegration } from './environment';

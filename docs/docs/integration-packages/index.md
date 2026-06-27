@@ -11,7 +11,7 @@ Integration packages keep an external service integration in one deployable unit
 - backend API routes
 - image assets required by the integration
 
-The first extracted packages are `@playrunner/jira` in `packages/jira` and `@playrunner/javascript` in `packages/javascript`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
+The extracted packages are `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, and `@playrunner/javascript` in `packages/javascript`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
 ## Package layout
 
@@ -19,6 +19,11 @@ The first extracted packages are `@playrunner/jira` in `packages/jira` and `@pla
 packages/
 ├── integration-sdk/
 │   ├── src/frontend/index.tsx
+│   └── src/api/index.ts
+├── github/
+│   ├── assets/github.svg
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/GithubSettingsModal.tsx
 │   └── src/api/index.ts
 ├── jira/
 │   ├── assets/jira.svg
@@ -55,6 +60,7 @@ For manual package work, install the package folders before starting the apps:
 
 ```bash
 npm install --prefix packages/integration-sdk
+npm install --prefix packages/github
 npm install --prefix packages/javascript
 npm install --prefix packages/jira
 npm install --prefix apps/api
