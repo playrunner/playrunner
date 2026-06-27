@@ -12,9 +12,12 @@ import {
   BarChart2,
   Users,
   PanelLeft,
+  GitPullRequest,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/auth';
+import { getDocsUrl } from '../lib/docs';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -64,17 +67,62 @@ function NavItem({
   );
 }
 
+function ExternalNavItem({
+  icon: Icon,
+  label,
+  isOpen,
+  href,
+}: {
+  icon: React.ElementType;
+  label: string;
+  isOpen: boolean;
+  href: string;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label}
+      className="w-full flex items-center rounded-md text-sm font-medium transition-colors border h-9 px-2 gap-3 overflow-hidden text-muted hover:text-[var(--foreground)] hover:bg-surface-hover border-transparent"
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      <span
+        className={cn(
+          'whitespace-nowrap transition-opacity duration-100',
+          isOpen ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        {label}
+      </span>
+      <ExternalLink
+        className={cn(
+          'w-3.5 h-3.5 shrink-0 ml-auto transition-opacity duration-100',
+          isOpen ? 'opacity-100' : 'opacity-0',
+        )}
+      />
+    </a>
+  );
+}
+
+function getUserDisplayName(user: typeof auth.currentUser) {
+  return (
+    user?.name?.trim() || user?.email?.trim() || user?.username || 'Local user'
+  );
+}
+
 export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [username, setUsername] = useState(
-    auth.currentUser?.username ?? 'Local user',
+  const [displayName, setDisplayName] = useState(
+    getUserDisplayName(auth.currentUser),
   );
+  const contributingUrl = getDocsUrl('docs/contributing');
 
   useEffect(() => {
     return auth.onAuthStateChanged((user) => {
-      setUsername(user?.username ?? 'Local user');
+      setDisplayName(getUserDisplayName(user));
     });
   }, []);
 
@@ -168,6 +216,12 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                   navigate('/design');
                 }}
               />
+              <ExternalNavItem
+                icon={GitPullRequest}
+                label="Contributing"
+                isOpen={isOpen}
+                href={contributingUrl}
+              />
             </div>
 
             <div className="relative border-t border-subtle shrink-0">
@@ -227,7 +281,7 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                     'text-sm font-medium text-[var(--foreground)] truncate',
                   )}
                 >
-                  {username}
+                  {displayName}
                 </span>
                 <MoreVertical
                   className={cn(

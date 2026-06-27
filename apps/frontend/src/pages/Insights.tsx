@@ -916,8 +916,8 @@ export default function Insights() {
   const latestDay = useMemo(() => report?.dailyRuns.at(-1), [report]);
 
   return (
-    <main className="flex-1 bg-background p-8 text-[var(--foreground)]">
-      <div className="mx-auto max-w-7xl space-y-8 pb-16">
+    <main className="flex-1 p-8 max-w-7xl mx-auto w-full text-[var(--foreground)]">
+      <div className="space-y-8 pb-16">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-subtle pb-6">
           <div>
             <h2 className="text-3xl font-semibold tracking-tight">Insights</h2>

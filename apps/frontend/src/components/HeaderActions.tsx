@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Sun, Moon, Monitor, ExternalLink, ChevronDown } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { cn } from '../lib/utils';
+import { getDocsUrl } from '../lib/docs';
 
 export function HeaderActions() {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const docsUrl =
-    import.meta.env.VITE_DOCS_URL || 'https://docs.playrunner.dev';
+  const docsUrl = getDocsUrl();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

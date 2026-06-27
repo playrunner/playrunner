@@ -16,6 +16,7 @@ import Editor from './pages/Editor';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
 import Settings from './pages/Settings';
+import SettingsPassword from './pages/SettingsPassword';
 import DesignSystem from './pages/DesignSystem';
 import Environments from './pages/Environments';
 import Integrations from './pages/Integrations';
@@ -76,6 +77,7 @@ function AppShell() {
             <Route path="/workflow" element={<Editor />} />
             <Route path="/workflow/:id" element={<Editor />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/password" element={<SettingsPassword />} />
             <Route path="/environments" element={<Environments />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/insights" element={<Insights />} />

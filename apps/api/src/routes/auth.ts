@@ -4,6 +4,7 @@ import {
   getLocalAuthPublicUser,
   isLocalAuthConfigured,
   issueLocalAuthToken,
+  updateLocalAuthPassword,
   verifyLocalCredentials,
 } from '../auth/local-auth';
 
@@ -49,13 +50,44 @@ authRouter.post('/login', async (req, res) => {
   }
 });
 
-authRouter.get('/me', requireAuth, (req, res) => {
-  const username = req.authUser?.username || req.authUser?.name || null;
-  res.json({
-    user: {
-      uid: req.authUser?.providerUserId || null,
-      username,
-      name: username,
-    },
-  });
+authRouter.get('/me', requireAuth, async (_req, res) => {
+  const user = await getLocalAuthPublicUser();
+  res.json({ user });
+});
+
+authRouter.post('/password', requireAuth, async (req, res) => {
+  const currentPassword =
+    typeof req.body?.currentPassword === 'string'
+      ? req.body.currentPassword
+      : '';
+  const newPassword =
+    typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+
+  if (!currentPassword || !newPassword) {
+    res
+      .status(400)
+      .json({ error: 'Current password and new password are required.' });
+    return;
+  }
+
+  if (newPassword.trim().length < 8) {
+    res
+      .status(400)
+      .json({ error: 'New password must be at least 8 characters.' });
+    return;
+  }
+
+  try {
+    await updateLocalAuthPassword({
+      currentPassword,
+      newPassword,
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to change password.';
+    res
+      .status(message === 'Current password is incorrect.' ? 400 : 500)
+      .json({ error: message });
+  }
 });

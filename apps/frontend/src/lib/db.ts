@@ -201,6 +201,13 @@ async function refreshGcpTokenIfNeeded(userId: string, credentialData: any) {
 }
 
 export const DbAPI = {
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    await apiRequest<{ ok: boolean }>('/api/auth/password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   async getInsights(days: string) {
     const payload = await apiRequest<{ insights?: any; report?: any }>(
       `/api/insights?days=${encodeURIComponent(days)}`,

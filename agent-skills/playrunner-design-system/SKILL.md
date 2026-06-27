@@ -23,6 +23,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
 - Use `bg-background`, `bg-surface`, `bg-surface-hover`, `text-[var(--foreground)]`, `text-muted`, `border-[var(--border)]`, and `border-subtle` instead of hard-coded colors.
 - Use `rounded-xl` and `shadow-sm` for standard product cards and inset panels.
+- Use `max-w-7xl mx-auto` on the top-level standard document page container, with page padding on that same container, so the primary content width stays consistent across Projects, Environments, Integrations, Insights, Teams, Settings, and Design System.
 - Use `text-3xl font-semibold tracking-tight` for page titles, `text-xl font-medium` for section headings, `text-sm text-muted leading-relaxed` for supporting copy, and `font-mono text-xs` for commands or env vars.
 - Use bordered section headers and stacked surface cards like the Design System page.
 - Prefer nested inset panels with `bg-[var(--background)]` inside a `bg-[var(--surface)]` page card.

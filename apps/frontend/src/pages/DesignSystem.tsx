@@ -20,8 +20,8 @@ export default function DesignSystem() {
   ]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-12 font-sans pb-32">
-      <div className="max-w-4xl mx-auto space-y-16">
+    <div className="min-h-screen bg-background text-foreground font-sans">
+      <div className="max-w-7xl mx-auto p-8 w-full space-y-16 pb-32">
         <header className="flex items-center justify-between border-b border-subtle pb-6">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)] mb-2">

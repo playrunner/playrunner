@@ -60,6 +60,37 @@ async function readLocalAuthConfig(): Promise<LocalAuthConfig> {
   }
 }
 
+function hashPassword(password: string) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
+  return `scrypt$${salt}$${derivedKey}`;
+}
+
+async function upsertLocalAuthSecret(
+  secretKey: string,
+  value: string,
+  description: string,
+) {
+  await prisma.secret.upsert({
+    where: {
+      userId_secretKey: {
+        userId: LOCAL_AUTH_SECRET_OWNER,
+        secretKey,
+      },
+    },
+    update: {
+      description,
+      value,
+    },
+    create: {
+      description,
+      secretKey,
+      userId: LOCAL_AUTH_SECRET_OWNER,
+      value,
+    },
+  });
+}
+
 async function getLocalAuthSecret() {
   const config = await readLocalAuthConfig();
   return new TextEncoder().encode(config.jwtSecret);
@@ -97,13 +128,20 @@ export function getLocalAuthIssuer() {
   return LOCAL_AUTH_ISSUER;
 }
 
+function resolveSetupEmail(username: string) {
+  return username.includes('@') ? username : null;
+}
+
 export async function getLocalAuthPublicUser() {
   const { username } = await readLocalAuthConfig();
+  const email = resolveSetupEmail(username);
+  const name = email ? email.split('@')[0] : username;
 
   return {
+    email,
+    name,
     uid: LOCAL_AUTH_SUBJECT,
     username,
-    name: username,
   };
 }
 
@@ -118,6 +156,33 @@ export async function verifyLocalCredentials(
   }
 
   return verifyPasswordHash(password, config.passwordHash);
+}
+
+export async function updateLocalAuthPassword(params: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const config = await readLocalAuthConfig();
+  const currentPassword = params.currentPassword;
+  const newPassword = params.newPassword;
+
+  if (!verifyPasswordHash(currentPassword, config.passwordHash)) {
+    throw new Error('Current password is incorrect.');
+  }
+
+  if (!newPassword.trim()) {
+    throw new Error('New password is required.');
+  }
+
+  if (newPassword.trim().length < 8) {
+    throw new Error('New password must be at least 8 characters.');
+  }
+
+  await upsertLocalAuthSecret(
+    LOCAL_AUTH_SECRET_KEYS.passwordHash,
+    hashPassword(newPassword),
+    'Local setup admin password hash.',
+  );
 }
 
 export async function issueLocalAuthToken(username: string) {
@@ -137,16 +202,19 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
     audience: LOCAL_AUTH_AUDIENCE,
   });
 
+  const config = await readLocalAuthConfig();
   const username =
     typeof payload.username === 'string' && payload.username.trim()
       ? payload.username.trim()
-      : (await readLocalAuthConfig()).username;
+      : config.username;
+  const publicUser = await getLocalAuthPublicUser();
 
   return {
+    email: publicUser.email ?? undefined,
     provider: 'local',
     providerUserId:
       typeof payload.sub === 'string' ? payload.sub : LOCAL_AUTH_SUBJECT,
-    name: username,
+    name: publicUser.name,
     username,
   };
 }

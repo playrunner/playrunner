@@ -14,7 +14,7 @@
 ## Layout
 
 - Use `min-h-screen bg-background text-foreground font-sans`.
-- Prefer centered containers like `max-w-4xl` to `max-w-6xl` with `mx-auto`.
+- Use `max-w-7xl mx-auto` on the top-level standard document page container, with page padding on that same container, so Projects, Environments, Integrations, Insights, Teams, Settings, and the Design System use a consistent content width.
 - Use vertical section rhythm such as `space-y-6`, `space-y-8`, or `space-y-16`.
 - Use section headers with `border-b border-subtle pb-2` or `pb-6`.
 - Prefer standard product cards over bespoke hero compositions.

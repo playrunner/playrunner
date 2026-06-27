@@ -1,9 +1,12 @@
-import { Users } from 'lucide-react';
-import { Badge } from '../components/ui/Badge';
+import { ExternalLink, GitPullRequest, Users } from 'lucide-react';
+import { Badge } from '../components/ui';
+import { getDocsUrl } from '../lib/docs';
 
 export default function Teams() {
+  const contributingUrl = getDocsUrl('docs/contributing');
+
   return (
-    <main className="flex-1 max-w-6xl mx-auto p-8 w-full">
+    <main className="flex-1 max-w-7xl mx-auto p-8 w-full">
       <div className="mb-8 border-b border-subtle pb-6">
         <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Teams
@@ -28,6 +31,31 @@ export default function Teams() {
             This page will support inviting collaborators, assigning roles, and
             managing workspace access when team features are available.
           </p>
+        </div>
+      </section>
+
+      <section className="mt-6 bg-surface border border-subtle rounded-xl shadow-sm p-8">
+        <div className="max-w-2xl">
+          <div className="h-9 w-9 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted mb-5">
+            <GitPullRequest className="h-4 w-4" />
+          </div>
+          <h3 className="text-xl font-medium text-[var(--foreground)]">
+            Playrunner needs contributors
+          </h3>
+          <p className="text-sm text-muted leading-relaxed mt-2">
+            Team management is not ready yet, but Playrunner is open for people
+            who want to help shape workflows, runners, integrations, and
+            documentation.
+          </p>
+          <a
+            href={contributingUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] shadow-sm outline-none transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]"
+          >
+            Read Contributing Docs
+            <ExternalLink className="h-4 w-4" />
+          </a>
         </div>
       </section>
     </main>

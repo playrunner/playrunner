@@ -1,6 +1,7 @@
 const AUTH_STORAGE_KEY = 'playrunner.localAuthSession';
 
 type StoredAuthUser = {
+  email?: string | null;
   uid: string;
   username: string;
   name?: string | null;
@@ -47,11 +48,15 @@ class LocalAuth {
   };
 
   private createUser(user: StoredAuthUser): LocalAuthUser {
+    const email =
+      user.email ?? (user.username.includes('@') ? user.username : null);
+
     return {
       ...user,
-      email: null,
+      email,
       emailVerified: true,
       isAnonymous: false,
+      name: user.name ?? user.username,
       tenantId: null,
       getIdToken: async () => this.token,
     };
