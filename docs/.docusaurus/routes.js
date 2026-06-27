@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '63e'),
+    component: ComponentCreator('/playrunner/docs', '7a1'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '703'),
+        component: ComponentCreator('/playrunner/docs', 'dc3'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '5de'),
+            component: ComponentCreator('/playrunner/docs', '8ea'),
             routes: [
               {
                 path: '/playrunner/docs/category/cloud-architecture',
@@ -163,6 +163,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/',
                 component: ComponentCreator('/playrunner/docs/integration-packages/', 'f08'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/github',
+                component: ComponentCreator('/playrunner/docs/integration-packages/github', '647'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

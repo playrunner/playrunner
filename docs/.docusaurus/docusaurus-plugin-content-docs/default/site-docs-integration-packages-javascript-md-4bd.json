@@ -20,5 +20,9 @@
   "previous": {
     "title": "Jira Package",
     "permalink": "/playrunner/docs/integration-packages/jira"
+  },
+  "next": {
+    "title": "GitHub Package",
+    "permalink": "/playrunner/docs/integration-packages/github"
   }
 }
