@@ -37,6 +37,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/jira/src/frontend/index.tsx',
         ),
+        '@playrunner/javascript': path.resolve(
+          repoRoot,
+          'packages/javascript/src/frontend/index.tsx',
+        ),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(
           webNodeModulesDir,

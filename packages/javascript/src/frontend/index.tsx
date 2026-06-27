@@ -1,6 +1,6 @@
-import type { Integration } from '../types';
-import { JavascriptConfigPanel } from './JavascriptConfigPanel';
 import { Code2 } from 'lucide-react';
+import type { Integration } from '@playrunner/integration-sdk';
+import { JavascriptConfigPanel } from './JavascriptConfigPanel';
 
 export const javascriptIntegration: Integration = {
   id: 'code',
@@ -13,3 +13,5 @@ export const javascriptIntegration: Integration = {
   requiresAuth: false,
   ConfigPanel: JavascriptConfigPanel,
 };
+
+export { JavascriptConfigPanel } from './JavascriptConfigPanel';

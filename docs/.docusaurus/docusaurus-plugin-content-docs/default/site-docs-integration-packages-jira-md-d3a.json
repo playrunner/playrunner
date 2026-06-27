@@ -20,5 +20,9 @@
   "previous": {
     "title": "Overview",
     "permalink": "/playrunner/docs/integration-packages/"
+  },
+  "next": {
+    "title": "JavaScript Package",
+    "permalink": "/playrunner/docs/integration-packages/javascript"
   }
 }

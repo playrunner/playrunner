@@ -21,6 +21,7 @@
   "dependencies": {
     "@google-cloud/run": "^3.2.1",
     "@google-cloud/storage": "^7.19.0",
+    "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",
     "@prisma/client": "^6.17.1",
     "cors": "^2.8.6",

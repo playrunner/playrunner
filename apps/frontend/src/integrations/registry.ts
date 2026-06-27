@@ -2,7 +2,7 @@ import type { Integration } from './types';
 import { jiraIntegration } from '@playrunner/jira';
 import { githubIntegration } from './github';
 import { playwrightIntegration } from './playwright';
-import { javascriptIntegration } from './javascript';
+import { javascriptIntegration } from '@playrunner/javascript';
 import { environmentIntegration } from './environment';
 import { scheduleIntegration } from './schedule';
 import { editionIntegrations } from '@edition-runtime';

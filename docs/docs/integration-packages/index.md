@@ -11,7 +11,7 @@ Integration packages keep an external service integration in one deployable unit
 - backend API routes
 - image assets required by the integration
 
-The first package is `@playrunner/jira` in `packages/jira`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
+The first extracted packages are `@playrunner/jira` in `packages/jira` and `@playrunner/javascript` in `packages/javascript`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
 ## Package layout
 
@@ -20,11 +20,15 @@ packages/
 ├── integration-sdk/
 │   ├── src/frontend/index.tsx
 │   └── src/api/index.ts
-└── jira/
-    ├── assets/jira.svg
+├── jira/
+│   ├── assets/jira.svg
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/JiraConfigPanel.tsx
+│   ├── src/frontend/JiraSettingsModal.tsx
+│   └── src/api/index.ts
+└── javascript/
     ├── src/frontend/index.tsx
-    ├── src/frontend/JiraConfigPanel.tsx
-    ├── src/frontend/JiraSettingsModal.tsx
+    ├── src/frontend/JavascriptConfigPanel.tsx
     └── src/api/index.ts
 ```
 
@@ -51,6 +55,7 @@ For manual package work, install the package folders before starting the apps:
 
 ```bash
 npm install --prefix packages/integration-sdk
+npm install --prefix packages/javascript
 npm install --prefix packages/jira
 npm install --prefix apps/api
 npm install --prefix apps/frontend
@@ -76,7 +81,7 @@ npm install --prefix apps/api
 1. Create `packages/<integration-id>/package.json` with a scoped package name such as `@playrunner/<integration-id>`.
 2. Put frontend exports in `src/frontend/index.tsx`.
 3. Put backend route exports in `src/api/index.ts`.
-4. Put service images and icons under `assets/`.
+4. Put service images under `assets/` when the integration needs packaged image assets.
 5. Use SDK components for settings dialogs, setup instructions, copyable callback URLs, and config fields.
 6. Add the package as a `file:` dependency in both consuming apps that need it.
 7. Register the frontend integration in `apps/frontend/src/integrations/registry.ts`.
@@ -87,7 +92,7 @@ npm install --prefix apps/api
 Package manifests are configured for GitHub Packages:
 
 ```bash
-cd packages/jira
+cd packages/<integration-id>
 npm publish
 ```
 
