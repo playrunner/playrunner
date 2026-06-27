@@ -18,6 +18,7 @@
 - Use vertical section rhythm such as `space-y-6`, `space-y-8`, or `space-y-16`.
 - Use section headers with `border-b border-subtle pb-2` or `pb-6`.
 - Prefer standard product cards over bespoke hero compositions.
+- Let standard document pages scroll with the browser. Avoid page-level `overflow-y-auto`, `overflow-auto`, or `h-screen overflow-hidden`; reserve inner vertical scroll containers for fixed interactive surfaces such as editor canvases, modal bodies, dropdowns, and log panels.
 
 ## Surfaces
 

@@ -13,7 +13,7 @@ function createPremiumIntegrationStub(
     description,
     disabled: true,
     disabledReason:
-      'Premium feature. Start premium mode to connect this cloud provider.',
+      'This cloud provider is currently in development and will be available soon.',
     icon,
     id,
     isPremiumFeature: true,

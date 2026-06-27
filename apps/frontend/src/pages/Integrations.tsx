@@ -169,7 +169,7 @@ export default function Integrations() {
                       variant="outline"
                       className="uppercase tracking-wide"
                     >
-                      Premium
+                      COMING SOON
                     </Badge>
                   ) : (
                     <Button

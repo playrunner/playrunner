@@ -10,6 +10,7 @@ import { systemRouter } from './routes/system';
 import { executionsRouter } from './routes/executions';
 import { authRouter } from './routes/auth';
 import { gcpRouter } from './routes/integrations/gcp';
+import { insightsRouter } from './routes/insights';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
@@ -41,6 +42,8 @@ registerIntegrationApiRoutes(app);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/store', storeRouter);
+app.use('/api/insights', insightsRouter);
+app.use('/api/reports', insightsRouter);
 
 async function start() {
   await apiRuntime.ready;

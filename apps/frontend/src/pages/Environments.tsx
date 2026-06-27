@@ -117,7 +117,7 @@ export default function Environments() {
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto max-w-6xl mx-auto p-8 w-full">
+      <main className="flex-1 max-w-6xl mx-auto p-8 w-full">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Environments</h2>

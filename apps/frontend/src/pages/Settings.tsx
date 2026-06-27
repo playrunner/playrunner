@@ -2,7 +2,7 @@ import { Input, Button } from '../components/ui';
 
 export default function Settings() {
   return (
-    <main className="flex-1 overflow-y-auto p-8 max-w-4xl mx-auto w-full space-y-8">
+    <main className="flex-1 p-8 max-w-4xl mx-auto w-full space-y-8">
       <div className="bg-surface border border-subtle rounded-2xl overflow-hidden shadow-sm">
         <div className="p-6 border-b border-subtle">
           <h2 className="text-lg font-medium text-[var(--foreground)] mb-1">

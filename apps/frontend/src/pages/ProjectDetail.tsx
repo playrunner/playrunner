@@ -227,7 +227,7 @@ export default function ProjectDetail() {
 
   return (
     <>
-      <main className="flex-1 overflow-y-auto p-8 max-w-5xl mx-auto w-full">
+      <main className="flex-1 p-8 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-2xl font-semibold text-[var(--foreground)] mb-2">

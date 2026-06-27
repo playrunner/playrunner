@@ -23,18 +23,7 @@ export const packageIntegrations: Integration[] = [
   playwrightIntegration,
   javascriptIntegration,
   environmentIntegration,
-  scheduleIntegration,
-  slackIntegration,
-  googlechatIntegration,
-  asanaIntegration,
-  trelloIntegration,
-  postmanIntegration,
-  emailIntegration,
-  smsIntegration,
-  whatsappIntegration,
-  webhooksIntegration,
-  openaiIntegration,
-  geminiIntegration,
+  scheduleIntegration
 ];
 
 export const packageIntegrationRegistry: Record<string, Integration> =

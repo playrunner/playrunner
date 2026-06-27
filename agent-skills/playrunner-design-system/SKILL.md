@@ -27,6 +27,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 - Use bordered section headers and stacked surface cards like the Design System page.
 - Prefer nested inset panels with `bg-[var(--background)]` inside a `bg-[var(--surface)]` page card.
 - Treat setup/onboarding screens as normal product surfaces, not marketing splash pages.
+- Standard document-style pages must use the browser's native document scroll. Do not put page content in `overflow-y-auto`, `overflow-auto`, `h-screen overflow-hidden`, or similar inner vertical scroll containers unless building a fixed tool surface such as the editor canvas, a modal body, a dropdown menu, or a log panel.
 - Pay attention to the lint and Prettier rules when writing code; run the affected app's `lint` and `format:check` scripts and keep changes passing both.
 
 ## Reference

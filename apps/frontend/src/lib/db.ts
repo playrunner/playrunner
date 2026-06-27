@@ -201,6 +201,13 @@ async function refreshGcpTokenIfNeeded(userId: string, credentialData: any) {
 }
 
 export const DbAPI = {
+  async getInsights(days: string) {
+    const payload = await apiRequest<{ insights?: any; report?: any }>(
+      `/api/insights?days=${encodeURIComponent(days)}`,
+    );
+    return payload.insights ?? payload.report;
+  },
+
   async getProject(_userId: string, projectId: string) {
     const payload = await apiRequest<{ project: any | null }>(
       `/api/store/projects/${projectId}`,

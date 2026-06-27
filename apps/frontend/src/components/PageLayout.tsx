@@ -24,21 +24,21 @@ export function PageLayout() {
 
   return (
     <HeaderContext.Provider value={{ setHeaderLeft, setHeaderCenter }}>
-      <div className="flex h-screen bg-background overflow-hidden">
+      <div className="flex min-h-screen bg-background">
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
           onOpen={() => setIsSidebarOpen(true)}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 h-full relative">
-          <header className="h-16 border-b border-subtle flex items-center px-6 gap-4 shrink-0 bg-surface/50 backdrop-blur-md z-30">
+        <div className="flex-1 flex flex-col min-w-0 relative">
+          <header className="sticky top-0 h-16 border-b border-subtle flex items-center px-6 gap-4 shrink-0 bg-surface/50 backdrop-blur-md z-30">
             {headerLeft}
             <div className="flex-1 flex justify-center">{headerCenter}</div>
             <HeaderActions />
           </header>
 
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+          <div className="flex-1 flex flex-col">
             <Outlet />
           </div>
         </div>
