@@ -7,7 +7,7 @@ title: Connecting Integrations
 
 ## OAuth Integrations
 
-When adding a new OAuth integration, it requires a complete flow spanning the frontend UI, authentication popups, routing, and backend proxy endpoints. Ensure you implement all of the following components:
+When adding a new OAuth integration package, it requires a complete flow spanning the frontend UI, authentication popups, routing, and backend proxy endpoints. Ensure you implement all of the following components:
 
 ### 1. Frontend Settings Modal
 Create a configuration modal (e.g., `ProviderSettingsModal.tsx`) that:
@@ -16,7 +16,7 @@ Create a configuration modal (e.g., `ProviderSettingsModal.tsx`) that:
 - Opens a popup window pointing to the provider's OAuth URL with the appropriate `scope`, `redirect_uri`, and `response_type=code`.
 - Listens for an `oauth_callback` message from the popup via `window.addEventListener('message', ...)`.
 - Takes the authorization code and exchanges it for access/refresh tokens using the backend proxy endpoint.
-- Persists the credentials using `DbAPI.saveIntegration` or `DbAPI.saveCloudCredential`.
+- Persists the credentials using `useIntegrationHost().store.saveIntegration`.
 - Implements token refresh logic if the access token is expired before making API calls.
 
 ### 2. The Callback Route
@@ -37,6 +37,43 @@ You must create backend endpoints to handle token exchange and refresh. The back
 - **Security:** Ensure these endpoints are mounted correctly in the main Express router (`apps/api/src/index.ts` or `routes/index.ts`) and are protected by authentication middleware if applicable.
 
 ### 4. Database Storage
-Store the integration credentials through the existing Prisma-backed `DbAPI` layer:
-- Save `clientId`, `clientSecret`, `accessToken`, `refreshToken`, and an `expiresAt` timestamp (calculated using `Date.now() + expires_in * 1000`).
-- Keep partial updates merge-friendly so token refreshes do not overwrite other configuration fields (like selected projects or repositories).
+Store integration credentials through the SDK store injected by the host app. Package code should not import `DbAPI`, Prisma, or host app modules directly.
+
+```ts
+const { auth, store } = useIntegrationHost();
+const userId = auth.currentUser?.uid;
+if (!userId) return;
+
+await store.saveIntegration(userId, 'provider-id', {
+  clientId,
+  clientSecret,
+  accessToken,
+  refreshToken,
+  expiresAt: Date.now() + tokenData.expires_in * 1000,
+  updatedAt: new Date().toISOString(),
+});
+```
+
+The host persists this as one Prisma `Integration` row per `userId + provider`, with provider-specific values in the `data` JSON column. `saveIntegration` currently replaces that JSON object, so token refresh code should preserve existing provider-owned fields:
+
+```ts
+const current = await store.getIntegration(userId, 'provider-id');
+const {
+  id,
+  provider,
+  userId: _storedUserId,
+  createdAt,
+  updatedAt,
+  ...currentData
+} = current ?? {};
+
+await store.saveIntegration(userId, 'provider-id', {
+  ...currentData,
+  accessToken: refreshed.access_token,
+  refreshToken: refreshed.refresh_token,
+  expiresAt: Date.now() + refreshed.expires_in * 1000,
+  updatedAt: new Date().toISOString(),
+});
+```
+
+Save `clientId`, `clientSecret`, `accessToken`, `refreshToken`, and an `expiresAt` timestamp for OAuth integrations. Keep node-specific choices, such as selected projects or repositories, on the workflow node config unless they are account-level defaults.
