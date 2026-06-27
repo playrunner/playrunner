@@ -1,392 +1,353 @@
 {
-  "/playrunner/__docusaurus/debug-e37": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
-  "/playrunner/__docusaurus/debug/config-568": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
-  "/playrunner/__docusaurus/debug/content-231": {
-    "__comp": "__comp---theme-debug-contentba-8-ce7",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    },
-    "__props": "__props---playrunner-docusaurus-debug-content-2-da-11e"
-  },
-  "/playrunner/__docusaurus/debug/globalData-878": {
-    "__comp": "__comp---theme-debug-global-dataede-0fa",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
-  "/playrunner/__docusaurus/debug/metadata-baa": {
-    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
-  "/playrunner/__docusaurus/debug/registry-6eb": {
-    "__comp": "__comp---theme-debug-registry-679-501",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
-  "/playrunner/__docusaurus/debug/routes-585": {
-    "__comp": "__comp---theme-debug-routes-946-699",
-    "__context": {
-      "plugin": "plugin---playrunner-docusaurus-debugb-38-f81"
-    }
-  },
   "/playrunner/blog-c4d": {
-    "__comp": "__comp---theme-blog-list-pagea-6-a-7ba",
+    "__comp": "a6aa9e1f",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
+    "sidebar": "814f3328",
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       },
       {
-        "content": "content---playrunner-blogf-4-f-445"
+        "content": "f4f34a3a"
       },
       {
-        "content": "content---playrunner-blog-15-d-b7b"
+        "content": "15df8608"
       },
       {
-        "content": "content---playrunner-blog-1-f-4-33c"
+        "content": "1f4725da"
       }
     ],
-    "__props": "__props---playrunner-bloga-3-c-f06"
+    "__props": "a3cdde59"
   },
   "/playrunner/blog/archive-239": {
-    "__comp": "__comp---theme-blog-archive-page-9-e-4-1d8",
+    "__comp": "9e4087bc",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "__props": "__props---playrunner-blog-archive-24-b-1ed"
+    "__props": "24b4f658"
   },
   "/playrunner/blog/authors-405": {
-    "__comp": "__comp---theme-blog-pages-blog-authors-list-page-621-70c",
+    "__comp": "621db11d",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "__props": "__props---playrunner-blog-authors-648-eb7"
+    "sidebar": "814f3328",
+    "__props": "64838ccc"
   },
   "/playrunner/blog/authors/all-sebastien-lorber-articles-c2f": {
-    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
+    "__comp": "33fc5bb8",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       },
       {
-        "content": "content---playrunner-blogf-4-f-445"
+        "content": "f4f34a3a"
       },
       {
-        "content": "content---playrunner-blog-1-f-4-33c"
+        "content": "1f4725da"
       }
     ],
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "__props": "__props---playrunner-blog-authors-all-sebastien-lorber-articles-864-e4d"
+    "sidebar": "814f3328",
+    "__props": "86450429"
   },
   "/playrunner/blog/authors/yangshun-14f": {
-    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
+    "__comp": "33fc5bb8",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       },
       {
-        "content": "content---playrunner-blog-15-d-b7b"
+        "content": "15df8608"
       },
       {
-        "content": "content---playrunner-blog-1-f-4-33c"
+        "content": "1f4725da"
       }
     ],
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "__props": "__props---playrunner-blog-authors-yangshun-2-fd-f25"
+    "sidebar": "814f3328",
+    "__props": "2fdb2c49"
   },
   "/playrunner/blog/first-blog-post-7f2": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__comp": "ccc49370",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "content": "content---playrunner-blog-first-blog-postfef-275"
+    "sidebar": "814f3328",
+    "content": "fefdd57e"
   },
   "/playrunner/blog/long-blog-post-ba6": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__comp": "ccc49370",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "content": "content---playrunner-blog-long-blog-postd-66-985"
+    "sidebar": "814f3328",
+    "content": "d669559b"
   },
   "/playrunner/blog/mdx-blog-post-28d": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__comp": "ccc49370",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "content": "content---playrunner-blog-mdx-blog-post-593-cb8"
+    "sidebar": "814f3328",
+    "content": "59362658"
   },
   "/playrunner/blog/tags-b7c": {
-    "__comp": "__comp---theme-blog-tags-list-page-01-a-d0b",
+    "__comp": "01a85c17",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "__props": "__props---playrunner-blog-tagsd-2-c-e5a"
+    "sidebar": "814f3328",
+    "__props": "d2c4f387"
   },
   "/playrunner/blog/tags/docusaurus-7a3": {
-    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__comp": "6875c492",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
+    "sidebar": "814f3328",
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       },
       {
-        "content": "content---playrunner-blogf-4-f-445"
+        "content": "f4f34a3a"
       },
       {
-        "content": "content---playrunner-blog-15-d-b7b"
+        "content": "15df8608"
       },
       {
-        "content": "content---playrunner-blog-1-f-4-33c"
+        "content": "1f4725da"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-docusaurus-7-ed-f6d"
+    "__props": "7ed4f07b"
   },
   "/playrunner/blog/tags/facebook-023": {
-    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__comp": "6875c492",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
+    "sidebar": "814f3328",
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-facebook-339-eb5"
+    "__props": "339dd9ad"
   },
   "/playrunner/blog/tags/hello-b40": {
-    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__comp": "6875c492",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
+    "sidebar": "814f3328",
     "items": [
       {
-        "content": "content---playrunner-blog-804-6e0"
+        "content": "804b58ce"
       },
       {
-        "content": "content---playrunner-blog-15-d-b7b"
+        "content": "15df8608"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-hello-428-9ab"
+    "__props": "4289c234"
   },
   "/playrunner/blog/tags/hola-ab8": {
-    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
+    "__comp": "6875c492",
     "__context": {
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
+    "sidebar": "814f3328",
     "items": [
       {
-        "content": "content---playrunner-blog-1-f-4-33c"
+        "content": "1f4725da"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-hola-710-0e5"
+    "__props": "7109df6b"
   },
   "/playrunner/blog/welcome-bd6": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
+    "__comp": "ccc49370",
     "__context": {
       "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authorsace-44e"
+        "blogMetadata": "acecf23e"
       },
-      "plugin": "plugin---playrunner-blog-369-26e"
+      "plugin": "36994c47"
     },
-    "sidebar": "sidebar---playrunner-blog-814-bf7",
-    "content": "content---playrunner-blog-welcome-718-02a"
+    "sidebar": "814f3328",
+    "content": "7180d3e2"
   },
   "/playrunner/markdown-page-00b": {
-    "__comp": "__comp---theme-mdx-page-1-f-3-b90",
+    "__comp": "1f391b9e",
     "__context": {
-      "plugin": "plugin---playrunner-markdown-pagea-74-2b1"
+      "plugin": "a7456010"
     },
-    "content": "content---playrunner-markdown-page-4-c-6-687"
+    "content": "4c678320"
   },
-  "/playrunner/docs-5fb": {
-    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+  "/playrunner/docs-b49": {
+    "__comp": "5e95c892",
     "__context": {
-      "plugin": "plugin---playrunner-docsaba-84d"
+      "plugin": "aba21aa0"
     }
   },
-  "/playrunner/docs-a8e": {
-    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
-    "__props": "__props---playrunner-docs-607-284"
+  "/playrunner/docs-d89": {
+    "__comp": "a7bd4aaa",
+    "__props": "60756d28"
   },
-  "/playrunner/docs-053": {
-    "__comp": "__comp---theme-doc-roota-94-67a"
+  "/playrunner/docs-313": {
+    "__comp": "a94703ab"
   },
   "/playrunner/docs/category/cloud-architecture-0c4": {
-    "__comp": "__comp---theme-doc-category-generated-index-page-14-e-640",
-    "__props": "__props---playrunner-docs-category-cloud-architecture-350-927"
+    "__comp": "14eb3368",
+    "__props": "350b9be0"
   },
   "/playrunner/docs/cloud-architecture/aws-734": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-awsd-49-28b"
+    "__comp": "17896441",
+    "content": "d49b0c96"
   },
   "/playrunner/docs/cloud-architecture/azure-aaa": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-azure-175-a2c"
+    "__comp": "17896441",
+    "content": "1750cee4"
   },
   "/playrunner/docs/cloud-architecture/gcp/-a2c": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-ff-9-191"
+    "__comp": "17896441",
+    "content": "ff93e9e7"
   },
   "/playrunner/docs/cloud-architecture/gcp/setup-bd0": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-setupe-3-c-8ce"
+    "__comp": "17896441",
+    "content": "e3c30060"
   },
   "/playrunner/docs/contributing-85b": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-contributing-4-d-5-516"
+    "__comp": "17896441",
+    "content": "4d54d076"
   },
   "/playrunner/docs/integration-packages/-f08": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-9-b-4-29d"
+    "__comp": "17896441",
+    "content": "9b4bb875"
   },
   "/playrunner/docs/integration-packages/environment-ca0": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-environment-6-e-8-19a"
+    "__comp": "17896441",
+    "content": "6e82356f"
   },
   "/playrunner/docs/integration-packages/github-647": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-github-0-c-7-b7a"
+    "__comp": "17896441",
+    "content": "0c7a687d"
   },
   "/playrunner/docs/integration-packages/javascript-436": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-javascript-4-bd-7cb"
+    "__comp": "17896441",
+    "content": "4bd43226"
   },
   "/playrunner/docs/integration-packages/jira-588": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-jirad-3-a-9a5"
+    "__comp": "17896441",
+    "content": "d3af1652"
+  },
+  "/playrunner/docs/integration-packages/playwright-331": {
+    "__comp": "17896441",
+    "content": "92831a2b"
   },
   "/playrunner/docs/integration-packages/schedule-b26": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-scheduled-57-562"
+    "__comp": "17896441",
+    "content": "d570070c"
   },
   "/playrunner/docs/local-dev/-cb6": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-384-e30"
+    "__comp": "17896441",
+    "content": "384e66f5"
   },
   "/playrunner/docs/local-dev/connecting-integrations-515": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-connecting-integrations-987-de0"
+    "__comp": "17896441",
+    "content": "987aad3b"
   },
   "/playrunner/docs/local-dev/connection-nodes-0b3": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-connection-nodes-478-d8c"
+    "__comp": "17896441",
+    "content": "4780ffb8"
   },
   "/playrunner/docs/local-dev/docker-images-723": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-docker-imagesc-7-e-99f"
+    "__comp": "17896441",
+    "content": "c7e97263"
   },
   "/playrunner/docs/local-dev/environment-variables-0d6": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-environment-variables-9-ed-4af"
+    "__comp": "17896441",
+    "content": "9eddac1d"
   },
   "/playrunner/docs/local-dev/postgres-prisma-and-local-auth-087": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-postgres-prisma-and-local-auth-99-b-3be"
+    "__comp": "17896441",
+    "content": "99bbc389"
   },
   "/playrunner/docs/local-dev/remote-debugging-26f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-remote-debugging-447-53a"
+    "__comp": "17896441",
+    "content": "4471ebde"
   },
   "/playrunner/docs/local-dev/services-and-ports-caf": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-services-and-portsff-2-f98"
+    "__comp": "17896441",
+    "content": "ff2310af"
   },
   "/playrunner/docs/local-dev/troubleshooting-c1f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-troubleshooting-6-e-8-d02"
+    "__comp": "17896441",
+    "content": "6e8dbecc"
   },
   "/playrunner/docs/local-dev/workflow-execution-095": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-workflow-execution-602-f6b"
+    "__comp": "17896441",
+    "content": "6028a7a7"
   },
   "/playrunner/docs/overview-925": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-overview-1-db-340"
+    "__comp": "17896441",
+    "content": "1db64337"
   },
   "/playrunner/docs/roadmap-32f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-roadmap-0-df-60e"
+    "__comp": "17896441",
+    "content": "0dffb83e"
   },
   "/playrunner/docs/tutorials/-d0b": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-fea-5f4"
+    "__comp": "17896441",
+    "content": "fea1970e"
   },
   "/playrunner/docs/tutorials/connect-github-9df": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-connect-githubfcf-60b"
+    "__comp": "17896441",
+    "content": "fcf1bb6c"
   },
   "/playrunner/docs/tutorials/create-your-first-workflow-0b7": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-create-your-first-workflow-789-516"
+    "__comp": "17896441",
+    "content": "789d0e95"
   },
   "/playrunner/docs/tutorials/getting-started-bdf": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-getting-started-9-d-0-4e1"
+    "__comp": "17896441",
+    "content": "9d07f889"
   },
   "/playrunner/docs/tutorials/run-your-first-test-864": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-run-your-first-test-7-b-4-4bb"
+    "__comp": "17896441",
+    "content": "7b465c28"
   },
   "/playrunner/docs/tutorials/understanding-reports-499": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-tutorials-understanding-reports-887-6bf"
+    "__comp": "17896441",
+    "content": "887f8372"
   },
   "/playrunner/-6a1": {
-    "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",
+    "__comp": "1df93b7f",
     "__context": {
-      "plugin": "plugin---playrunner-markdown-pagea-74-2b1"
+      "plugin": "a7456010"
     },
-    "config": "config---playrunner-5-e-9-009"
+    "config": "5e9f5e1a"
   }
 }

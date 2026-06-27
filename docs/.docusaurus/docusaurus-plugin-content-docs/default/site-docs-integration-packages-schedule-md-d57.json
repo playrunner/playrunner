@@ -20,5 +20,9 @@
   "previous": {
     "title": "Environment Package",
     "permalink": "/playrunner/docs/integration-packages/environment"
+  },
+  "next": {
+    "title": "Playwright Package",
+    "permalink": "/playrunner/docs/integration-packages/playwright"
   }
 }

@@ -25,6 +25,7 @@
     "@playrunner/integration-sdk": "file:../../packages/integration-sdk",
     "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",
+    "@playrunner/playwright": "file:../../packages/playwright",
     "@playrunner/schedule": "file:../../packages/schedule",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",

@@ -11,7 +11,7 @@ Integration packages keep an external service integration in one deployable unit
 - backend API routes
 - image assets required by the integration
 
-The extracted packages are `@playrunner/environment` in `packages/environment`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
+The extracted packages are `@playrunner/environment` in `packages/environment`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
 ## Package layout
 
@@ -38,9 +38,15 @@ packages/
 │   ├── src/frontend/JiraSettingsModal.tsx
 │   └── src/api/index.ts
 ├── javascript/
-    ├── src/frontend/index.tsx
-    ├── src/frontend/JavascriptConfigPanel.tsx
-    └── src/api/index.ts
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/JavascriptConfigPanel.tsx
+│   └── src/api/index.ts
+├── playwright/
+│   ├── assets/playwright.svg
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/PlaywrightConfigPanel.tsx
+│   ├── src/frontend/playwrightRunnerConfig.ts
+│   └── src/api/index.ts
 └── schedule/
     ├── src/frontend/index.tsx
     ├── src/frontend/ScheduleConfigPanel.tsx
@@ -74,6 +80,7 @@ npm install --prefix packages/environment
 npm install --prefix packages/github
 npm install --prefix packages/javascript
 npm install --prefix packages/jira
+npm install --prefix packages/playwright
 npm install --prefix packages/schedule
 npm install --prefix apps/api
 npm install --prefix apps/frontend

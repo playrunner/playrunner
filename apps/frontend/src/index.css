@@ -6,6 +6,7 @@
 @source '../../../packages/integration-sdk/src';
 @source '../../../packages/javascript/src';
 @source '../../../packages/jira/src';
+@source '../../../packages/playwright/src';
 @source '../../../packages/schedule/src';
 
 @theme {

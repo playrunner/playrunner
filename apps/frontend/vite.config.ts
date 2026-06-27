@@ -49,6 +49,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/javascript/src/frontend/index.tsx',
         ),
+        '@playrunner/playwright': path.resolve(
+          repoRoot,
+          'packages/playwright/src/frontend/index.tsx',
+        ),
         '@playrunner/schedule': path.resolve(
           repoRoot,
           'packages/schedule/src/frontend/index.tsx',

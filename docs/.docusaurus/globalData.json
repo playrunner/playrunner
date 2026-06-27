@@ -61,6 +61,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/playwright",
+              "path": "/playrunner/docs/integration-packages/playwright",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "integration-packages/schedule",
               "path": "/playrunner/docs/integration-packages/schedule",
               "sidebar": "tutorialSidebar"

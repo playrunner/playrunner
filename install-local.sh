@@ -9,6 +9,7 @@ LOCAL_PACKAGE_DIRS=(
   "packages/github"
   "packages/javascript"
   "packages/jira"
+  "packages/playwright"
   "packages/schedule"
   "apps/api"
   "apps/frontend"

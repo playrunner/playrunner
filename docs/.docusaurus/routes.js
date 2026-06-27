@@ -3,41 +3,6 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/playrunner/__docusaurus/debug',
-    component: ComponentCreator('/playrunner/__docusaurus/debug', 'e37'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/config',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/config', '568'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/content',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/content', '231'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/globalData',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData', '878'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/metadata',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata', 'baa'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/registry',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/registry', '6eb'),
-    exact: true
-  },
-  {
-    path: '/playrunner/__docusaurus/debug/routes',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/routes', '585'),
-    exact: true
-  },
-  {
     path: '/playrunner/blog',
     component: ComponentCreator('/playrunner/blog', 'c4d'),
     exact: true
@@ -114,15 +79,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '5fb'),
+    component: ComponentCreator('/playrunner/docs', 'b49'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', 'a8e'),
+        component: ComponentCreator('/playrunner/docs', 'd89'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '053'),
+            component: ComponentCreator('/playrunner/docs', '313'),
             routes: [
               {
                 path: '/playrunner/docs/category/cloud-architecture',
@@ -187,6 +152,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/jira',
                 component: ComponentCreator('/playrunner/docs/integration-packages/jira', '588'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/playwright',
+                component: ComponentCreator('/playrunner/docs/integration-packages/playwright', '331'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

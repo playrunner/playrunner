@@ -25,6 +25,7 @@
     "@playrunner/github": "file:../../packages/github",
     "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",
+    "@playrunner/playwright": "file:../../packages/playwright",
     "@playrunner/schedule": "file:../../packages/schedule",
     "@prisma/client": "^6.17.1",
     "cors": "^2.8.6",

@@ -25,6 +25,9 @@
       "@playrunner/javascript": [
         "../../packages/javascript/src/frontend/index.tsx"
       ],
+      "@playrunner/playwright": [
+        "../../packages/playwright/src/frontend/index.tsx"
+      ],
       "@playrunner/schedule": [
         "../../packages/schedule/src/frontend/index.tsx"
       ],
