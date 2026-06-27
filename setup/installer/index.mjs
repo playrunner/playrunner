@@ -447,18 +447,19 @@ model WorkflowExecution {
 }
 
 model WorkflowEvent {
-  id          BigInt            @id @default(autoincrement())
-  executionId String
-  userId      String
-  workflowId  String?
-  nodeId      String?
-  type        String
-  level       String?
-  message     String?
-  payload     Json
-  occurredAt  DateTime?
-  createdAt   DateTime          @default(now())
-  execution   WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  id            BigInt            @id @default(autoincrement())
+  executionId   String
+  sourceEventId String?           @unique
+  userId        String
+  workflowId    String?
+  nodeId        String?
+  type          String
+  level         String?
+  message       String?
+  payload       Json
+  occurredAt    DateTime?
+  createdAt     DateTime          @default(now())
+  execution     WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
 
   @@index([executionId])
   @@index([userId])
