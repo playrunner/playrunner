@@ -44,12 +44,7 @@ export default [
         'warn',
         {
           allowConstantExport: true,
-          allowExportNames: [
-            'jiraIntegration',
-            'jiraIconUrl',
-            'JiraConfigPanel',
-            'JiraSettingsModal',
-          ],
+          allowExportNames: ['packageIntegrations', 'packageIntegrationRegistry'],
         },
       ],
       'react-hooks/exhaustive-deps': 'warn',
