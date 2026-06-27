@@ -1,0 +1,31 @@
+{
+  "id": "integration-packages/gcp",
+  "title": "GCP Integration",
+  "description": "Connect Google Cloud credentials and register GCP runner infrastructure for Playrunner workflows.",
+  "source": "@site/docs/integration-packages/gcp.md",
+  "sourceDirName": "integration-packages",
+  "slug": "/integration-packages/gcp",
+  "permalink": "/playrunner/docs/integration-packages/gcp",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/integration-packages/gcp.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 5,
+  "frontMatter": {
+    "sidebar_position": 5,
+    "sidebar_label": "GCP",
+    "title": "GCP Integration",
+    "description": "Connect Google Cloud credentials and register GCP runner infrastructure for Playrunner workflows.",
+    "hide_title": true
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "GitHub",
+    "permalink": "/playrunner/docs/integration-packages/github"
+  },
+  "next": {
+    "title": "Environment",
+    "permalink": "/playrunner/docs/integration-packages/environment"
+  }
+}

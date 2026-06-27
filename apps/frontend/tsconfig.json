@@ -23,6 +23,7 @@
       "@playrunner/environment": [
         "../../packages/environment/src/frontend/index.tsx"
       ],
+      "@playrunner/gcp": ["../../packages/gcp/src/frontend/index.tsx"],
       "@playrunner/github": ["../../packages/github/src/frontend/index.tsx"],
       "@playrunner/jira": ["../../packages/jira/src/frontend/index.tsx"],
       "@playrunner/javascript": [

@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/environment/src/frontend/index.tsx',
         ),
+        '@playrunner/gcp': path.resolve(
+          repoRoot,
+          'packages/gcp/src/frontend/index.tsx',
+        ),
         '@playrunner/github': path.resolve(
           repoRoot,
           'packages/github/src/frontend/index.tsx',

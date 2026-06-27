@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 sidebar_label: Schedule
 title: Schedule Integration
 description: Start Playrunner workflows on recurring schedules.

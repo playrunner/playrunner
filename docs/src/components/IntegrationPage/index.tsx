@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
+import GcpLogo from '../../../../packages/gcp/assets/gcp.svg';
 import GitHubLogo from '../../../../packages/github/assets/github.svg';
 import JiraLogo from '../../../../packages/jira/assets/jira.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
@@ -7,6 +8,7 @@ import styles from './styles.module.css';
 
 type IconKind =
   | 'environment'
+  | 'gcp'
   | 'github'
   | 'javascript'
   | 'jira'
@@ -30,6 +32,8 @@ function renderIntegrationIcon(icon: IconKind) {
   switch (icon) {
     case 'github':
       return <GitHubLogo aria-hidden="true" />;
+    case 'gcp':
+      return <GcpLogo aria-hidden="true" />;
     case 'jira':
       return <JiraLogo aria-hidden="true" />;
     case 'playwright':

@@ -9,7 +9,6 @@ import { outputsRouter } from './routes/outputs';
 import { systemRouter } from './routes/system';
 import { executionsRouter } from './routes/executions';
 import { authRouter } from './routes/auth';
-import { gcpRouter } from './routes/integrations/gcp';
 import { insightsRouter } from './routes/insights';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
@@ -37,7 +36,6 @@ app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
 
 app.use('/api', requireAuth);
-app.use('/api/gcp', gcpRouter);
 registerIntegrationApiRoutes(app);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);

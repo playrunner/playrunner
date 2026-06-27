@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 sidebar_label: Environment
 title: Environment Integration
 description: Configure reusable environment variables and inject them into Playrunner workflow nodes.

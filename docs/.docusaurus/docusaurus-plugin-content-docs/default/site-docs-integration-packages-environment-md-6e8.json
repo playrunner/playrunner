@@ -11,9 +11,9 @@
   "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/integration-packages/environment.md",
   "tags": [],
   "version": "current",
-  "sidebarPosition": 5,
+  "sidebarPosition": 6,
   "frontMatter": {
-    "sidebar_position": 5,
+    "sidebar_position": 6,
     "sidebar_label": "Environment",
     "title": "Environment Integration",
     "description": "Configure reusable environment variables and inject them into Playrunner workflow nodes.",
@@ -21,8 +21,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "GitHub",
-    "permalink": "/playrunner/docs/integration-packages/github"
+    "title": "GCP",
+    "permalink": "/playrunner/docs/integration-packages/gcp"
   },
   "next": {
     "title": "Schedule",

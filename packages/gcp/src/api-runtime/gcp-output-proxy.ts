@@ -1,9 +1,11 @@
 import type { Request, Response } from 'express';
-import { getStorage, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
-import { state } from '../state';
+import { getStorage, refreshGcpAccessTokenIfNeeded } from './gcs';
+import type { GcpRuntimeState } from './contracts';
 import type { OutputProxyBackend } from './contracts';
 
 export class GcpOutputProxyBackend implements OutputProxyBackend {
+  constructor(private readonly state: GcpRuntimeState) {}
+
   async tryHandle(req: Request, res: Response): Promise<boolean> {
     const parts = req.path.split('/').filter(Boolean);
     if (parts.length < 2) {
@@ -11,14 +13,15 @@ export class GcpOutputProxyBackend implements OutputProxyBackend {
     }
 
     const testId = parts[0];
-    const cloudProvider = state.testCloudProviders[testId] || 'LOCAL_RUNNER';
+    const cloudProvider =
+      this.state.testCloudProviders[testId] || 'LOCAL_RUNNER';
     if (cloudProvider !== 'GCP') {
       return false;
     }
 
-    const bucketName = state.testBucketNames[testId];
-    const gcp = state.gcpCredentials[testId];
-    if (!bucketName || !gcp?.accessToken) {
+    const bucketName = this.state.testBucketNames[testId];
+    const gcp = this.state.gcpCredentials[testId];
+    if (!bucketName || !gcp?.accessToken || !gcp.selectedProject) {
       return false;
     }
 

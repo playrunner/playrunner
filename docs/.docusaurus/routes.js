@@ -3,6 +3,41 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
+    path: '/playrunner/__docusaurus/debug',
+    component: ComponentCreator('/playrunner/__docusaurus/debug', 'e37'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/config',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/config', '568'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/content',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/content', '231'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/globalData',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData', '878'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/metadata',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata', 'baa'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/registry',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/registry', '6eb'),
+    exact: true
+  },
+  {
+    path: '/playrunner/__docusaurus/debug/routes',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/routes', '585'),
+    exact: true
+  },
+  {
     path: '/playrunner/blog',
     component: ComponentCreator('/playrunner/blog', 'c4d'),
     exact: true
@@ -79,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '27d'),
+    component: ComponentCreator('/playrunner/docs', 'aca'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '9f2'),
+        component: ComponentCreator('/playrunner/docs', '526'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', 'b03'),
+            component: ComponentCreator('/playrunner/docs', '215'),
             routes: [
               {
                 path: '/playrunner/docs/category/runner-architecture',
@@ -140,6 +175,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/environment',
                 component: ComponentCreator('/playrunner/docs/integration-packages/environment', 'ca0'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/gcp',
+                component: ComponentCreator('/playrunner/docs/integration-packages/gcp', 'b3b'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

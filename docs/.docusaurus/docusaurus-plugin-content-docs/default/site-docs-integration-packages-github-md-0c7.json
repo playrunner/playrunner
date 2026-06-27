@@ -25,7 +25,7 @@
     "permalink": "/playrunner/docs/integration-packages/javascript"
   },
   "next": {
-    "title": "Environment",
-    "permalink": "/playrunner/docs/integration-packages/environment"
+    "title": "GCP",
+    "permalink": "/playrunner/docs/integration-packages/gcp"
   }
 }

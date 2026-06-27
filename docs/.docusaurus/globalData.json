@@ -46,6 +46,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/gcp",
+              "path": "/playrunner/docs/integration-packages/gcp",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "integration-packages/github",
               "path": "/playrunner/docs/integration-packages/github",
               "sidebar": "tutorialSidebar"

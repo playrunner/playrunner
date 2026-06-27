@@ -67,6 +67,10 @@
   color: #181717;
 }
 
+.gcpIcon {
+  background: #ffffff;
+}
+
 .jiraIcon {
   background: #ffffff;
 }
@@ -93,6 +97,10 @@
 :global([data-theme='dark']) .githubIcon {
   background: #111827;
   color: #ffffff;
+}
+
+:global([data-theme='dark']) .gcpIcon {
+  background: #111827;
 }
 
 :global([data-theme='dark']) .jiraIcon {

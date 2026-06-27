@@ -8,7 +8,7 @@ export default {
   "tagline": "Open-source orchestration for Playwright test automation.",
   "favicon": "img/favicon.svg",
   "customFields": {
-    "localDocsLandingPath": "/"
+    "localDocsLandingPath": "/docs/tutorials/getting-started"
   },
   "future": {
     "v4": {

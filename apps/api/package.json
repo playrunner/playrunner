@@ -22,6 +22,7 @@
     "@google-cloud/run": "^3.2.1",
     "@google-cloud/storage": "^7.19.0",
     "@playrunner/environment": "file:../../packages/environment",
+    "@playrunner/gcp": "file:../../packages/gcp",
     "@playrunner/github": "file:../../packages/github",
     "@playrunner/integration-registry": "file:../../packages/integration-registry",
     "@playrunner/javascript": "file:../../packages/javascript",

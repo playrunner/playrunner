@@ -1,9 +1,6 @@
 import { LOCAL_PUBSUB_PROJECT_ID, ORCHESTRATOR_URL } from '../config';
 import { executionEvents } from '../services/execution-events';
-import {
-  ensureGcpPubSubEventStream,
-  stopGcpPubSubEventStream,
-} from '../services/gcp-pubsub-events';
+import type { GcpPubSubEventStreamManager } from '@playrunner/gcp/api-runtime';
 import type {
   LogTransport,
   WorkflowExecutionBackend,
@@ -13,7 +10,10 @@ import type {
 import { ensureLocalOrchestratorRunning } from './orchestrator-runner';
 
 export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
-  constructor(private readonly logTransport: LogTransport) {}
+  constructor(
+    private readonly logTransport: LogTransport,
+    private readonly pubSubEventStreamManager: GcpPubSubEventStreamManager,
+  ) {}
 
   supports(cloudProvider: string): boolean {
     return cloudProvider === 'LOCAL_RUNNER';
@@ -60,11 +60,12 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       | undefined;
 
     try {
-      eventTransport = await ensureGcpPubSubEventStream({
-        creds: { accessToken: '' },
-        executionId: testId,
-        projectId: LOCAL_PUBSUB_PROJECT_ID,
-      });
+      eventTransport =
+        await this.pubSubEventStreamManager.ensureGcpPubSubEventStream({
+          creds: { accessToken: '' },
+          executionId: testId,
+          projectId: LOCAL_PUBSUB_PROJECT_ID,
+        });
       body.eventTransport = eventTransport;
     } catch (err: any) {
       return {
@@ -86,7 +87,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       if (!response.ok) {
         const details = await response.text().catch(() => '');
         if (eventTransport) {
-          stopGcpPubSubEventStream(testId);
+          this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
         }
         try {
           await this.logTransport.publish(
@@ -120,7 +121,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     } catch (err: any) {
       if (eventTransport) {
-        stopGcpPubSubEventStream(testId);
+        this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
       }
       try {
         await this.logTransport.publish(

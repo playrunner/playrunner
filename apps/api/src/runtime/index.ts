@@ -12,20 +12,20 @@ import type {
   WorkflowExecutionResult,
 } from './contracts';
 import { DatabaseLogTransport } from './log-transport';
-import { GcpOutputProxyBackend } from './gcp-output-proxy';
-import { GcpOutputSyncBackend } from './gcp-output-sync';
-import { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
+import {
+  createGcpApiRuntimeContribution,
+  createGcpPubSubEventStreamManager,
+} from '@playrunner/gcp/api-runtime';
 import { NoopOutputProxyBackend } from './output-proxy';
 import { NoopOutputSyncBackend } from './output-sync';
 import { LocalDockerRunnerProvisioner } from './runner-provisioning';
 import { LocalWorkflowExecutionBackend } from './workflow-execution';
+import { executionEvents } from '../services/execution-events';
+import { state } from '../state';
 
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
-    private readonly providers = [
-      { id: 'LOCAL_RUNNER', label: 'Local Dev' },
-      { id: 'GCP', label: 'GCP Runner' },
-    ],
+    private readonly providers = [{ id: 'LOCAL_RUNNER', label: 'Local Dev' }],
   ) {}
 
   list() {
@@ -101,18 +101,13 @@ class OutputProxyRegistry {
 }
 
 const logTransport = new DatabaseLogTransport();
+const gcpPubSubEventStreamManager =
+  createGcpPubSubEventStreamManager(executionEvents);
 const cloudProviders = new StaticCloudProviderRegistry();
-const outputProxy = new OutputProxyRegistry([
-  new NoopOutputProxyBackend(),
-  new GcpOutputProxyBackend(),
-]);
-const outputSync = new OutputSyncRegistry([
-  new NoopOutputSyncBackend(),
-  new GcpOutputSyncBackend(),
-]);
+const outputProxy = new OutputProxyRegistry([new NoopOutputProxyBackend()]);
+const outputSync = new OutputSyncRegistry([new NoopOutputSyncBackend()]);
 const workflowExecution = new WorkflowExecutionRegistry([
-  new LocalWorkflowExecutionBackend(logTransport),
-  new GcpWorkflowExecutionBackend(logTransport),
+  new LocalWorkflowExecutionBackend(logTransport, gcpPubSubEventStreamManager),
 ]);
 
 function isPremiumEnabled(): boolean {
@@ -174,6 +169,15 @@ async function loadPremiumContribution(): Promise<void> {
   });
   applyContribution(contribution);
 }
+
+applyContribution(
+  createGcpApiRuntimeContribution({
+    executionEvents,
+    logTransport,
+    pubSubEventStreamManager: gcpPubSubEventStreamManager,
+    state,
+  }),
+);
 
 export const apiRuntime = {
   cloudProviders,

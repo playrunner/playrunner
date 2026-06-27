@@ -38,12 +38,6 @@ export const REGISTRY: Record<string, Integration> = {
     'Connect to Microsoft Azure',
     '/images/integrations/azure.svg',
   ),
-  gcp: createPremiumIntegrationStub(
-    'gcp',
-    'Google Cloud',
-    'Connect to Google Cloud Platform',
-    '/images/integrations/gcp.svg',
-  ),
   ...Object.fromEntries(
     editionIntegrations.map((integration) => [integration.id, integration]),
   ),

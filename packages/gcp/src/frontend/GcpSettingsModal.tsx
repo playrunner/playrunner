@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { Copy, Check, ChevronRight, Loader2 } from 'lucide-react';
-import { Input } from '../../components/ui/Input';
-import { auth } from '../../lib/auth';
-import { DbAPI } from '../../lib/db';
-import { Modal } from '../../components/ui/Modal';
-import { Select } from '../../components/ui/Select';
+import { useIntegrationHost } from '@playrunner/integration-sdk';
 
 interface GcpSettingsModalProps {
   isOpen: boolean;
@@ -50,6 +46,10 @@ export function GcpSettingsModal({
   onClose,
   cloudId,
 }: GcpSettingsModalProps) {
+  const { auth, store, ui } = useIntegrationHost();
+  const Input = ui.Input;
+  const Modal = ui.Modal;
+  const Select = ui.Select;
   const [gcpClientId, setGcpClientId] = useState('');
   const [gcpClientSecret, setGcpClientSecret] = useState('');
   const [cloudRunLocation, setCloudRunLocation] = useState('');
@@ -88,7 +88,7 @@ export function GcpSettingsModal({
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  const resetCredentialState = () => {
+  const resetCredentialState = React.useCallback(() => {
     credentialRef.current = {
       orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
     };
@@ -103,9 +103,9 @@ export function GcpSettingsModal({
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
-  };
+  }, []);
 
-  const loadCredentialState = (data: any) => {
+  const loadCredentialState = React.useCallback((data: any) => {
     const next: GcpCredentialData = {
       accessToken:
         typeof data?.accessToken === 'string' ? data.accessToken : undefined,
@@ -163,122 +163,134 @@ export function GcpSettingsModal({
     setPlaywrightTemplateEdited(Boolean(storedPlay));
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
-  };
+  }, []);
 
-  const persistCredentialPatch = async (patch: Partial<GcpCredentialData>) => {
-    if (!auth.currentUser) {
-      return credentialRef.current;
-    }
+  const persistCredentialPatch = React.useCallback(
+    async (patch: Partial<GcpCredentialData>) => {
+      if (!auth.currentUser) {
+        return credentialRef.current;
+      }
 
-    const next: GcpCredentialData = {
-      ...credentialRef.current,
-      ...patch,
-      orchestratorServiceName:
-        patch.orchestratorServiceName?.trim() ||
-        credentialRef.current.orchestratorServiceName ||
-        DEFAULT_ORCHESTRATOR_SERVICE_NAME,
-      updatedAt: new Date().toISOString(),
-    };
-
-    credentialRef.current = next;
-    await DbAPI.saveCloudCredential(auth.currentUser.uid, 'gcp', next);
-    return next;
-  };
-
-  const fetchGcpProjects = async (cred: {
-    accessToken: string;
-    refreshToken?: string;
-    clientId?: string;
-    clientSecret?: string;
-    expiresAt?: number;
-  }) => {
-    setIsLoadingProjects(true);
-    try {
-      let currentToken = cred.accessToken;
-      let refreshed = false;
-
-      const performRefresh = async () => {
-        if (
-          !cred.refreshToken ||
-          !cred.clientId ||
-          !cred.clientSecret ||
-          !auth.currentUser
-        )
-          return false;
-
-        try {
-          const userToken = await auth.currentUser.getIdToken();
-          const refreshRes = await fetch('/api/gcp/refresh', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${userToken}`,
-            },
-            body: JSON.stringify({
-              refresh_token: cred.refreshToken,
-              client_id: cred.clientId,
-              client_secret: cred.clientSecret,
-            }),
-          });
-
-          if (refreshRes.ok) {
-            const refreshData = await refreshRes.json();
-            if (refreshData.access_token) {
-              const next = await persistCredentialPatch({
-                accessToken: refreshData.access_token,
-                expiresAt: refreshData.expires_in
-                  ? Date.now() + refreshData.expires_in * 1000
-                  : undefined,
-              });
-
-              currentToken = next.accessToken || refreshData.access_token;
-              return true;
-            }
-          }
-        } catch (e) {
-          console.error('Failed to refresh token', e);
-        }
-        return false;
+      const next: GcpCredentialData = {
+        ...credentialRef.current,
+        ...patch,
+        orchestratorServiceName:
+          patch.orchestratorServiceName?.trim() ||
+          credentialRef.current.orchestratorServiceName ||
+          DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+        updatedAt: new Date().toISOString(),
       };
 
-      const isExpired = cred.expiresAt
-        ? Date.now() > cred.expiresAt - 5 * 60 * 1000
-        : false;
-      if (isExpired) {
-        refreshed = await performRefresh();
+      credentialRef.current = next;
+      if (!store.saveCloudCredential) {
+        throw new Error(
+          'Integration host store is missing saveCloudCredential.',
+        );
       }
 
-      let res = await fetch(
-        'https://cloudresourcemanager.googleapis.com/v1/projects',
-        {
-          headers: { Authorization: `Bearer ${currentToken}` },
-        },
-      );
+      await store.saveCloudCredential(auth.currentUser.uid, 'gcp', next);
+      return next;
+    },
+    [auth.currentUser, store],
+  );
 
-      if (res.status === 401 && !refreshed) {
-        const success = await performRefresh();
-        if (success) {
-          res = await fetch(
-            'https://cloudresourcemanager.googleapis.com/v1/projects',
-            {
-              headers: { Authorization: `Bearer ${currentToken}` },
-            },
-          );
+  const fetchGcpProjects = React.useCallback(
+    async (cred: {
+      accessToken: string;
+      refreshToken?: string;
+      clientId?: string;
+      clientSecret?: string;
+      expiresAt?: number;
+    }) => {
+      setIsLoadingProjects(true);
+      try {
+        let currentToken = cred.accessToken;
+        let refreshed = false;
+
+        const performRefresh = async () => {
+          if (
+            !cred.refreshToken ||
+            !cred.clientId ||
+            !cred.clientSecret ||
+            !auth.currentUser
+          )
+            return false;
+
+          try {
+            const userToken = await auth.currentUser.getIdToken();
+            const refreshRes = await fetch('/api/gcp/refresh', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${userToken}`,
+              },
+              body: JSON.stringify({
+                refresh_token: cred.refreshToken,
+                client_id: cred.clientId,
+                client_secret: cred.clientSecret,
+              }),
+            });
+
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json();
+              if (refreshData.access_token) {
+                const next = await persistCredentialPatch({
+                  accessToken: refreshData.access_token,
+                  expiresAt: refreshData.expires_in
+                    ? Date.now() + refreshData.expires_in * 1000
+                    : undefined,
+                });
+
+                currentToken = next.accessToken || refreshData.access_token;
+                return true;
+              }
+            }
+          } catch (e) {
+            console.error('Failed to refresh token', e);
+          }
+          return false;
+        };
+
+        const isExpired = cred.expiresAt
+          ? Date.now() > cred.expiresAt - 5 * 60 * 1000
+          : false;
+        if (isExpired) {
+          refreshed = await performRefresh();
         }
-      }
 
-      const data = await res.json();
-      if (res.ok && data.projects) {
-        setProjects(data.projects);
-      } else {
-        console.error('Failed to fetch projects or no projects found:', data);
+        let res = await fetch(
+          'https://cloudresourcemanager.googleapis.com/v1/projects',
+          {
+            headers: { Authorization: `Bearer ${currentToken}` },
+          },
+        );
+
+        if (res.status === 401 && !refreshed) {
+          const success = await performRefresh();
+          if (success) {
+            res = await fetch(
+              'https://cloudresourcemanager.googleapis.com/v1/projects',
+              {
+                headers: { Authorization: `Bearer ${currentToken}` },
+              },
+            );
+          }
+        }
+
+        const data = await res.json();
+        if (res.ok && data.projects) {
+          setProjects(data.projects);
+        } else {
+          console.error('Failed to fetch projects or no projects found:', data);
+        }
+      } catch (err) {
+        console.error('Error fetching projects', err);
+      } finally {
+        setIsLoadingProjects(false);
       }
-    } catch (err) {
-      console.error('Error fetching projects', err);
-    } finally {
-      setIsLoadingProjects(false);
-    }
-  };
+    },
+    [auth.currentUser, persistCredentialPatch],
+  );
 
   React.useEffect(() => {
     let isMounted = true;
@@ -288,8 +300,8 @@ export function GcpSettingsModal({
 
       const fetchCredentials = async () => {
         try {
-          if (auth.currentUser) {
-            const data = await DbAPI.getCloudCredential(
+          if (auth.currentUser && store.getCloudCredential) {
+            const data = await store.getCloudCredential(
               auth.currentUser.uid,
               'gcp',
             );
@@ -325,7 +337,15 @@ export function GcpSettingsModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, cloudId]);
+  }, [
+    auth.currentUser,
+    cloudId,
+    fetchGcpProjects,
+    isOpen,
+    loadCredentialState,
+    resetCredentialState,
+    store,
+  ]);
 
   const handleAuthenticateGcp = async () => {
     try {
@@ -466,7 +486,13 @@ export function GcpSettingsModal({
   const handleDisconnectGcp = async () => {
     if (!auth.currentUser) return;
     try {
-      await DbAPI.deleteCloudCredential(auth.currentUser.uid, 'gcp');
+      if (!store.deleteCloudCredential) {
+        throw new Error(
+          'Integration host store is missing deleteCloudCredential.',
+        );
+      }
+
+      await store.deleteCloudCredential(auth.currentUser.uid, 'gcp');
       setAuthSuccess(false);
       resetCredentialState();
       localStorage.removeItem('primaryCloud');

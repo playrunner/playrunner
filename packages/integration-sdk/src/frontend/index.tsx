@@ -67,6 +67,16 @@ export interface IntegrationStore {
     data: any,
   ) => Promise<void>;
   deleteIntegration: (userId: string, integrationId: string) => Promise<void>;
+  getCloudCredential?: (userId: string, providerId: string) => Promise<any>;
+  saveCloudCredential?: (
+    userId: string,
+    providerId: string,
+    data: any,
+  ) => Promise<void>;
+  deleteCloudCredential?: (
+    userId: string,
+    providerId: string,
+  ) => Promise<void>;
   getEnvironments?: (userId: string) => Promise<any[]>;
   saveEnvironment?: (
     userId: string,

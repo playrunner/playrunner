@@ -2,11 +2,13 @@ import {
   getStorage,
   refreshGcpAccessTokenIfNeeded,
   uploadDirectory,
-} from '../services/gcs';
-import { state } from '../state';
+} from './gcs';
+import type { GcpRuntimeState } from './contracts';
 import type { OutputSyncBackend, OutputSyncRequest } from './contracts';
 
 export class GcpOutputSyncBackend implements OutputSyncBackend {
+  constructor(private readonly state: GcpRuntimeState) {}
+
   async sync(request: OutputSyncRequest): Promise<void> {
     const { bucketName, cloudProvider, nodeId, outputsDir, testId } = request;
 
@@ -21,8 +23,8 @@ export class GcpOutputSyncBackend implements OutputSyncBackend {
       return;
     }
 
-    const gcp = state.gcpCredentials[testId];
-    if (!gcp?.accessToken) {
+    const gcp = this.state.gcpCredentials[testId];
+    if (!gcp?.accessToken || !gcp.selectedProject) {
       throw new Error('GCP credentials expired or missing for this test run.');
     }
 

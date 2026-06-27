@@ -1,17 +1,14 @@
 import type {
+  GcpExecutionEvents,
+  GcpRuntimeState,
   LogTransport,
   WorkflowExecutionBackend,
   WorkflowExecutionRequest,
   WorkflowExecutionResult,
 } from './contracts';
-import {
-  ensureGcpPubSubEventStream,
-  stopGcpPubSubEventStream,
-} from '../services/gcp-pubsub-events';
-import { ensureOrchestratorService } from '../services/cloudrun';
-import { executionEvents } from '../services/execution-events';
-import { ensureBucket, refreshGcpAccessTokenIfNeeded } from '../services/gcs';
-import { state } from '../state';
+import { ensureOrchestratorService } from './cloudrun';
+import { ensureBucket, refreshGcpAccessTokenIfNeeded } from './gcs';
+import type { GcpPubSubEventStreamManager } from './gcp-pubsub-events';
 
 const ORCHESTRATOR_HEALTH_MAX_ATTEMPTS = 8;
 const ORCHESTRATOR_INVOKE_MAX_ATTEMPTS = 3;
@@ -186,7 +183,27 @@ async function invokeOrchestratorService(
 }
 
 export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
-  constructor(private readonly logTransport: LogTransport) {}
+  private readonly executionEvents: GcpExecutionEvents;
+  private readonly logTransport: LogTransport;
+  private readonly pubSubEventStreamManager: GcpPubSubEventStreamManager;
+  private readonly state: GcpRuntimeState;
+
+  constructor({
+    executionEvents,
+    logTransport,
+    pubSubEventStreamManager,
+    state,
+  }: {
+    executionEvents: GcpExecutionEvents;
+    logTransport: LogTransport;
+    pubSubEventStreamManager: GcpPubSubEventStreamManager;
+    state: GcpRuntimeState;
+  }) {
+    this.executionEvents = executionEvents;
+    this.logTransport = logTransport;
+    this.pubSubEventStreamManager = pubSubEventStreamManager;
+    this.state = state;
+  }
 
   supports(cloudProvider: string): boolean {
     return cloudProvider === 'GCP';
@@ -238,7 +255,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
     const editorApiUrl = `${req.protocol}://${req.get('host')}`;
 
-    state.gcpCredentials[testId] = {
+    this.state.gcpCredentials[testId] = {
       accessToken: gcp.accessToken,
       refreshToken: gcp.refreshToken,
       clientId: gcp.clientId,
@@ -247,7 +264,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       selectedProject: gcp.selectedProject,
     };
 
-    const { executionToken } = await executionEvents.createExecution({
+    const { executionToken } = await this.executionEvents.createExecution({
       cloudProvider: 'GCP',
       executionId: testId,
       userId,
@@ -289,16 +306,17 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       refreshedToken =
         (await refreshGcpAccessTokenIfNeeded(gcp)) || gcp.accessToken;
       if (refreshedToken) {
-        state.gcpCredentials[testId].accessToken = refreshedToken;
+        this.state.gcpCredentials[testId].accessToken = refreshedToken;
         body.settings.gcp.accessToken = refreshedToken;
       }
 
       gcpSetupStep = 'configure GCP Pub/Sub workflow event transport';
-      eventTransport = await ensureGcpPubSubEventStream({
-        creds: state.gcpCredentials[testId],
-        executionId: testId,
-        projectId: gcp.selectedProject,
-      });
+      eventTransport =
+        await this.pubSubEventStreamManager.ensureGcpPubSubEventStream({
+          creds: this.state.gcpCredentials[testId],
+          executionId: testId,
+          projectId: gcp.selectedProject,
+        });
       body.eventTransport = eventTransport;
 
       if (workflowId) {
@@ -309,7 +327,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
           gcp.selectedProject,
         );
         if (!result) {
-          stopGcpPubSubEventStream(testId);
+          this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
           try {
             await this.logTransport.publish(
               JSON.stringify({
@@ -333,11 +351,11 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         }
 
         bucketName = result.bucketName;
-        state.testBucketNames[testId] = bucketName;
+        this.state.testBucketNames[testId] = bucketName;
         body.bucketName = bucketName;
       }
     } catch (err: any) {
-      stopGcpPubSubEventStream(testId);
+      this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
       try {
         await this.logTransport.publish(
           JSON.stringify({
@@ -420,7 +438,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
-      stopGcpPubSubEventStream(testId);
+      this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
 
       try {
         await this.logTransport.publish(

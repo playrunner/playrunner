@@ -2,6 +2,12 @@ import { Router } from 'express';
 
 export const gcpRouter = Router();
 
+export const gcpApiContribution = {
+  id: 'gcp',
+  mountPath: '/api/gcp',
+  router: gcpRouter,
+};
+
 gcpRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
 

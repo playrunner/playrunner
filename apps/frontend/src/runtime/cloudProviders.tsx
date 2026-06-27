@@ -35,14 +35,6 @@ const baseProviders: CloudProvider[] = [
   {
     disabled: true,
     disabledReason: disabledCloudRunnerMessage,
-    icon: '/images/integrations/gcp.svg',
-    id: 'GCP',
-    isPremiumFeature: true,
-    label: 'GCP Runner',
-  },
-  {
-    disabled: true,
-    disabledReason: disabledCloudRunnerMessage,
     icon: '/images/integrations/azure.svg',
     id: 'AZURE',
     isPremiumFeature: true,

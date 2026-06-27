@@ -1,5 +1,5 @@
-import { executionEvents } from './execution-events';
 import { type GcpTokenRefresh, refreshGcpAccessTokenIfNeeded } from './gcs';
+import type { GcpExecutionEvents } from './contracts';
 
 type PubSubEventStream = {
   creds: GcpTokenRefresh;
@@ -21,6 +21,22 @@ type PubSubMessage = {
 
 type PubSubPullResponse = {
   receivedMessages?: PubSubMessage[];
+};
+
+export type GcpPubSubEventTransport = {
+  projectId: string;
+  subscriptionName: string;
+  topicName: string;
+  type: 'gcp_pubsub';
+};
+
+export type GcpPubSubEventStreamManager = {
+  ensureGcpPubSubEventStream(params: {
+    creds: GcpTokenRefresh;
+    executionId: string;
+    projectId: string;
+  }): Promise<GcpPubSubEventTransport>;
+  stopGcpPubSubEventStream(executionId: string): void;
 };
 
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
@@ -301,6 +317,7 @@ function decodeMessagePayload(message: PubSubMessage['message']) {
 }
 
 async function processMessage(params: {
+  executionEvents: GcpExecutionEvents;
   expectedExecutionId: string;
   message: PubSubMessage;
 }) {
@@ -329,7 +346,7 @@ async function processMessage(params: {
     throw new Error('Pub/Sub event is missing executionAuthToken.');
   }
 
-  const execution = await executionEvents.verifyExecutionToken(
+  const execution = await params.executionEvents.verifyExecutionToken(
     executionId,
     executionAuthToken,
   );
@@ -338,12 +355,13 @@ async function processMessage(params: {
     throw new Error(`Pub/Sub event token rejected for ${executionId}.`);
   }
 
-  await executionEvents.appendEvent(execution.id, event);
+  await params.executionEvents.appendEvent(execution.id, event);
   return { eventType: event.type };
 }
 
 function startSubscriber(params: {
   creds: GcpTokenRefresh;
+  executionEvents: GcpExecutionEvents;
   executionId: string;
   projectId: string;
   subscriptionName: string;
@@ -385,6 +403,7 @@ function startSubscriber(params: {
 
           try {
             const { eventType } = await processMessage({
+              executionEvents: params.executionEvents,
               expectedExecutionId: params.executionId,
               message,
             });
@@ -434,11 +453,14 @@ function startSubscriber(params: {
   return stream;
 }
 
-export async function ensureGcpPubSubEventStream(params: {
-  creds: GcpTokenRefresh;
-  executionId: string;
-  projectId: string;
-}) {
+async function ensureGcpPubSubEventStream(
+  params: {
+    creds: GcpTokenRefresh;
+    executionId: string;
+    projectId: string;
+  },
+  executionEvents: GcpExecutionEvents,
+): Promise<GcpPubSubEventTransport> {
   const topicName = getConfiguredTopicName();
   const subscriptionName = getSubscriptionName(params.executionId);
 
@@ -456,6 +478,7 @@ export async function ensureGcpPubSubEventStream(params: {
   });
   startSubscriber({
     creds: params.creds,
+    executionEvents,
     executionId: params.executionId,
     projectId: params.projectId,
     subscriptionName,
@@ -466,11 +489,11 @@ export async function ensureGcpPubSubEventStream(params: {
     projectId: params.projectId,
     subscriptionName,
     topicName,
-    type: 'gcp_pubsub' as const,
+    type: 'gcp_pubsub',
   };
 }
 
-export function stopGcpPubSubEventStream(executionId: string) {
+function stopGcpPubSubEventStream(executionId: string) {
   const stream = activeStreams.get(executionId);
   if (!stream) {
     return;
@@ -482,4 +505,17 @@ export function stopGcpPubSubEventStream(executionId: string) {
     projectId: stream.projectId,
     subscriptionName: stream.subscriptionName,
   });
+}
+
+export function createGcpPubSubEventStreamManager(
+  executionEvents: GcpExecutionEvents,
+): GcpPubSubEventStreamManager {
+  return {
+    ensureGcpPubSubEventStream: (params: {
+      creds: GcpTokenRefresh;
+      executionId: string;
+      projectId: string;
+    }) => ensureGcpPubSubEventStream(params, executionEvents),
+    stopGcpPubSubEventStream,
+  };
 }

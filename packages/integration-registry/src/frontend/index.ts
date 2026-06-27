@@ -3,6 +3,7 @@ import { asanaIntegration } from '../../../asana/src/frontend';
 import { emailIntegration } from '../../../email/src/frontend';
 import { environmentIntegration } from '../../../environment/src/frontend';
 import { geminiIntegration } from '../../../gemini/src/frontend';
+import { gcpIntegration } from '../../../gcp/src/frontend';
 import { githubIntegration } from '../../../github/src/frontend';
 import { googlechatIntegration } from '../../../googlechat/src/frontend';
 import { javascriptIntegration } from '../../../javascript/src/frontend';
@@ -19,6 +20,7 @@ import { whatsappIntegration } from '../../../whatsapp/src/frontend';
 
 export const packageIntegrations: Integration[] = [
   jiraIntegration,
+  gcpIntegration,
   githubIntegration,
   playwrightIntegration,
   javascriptIntegration,

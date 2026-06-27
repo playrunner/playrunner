@@ -19,8 +19,9 @@ Service instead of starting the local Docker Orchestrator.
 ### A. Keep Local Docker Provisioning Out of GCP Runs
 
 `apps/api/src/runtime/runner-provisioning.ts` only starts the local Docker
-Orchestrator for `LOCAL_RUNNER`. GCP workflow execution goes through
-`apps/api/src/runtime/gcp-workflow-execution.ts` instead.
+Orchestrator for `LOCAL_RUNNER`. GCP workflow execution goes through the
+`@playrunner/gcp` API runtime contribution in
+`packages/gcp/src/api-runtime/gcp-workflow-execution.ts` instead.
 
 ### B. Trigger the Orchestrator Service in `workflows.ts`
 

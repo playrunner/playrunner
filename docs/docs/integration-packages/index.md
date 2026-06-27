@@ -43,6 +43,14 @@ assets as a deployable unit.
     installCommand="npm install @playrunner/github"
   />
   <IntegrationDirectoryItem
+    name="GCP"
+    packageName="@playrunner/gcp"
+    description="Connect Google Cloud and register GCP runner runtime backends."
+    icon="gcp"
+    href="/docs/integration-packages/gcp"
+    installCommand="npm install @playrunner/gcp"
+  />
+  <IntegrationDirectoryItem
     name="Environment"
     packageName="@playrunner/environment"
     description="Manage reusable environment variables for workflow nodes."
@@ -68,7 +76,7 @@ assets as a deployable unit.
   />
 </IntegrationDirectory>
 
-The current integrations are `@playrunner/environment` in `packages/environment`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
+The current integrations are `@playrunner/environment` in `packages/environment`, `@playrunner/gcp` in `packages/gcp`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
 ## Install from npm
 
@@ -77,6 +85,7 @@ These packages will be published publicly on npm. The links below are placeholde
 | Integration | Install command | npm |
 | --- | --- | --- |
 | Environment | `npm install @playrunner/environment` | [@playrunner/environment](https://www.npmjs.com/package/@playrunner/environment) |
+| GCP | `npm install @playrunner/gcp` | [@playrunner/gcp](https://www.npmjs.com/package/@playrunner/gcp) |
 | GitHub | `npm install @playrunner/github` | [@playrunner/github](https://www.npmjs.com/package/@playrunner/github) |
 | JavaScript | `npm install @playrunner/javascript` | [@playrunner/javascript](https://www.npmjs.com/package/@playrunner/javascript) |
 | Jira | `npm install @playrunner/jira` | [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira) |
@@ -104,6 +113,13 @@ packages/
 │   ├── src/frontend/index.tsx
 │   ├── src/frontend/GithubSettingsModal.tsx
 │   └── src/api/index.ts
+├── gcp/
+│   ├── package.json
+│   ├── assets/gcp.svg
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/GcpSettingsModal.tsx
+│   ├── src/api/index.ts
+│   └── src/api-runtime/index.ts
 ├── jira/
 │   ├── package.json
 │   ├── assets/jira.svg
@@ -253,6 +269,7 @@ For manual package work, install the package folders before starting the apps:
 ```bash
 npm install --prefix packages/integration-sdk
 npm install --prefix packages/environment
+npm install --prefix packages/gcp
 npm install --prefix packages/github
 npm install --prefix packages/javascript
 npm install --prefix packages/jira
@@ -287,8 +304,8 @@ npm install --prefix apps/api
 6. Use `useIntegrationHost().store` for integration credentials and account-level settings.
 7. Keep node-specific configuration in workflow node `config`.
 8. Add the package as a `file:` dependency in both consuming apps that need it while developing locally.
-9. Register the frontend integration in `apps/frontend/src/integrations/registry.ts`.
-10. Mount the backend router in `apps/api/src/index.ts`.
+9. Register the frontend integration in `packages/integration-registry/src/frontend/index.ts`.
+10. Register the backend contribution in `packages/integration-registry/src/api/index.ts`.
 
 ## Publishing to npm
 

@@ -137,7 +137,7 @@ export async function ensureOrchestratorService(
     ),
   );
   const servicesClient = new ServicesClient({
-    authClient: oauth2Client,
+    authClient: oauth2Client as any,
     projectId,
   });
   const formattedServiceName = `projects/${projectId}/locations/${cloudRunLocation}/services/${orchestratorServiceName}`;

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 sidebar_label: Playwright
 title: Playwright Integration
 description: Trigger Playwright test runs from Playrunner workflows.
