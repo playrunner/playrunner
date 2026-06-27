@@ -23,8 +23,6 @@ type PubSubPullResponse = {
   receivedMessages?: PubSubMessage[];
 };
 
-export type GcpEventTransportMode = 'callback' | 'pubsub';
-
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 const DEFAULT_TOPIC_NAME = 'playrunner-workflow-events';
 const SUBSCRIPTION_ACK_DEADLINE_SECONDS = 30;
@@ -65,6 +63,20 @@ function getConfiguredTopicName(): string {
   );
 }
 
+function getPubSubApiBaseUrl(): string {
+  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
+  if (!emulatorHost) {
+    return PUBSUB_API_BASE_URL;
+  }
+
+  const normalizedHost = emulatorHost.replace(/\/+$/, '');
+  return `${normalizedHost.startsWith('http') ? normalizedHost : `http://${normalizedHost}`}/v1`;
+}
+
+function isUsingPubSubEmulator(): boolean {
+  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+}
+
 function getSubscriptionName(executionId: string): string {
   return sanitizePubSubId(
     `playrunner-api-events-${executionId}`,
@@ -85,9 +97,16 @@ function getErrorMessage(error: unknown): string {
 }
 
 async function getFreshAccessToken(creds: GcpTokenRefresh): Promise<string> {
+  if (isUsingPubSubEmulator()) {
+    return '';
+  }
+
   const refreshed = await refreshGcpAccessTokenIfNeeded(creds);
   if (refreshed) {
     creds.accessToken = refreshed;
+  }
+  if (!creds.accessToken) {
+    throw new Error('Pub/Sub access token is required.');
   }
   return creds.accessToken;
 }
@@ -98,11 +117,11 @@ async function pubsubRequest<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const accessToken = await getFreshAccessToken(creds);
-  const response = await fetch(`${PUBSUB_API_BASE_URL}/${resourcePath}`, {
+  const response = await fetch(`${getPubSubApiBaseUrl()}/${resourcePath}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(init.headers || {}),
     },
   });
@@ -285,6 +304,11 @@ async function processMessage(params: {
   expectedExecutionId: string;
   message: PubSubMessage;
 }) {
+  const messageKind = params.message.message.attributes?.messageKind;
+  if (messageKind === 'runner_control' || messageKind === 'runner_status') {
+    return { eventType: undefined };
+  }
+
   const { event, executionAuthToken } = decodeMessagePayload(
     params.message.message,
   );
@@ -408,17 +432,6 @@ function startSubscriber(params: {
 
   void loop();
   return stream;
-}
-
-export function resolveGcpEventTransportMode(
-  value?: unknown,
-): GcpEventTransportMode {
-  const configured =
-    typeof value === 'string' && value.trim()
-      ? value
-      : process.env.GCP_EVENT_TRANSPORT;
-
-  return configured === 'callback' ? 'callback' : 'pubsub';
 }
 
 export async function ensureGcpPubSubEventStream(params: {

@@ -20,6 +20,7 @@ title: Services & Ports
 | Setup Installer        | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
 | Orchestrator           | `3002`            | `localhost:3002`                 | Docker container, port-mapped `3002:8080`                    |
 | PostgreSQL             | `5432` by default | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
+| Pub/Sub Emulator       | `8085` by default | `localhost:PUBSUB_EMULATOR_PORT` | Docker container started by `start-local.sh`                 |
 
 ---
 
@@ -84,7 +85,6 @@ This service is not part of Docker.
 | `POST` | `/api/runners/start`                  | Spawns the Orchestrator Docker container                                              |
 | `POST` | `/api/workflows/start`                | Forwards a workflow execution request to the Orchestrator                             |
 | `POST` | `/api/workflows/stop-node`            | Sends a stop signal for a running node to the Orchestrator                            |
-| `POST` | `/api/executions/:executionId/events` | Internal runner callback used to persist logs, node states, and output events         |
 | `GET`  | `/api/executions/:executionId/stream` | Authenticated SSE endpoint for a single workflow execution                            |
 | `GET`  | `/api/presence/stream`                | Lightweight SSE endpoint that marks an editor tab as connected for heartbeat checks   |
 | `POST` | `/api/outputs/:testId/:nodeId`        | Receives compressed test output archives from the Playwright runner and extracts them |
@@ -150,9 +150,9 @@ The Orchestrator is a standby runner. Once started, it stays up until the contai
 
 ## Event Transport
 
-Local Docker workflow events use direct API callbacks. The API writes each log line, node state change, and output event to PostgreSQL, and the editor subscribes to `GET /api/executions/:executionId/stream` for the specific run it started.
+Local Docker and GCP workflow events both use messaging transport. Local Docker runs publish to the Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub.
 
-GCP workflow events use GCP Pub/Sub by default. The API creates an execution-scoped pull subscription, persists each Pub/Sub message to PostgreSQL, acknowledges the message only after the DB write succeeds, and then serves the same SSE stream to the editor.
+For each execution, the API creates an execution-scoped pull subscription, persists each Pub/Sub message to PostgreSQL, acknowledges the message only after the DB write succeeds, and then serves the same SSE stream to the editor.
 
 ---
 
@@ -168,7 +168,7 @@ The runner receives its entire configuration through the `PAYLOAD` environment v
 1. Clones the target GitHub repository (if configured)
 2. Uses the runtime selected on the Playwright node (`TypeScript` or `Python`)
 3. Runs `playwright test` (TypeScript) or `pytest` (Python)
-4. Tarballs `playwright-report/` and `test-results/` and POSTs them to the API
-5. Publishes step-by-step logs through the API execution event endpoints
+4. Tarballs `playwright-report/` and `test-results/` and uploads them to the configured output destination
+5. Publishes step-by-step logs, node states, and output events through Pub/Sub
 
 The image version used is controlled by the `playwrightVersion` field on each Playwright node's config in the editor. The available values come from `config/playwright-runner-versions.json`.

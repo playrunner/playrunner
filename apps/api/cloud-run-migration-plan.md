@@ -35,7 +35,7 @@ The Orchestrator needs to adapt from being a long-running HTTP server to a run-t
 
 1. **Service Mode:** Run the Orchestrator as a Cloud Run Service with an `/execute` endpoint.
 2. **Run DAG:** Execute the workflow payload received from the API.
-3. **Respond Immediately:** Return once execution is accepted; stream progress through the API event endpoints.
+3. **Respond Immediately:** Return once execution is accepted; stream progress through the workflow messaging transport.
 
 ### B. Spawn Playwright Cloud Run Jobs
 

@@ -7,6 +7,7 @@ import fs from 'fs';
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
 type RunnerEventContext = {
+  cloudProvider: string;
   editorApiUrl: string;
   executionToken: string;
   eventTransport?: {
@@ -19,8 +20,22 @@ type RunnerEventContext = {
   testId: string;
 };
 
+type RunnerControlConfig = {
+  controlSubscriptionName: string;
+  projectId: string;
+  topicName: string;
+  type: 'gcp_pubsub';
+};
+
+type PreparedWorkingDirectory = {
+  testLanguage: string;
+  workingDir: string;
+};
+
 let runnerEventContext: RunnerEventContext | null = null;
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
+const CONTROL_POLL_INTERVAL_MS = 1000;
+const CONTROL_SIGNAL_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
 const BUNDLED_NODE_PACKAGES = new Set([
   '@playwright/test',
@@ -60,15 +75,40 @@ function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
+function getPubSubApiBaseUrl(): string {
+  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
+  if (!emulatorHost) {
+    return PUBSUB_API_BASE_URL;
+  }
+
+  const normalizedHost = emulatorHost.replace(/\/+$/, '');
+  return `${normalizedHost.startsWith('http') ? normalizedHost : `http://${normalizedHost}`}/v1`;
+}
+
+function isUsingPubSubEmulator(): boolean {
+  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+}
+
 async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
+  const eventTransport = runnerEventContext?.eventTransport;
+  if (!eventTransport) {
+    throw new Error('Runner event transport is required.');
+  }
+
   if (
-    !runnerEventContext?.eventTransport?.projectId ||
-    !runnerEventContext.eventTransport.topicName ||
-    !runnerEventContext.gcpAccessToken ||
-    !runnerEventContext.executionToken ||
-    !runnerEventContext.testId
+    eventTransport.type !== 'gcp_pubsub' ||
+    !eventTransport.projectId ||
+    !eventTransport.topicName
   ) {
-    return false;
+    throw new Error('Pub/Sub event transport is missing project or topic.');
+  }
+
+  if (
+    !runnerEventContext?.executionToken ||
+    !runnerEventContext.testId ||
+    (!runnerEventContext.gcpAccessToken && !isUsingPubSubEmulator())
+  ) {
+    throw new Error('Pub/Sub event transport context is incomplete.');
   }
 
   const eventId = getString(payload.eventId) || crypto.randomUUID();
@@ -82,21 +122,25 @@ async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
   };
   const eventType = getString(eventPayload.type) || 'event';
   const response = await fetch(
-    `${PUBSUB_API_BASE_URL}/projects/${runnerEventContext.eventTransport.projectId}/topics/${runnerEventContext.eventTransport.topicName}:publish`,
+    `${getPubSubApiBaseUrl()}/projects/${eventTransport.projectId}/topics/${eventTransport.topicName}:publish`,
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${runnerEventContext.gcpAccessToken}`,
         'Content-Type': 'application/json',
+        ...(runnerEventContext.gcpAccessToken
+          ? { Authorization: `Bearer ${runnerEventContext.gcpAccessToken}` }
+          : {}),
       },
       body: JSON.stringify({
         messages: [
           {
             attributes: {
-              cloudProvider: 'GCP',
+              cloudProvider: runnerEventContext.cloudProvider,
               eventId,
               eventType,
               executionId: runnerEventContext.testId,
+              messageKind: 'workflow_event',
+              nodeId: runnerEventContext.nodeId || '',
             },
             data: Buffer.from(JSON.stringify(eventPayload), 'utf8').toString(
               'base64',
@@ -114,50 +158,15 @@ async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
       `Pub/Sub publish failed (${response.status}): ${details.slice(0, 500)}`,
     );
   }
-
-  return true;
 }
 
 async function publishEvent(payload: Record<string, unknown>) {
-  if (
-    !runnerEventContext?.executionToken ||
-    !runnerEventContext.editorApiUrl ||
-    !runnerEventContext.testId
-  ) {
+  if (!runnerEventContext?.executionToken || !runnerEventContext.testId) {
     return;
   }
 
   try {
-    if (await publishGcpPubSubEvent(payload)) {
-      return;
-    }
-
-    const response = await fetch(
-      new URL(
-        `/api/executions/${runnerEventContext.testId}/events`,
-        runnerEventContext.editorApiUrl,
-      ),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [EXECUTION_TOKEN_HEADER]: runnerEventContext.executionToken,
-        },
-        body: JSON.stringify({
-          executionId: runnerEventContext.testId,
-          nodeId: runnerEventContext.nodeId,
-          testId: runnerEventContext.testId,
-          ...payload,
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const details = await response.text().catch(() => '');
-      console.error(
-        `Failed to publish runner event (${response.status}): ${details}`,
-      );
-    }
+    await publishGcpPubSubEvent(payload);
   } catch (error) {
     console.error('Failed to publish runner event:', error);
   }
@@ -187,6 +196,178 @@ async function publishNodeState(
     timestamp: new Date().toISOString(),
     type: 'node_state',
   });
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pubSubRequest<T>(
+  resourcePath: string,
+  accessToken: string | undefined,
+  init: RequestInit = {},
+): Promise<T> {
+  if (!accessToken && !isUsingPubSubEmulator()) {
+    throw new Error('Pub/Sub access token is required.');
+  }
+
+  const response = await fetch(`${getPubSubApiBaseUrl()}/${resourcePath}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => '');
+    throw new Error(
+      `Pub/Sub API returned ${response.status}: ${details.slice(0, 500)}`,
+    );
+  }
+
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : {}) as T;
+}
+
+async function publishRunnerStatus(
+  control: RunnerControlConfig | undefined,
+  status: 'cancelled' | 'failed' | 'prepare_failed' | 'ready' | 'started',
+  error?: string,
+) {
+  if (!control || !runnerEventContext?.testId || !runnerEventContext.nodeId) {
+    return;
+  }
+
+  const accessToken = runnerEventContext.gcpAccessToken;
+  const eventId = crypto.randomUUID();
+  const payload = {
+    error,
+    eventId,
+    executionId: runnerEventContext.testId,
+    nodeId: runnerEventContext.nodeId,
+    status,
+    testId: runnerEventContext.testId,
+    timestamp: new Date().toISOString(),
+    type: 'runner_status',
+  };
+  await pubSubRequest(
+    `projects/${control.projectId}/topics/${control.topicName}:publish`,
+    accessToken,
+    {
+      body: JSON.stringify({
+        messages: [
+          {
+            attributes: {
+              eventId,
+              eventType: 'runner_status',
+              executionId: runnerEventContext.testId,
+              messageKind: 'runner_status',
+              nodeId: runnerEventContext.nodeId,
+            },
+            data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
+              'base64',
+            ),
+            orderingKey: `${runnerEventContext.testId}:${runnerEventContext.nodeId}`,
+          },
+        ],
+      }),
+      method: 'POST',
+    },
+  );
+}
+
+function decodePubSubPayload(message: { data?: string }): Record<string, any> {
+  if (!message.data) {
+    return {};
+  }
+  return JSON.parse(Buffer.from(message.data, 'base64').toString('utf8'));
+}
+
+async function acknowledgeControlMessages(args: {
+  ackIds: string[];
+  control: RunnerControlConfig;
+  gcpAccessToken: string | undefined;
+}) {
+  if (args.ackIds.length === 0) {
+    return;
+  }
+
+  await pubSubRequest(
+    `projects/${args.control.projectId}/subscriptions/${args.control.controlSubscriptionName}:acknowledge`,
+    args.gcpAccessToken,
+    {
+      body: JSON.stringify({ ackIds: args.ackIds }),
+      method: 'POST',
+    },
+  );
+}
+
+async function waitForPubSubStartSignal(control: RunnerControlConfig) {
+  const gcpAccessToken = runnerEventContext?.gcpAccessToken;
+  const executionId = runnerEventContext?.testId;
+  const nodeId = runnerEventContext?.nodeId;
+  if (
+    (!gcpAccessToken && !isUsingPubSubEmulator()) ||
+    !executionId ||
+    !nodeId
+  ) {
+    throw new Error('Missing GCP runner control context.');
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < CONTROL_SIGNAL_TIMEOUT_MS) {
+    const response = await pubSubRequest<{
+      receivedMessages?: Array<{
+        ackId: string;
+        message: { data?: string };
+      }>;
+    }>(
+      `projects/${control.projectId}/subscriptions/${control.controlSubscriptionName}:pull`,
+      gcpAccessToken,
+      {
+        body: JSON.stringify({ maxMessages: 10 }),
+        method: 'POST',
+      },
+    );
+    const messages = response.receivedMessages || [];
+    const ackIds = messages.map((message) => message.ackId);
+
+    try {
+      for (const message of messages) {
+        const payload = decodePubSubPayload(message.message);
+        if (payload.executionId !== executionId || payload.nodeId !== nodeId) {
+          continue;
+        }
+        if (payload.action === 'start' || payload.action === 'cancel') {
+          return payload.action;
+        }
+      }
+    } finally {
+      await acknowledgeControlMessages({
+        ackIds,
+        control,
+        gcpAccessToken,
+      });
+    }
+
+    await sleep(CONTROL_POLL_INTERVAL_MS);
+  }
+
+  throw new Error('Timed out waiting for Playwright runner start signal.');
+}
+
+async function waitForStartSignal(control: RunnerControlConfig | undefined) {
+  if (!control) {
+    return 'start';
+  }
+
+  return waitForPubSubStartSignal(control);
 }
 
 async function installTypescriptDependencies(
@@ -289,8 +470,6 @@ async function runTypescriptTest(
   workers: number,
 ): Promise<void> {
   await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
-
-  await installTypescriptDependencies(workingDir);
 
   const command = resolvePlaywrightCommand(workingDir);
   const args = [...command.args];
@@ -536,6 +715,16 @@ async function uploadOutputs(
           `Editor API upload failed (${response.status}): ${errorText}`,
         );
       }
+
+      const uploadResult = (await response.json().catch(() => null)) as {
+        output?: Record<string, unknown>;
+      } | null;
+      await publishEvent({
+        nodeId,
+        output: uploadResult?.output || {},
+        timestamp: new Date().toISOString(),
+        type: 'node_output',
+      });
     }
 
     await publishLog('Outputs processed successfully.');
@@ -544,37 +733,9 @@ async function uploadOutputs(
   }
 }
 
-async function run() {
-  let payload: any = null;
-  if (process.env.PAYLOAD) {
-    try {
-      payload = JSON.parse(process.env.PAYLOAD);
-    } catch {
-      await publishLog(
-        'Failed to parse PAYLOAD environment variable.',
-        'error',
-      );
-    }
-  }
-
-  const testId = payload?.data?.testId || crypto.randomUUID();
-  const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
-  runnerEventContext = {
-    editorApiUrl:
-      payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
-    executionToken: payload?.data?.executionAuthToken || '',
-    eventTransport: payload?.data?.eventTransport,
-    gcpAccessToken: payload?.settings?.gcp?.accessToken,
-    nodeId: payload?.data?.nodeId,
-    testId,
-  };
-
-  const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
-  await publishNodeState('running');
-  await publishLog(
-    `Playwright runner container started in ${envType}. Test ID: ${testId}`,
-  );
-
+async function prepareWorkingDirectory(
+  payload: any,
+): Promise<PreparedWorkingDirectory> {
   let workingDir = __dirname;
   let isCloned = false;
 
@@ -622,12 +783,10 @@ async function run() {
         workingDir = path.join('/app/repo', payload?.data?.folder || '/');
         isCloned = true;
       } catch (err: any) {
-        await publishLog(`Clone Error: ${err.message}`, 'error');
-        process.exit(1);
+        throw new Error(`Clone Error: ${err.message}`);
       }
     } else {
-      await publishLog('Missing repository for cloning.', 'error');
-      process.exit(1);
+      throw new Error('Missing repository for cloning.');
     }
   }
 
@@ -659,15 +818,89 @@ async function run() {
     testLanguage = payload?.data?.testLanguage || 'typescript';
   }
 
+  if (testLanguage === 'typescript') {
+    await installTypescriptDependencies(workingDir);
+  }
+
+  return { testLanguage, workingDir };
+}
+
+async function parsePayload() {
+  if (!process.env.PAYLOAD) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(process.env.PAYLOAD);
+  } catch {
+    return null;
+  }
+}
+
+async function run() {
+  const payload = await parsePayload();
+  const testId = payload?.data?.testId || crypto.randomUUID();
+  const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
+  const runnerControl = payload?.data?.runnerControl as
+    | RunnerControlConfig
+    | undefined;
+  runnerEventContext = {
+    cloudProvider,
+    editorApiUrl:
+      payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
+    executionToken: payload?.data?.executionAuthToken || '',
+    eventTransport: payload?.data?.eventTransport,
+    gcpAccessToken: payload?.settings?.gcp?.accessToken,
+    nodeId: payload?.data?.nodeId,
+    testId,
+  };
+
+  const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
+  await publishLog(
+    `Playwright runner container started in ${envType}. Preparing dependencies for Test ID: ${testId}`,
+  );
+
+  let prepared: PreparedWorkingDirectory;
+  try {
+    prepared = await prepareWorkingDirectory(payload);
+    await publishLog(
+      'Playwright runner prepared and waiting for start signal.',
+    );
+    await publishRunnerStatus(runnerControl, 'ready');
+  } catch (err: any) {
+    await publishLog(`Playwright Prepare Error: ${err.message}`, 'error');
+    await publishRunnerStatus(runnerControl, 'prepare_failed', err.message);
+    process.exit(1);
+  }
+
+  let action: string;
+  try {
+    action = await waitForStartSignal(runnerControl);
+  } catch (err: any) {
+    await publishLog(`Playwright Control Error: ${err.message}`, 'error');
+    await publishRunnerStatus(runnerControl, 'failed', err.message);
+    process.exit(1);
+  }
+
+  if (action === 'cancel') {
+    await publishLog('Playwright runner cancelled before test start.');
+    await publishRunnerStatus(runnerControl, 'cancelled');
+    process.exit(0);
+  }
+
+  await publishRunnerStatus(runnerControl, 'started');
+  await publishNodeState('running');
+  await publishLog('Start signal received. Running Playwright test.');
+
   const workers = normalizeWorkers(
     payload?.data?.workers || process.env.PLAYWRIGHT_WORKERS,
   );
   let testFailed = false;
   try {
-    if (testLanguage === 'python') {
-      await runPythonTest(workingDir);
+    if (prepared.testLanguage === 'python') {
+      await runPythonTest(prepared.workingDir);
     } else {
-      await runTypescriptTest(workingDir, workers);
+      await runTypescriptTest(prepared.workingDir, workers);
     }
 
     await publishLog('Job complete.');
@@ -677,7 +910,7 @@ async function run() {
   }
 
   await uploadOutputs(
-    workingDir,
+    prepared.workingDir,
     payload?.data?.nodeId,
     testId,
     payload?.data?.editorApiUrl,

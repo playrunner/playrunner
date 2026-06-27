@@ -1,5 +1,9 @@
-import { ORCHESTRATOR_URL } from '../config';
+import { LOCAL_PUBSUB_PROJECT_ID, ORCHESTRATOR_URL } from '../config';
 import { executionEvents } from '../services/execution-events';
+import {
+  ensureGcpPubSubEventStream,
+  stopGcpPubSubEventStream,
+} from '../services/gcp-pubsub-events';
 import type {
   LogTransport,
   WorkflowExecutionBackend,
@@ -46,20 +50,33 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
     body.executionAuthToken = executionToken;
 
-    try {
-      await this.logTransport.publish(
-        JSON.stringify({
-          cloudProvider: 'LOCAL_RUNNER',
-          executionId: testId,
-          level: 'info',
-          message: 'Workflow execution requested.',
-          testId,
-          timestamp: new Date().toISOString(),
-          type: 'workflow_started',
-          workflowId,
-        }),
-      );
+    let eventTransport:
+      | {
+          projectId: string;
+          subscriptionName: string;
+          topicName: string;
+          type: 'gcp_pubsub';
+        }
+      | undefined;
 
+    try {
+      eventTransport = await ensureGcpPubSubEventStream({
+        creds: { accessToken: '' },
+        executionId: testId,
+        projectId: LOCAL_PUBSUB_PROJECT_ID,
+      });
+      body.eventTransport = eventTransport;
+    } catch (err: any) {
+      return {
+        body: {
+          error: `Failed to configure local Pub/Sub event transport: ${err.message}`,
+          testId,
+        },
+        status: 500,
+      };
+    }
+
+    try {
       const response = await fetch(`${ORCHESTRATOR_URL}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -68,6 +85,9 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
       if (!response.ok) {
         const details = await response.text().catch(() => '');
+        if (eventTransport) {
+          stopGcpPubSubEventStream(testId);
+        }
         try {
           await this.logTransport.publish(
             JSON.stringify({
@@ -91,23 +111,6 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
         };
       }
 
-      try {
-        await this.logTransport.publish(
-          JSON.stringify({
-            cloudProvider: 'LOCAL_RUNNER',
-            executionId: testId,
-            level: 'info',
-            message: 'Local orchestrator triggered successfully.',
-            testId,
-            timestamp: new Date().toISOString(),
-            type: 'log',
-            workflowId,
-          }),
-        );
-      } catch {
-        // Ignore best-effort log transport failures.
-      }
-
       return {
         body: {
           message: `Workflow triggered on local runner successfully, testId: ${testId}`,
@@ -116,6 +119,9 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
         status: 200,
       };
     } catch (err: any) {
+      if (eventTransport) {
+        stopGcpPubSubEventStream(testId);
+      }
       try {
         await this.logTransport.publish(
           JSON.stringify({

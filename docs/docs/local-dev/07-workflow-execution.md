@@ -16,7 +16,7 @@ A workflow is a directed acyclic graph (DAG) of nodes. When triggered, the syste
 1. Generates a unique `testId` (UUID) for the run
 2. Sends the entire graph to the Orchestrator
 3. The Orchestrator walks the graph, processing each node according to its type and the connection types between nodes
-4. Each Playwright node spawns a Docker container that clones a repo, runs tests, and uploads results
+4. Each Playwright node prepares a runner container early, then signals it to run when the DAG reaches that node
 
 ---
 
@@ -63,12 +63,13 @@ Logs the node label. Global variables have already been extracted in step 2.
 
 1. Logs resource configuration (CPU, memory, workers)
 2. Builds `docker run` arguments:
-   - The selected event transport config (`callback` for local Docker, GCP Pub/Sub for GCP runners)
+   - The selected Pub/Sub event transport config (local emulator for Docker runners, GCP Pub/Sub for GCP runners)
    - User-defined environment variables (resolved from the Environment node)
    - The full `PAYLOAD` JSON containing repo config, GitHub tokens, `nodeId`, and `testId`
 3. Selects image tag from `config.playwrightVersion` (falls back to `latest`)
-4. Runs `docker run --rm playrunner-playwright:<version>`
-5. Awaits the container to exit — success = `0`, failure = non-zero or `null` (killed)
+4. Starts or reuses the prepared Playwright runner
+5. Signals the runner over Pub/Sub when the node is ready to execute
+6. Awaits the container to exit — success = `0`, failure = non-zero or `null` (killed)
 
 #### `slack`
 
@@ -92,10 +93,11 @@ Inside the container (`apps/runners/playwright/src/index.ts`):
    - Clones to `/app/repo` with `--depth 1` (shallow clone)
    - Sets `workingDir` to `/app/repo/{folder}`
 3. **Auto-detects language**: if `requirements.txt` or `pytest.ini` is found → Python, otherwise TypeScript
-4. **TypeScript tests**: reuses runner-bundled Playwright packages when possible; otherwise installs project dependencies with `npm ci` when a lockfile exists, falling back to `npm install`; then runs `playwright test` with the configured worker count (using `playwright.service.config.ts` if present)
-5. **Python tests**: runs `pip3 install -r requirements.txt` then `pytest`
-6. **Uploads outputs**: local Docker runs tarball `playwright-report/` and `test-results/` and POST them to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`; GCP runs upload artifacts directly to GCS and publish the resulting `node_output` event through Pub/Sub.
-7. Exits with `0` (success) or `1` (test failure)
+4. **Preparation**: installs dependencies before execution starts. TypeScript reuses runner-bundled Playwright packages when possible; otherwise it uses `npm ci` when a lockfile exists, falling back to `npm install`. Python installs `requirements.txt` when present.
+5. Waits for a Pub/Sub start signal from the Orchestrator
+6. Runs `playwright test` (TypeScript) or `pytest` (Python)
+7. **Uploads outputs**: local Docker runs tarball `playwright-report/` and `test-results/` and POSTs the archive to `POST {editorApiUrl}/api/outputs/{testId}/{nodeId}`; GCP runs upload artifacts directly to GCS. In both modes, the resulting `node_output` event is published through Pub/Sub.
+8. Exits with `0` (success) or `1` (test failure)
 
 ### 6. Output Processing (API)
 
@@ -106,11 +108,11 @@ When the API receives `POST /api/outputs/:testId/:nodeId`:
 3. Scans for:
    - `playwright-report/index.html` → constructs a `reportUrl`
    - `test-results/**/*.webm` and `*.png` → constructs `media` URLs
-4. Persists a `node_output` event in PostgreSQL for that execution
+4. Returns the discovered output metadata to the runner; for local Pub/Sub runs, the runner publishes the `node_output` event
 
 ### 7. Real-Time Logs via SSE
 
-Throughout local Docker workflows, the Playwright runner and Orchestrator call `POST /api/executions/:executionId/events` with a signed per-execution token. For GCP workflows, they publish the same signed event payloads to GCP Pub/Sub. In both cases, the API stores every accepted event in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
+Throughout local Docker and GCP workflows, the Playwright runner and Orchestrator publish signed event payloads to Pub/Sub. Local Docker uses the Pub/Sub emulator; GCP uses GCP Pub/Sub. In both cases, the API stores every accepted event in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
 
 ---
 

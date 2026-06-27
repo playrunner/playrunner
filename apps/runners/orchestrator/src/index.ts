@@ -2,13 +2,16 @@ import { spawn } from 'child_process';
 import crypto from 'crypto';
 import express from 'express';
 import { orchestratorRuntime } from './runtime';
+import type {
+  PlaywrightExecutionRequest,
+  PreparedPlaywrightRunner,
+} from './runtime/contracts';
 
 const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3002;
 const EDITOR_API_URL = process.env.EDITOR_API_URL || 'http://localhost:3001';
-const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
 type WorkflowNodeState =
@@ -38,6 +41,20 @@ type GcpPubSubEventTransport = {
 
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 
+function getPubSubApiBaseUrl(): string {
+  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
+  if (!emulatorHost) {
+    return PUBSUB_API_BASE_URL;
+  }
+
+  const normalizedHost = emulatorHost.replace(/\/+$/, '');
+  return `${normalizedHost.startsWith('http') ? normalizedHost : `http://${normalizedHost}`}/v1`;
+}
+
+function isUsingPubSubEmulator(): boolean {
+  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+}
+
 function resolvePlaywrightRuntime(
   config: Record<string, any>,
 ): 'typescript' | 'python' {
@@ -51,55 +68,22 @@ function resolvePlaywrightRuntime(
 const activeProcesses: Record<string, ReturnType<typeof spawn>> = {};
 const activeNodePublishers: Record<string, WorkflowEventPublisher> = {};
 
-async function postWorkflowEvent(args: {
-  editorApiUrl: string;
-  executionId: string;
-  executionToken: string;
-  payload: Record<string, unknown>;
-}) {
-  try {
-    const response = await fetch(
-      new URL(`/api/executions/${args.executionId}/events`, args.editorApiUrl),
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          [EXECUTION_TOKEN_HEADER]: args.executionToken,
-        },
-        body: JSON.stringify({
-          executionId: args.executionId,
-          testId: args.executionId,
-          ...args.payload,
-        }),
-      },
-    );
-
-    if (!response.ok) {
-      const details = await response.text().catch(() => '');
-      console.error(
-        `Failed to post workflow event for ${args.executionId}: ${response.status} ${details}`,
-      );
-    }
-  } catch (error) {
-    console.error(
-      `Failed to post workflow event for ${args.executionId}:`,
-      error,
-    );
-  }
-}
-
 function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
 async function publishGcpPubSubEvent(args: {
-  accessToken: string;
+  accessToken?: string;
   executionId: string;
   executionToken: string;
   payload: Record<string, unknown>;
   projectId: string;
   topicName: string;
 }) {
+  if (!args.accessToken && !isUsingPubSubEmulator()) {
+    throw new Error('Pub/Sub access token is required.');
+  }
+
   const eventId = getString(args.payload.eventId) || crypto.randomUUID();
   const payload: Record<string, unknown> = {
     executionAuthToken: args.executionToken,
@@ -110,12 +94,14 @@ async function publishGcpPubSubEvent(args: {
   };
   const eventType = getString(payload.type) || 'event';
   const response = await fetch(
-    `${PUBSUB_API_BASE_URL}/projects/${args.projectId}/topics/${args.topicName}:publish`,
+    `${getPubSubApiBaseUrl()}/projects/${args.projectId}/topics/${args.topicName}:publish`,
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${args.accessToken}`,
         'Content-Type': 'application/json',
+        ...(args.accessToken
+          ? { Authorization: `Bearer ${args.accessToken}` }
+          : {}),
       },
       body: JSON.stringify({
         messages: [
@@ -125,6 +111,7 @@ async function publishGcpPubSubEvent(args: {
               eventId,
               eventType,
               executionId: args.executionId,
+              messageKind: 'workflow_event',
             },
             data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
               'base64',
@@ -152,7 +139,6 @@ function createWorkflowEventPublisher(
     typeof reqBody.executionAuthToken === 'string'
       ? reqBody.executionAuthToken
       : '';
-  const editorApiUrl = reqBody.editorApiUrl || EDITOR_API_URL;
   const eventTransport = reqBody.eventTransport as
     | GcpPubSubEventTransport
     | undefined;
@@ -178,27 +164,20 @@ function createWorkflowEventPublisher(
 
     try {
       if (
-        eventTransport?.type === 'gcp_pubsub' &&
-        eventTransport.projectId &&
-        eventTransport.topicName &&
-        gcpAccessToken
+        eventTransport?.type !== 'gcp_pubsub' ||
+        !eventTransport.projectId ||
+        !eventTransport.topicName
       ) {
-        await publishGcpPubSubEvent({
-          accessToken: gcpAccessToken,
-          executionId,
-          executionToken,
-          payload: mergedPayload,
-          projectId: eventTransport.projectId,
-          topicName: eventTransport.topicName,
-        });
-        return;
+        throw new Error('Pub/Sub event transport is required.');
       }
 
-      await postWorkflowEvent({
-        editorApiUrl,
+      await publishGcpPubSubEvent({
+        accessToken: gcpAccessToken,
         executionId,
         executionToken,
         payload: mergedPayload,
+        projectId: eventTransport.projectId,
+        topicName: eventTransport.topicName,
       });
     } catch (error) {
       console.error(
@@ -303,6 +282,119 @@ async function executeWorkflow(reqBody: any) {
         }
       }
 
+      const registerActiveProcessForNode = (
+        activeNodeId: string,
+        process: ReturnType<typeof spawn>,
+      ) => {
+        activeProcesses[activeNodeId] = process;
+        activeNodePublishers[activeNodeId] = eventPublisher;
+        process.on('exit', () => {
+          delete activeProcesses[activeNodeId];
+          delete activeNodePublishers[activeNodeId];
+        });
+        process.on('error', () => {
+          delete activeProcesses[activeNodeId];
+          delete activeNodePublishers[activeNodeId];
+        });
+      };
+
+      const createPlaywrightExecutionRequest = (
+        node: any,
+      ): {
+        cpu: number;
+        envKeys: string[];
+        injectedEnv: string;
+        memory: number;
+        request: PlaywrightExecutionRequest;
+        workers: number;
+      } => {
+        const config = node.config || {};
+        const runtime = resolvePlaywrightRuntime(config);
+        const cpu = config.cpu || 2;
+        const memory = config.memory || 4;
+        const workers = config.workers || 1;
+        const envKeys = config.envVars || [];
+        const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
+        const payloadData = {
+          data: {
+            repository: config.repository,
+            branch: config.branch,
+            folder: config.folder,
+            action: config.action,
+            executionAuthToken: reqBody.executionAuthToken,
+            testScript: config.testScript,
+            nodeId: node.id,
+            testId,
+            testLanguage: runtime,
+            playwrightVersion: config.playwrightVersion || 'latest',
+            workers,
+            editorApiUrl:
+              reqBody.editorApiUrl ||
+              EDITOR_API_URL ||
+              'http://host.docker.internal:3001',
+            eventTransport: reqBody.eventTransport,
+            bucketName: reqBody.bucketName || bucketName || null,
+            cloudProvider,
+          },
+          github: settings?.github,
+          settings: reqBody.settings,
+        };
+
+        return {
+          cpu,
+          envKeys,
+          injectedEnv: envKeys.map((key: string) => `${key}=***`).join(', '),
+          memory,
+          request: {
+            config,
+            envKeys,
+            globalEnvVars,
+            nodeId: node.id,
+            payloadData,
+            publishLog,
+            registerActiveProcess: (activeNodeId, process) => {
+              registerActiveProcessForNode(
+                activeNodeId,
+                process as ReturnType<typeof spawn>,
+              );
+            },
+            reqBody,
+            runtime,
+          },
+          workers,
+        };
+      };
+
+      const preparedPlaywrightRunners: Record<
+        string,
+        Promise<PreparedPlaywrightRunner>
+      > = {};
+      const playwrightNodes = nodes.filter(
+        (node: any) =>
+          (node.nodeType || node.label).toLowerCase() === 'playwright',
+      );
+
+      if (playwrightNodes.length > 0) {
+        await publishLog(
+          `Preparing ${playwrightNodes.length} Playwright runner${playwrightNodes.length === 1 ? '' : 's'} before workflow execution reaches them...`,
+          'info',
+        );
+        for (const node of playwrightNodes) {
+          await publishNodeState(node.id, 'pending');
+          const { request } = createPlaywrightExecutionRequest(node);
+          preparedPlaywrightRunners[node.id] =
+            orchestratorRuntime.playwrightExecution
+              .prepare(request)
+              .catch(async (error) => {
+                await publishLog(
+                  `Failed to prepare Playwright Runner for ${node.id}: ${error.message}`,
+                  'error',
+                );
+                throw error;
+              });
+        }
+      }
+
       const nodeHasRun: Record<string, boolean> = {};
       const nodeIsRunning: Record<string, boolean> = {};
       let activeNodeCount = 0;
@@ -392,23 +484,15 @@ async function executeWorkflow(reqBody: any) {
             'info',
           );
         } else if (type === 'playwright') {
-          const config = node.config || {};
-          const runtime = resolvePlaywrightRuntime(config);
-          const cpu = config.cpu || 2;
-          const memory = config.memory || 4;
-          const workers = config.workers || 1;
-          const envKeys = config.envVars || [];
-
-          const injectedEnv = envKeys
-            .map((key: string) => `${key}=***`)
-            .join(', ');
+          const { cpu, injectedEnv, memory, request, workers } =
+            createPlaywrightExecutionRequest(node);
 
           await publishLog(
             `Processing node: ${node.label} (${node.id})`,
             'info',
           );
           await publishLog(
-            `Starting Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
+            `Waiting for prepared Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
             'build',
           );
           if (injectedEnv) {
@@ -417,35 +501,10 @@ async function executeWorkflow(reqBody: any) {
               'info',
             );
           }
-          const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
-          const payloadData = {
-            data: {
-              repository: config.repository,
-              branch: config.branch,
-              folder: config.folder,
-              action: config.action,
-              executionAuthToken: reqBody.executionAuthToken,
-              testScript: config.testScript,
-              nodeId: node.id,
-              testId,
-              testLanguage: runtime,
-              playwrightVersion: config.playwrightVersion || 'latest',
-              workers,
-              editorApiUrl:
-                reqBody.editorApiUrl ||
-                EDITOR_API_URL ||
-                'http://host.docker.internal:3001',
-              eventTransport: reqBody.eventTransport,
-              bucketName: reqBody.bucketName || bucketName || null,
-              cloudProvider,
-            },
-            github: settings?.github,
-            settings: reqBody.settings,
-          };
 
           console.log(
             `[Orchestrator] Sending payload to runner for ${node.id}:`,
-            JSON.stringify(payloadData, null, 2),
+            JSON.stringify(request.payloadData, null, 2),
           );
           if (!settings?.github?.accessToken) {
             console.warn(
@@ -455,30 +514,16 @@ async function executeWorkflow(reqBody: any) {
           }
 
           try {
-            await orchestratorRuntime.playwrightExecution.execute({
-              config,
-              envKeys,
-              globalEnvVars,
-              nodeId: node.id,
-              payloadData,
-              publishLog,
-              registerActiveProcess: (activeNodeId, process) => {
-                activeProcesses[activeNodeId] = process as ReturnType<
-                  typeof spawn
-                >;
-                activeNodePublishers[activeNodeId] = eventPublisher;
-                process.on('exit', () => {
-                  delete activeProcesses[activeNodeId];
-                  delete activeNodePublishers[activeNodeId];
-                });
-                process.on('error', () => {
-                  delete activeProcesses[activeNodeId];
-                  delete activeNodePublishers[activeNodeId];
-                });
-              },
-              reqBody,
-              runtime,
-            });
+            const preparedRunner =
+              (await preparedPlaywrightRunners[node.id]) ||
+              (await orchestratorRuntime.playwrightExecution.prepare(request));
+            await preparedRunner.waitUntilReady();
+            await publishLog(
+              `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
+              'info',
+            );
+            await preparedRunner.start();
+            await preparedRunner.waitForCompletion();
           } catch (err: any) {
             await publishLog(
               `Playwright Runner failed: ${err.message}`,
@@ -726,6 +771,13 @@ async function executeWorkflow(reqBody: any) {
       while (activeNodeCount > 0 || nodeQueue.length > 0) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
+
+      await Promise.allSettled(
+        Object.values(preparedPlaywrightRunners).map(async (runnerPromise) => {
+          const runner = await runnerPromise;
+          await runner.cleanup?.();
+        }),
+      );
     }
 
     terminalEventPublished = true;
@@ -759,6 +811,18 @@ app.post('/execute', async (req, res) => {
 
 app.get('/health', (req, res) => {
   res.status(200).send('Runner is healthy and in standby.');
+});
+
+app.get('/runtime', (req, res) => {
+  res.status(200).json({
+    eventTransport: 'pubsub',
+    pubsubEmulatorHost: process.env.PUBSUB_EMULATOR_HOST || null,
+    runnerControl: 'pubsub',
+    service: 'playrunner-orchestrator',
+    workflowEventsTopic:
+      process.env.GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC ||
+      'playrunner-workflow-events',
+  });
 });
 
 app.post('/stop', async (req, res) => {

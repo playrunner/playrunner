@@ -39,7 +39,6 @@ import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
 
 import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
-import { TunnelDialog } from '../components/TunnelDialog';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { getIntegration } from '../integrations/registry';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
@@ -564,13 +563,6 @@ export default function Editor() {
     useState<string>(defaultCloudProvider);
   const [cloudProjectId, setCloudProjectId] = useState<string>('');
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
-  const [isTunnelDialogOpen, setIsTunnelDialogOpen] = useState(false);
-  const pendingTunnelRunRef = useRef<{
-    connectionsToRun: Connection[];
-    currentCloudProvider: string;
-    nodesToRun: NodeData[];
-    settings: Record<string, any>;
-  } | null>(null);
   const [connectedCloudIds, setConnectedCloudIds] = useState<Set<string>>(
     new Set(),
   );
@@ -1276,22 +1268,6 @@ export default function Editor() {
         currentCloudProvider,
         settings,
       ).catch((err) => {
-        if (
-          err instanceof Error &&
-          (err as Error & { code?: string }).code === 'TUNNEL_REQUIRED'
-        ) {
-          clearWorkflowStartupStatus();
-          pendingTunnelRunRef.current = {
-            connectionsToRun,
-            currentCloudProvider,
-            nodesToRun,
-            settings,
-          };
-          isSimulationRunning.current = false;
-          setSimulationState('idle');
-          setIsTunnelDialogOpen(true);
-          return;
-        }
         console.error('Failed to start workflow API:', err);
         if (currentCloudProvider !== 'LOCAL_RUNNER') {
           updateWorkflowStartupStatus({
@@ -1310,30 +1286,10 @@ export default function Editor() {
     },
     [
       appendOrchestratorLog,
-      clearWorkflowStartupStatus,
       startWorkflowExecution,
       updateWorkflowStartupStatus,
     ],
   );
-
-  const handleTunnelStarted = useCallback(() => {
-    setIsTunnelDialogOpen(false);
-    const pending = pendingTunnelRunRef.current;
-    pendingTunnelRunRef.current = null;
-    if (!pending) return;
-
-    isSimulationRunning.current = true;
-    setSimulationState('running');
-    setNodeStatus({});
-    setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
-    beginWorkflowStartupStatus(pending.currentCloudProvider);
-    runWorkflow(
-      pending.nodesToRun,
-      pending.connectionsToRun,
-      pending.currentCloudProvider,
-      pending.settings,
-    );
-  }, [beginWorkflowStartupStatus, runWorkflow]);
 
   const handlePlay = useCallback(async () => {
     if (isSimulationRunning.current) return;
@@ -2454,13 +2410,6 @@ export default function Editor() {
             }
           />
         ) : null}
-
-        <TunnelDialog
-          isOpen={isTunnelDialogOpen}
-          onClose={() => setIsTunnelDialogOpen(false)}
-          onStarted={handleTunnelStarted}
-          providerLabel={activeCloudProvider?.label || cloudProvider}
-        />
 
         <Modal
           isOpen={isCodeModalOpen}

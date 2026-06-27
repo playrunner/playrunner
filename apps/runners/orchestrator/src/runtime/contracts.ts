@@ -15,8 +15,18 @@ export interface PlaywrightExecutionRequest {
   runtime: 'typescript' | 'python';
 }
 
+export interface PreparedPlaywrightRunner {
+  cleanup?: () => Promise<void>;
+  start: () => Promise<void>;
+  waitForCompletion: () => Promise<void>;
+  waitUntilReady: () => Promise<void>;
+}
+
 export interface PlaywrightExecutionBackend {
   execute(request: PlaywrightExecutionRequest): Promise<void>;
+  prepare?(
+    request: PlaywrightExecutionRequest,
+  ): Promise<PreparedPlaywrightRunner>;
   supports(cloudProvider: string): boolean;
 }
 

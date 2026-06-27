@@ -46,8 +46,8 @@ title: Troubleshooting
 1. **PostgreSQL is not running or `DATABASE_URL` is wrong.**
 
    ```bash
-   docker compose up -d postgres
-   docker ps  # confirm postgres is up
+   docker compose up -d postgres pubsub
+   docker ps  # confirm postgres and pubsub are up
    ```
 
 2. **`DATABASE_URL` is missing in the API's environment.**
@@ -59,8 +59,8 @@ title: Troubleshooting
 
    If you changed the local Postgres port, confirm the repo-root `.env.local` matches it as well. Restart the API after changing `.env.local`.
 
-3. **The Orchestrator cannot post execution events back to the API.**
-   Confirm `EDITOR_API_URL_DOCKER` points to the API from inside Docker, usually `http://host.docker.internal:3001` on Docker Desktop. Restart the Orchestrator after changing this value.
+3. **The API cannot pull execution events from the Pub/Sub emulator.**
+   Confirm `PUBSUB_EMULATOR_HOST` points to the emulator from the host, usually `127.0.0.1:8085`, and that `PUBSUB_EMULATOR_HOST_DOCKER` points to the same emulator from inside Docker, usually `host.docker.internal:8085` on Docker Desktop. Restart the API and Orchestrator after changing these values.
 
 ---
 

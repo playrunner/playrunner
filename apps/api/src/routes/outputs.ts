@@ -115,23 +115,29 @@ outputsRouter.post(
       return res.status(500).json({ error: err.message });
     }
 
-    try {
-      await executionEvents.appendEvent(execution.id, {
-        executionId: execution.id,
-        nodeId,
-        output: outputData,
-        testId,
-        timestamp: new Date().toISOString(),
-        type: 'node_output',
-      });
-    } catch (err) {
-      console.error(
-        `Failed to persist node output event for ${testId}/${nodeId}:`,
-        err,
-      );
-      return res
-        .status(500)
-        .json({ error: 'Failed to persist node output event.' });
+    const outputEventPublishedByRunner =
+      state.testCloudProviders[testId] === 'LOCAL_RUNNER' &&
+      !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+
+    if (!outputEventPublishedByRunner) {
+      try {
+        await executionEvents.appendEvent(execution.id, {
+          executionId: execution.id,
+          nodeId,
+          output: outputData,
+          testId,
+          timestamp: new Date().toISOString(),
+          type: 'node_output',
+        });
+      } catch (err) {
+        console.error(
+          `Failed to persist node output event for ${testId}/${nodeId}:`,
+          err,
+        );
+        return res
+          .status(500)
+          .json({ error: 'Failed to persist node output event.' });
+      }
     }
 
     res

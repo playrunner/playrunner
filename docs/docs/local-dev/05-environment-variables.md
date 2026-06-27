@@ -23,6 +23,9 @@ Copy from `.env.local.example`.
 | `POSTGRES_DB`               | `playrunner`                        | Database name for the standard local Postgres container                                         |
 | `POSTGRES_USER`             | `postgres`                          | Username for the standard local Postgres container                                              |
 | `POSTGRES_PASSWORD`         | `postgres`                          | Password for the standard local Postgres container                                              |
+| `PUBSUB_EMULATOR_PORT`      | `8085`                              | Host port mapped to the Docker-backed Pub/Sub emulator                                          |
+| `PUBSUB_EMULATOR_HOST`      | `127.0.0.1:8085`                    | Host-facing Pub/Sub emulator endpoint used by the API                                           |
+| `LOCAL_PUBSUB_PROJECT_ID`   | `playrunner-local`                  | Project ID used for local Pub/Sub emulator topics and subscriptions                             |
 | `DATABASE_URL`              | _(optional)_                        | Explicit Prisma datasource URL override for both setup defaults and the normal API startup path |
 | `VITE_DEFAULT_DATABASE_URL` | _(optional)_                        | Override only the database URL prefilled in the setup form                                      |
 | `VITE_DOCS_URL`             | Derived from `DOCS_PORT` by default | Optional full override for the header `Docs` link during repo-root local startup                |
@@ -47,10 +50,11 @@ leave them unset.
 | `ORCHESTRATOR_PORT`                   | `3002`                                         | Host port the Orchestrator Docker container is mapped to                                                                                                                                                                                                                        |
 | `ORCHESTRATOR_URL`                    | `http://localhost:3002`                        | Full URL used by the API to communicate with the Orchestrator                                                                                                                                                                                                                   |
 | `ORCHESTRATOR_IMAGE`                  | `playrunner-orchestrator`                      | Docker image name for the Orchestrator (built by `start-local.sh`)                                                                                                                                                                                                              |
-| `EDITOR_API_URL_DOCKER`               | `http://host.docker.internal:3001`             | API server URL **as seen from inside Docker containers** (passed to the Orchestrator container for local workflow event callbacks)                                                                                                                                              |
-| `GCP_EVENT_TRANSPORT`                 | `pubsub`                                       | Event transport for GCP runners. Use `pubsub` for the default GCP Pub/Sub pull-subscription path, or `callback` to use the legacy tunnel/public-URL callback path.                                                                                                              |
-| `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`    | `playrunner-workflow-events`                   | GCP Pub/Sub topic name used for GCP workflow execution events when `GCP_EVENT_TRANSPORT=pubsub`. Terraform creates the shared topic, and the API creates execution-scoped filtered subscriptions on it.                                                                         |
-| `EDITOR_API_PUBLIC_URL`               | _(optional)_                                   | Public API base URL for legacy GCP Cloud Run callbacks when `GCP_EVENT_TRANSPORT=callback` and the local request host is not reachable from GCP. Not required for the default Pub/Sub transport.                                                                                |
+| `EDITOR_API_URL_DOCKER`               | `http://host.docker.internal:3001`             | API server URL **as seen from inside Docker containers**; local Playwright runners still use it to upload compressed output archives                                                                                                                                             |
+| `PUBSUB_EMULATOR_HOST`                | Inherited from repo-root `.env.local`          | Host-facing Pub/Sub emulator endpoint used by the API for local workflow event ingest                                                                                                                                                                                           |
+| `PUBSUB_EMULATOR_HOST_DOCKER`         | `host.docker.internal:<PUBSUB_EMULATOR_PORT>`  | Container-facing Pub/Sub emulator endpoint injected into local Orchestrator and Playwright runner containers                                                                                                                                                                    |
+| `LOCAL_PUBSUB_PROJECT_ID`             | `playrunner-local`                             | Project ID used by the API when creating local emulator topics and subscriptions                                                                                                                                                                                                |
+| `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`    | `playrunner-workflow-events`                   | Pub/Sub topic name used for workflow execution events. Local runs create/use this topic in the emulator; GCP runs use the managed GCP topic created by Terraform.                                                                                                                |
 | `GCS_BUCKET_PREFIX`                   | _(required for GCP)_                           | Required only for GCP-backed workflow execution. Prefix used when the API creates per-workflow GCS output buckets before triggering Cloud Run.                                                                                                                                  |
 | `GCS_PROJECT_ID`                      | _(optional fallback for GCP)_                  | Optional fallback project for GCS clients when a selected project is not supplied by the GCP workflow request.                                                                                                                                                                  |
 | `GCP_CLOUD_RUN_LOCATION`              | _(required for GCP)_                           | Cloud Run region used when the API creates or looks up the remote Orchestrator service.                                                                                                                                                                                         |
@@ -82,7 +86,9 @@ This file is **not used** when the Orchestrator runs as a Docker container (all 
 | Variable                            | Default                        | Description                                                                                                                                  |
 | ----------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PORT`                              | `3002`                         | Port the Orchestrator Express server listens on                                                                                              |
-| `EDITOR_API_URL`                    | `http://localhost:3001`        | API server URL used by the Orchestrator for local or legacy callback-mode workflow events                                                    |
+| `EDITOR_API_URL`                    | `http://localhost:3001`        | API server URL used by local runners for output archive uploads                                                                        |
+| `PUBSUB_EMULATOR_HOST`              | _(optional)_                   | Container-facing Pub/Sub emulator endpoint when running the Orchestrator locally against the local event bus                                  |
+| `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`  | `playrunner-workflow-events`   | Pub/Sub topic name used for workflow execution events                                                                                         |
 | `GCP_PROJECT`                       | `local-dev`                    | GCP project ID used for Cloud Storage / Cloud Run integrations                                                                               |
 | `PLAYWRIGHT_IMAGE_BASE`             | `playrunner-playwright-runner` | Base Docker image prefix for Playwright runner containers; the orchestrator appends `-typescript` or `-python`                               |
 | `GCP_CLOUD_RUN_API_BASE_URL`        | _(required for GCP)_           | Cloud Run API base URL used to create/run Playwright jobs                                                                                    |
@@ -130,6 +136,7 @@ The runner also receives these additional environment variables:
 | Variable                  | Description                                               |
 | ------------------------- | --------------------------------------------------------- |
 | `GCP_PROJECT`             | GCP project ID (`local-dev`)                              |
+| `PUBSUB_EMULATOR_HOST`    | Pub/Sub emulator endpoint for local Docker workflow runs  |
 | Any user-defined env vars | Injected from the Environment node's configured variables |
 
 ---
@@ -137,12 +144,17 @@ The runner also receives these additional environment variables:
 ## How Variables Flow Through the Stack
 
 ```
+.env.local
+  └─ PUBSUB_EMULATOR_HOST           → API local Pub/Sub ingest endpoint
+  └─ LOCAL_PUBSUB_PROJECT_ID        → local emulator project ID
+
 .env (API)
   └─ DATABASE_URL                   → Prisma + workflow event storage
-  └─ EDITOR_API_URL_DOCKER          → passed to Orchestrator container (-e)
-  └─ GCP_EVENT_TRANSPORT            → selects callback vs GCP Pub/Sub event ingest
+  └─ EDITOR_API_URL_DOCKER          → passed to local runners for output uploads
+  └─ PUBSUB_EMULATOR_HOST_DOCKER    → passed to local runner containers (-e)
 
 Orchestrator container (env from API's docker run)
   └─ GCP_PROJECT                    → passed to Playwright container (-e)
+  └─ PUBSUB_EMULATOR_HOST           → passed to local Playwright container (-e)
   └─ PAYLOAD (full config)          → passed to Playwright container (-e)
 ```

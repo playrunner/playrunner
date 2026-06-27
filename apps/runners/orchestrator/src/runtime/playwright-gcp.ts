@@ -1,7 +1,12 @@
 import type {
   PlaywrightExecutionBackend,
   PlaywrightExecutionRequest,
+  PreparedPlaywrightRunner,
 } from './contracts';
+import {
+  createPubSubRunnerControl,
+  resolveWorkflowEventsTopicName,
+} from './pubsub-runner-control';
 
 type CloudRunOperation = {
   done?: boolean;
@@ -31,12 +36,26 @@ type CloudRunJob = {
   };
 };
 
+type GcpPlaywrightRunSettings = {
+  accessToken: string;
+  cloudRunLocation: string;
+  cpu: number;
+  imageUri: string;
+  jobName: string;
+  memory: number;
+  playwrightVersion: string;
+  projectId: string;
+  topicName: string;
+  workers: number;
+};
+
 const POLL_INTERVAL_MS = 3000;
 const MAX_TRANSIENT_RETRIES = 4;
 const RETRY_BASE_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
 const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE = 'playrunner-{runtime}';
+let cloudRunJobLaunchQueue = Promise.resolve();
 
 function requireSetting(value: string | undefined, name: string): string {
   const normalized = value?.trim();
@@ -93,6 +112,28 @@ function renderTemplate(
 
 function cloudRunUrl(resourcePath: string): string {
   return `${CLOUD_RUN_API_BASE_URL}/${resourcePath}`;
+}
+
+function getWorkflowEventsTopicName(reqBody: any): string {
+  return resolveWorkflowEventsTopicName(reqBody.eventTransport?.topicName);
+}
+
+async function withCloudRunJobLaunchLock<T>(
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previousLaunch = cloudRunJobLaunchQueue;
+  let releaseLaunch!: () => void;
+  cloudRunJobLaunchQueue = new Promise<void>((resolve) => {
+    releaseLaunch = resolve;
+  });
+
+  await previousLaunch.catch(() => {});
+
+  try {
+    return await operation();
+  } finally {
+    releaseLaunch();
+  }
 }
 
 function resolvePlaywrightCloudImage(
@@ -327,7 +368,7 @@ async function ensurePlaywrightJob(args: {
   return jobPath;
 }
 
-async function triggerPlaywrightJob(args: {
+async function startPlaywrightJob(args: {
   accessToken: string;
   cpu: number;
   envKeys: string[];
@@ -371,8 +412,60 @@ async function triggerPlaywrightJob(args: {
     completedOperation.response?.name,
     'Cloud Run execution name',
   );
-  await waitForExecution(executionName, args.accessToken);
   return executionName;
+}
+
+function resolveGcpPlaywrightRunSettings(
+  request: PlaywrightExecutionRequest,
+): GcpPlaywrightRunSettings {
+  const { config, reqBody, runtime } = request;
+  const projectId = requireRequestValue(reqBody.gcpProject, 'gcpProject');
+  const gcpSettings = reqBody.settings?.gcp ?? {};
+  const accessToken = requireRequestValue(
+    gcpSettings.accessToken,
+    'GCP access token',
+  );
+  const cloudRunLocation = requireSetting(
+    gcpSettings.cloudRunLocation,
+    'Cloud Run region',
+  );
+  const playwrightVersion = requireRequestValue(
+    config.playwrightVersion,
+    'playwrightVersion',
+  );
+  const cpu = requirePositiveNumber(config.cpu, 'cpu');
+  const memory = requirePositiveNumber(config.memory, 'memory');
+  const workers = requirePositiveInteger(config.workers || 1, 'workers');
+  const imageUri = resolvePlaywrightCloudImage(
+    projectId,
+    runtime,
+    playwrightVersion,
+    requireSetting(
+      gcpSettings.playwrightImageUriTemplate,
+      'Playwright image URI template',
+    ),
+  );
+  const jobName = resolveJobName(
+    gcpSettings.playwrightJobNameTemplate ||
+      DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE,
+    runtime,
+    playwrightVersion,
+    cpu,
+    memory,
+  );
+
+  return {
+    accessToken,
+    cloudRunLocation,
+    cpu,
+    imageUri,
+    jobName,
+    memory,
+    playwrightVersion,
+    projectId,
+    topicName: getWorkflowEventsTopicName(reqBody),
+    workers,
+  };
 }
 
 export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend {
@@ -381,70 +474,94 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
   }
 
   async execute(request: PlaywrightExecutionRequest): Promise<void> {
-    const {
-      config,
-      envKeys,
-      globalEnvVars,
-      payloadData,
-      publishLog,
-      reqBody,
-      runtime,
-    } = request;
-    const projectId = requireRequestValue(reqBody.gcpProject, 'gcpProject');
-    const gcpSettings = reqBody.settings?.gcp ?? {};
-    const accessToken = requireRequestValue(
-      gcpSettings.accessToken,
-      'GCP access token',
+    const runner = await this.prepare(request);
+    await runner.waitUntilReady();
+    await runner.start();
+    await runner.waitForCompletion();
+  }
+
+  async prepare(
+    request: PlaywrightExecutionRequest,
+  ): Promise<PreparedPlaywrightRunner> {
+    const { envKeys, globalEnvVars, nodeId, payloadData, publishLog, runtime } =
+      request;
+    const settings = resolveGcpPlaywrightRunSettings(request);
+    const executionId = requireRequestValue(
+      request.reqBody.testId || payloadData?.data?.testId,
+      'testId',
     );
-    const cloudRunLocation = requireSetting(
-      gcpSettings.cloudRunLocation,
-      'Cloud Run region',
-    );
-    const playwrightVersion = requireRequestValue(
-      config.playwrightVersion,
-      'playwrightVersion',
-    );
-    const cpu = requirePositiveNumber(config.cpu, 'cpu');
-    const memory = requirePositiveNumber(config.memory, 'memory');
-    const workers = requirePositiveInteger(config.workers || 1, 'workers');
-    const imageUri = resolvePlaywrightCloudImage(
-      projectId,
-      runtime,
-      playwrightVersion,
-      requireSetting(
-        gcpSettings.playwrightImageUriTemplate,
-        'Playwright image URI template',
-      ),
-    );
-    const jobName = resolveJobName(
-      gcpSettings.playwrightJobNameTemplate ||
-        DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE,
-      runtime,
-      playwrightVersion,
-      cpu,
-      memory,
-    );
+    const runnerControl = await createPubSubRunnerControl({
+      accessToken: settings.accessToken,
+      executionId,
+      nodeId,
+      projectId: settings.projectId,
+      topicName: settings.topicName,
+    });
+
+    const preparedPayloadData = {
+      ...payloadData,
+      data: {
+        ...(payloadData?.data || {}),
+        runnerControl: runnerControl.payload,
+      },
+    };
 
     await publishLog(
-      `Playwright Runner starting in Cloud Run Job using ${runtime} image: ${imageUri}`,
+      `Preparing Playwright Runner in Cloud Run Job using ${runtime} image: ${settings.imageUri}`,
       'info',
     );
-    const executionName = await triggerPlaywrightJob({
-      accessToken,
-      cpu,
-      envKeys,
-      globalEnvVars,
-      imageUri,
-      jobName,
-      location: cloudRunLocation,
-      memory,
-      payloadData,
-      projectId,
-      workers,
-    });
-    await publishLog(
-      `Playwright Cloud Run Job (${executionName}) finished successfully.`,
-      'info',
+
+    const executionName = await withCloudRunJobLaunchLock(() =>
+      startPlaywrightJob({
+        accessToken: settings.accessToken,
+        cpu: settings.cpu,
+        envKeys,
+        globalEnvVars,
+        imageUri: settings.imageUri,
+        jobName: settings.jobName,
+        location: settings.cloudRunLocation,
+        memory: settings.memory,
+        payloadData: preparedPayloadData,
+        projectId: settings.projectId,
+        workers: settings.workers,
+      }),
     );
+
+    let ready = false;
+    let started = false;
+    let completed = false;
+
+    return {
+      cleanup: async () => {
+        if (!started && !completed) {
+          await runnerControl.publishCancel().catch((error) => {
+            console.warn(
+              `[GCP] Failed to cancel prepared Playwright runner ${nodeId}: ${error.message}`,
+            );
+          });
+          return;
+        }
+        await runnerControl.cleanup();
+      },
+      start: async () => {
+        started = true;
+        await runnerControl.publishStart();
+      },
+      waitForCompletion: async () => {
+        await waitForExecution(executionName, settings.accessToken);
+        completed = true;
+        await publishLog(
+          `Playwright Cloud Run Job (${executionName}) finished successfully.`,
+          'info',
+        );
+      },
+      waitUntilReady: async () => {
+        if (ready) {
+          return;
+        }
+        await runnerControl.waitUntilReady();
+        ready = true;
+      },
+    };
   }
 }

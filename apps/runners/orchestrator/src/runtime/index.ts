@@ -5,6 +5,7 @@ import type {
   OrchestratorRuntimeContribution,
   PlaywrightExecutionBackend,
   PlaywrightExecutionRequest,
+  PreparedPlaywrightRunner,
 } from './contracts';
 import { GcpPlaywrightExecutionBackend } from './playwright-gcp';
 import { LocalPlaywrightExecutionBackend } from './playwright-local';
@@ -12,7 +13,7 @@ import { LocalPlaywrightExecutionBackend } from './playwright-local';
 class PlaywrightExecutionRegistry {
   constructor(private readonly backends: PlaywrightExecutionBackend[]) {}
 
-  async execute(request: PlaywrightExecutionRequest): Promise<void> {
+  private getBackend(request: PlaywrightExecutionRequest) {
     const cloudProvider = request.reqBody.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),
@@ -23,7 +24,35 @@ class PlaywrightExecutionRegistry {
       );
     }
 
+    return backend;
+  }
+
+  async execute(request: PlaywrightExecutionRequest): Promise<void> {
+    const backend = this.getBackend(request);
+
     return backend.execute(request);
+  }
+
+  async prepare(
+    request: PlaywrightExecutionRequest,
+  ): Promise<PreparedPlaywrightRunner> {
+    const backend = this.getBackend(request);
+    if (backend.prepare) {
+      return backend.prepare(request);
+    }
+
+    let started = false;
+    const start = async () => {
+      if (started) return;
+      started = true;
+      await backend.execute(request);
+    };
+
+    return {
+      start,
+      waitForCompletion: async () => {},
+      waitUntilReady: async () => {},
+    };
   }
 
   register(backends: PlaywrightExecutionBackend[]) {

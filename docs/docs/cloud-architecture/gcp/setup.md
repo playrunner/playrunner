@@ -306,5 +306,5 @@ normally required.
 | Pub/Sub setup fails | Confirm Terraform applied cleanly, the topic name matches `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`, and the connected GCP user can create subscriptions. |
 | Workflow outputs fail to upload | Confirm the connected GCP user can create and write to Storage buckets in the selected project. |
 
-For the legacy callback transport and Cloudflare tunnel flow, see
-[Remote Debugging with Cloud Runners](../../local-dev/remote-debugging).
+For local debugging of cloud-runner messaging, see
+[Remote Runner Messaging](../../local-dev/remote-debugging).

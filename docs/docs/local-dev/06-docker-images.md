@@ -88,12 +88,13 @@ When the Orchestrator processes a Playwright node, it runs the equivalent of:
 ```bash
 docker run --rm \
   -e GCP_PROJECT=local-dev \
+  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8085 \
   -e MY_ENV_VAR=value \           # user-defined env vars from the Environment node
   -e PAYLOAD='{"data":{...},...}' \  # full JSON config
   playrunner-playwright-runner-typescript:<configured-tag>
 ```
 
-The `--rm` flag ensures the container is deleted after it exits. No Docker volumes are mounted for the Playwright runner — outputs are uploaded to the API via HTTP before the container exits.
+The `--rm` flag ensures the container is deleted after it exits. No Docker volumes are mounted for the Playwright runner — local output archives are uploaded to the API via HTTP before the container exits, while logs, states, control signals, and output events go through Pub/Sub.
 
 ---
 

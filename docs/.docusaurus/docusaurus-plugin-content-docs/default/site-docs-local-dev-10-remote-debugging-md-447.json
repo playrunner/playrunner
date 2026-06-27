@@ -1,7 +1,7 @@
 {
   "id": "local-dev/remote-debugging",
-  "title": "Remote Debugging (Cloud Runners + Tunnel)",
-  "description": "Local development only. This describes how to debug a cloud workflow run (e.g. the GCP runner) while the Playrunner API is running on your own machine.",
+  "title": "Remote Runner Messaging",
+  "description": "Local development only. This describes how workflow messages move when a cloud runner is used while the Playrunner API is running on your machine.",
   "source": "@site/docs/local-dev/10-remote-debugging.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/remote-debugging",
@@ -14,7 +14,7 @@
   "sidebarPosition": 10,
   "frontMatter": {
     "sidebar_position": 10,
-    "title": "Remote Debugging (Cloud Runners + Tunnel)"
+    "title": "Remote Runner Messaging"
   },
   "sidebar": "tutorialSidebar",
   "previous": {

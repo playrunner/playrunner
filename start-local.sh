@@ -55,6 +55,9 @@ POSTGRES_HOST="${POSTGRES_HOST:-127.0.0.1}"
 POSTGRES_DB="${POSTGRES_DB:-playrunner}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+PUBSUB_EMULATOR_PORT="${PUBSUB_EMULATOR_PORT:-8085}"
+LOCAL_PUBSUB_PROJECT_ID="${LOCAL_PUBSUB_PROJECT_ID:-playrunner-local}"
+PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-127.0.0.1:${PUBSUB_EMULATOR_PORT}}"
 LOCAL_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
 ROOT_DATABASE_URL="${DATABASE_URL:-}"
 VITE_DEFAULT_DATABASE_URL="${VITE_DEFAULT_DATABASE_URL:-${ROOT_DATABASE_URL:-$LOCAL_DATABASE_URL}}"
@@ -71,6 +74,9 @@ export POSTGRES_HOST
 export POSTGRES_DB
 export POSTGRES_USER
 export POSTGRES_PASSWORD
+export PUBSUB_EMULATOR_PORT
+export LOCAL_PUBSUB_PROJECT_ID
+export PUBSUB_EMULATOR_HOST
 export VITE_DEFAULT_DATABASE_URL
 export VITE_SETUP_INSTALLER_URL
 
@@ -125,6 +131,7 @@ echo "🌐 Web port: ${WEB_PORT}"
 echo "📚 Docs port: ${DOCS_PORT}"
 echo "🧰 Setup installer port: ${SETUP_INSTALLER_PORT}"
 echo "🐘 Postgres port: ${POSTGRES_PORT}"
+echo "📬 Pub/Sub emulator port: ${PUBSUB_EMULATOR_PORT}"
 
 wait_for_compose_service() {
     local service="$1"
@@ -515,8 +522,9 @@ NODE
 ensure_local_dependencies
 
 echo "📦 Starting local Docker services..."
-docker compose -f "${COMPOSE_FILE}" up -d postgres
+docker compose -f "${COMPOSE_FILE}" up -d postgres pubsub
 wait_for_compose_service postgres 90
+wait_for_compose_service pubsub 30
 
 if [ -f "${API_DIR}/.env" ]; then
     sync_api_database_url

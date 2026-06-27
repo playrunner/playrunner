@@ -35,9 +35,10 @@ Playrunner is a workflow orchestration platform for running automated Playwright
 
 There is also one supporting host service:
 
-| Service       | Port              | How it runs                         |
-| ------------- | ----------------- | ----------------------------------- |
-| **Docs Site** | `3004` by default | Host process via `./start-local.sh` |
+| Service                 | Port              | How it runs                         |
+| ----------------------- | ----------------- | ----------------------------------- |
+| **Docs Site**           | `3004` by default | Host process via `./start-local.sh` |
+| **Pub/Sub Emulator**    | `8085` by default | Docker container                    |
 
 ---
 
@@ -57,12 +58,12 @@ Orchestrator (Docker, :3002)
   │  spawns per node execution
   ▼
 Playwright Runner (Docker, ephemeral)
-  │  posts logs / state / output events
+  │  publishes logs / state / output events
   ▼
-API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
+Pub/Sub Emulator  →  API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
 ```
 
-Local Docker workflows use direct API callbacks because every service can reach the API on the host. GCP workflows use GCP Pub/Sub by default: the cloud runner publishes events to a GCP topic, the local API pulls them over outbound HTTPS, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**.
+Local Docker and GCP workflows use the same Pub/Sub event transport. Local runs publish to the Docker Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub; in both cases the API pulls messages, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**.
 
 ---
 
@@ -78,6 +79,6 @@ playrunner/
 │       └── playwright/        # Playwright test runner (Docker image)
 ├── docs/                      # This documentation (Docusaurus)
 ├── packages/                  # Integration SDK and integrations
-├── docker-compose.yml         # Docker-backed Postgres
+├── docker-compose.yml         # Docker-backed Postgres + Pub/Sub emulator
 └── start-local.sh             # One-command local startup script
 ```

@@ -37,7 +37,7 @@ graph TD
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads and environment variables) to these Jobs.
 4. **Pub/Sub**: The default GCP event transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes each message to PostgreSQL, then acknowledges it.
 
-> **Debugging cloud runs locally?** The default GCP Pub/Sub transport does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. The Cloudflare tunnel path is retained only for legacy callback mode. See [Remote Debugging (Cloud Runners + Tunnel)](../../local-dev/remote-debugging).
+> **Debugging cloud runs locally?** GCP Pub/Sub does not require a tunnel: the local API pulls messages from GCP over outbound HTTPS. See [Remote Runner Messaging](../../local-dev/remote-debugging).
 
 ---
 
