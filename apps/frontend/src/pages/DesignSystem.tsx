@@ -18,6 +18,14 @@ export default function DesignSystem() {
   const [selectedBrowsers, setSelectedBrowsers] = useState<string[]>([
     'chrome',
   ]);
+  const handleBackClick = () => {
+    if (window.history.state?.idx > 0) {
+      navigate(-1);
+      return;
+    }
+
+    navigate('/projects');
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -32,10 +40,10 @@ export default function DesignSystem() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/editor')}
+            onClick={handleBackClick}
             className="text-sm font-medium text-muted hover:text-[var(--foreground)] transition-colors"
           >
-            ← Back to App
+            ← Back
           </button>
         </header>
 

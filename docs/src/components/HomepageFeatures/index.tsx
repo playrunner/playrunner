@@ -33,9 +33,9 @@ const contributionAreas: ContributionArea[] = [
       'Make it easier for teams and new contributors to understand and adopt Playrunner.',
   },
   {
-    title: 'AI-assisted testing',
+    title: 'Playrunner AI Assistant',
     description:
-      'Explore ways AI can help summarise failures, suggest fixes, and improve test workflows.',
+      'Build a grounded assistant that can explain integrations, docs, workflows, and site behavior across the platform.',
   },
 ];
 

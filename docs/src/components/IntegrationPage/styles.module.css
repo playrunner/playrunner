@@ -90,6 +90,20 @@
   color: #ffffff;
 }
 
+:global([data-theme='dark']) .githubIcon {
+  background: #111827;
+  color: #ffffff;
+}
+
+:global([data-theme='dark']) .jiraIcon {
+  background: #111827;
+}
+
+:global([data-theme='dark']) .playwrightIcon {
+  background: #111827;
+  color: #ffffff;
+}
+
 .environmentIcon svg,
 .javascriptIcon svg,
 .scheduleIcon svg {

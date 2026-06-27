@@ -15,7 +15,8 @@ end-to-end test automation.
 - **Runners:** execution, scheduling, retries, output handling, and analysis.
 - **Integrations:** GitHub, Jira, Slack, CI/CD systems, and local developer workflows.
 - **Documentation:** setup paths, examples, architecture notes, and troubleshooting.
-- **AI-assisted testing:** failure summaries, suggested fixes, and workflow insights.
+- **e2e testing:** failure summaries and suggested fixes.
+- **Playrunner AI Assistant:** a grounded assistant that explains integrations, workflows, and site behavior from real project data.
 
 ## First steps
 
