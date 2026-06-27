@@ -98,17 +98,6 @@ export function IntegrationHero({
 }) {
   return (
     <section className={styles.hero}>
-      <div className={styles.heroHeader}>
-        <Link to="/docs/integration-packages" className={styles.backLink}>
-          All integrations
-        </Link>
-        <div className={styles.badges}>
-          {badges.map((badge) => (
-            <span key={badge}>{badge}</span>
-          ))}
-        </div>
-      </div>
-
       <div className={styles.heroBody}>
         <IntegrationIcon icon={icon} />
         <div className={styles.heroCopy}>
@@ -123,6 +112,13 @@ export function IntegrationHero({
           View on npm
         </a>
         <code className={styles.installCommand}>{installCommand}</code>
+        {badges.length > 0 ? (
+          <div className={styles.actionBadges}>
+            {badges.map((badge) => (
+              <span key={badge}>{badge}</span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {facts.length > 0 ? (

@@ -18,6 +18,9 @@
   --integration-hero-start: rgba(15, 118, 110, 0.14);
   --integration-icon-border: rgba(255, 255, 255, 0.42);
   --integration-muted: #667085;
+  --integration-primary-action-bg: #0f766e;
+  --integration-primary-action-bg-hover: #0d695f;
+  --integration-primary-action-fg: #ffffff;
   --integration-shadow: rgba(15, 23, 42, 0.08);
   --integration-surface: #ffffff;
   --integration-surface-strong: #f6f8fb;
@@ -38,6 +41,9 @@
   --integration-hero-start: rgba(94, 234, 212, 0.12);
   --integration-icon-border: rgba(255, 255, 255, 0.18);
   --integration-muted: #aab4c3;
+  --integration-primary-action-bg: #5eead4;
+  --integration-primary-action-bg-hover: #7ef0de;
+  --integration-primary-action-fg: #052e2b;
   --integration-shadow: rgba(0, 0, 0, 0.22);
   --integration-surface: #161b22;
   --integration-surface-strong: #10141b;
