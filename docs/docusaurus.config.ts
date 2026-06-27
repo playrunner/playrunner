@@ -130,8 +130,11 @@ const config: Config = {
           ],
         },
         {
-          title: 'Blog',
-          items: [{ label: 'Blog', to: '/blog' }],
+          title: 'Discuss',
+          items: [
+            { label: 'Blog', to: '/blog' },
+            { label: 'Discord', href: 'https://discord.gg/23yz25kat' },
+          ],
         },
         {
           title: 'More',

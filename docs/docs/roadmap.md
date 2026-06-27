@@ -13,7 +13,7 @@ orchestration more reliable, visible, and easier to extend.
 - **Workflow execution:** clearer run state, better retries, and stronger runner feedback.
 - **Debugging and reporting:** useful logs, traces, outputs, and result summaries.
 - **Integrations:** GitHub, Jira, Slack, CI/CD systems, and developer workflow hooks.
-- **Flaky test analysis:** patterns that help teams understand and reduce unreliable tests.
+- **Automated Testing:** patterns that help teams understand and reduce unreliable tests.
 - **Contributor experience:** local setup, architecture notes, examples, and issue quality.
 - **AI-assisted workflows:** practical ways to summarise failures and suggest next steps.
 

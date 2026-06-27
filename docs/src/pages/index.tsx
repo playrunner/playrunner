@@ -257,55 +257,13 @@ function MissionSection(): ReactNode {
             Make test orchestration open, extensible, and developer-friendly.
           </Heading>
         </div>
-        <p className={styles.leadText}>
-          Playwright is powerful, but teams still end up stitching together CI
-          scripts, dashboards, reports, alerts, flaky-test handling, and ticket
-          workflows themselves. Playrunner exists to make that orchestration
-          layer open, extensible, and developer-friendly.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-function AssistantSection(): ReactNode {
-  return (
-    <section className={clsx(styles.section, styles.sectionTint)}>
-      <div className={clsx('container', styles.assistantLayout)}>
-        <div>
-          <p className={styles.eyebrow}>Playrunner AI Assistant</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            A platform-wide assistant grounded in the data.
-          </Heading>
-          <p className={styles.bodyText}>
-            Playrunner should include an assistant people can call from across
-            the platform to ask about integrations, workflows, docs, and site
-            behavior. It should answer from the data Playrunner already stores
-            so the guidance stays tied to the current workspace and connected
-            integrations.
+        <div >
+          <p className={styles.leadText}>
+            Playwright is powerful, but teams still end up stitching together
+            CI scripts, dashboards, reports, alerts, flaky-test handling, and
+            ticket workflows themselves. Playrunner exists to make that
+            orchestration layer open, extensible, and developer-friendly.
           </p>
-          <div className={styles.assistantActions}>
-            <Link
-              className="button button--primary button--md"
-              to="/docs/contributing"
-            >
-              Read the contributing guide
-            </Link>
-          </div>
-        </div>
-
-        <div className={styles.assistantCard}>
-          <Heading as="h3" className={styles.cardTitle}>
-            What it should do
-          </Heading>
-          <ul className={styles.assistantList}>
-            {assistantFocus.map((item) => (
-              <li className={styles.assistantItem} key={item.title}>
-                <strong>{item.title}</strong>
-                <span>{item.description}</span>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </section>
@@ -322,13 +280,16 @@ function ContributorInviteSection(): ReactNode {
             Join early and help shape the project
           </Heading>
         </div>
-        <p className={styles.bodyText}>
-          Playrunner is early, which means contributors can have real influence
-          over the architecture, developer experience, integrations, and
-          roadmap. Whether you want to work on frontend, runners, integrations,
-          infrastructure, documentation, or the Playrunner AI Assistant, there
-          is room to own a meaningful part of the project.
-        </p>
+        <div>
+          <p className={styles.bodyText}>
+            Playrunner is early, which means contributors can have real
+            influence over the architecture, developer experience,
+            integrations, and roadmap. Whether you want to work on frontend,
+            runners, integrations, infrastructure, documentation, or the
+            Playrunner AI Assistant, there is room to own a meaningful part of
+            the project.
+          </p>
+        </div>
       </div>
     </section>
   );
@@ -428,8 +389,8 @@ export default function Home(): ReactNode {
       <HomepageHeader />
       <main>
         <MissionSection />
-        <AssistantSection />
         <ContributorInviteSection />
+    
         <HomepageFeatures />
         <WhyContributeSection />
         <GettingStartedSection />

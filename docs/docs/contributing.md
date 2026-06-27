@@ -11,12 +11,12 @@ end-to-end test automation.
 
 ## Good places to start
 
-- **Frontend and UX:** workflows, run status, traces, reports, and result views.
-- **Runners:** execution, scheduling, retries, output handling, and analysis.
-- **Integrations:** GitHub, Jira, Slack, CI/CD systems, and local developer workflows.
-- **Documentation:** setup paths, examples, architecture notes, and troubleshooting.
-- **e2e testing:** failure summaries and suggested fixes.
-- **Playrunner AI Assistant:** a grounded assistant that explains integrations, workflows, and site behavior from real project data.
+- Frontend and UX: workflows, run status, traces, reports, and result views.
+- Runners: execution, scheduling, retries, output handling, and analysis.
+- Integrations: GitHub, Jira, Slack, CI/CD systems, and local developer workflows.
+- Documentation: setup paths, examples, architecture notes, and troubleshooting.
+- e2e testing: failure summaries and suggested fixes.
+- Playrunner AI Assistant: a grounded assistant that explains integrations, workflows, and site behavior from real project data.
 
 ## First steps
 

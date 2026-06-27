@@ -208,6 +208,7 @@
   line-height: 1.6;
 }
 
+.sectionCard,
 .assistantCard {
   padding: 1.25rem;
   border: 1px solid var(--ifm-color-emphasis-200);

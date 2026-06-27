@@ -24,7 +24,7 @@ const contributionAreas: ContributionArea[] = [
       'Build connections with GitHub, Jira, Slack, CI/CD systems, and developer workflows.',
   },
   {
-    title: 'Flaky test analysis',
+    title: 'Automated Testing',
     description: 'Help detect, explain, and reduce unreliable tests.',
   },
   {
