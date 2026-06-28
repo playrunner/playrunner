@@ -559,11 +559,11 @@ export function GcpSettingsModal({
             </button>
           )
         ) : authSuccess ? (
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <span className="min-h-5 text-xs text-emerald-500">
+          <div className="flex w-full items-center gap-3">
+            <span className="min-h-5 flex-1 text-xs text-emerald-500">
               {runnerSettingsSaved ? 'Runner settings saved.' : ''}
             </span>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex shrink-0 items-center justify-end gap-2">
               {Button ? (
                 <>
                   <Button

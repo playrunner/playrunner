@@ -2,6 +2,7 @@
 @import 'tailwindcss';
 
 @source '../../../packages/environment/src';
+@source '../../../packages/gcp/src';
 @source '../../../packages/github/src';
 @source '../../../packages/integration-sdk/src';
 @source '../../../packages/javascript/src';
