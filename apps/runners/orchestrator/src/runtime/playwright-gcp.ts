@@ -405,7 +405,7 @@ async function ensurePlaywrightJob(args: {
       'info',
     );
     const operation = await cloudRunRequest<CloudRunOperation>(
-      `${jobPath}?updateMask=template.template.containers,template.template.maxRetries`,
+      jobPath,
       args.accessToken,
       {
         method: 'PATCH',

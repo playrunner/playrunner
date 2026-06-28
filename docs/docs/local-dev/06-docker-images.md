@@ -143,7 +143,7 @@ Running workflows against the GCP execution path requires the Orchestrator and P
 ### Prerequisites
 
 1. **Connect GCP in the Integrations modal.** The script reads the GCP project, region, Cloud Run service name, and image URI templates straight from the `CloudCredential` row that the modal writes to Postgres. Nothing else stores these values.
-2. **Apply the Terraform under `infra/gcp`** at least once so the required GCP APIs are enabled and the `orchestrator` and `playwright-runner` Artifact Registry repositories and shared workflow-events Pub/Sub topic exist in your project.
+2. **Apply the Terraform under `infra/gcp`** at least once so the required GCP APIs are enabled and the `orchestrator` and `playwright-runner` Artifact Registry repositories and shared workflow-events Pub/Sub topic exist in your project. Apply it again before publishing if the saved project, region, repository path, or workflow-events topic changed.
 3. **Local tooling on `PATH`:** `docker`, `gcloud`, and `node`. `apps/api/.env` must contain a working `DATABASE_URL` (the script reuses Prisma from `apps/api/node_modules` to read the credential).
 4. **GCloud authentication:** run `gcloud auth login` before publishing. The push script configures Docker's Artifact Registry credential helper for the target registry host automatically.
 
@@ -156,6 +156,15 @@ node infra/gcp/scripts/gcp-settings.mjs json
 ```
 
 This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/gcp/scripts/push-runners.sh --help` for the wrapper script's options.
+
+If these saved values changed, rerun the push script after saving:
+
+```bash
+./infra/gcp/scripts/push-runners.sh --target both --yes
+```
+
+Run Terraform first when the changed values point at a project, region, Artifact
+Registry repository, or Pub/Sub topic that does not already exist.
 
 ### Usage
 

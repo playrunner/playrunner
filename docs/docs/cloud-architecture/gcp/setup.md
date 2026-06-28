@@ -18,9 +18,9 @@ Integrations modal saves to Postgres.
 
 There are two setup surfaces, and they deliberately do different jobs:
 
-| Surface | Source | What it controls |
-| --- | --- | --- |
-| GCP infrastructure | `infra/gcp` Terraform | Artifact Registry repositories and the shared Pub/Sub topic |
+| Surface              | Source                                                         | What it controls                                                                       |
+| -------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| GCP infrastructure   | `infra/gcp` Terraform                                          | Artifact Registry repositories and the shared Pub/Sub topic                            |
 | Runtime GCP settings | The GCP Integration modal, stored in the `CloudCredential` row | Selected project, Cloud Run region, Orchestrator service name, and image URI templates |
 
 OAuth does not create infrastructure. After OAuth succeeds, Playrunner can list
@@ -30,13 +30,13 @@ apply Terraform.
 
 Keep them aligned with this contract:
 
-| Terraform value | Saved GCP setting | Expected match |
-| --- | --- | --- |
-| `project_id` | `selectedProject` | Same GCP project ID |
-| `region` | `cloudRunLocation` | Same GCP region |
-| `repository_urls.orchestrator` | `orchestratorImageUriTemplate` | After replacing `{projectId}`, it should be `<repository_urls.orchestrator>/playrunner-orchestrator:latest` |
-| `repository_urls.playwright_runner` | `playwrightImageUriTemplate` | After replacing `{projectId}`, it should be `<repository_urls.playwright_runner>/playrunner-playwright-runner-{runtime}:{version}` |
-| `workflow_events_topic_name` | `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC` | Same topic name; both default to `playrunner-workflow-events` |
+| Terraform value                     | Saved GCP setting                  | Expected match                                                                                                                     |
+| ----------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `project_id`                        | `selectedProject`                  | Same GCP project ID                                                                                                                |
+| `region`                            | `cloudRunLocation`                 | Same GCP region                                                                                                                    |
+| `repository_urls.orchestrator`      | `orchestratorImageUriTemplate`     | After replacing `{projectId}`, it should be `<repository_urls.orchestrator>/playrunner-orchestrator:latest`                        |
+| `repository_urls.playwright_runner` | `playwrightImageUriTemplate`       | After replacing `{projectId}`, it should be `<repository_urls.playwright_runner>/playrunner-playwright-runner-{runtime}:{version}` |
+| `workflow_events_topic_name`        | `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC` | Same topic name; both default to `playrunner-workflow-events`                                                                      |
 
 `orchestratorServiceName` is not a Terraform output. Terraform creates the
 container registry repository; Playrunner and `push-runners.sh` create or update
@@ -134,6 +134,12 @@ us-central1-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-r
 Replace `us-central1` with your Cloud Run region. Keep `{projectId}` in
 both templates, and keep `{runtime}` and `{version}` in the Playwright template.
 
+If you change the saved project, region, or image URI templates after runners
+have already been published, rerun `push-runners.sh` so Cloud Run can use the
+new image locations. If the new values point at a different project, region, or
+Artifact Registry repository path, apply the `infra/gcp` Terraform first so the
+required APIs, repositories, and Pub/Sub topic exist before publishing.
+
 Confirm what the push script will read:
 
 ```bash
@@ -228,6 +234,13 @@ If they do not line up, reopen the GCP Integration modal, update the saved
 project, region, or image URI templates, and save again before running
 `push-runners.sh`.
 
+If the saved project or region changed, or if the templates now point at
+repositories other than the Terraform-created `orchestrator` and
+`playwright-runner` repositories, run `terraform plan` and `terraform apply`
+again before publishing images. Terraform creates the Artifact Registry
+repositories and shared Pub/Sub topic; `push-runners.sh` builds and pushes
+images, redeploys the Orchestrator service, and clears cached Playwright jobs.
+
 ## 5. Push the Runner Images
 
 From the repo root, publish both the Orchestrator and Playwright runner images:
@@ -301,17 +314,31 @@ Rerun the push script after changing:
 For code changes in the API or frontend only, rerunning `push-runners.sh` is not
 normally required.
 
+## When to Rerun Terraform
+
+Rerun Terraform before publishing runners when the saved GCP settings now point
+at infrastructure that does not already exist:
+
+- The selected GCP project changed.
+- The Cloud Run / Artifact Registry region changed.
+- The image URI templates now use different Artifact Registry repositories.
+- The shared workflow events topic name changed.
+
+Changing only `orchestratorServiceName` does not require Terraform. The
+Orchestrator Cloud Run service is created or updated by `push-runners.sh` and
+the runtime path, not by Terraform.
+
 ## Troubleshooting
 
-| Symptom | Check |
-| --- | --- |
-| `No GCP cloud credential found` | Connect GCP in the Integrations modal and save the runner settings first. |
-| `GCP setting "..." is empty` | Reopen the GCP modal and save project, region, service name, and image templates. |
-| Docker push is denied | The push script runs `gcloud auth configure-docker` automatically. Check that `gcloud auth login` is using the expected account and that the account can push to Artifact Registry. |
-| Cloud Run cannot pull the image | Confirm the image URI template matches the Terraform-created repository and that the image was pushed. |
-| Pub/Sub setup fails | Confirm Terraform applied cleanly, the topic name matches `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`, and the connected GCP user can create subscriptions and publish messages. |
-| Playwright job prepares but never starts | Confirm the Orchestrator can publish `runner_control` messages and the Playwright job can pull its filtered control subscription on the shared topic. |
-| Workflow outputs fail to upload | Confirm the connected GCP user can create and write to Storage buckets in the selected project. |
+| Symptom                                  | Check                                                                                                                                                                               |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `No GCP cloud credential found`          | Connect GCP in the Integrations modal and save the runner settings first.                                                                                                           |
+| `GCP setting "..." is empty`             | Reopen the GCP modal and save project, region, service name, and image templates.                                                                                                   |
+| Docker push is denied                    | The push script runs `gcloud auth configure-docker` automatically. Check that `gcloud auth login` is using the expected account and that the account can push to Artifact Registry. |
+| Cloud Run cannot pull the image          | Confirm the image URI template matches the Terraform-created repository and that the image was pushed.                                                                              |
+| Pub/Sub setup fails                      | Confirm Terraform applied cleanly, the topic name matches `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC`, and the connected GCP user can create subscriptions and publish messages.             |
+| Playwright job prepares but never starts | Confirm the Orchestrator can publish `runner_control` messages and the Playwright job can pull its filtered control subscription on the shared topic.                               |
+| Workflow outputs fail to upload          | Confirm the connected GCP user can create and write to Storage buckets in the selected project.                                                                                     |
 
 For local debugging of cloud-runner messaging, see
 [Remote Runner Messaging](../../local-dev/remote-debugging).

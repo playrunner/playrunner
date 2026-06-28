@@ -25,6 +25,10 @@ type GcpCredentialData = {
 };
 
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
+const PUSH_RUNNERS_COMMAND =
+  './infra/gcp/scripts/push-runners.sh --target both --yes';
+const DISCONNECT_GCP_CONFIRM_MESSAGE =
+  'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and runner settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
 
 function buildOrchestratorTemplate(
   region: string,
@@ -487,6 +491,8 @@ export function GcpSettingsModal({
 
   const handleDisconnectGcp = async () => {
     if (!auth.currentUser) return;
+    if (!window.confirm(DISCONNECT_GCP_CONFIRM_MESSAGE)) return;
+
     try {
       if (!store.deleteCloudCredential) {
         throw new Error(
@@ -771,6 +777,13 @@ export function GcpSettingsModal({
                 Use <code>{'{projectId}'}</code> in both image templates, plus{' '}
                 <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
                 the Playwright image.
+              </p>
+              <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-muted">
+                After saving changed runner settings, rerun{' '}
+                <code>{PUSH_RUNNERS_COMMAND}</code>. If the project, region, or
+                Artifact Registry repository path changed, apply{' '}
+                <code>infra/gcp</code> Terraform first so the APIs,
+                repositories, and Pub/Sub topic exist.
               </p>
             </div>
           </div>

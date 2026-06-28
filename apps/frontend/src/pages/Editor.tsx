@@ -69,19 +69,10 @@ interface NodeData {
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
 
 type ConnectionType =
-  | 'sequential'
-  | 'concurrent'
-  | 'independent'
-  | 'success'
-  | 'failure';
+  'sequential' | 'concurrent' | 'independent' | 'success' | 'failure';
 
 type NodeExecutionStatus =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'warning';
+  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
@@ -329,25 +320,27 @@ function WorkflowStartupStatusPanel({
             <p className="truncate text-xs leading-relaxed text-muted">
               {status.detail}
             </p>
-            <div className="flex items-center gap-1.5">
-              {WORKFLOW_STARTUP_STEPS.map((step, index) => (
-                <div
+            <div className="grid grid-cols-5 gap-x-2 gap-y-2 pt-1">
+              {WORKFLOW_STARTUP_STEPS.map((step) => (
+                <span
                   key={step}
-                  className="flex min-w-0 flex-1 items-center gap-1.5"
+                  className="min-w-0 truncate text-center text-[10px] font-medium uppercase tracking-wider text-muted"
                 >
-                  <span
-                    className={cn(
-                      'h-1.5 flex-1 rounded-full transition-colors',
-                      !isFailed && index <= currentStepIndex
-                        ? 'bg-[var(--accent)]'
-                        : 'bg-[var(--border)]',
-                      isFailed && index === currentStepIndex && 'bg-red-500',
-                    )}
-                  />
-                  <span className="hidden shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted sm:inline">
-                    {step}
-                  </span>
-                </div>
+                  {step}
+                </span>
+              ))}
+              {WORKFLOW_STARTUP_STEPS.map((step, index) => (
+                <span
+                  key={`${step}-progress`}
+                  className={cn(
+                    'h-1.5 min-w-0 rounded-full transition-colors',
+                    !isFailed && index <= currentStepIndex
+                      ? 'bg-[var(--accent)]'
+                      : 'bg-[var(--border)]',
+                    isFailed && index === currentStepIndex && 'bg-red-500',
+                  )}
+                  aria-hidden="true"
+                />
               ))}
             </div>
           </div>
@@ -535,8 +528,7 @@ export default function Editor() {
 
   const initialNodes = location.state?.initialNodes as NodeData[] | undefined;
   const initialConnections = location.state?.initialConnections as
-    | Connection[]
-    | undefined;
+    Connection[] | undefined;
 
   const [nodes, setNodes] = useState<NodeData[]>(initialNodes || []);
   const [connections, setConnections] = useState<Connection[]>(

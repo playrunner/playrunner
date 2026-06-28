@@ -134,6 +134,31 @@ textarea::placeholder {
   color: var(--muted);
 }
 
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+select:-webkit-autofill,
+select:-webkit-autofill:hover {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--control-bg) inset;
+  box-shadow: 0 0 0 1000px var(--control-bg) inset;
+}
+
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  -webkit-box-shadow:
+    0 0 0 1000px var(--control-bg) inset,
+    0 0 0 1px var(--border-strong);
+  box-shadow:
+    0 0 0 1000px var(--control-bg) inset,
+    0 0 0 1px var(--border-strong);
+}
+
 .running-border-wrapper {
   position: absolute;
   inset: -1px;

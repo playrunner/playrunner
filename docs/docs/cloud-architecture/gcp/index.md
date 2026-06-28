@@ -77,6 +77,10 @@ The selected project and Cloud Run region should match the Terraform
 the Terraform-created Artifact Registry repository URLs. The setup runbook has
 the exact matching checklist.
 
+If those saved values change, publish the runners again so Cloud Run uses the
+new image locations. Apply the `infra/gcp` Terraform first when the new project,
+region, repository path, or workflow-events topic has not already been created.
+
 ---
 
 ## Workflow Execution Lifecycle
