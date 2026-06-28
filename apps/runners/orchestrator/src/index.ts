@@ -40,6 +40,8 @@ type GcpPubSubEventTransport = {
 };
 
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
+const REDACTED_VALUE = '[redacted]';
+const SENSITIVE_PAYLOAD_KEY_PATTERN = /authorization|secret|token/i;
 
 function getPubSubApiBaseUrl(): string {
   const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
@@ -70,6 +72,51 @@ const activeNodePublishers: Record<string, WorkflowEventPublisher> = {};
 
 function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function isSensitivePayloadKey(key: string): boolean {
+  return (
+    key.toLowerCase() === 'code' || SENSITIVE_PAYLOAD_KEY_PATTERN.test(key)
+  );
+}
+
+function redactSensitivePayload(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactSensitivePayload(entry));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+      key,
+      isSensitivePayloadKey(key)
+        ? REDACTED_VALUE
+        : redactSensitivePayload(entry),
+    ]),
+  );
+}
+
+function writeWorkflowLogToConsole(
+  executionId: string,
+  message: string,
+  level: WorkflowEventLevel,
+) {
+  const renderedMessage = `[Workflow ${executionId || 'unknown'}] ${message}`;
+
+  if (level === 'error') {
+    console.error(renderedMessage);
+    return;
+  }
+
+  if (level === 'warn') {
+    console.warn(renderedMessage);
+    return;
+  }
+
+  console.log(renderedMessage);
 }
 
 async function publishGcpPubSubEvent(args: {
@@ -191,6 +238,7 @@ function createWorkflowEventPublisher(
     executionId,
     publishEvent,
     publishLog: async (message, level = 'info', extra = {}) => {
+      writeWorkflowLogToConsole(executionId, message, level);
       await publishEvent({
         ...extra,
         level,
@@ -218,15 +266,16 @@ async function executeWorkflow(reqBody: any) {
 
   try {
     const { nodes, connections, settings, testId, bucketName } = reqBody;
+    const nodeCount = Array.isArray(nodes) ? nodes.length : 0;
 
     console.log(
       'Runner received workflow execution request with nodes:',
-      nodes?.length,
+      nodeCount,
     );
 
     await publishEvent({
       level: 'info',
-      message: 'Workflow execution started.',
+      message: `Cloud orchestrator received workflow execution request with ${nodeCount} node${nodeCount === 1 ? '' : 's'}.`,
       timestamp: new Date().toISOString(),
       type: 'workflow_started',
     });
@@ -381,6 +430,10 @@ async function executeWorkflow(reqBody: any) {
         );
         for (const node of playwrightNodes) {
           await publishNodeState(node.id, 'pending');
+          await publishLog(
+            `Starting Playwright Runner preparation for ${node.label || node.id} (${node.id}).`,
+            'info',
+          );
           const { request } = createPlaywrightExecutionRequest(node);
           preparedPlaywrightRunners[node.id] =
             orchestratorRuntime.playwrightExecution
@@ -504,7 +557,11 @@ async function executeWorkflow(reqBody: any) {
 
           console.log(
             `[Orchestrator] Sending payload to runner for ${node.id}:`,
-            JSON.stringify(request.payloadData, null, 2),
+            JSON.stringify(
+              redactSensitivePayload(request.payloadData),
+              null,
+              2,
+            ),
           );
           if (!settings?.github?.accessToken) {
             console.warn(
@@ -523,6 +580,10 @@ async function executeWorkflow(reqBody: any) {
               'info',
             );
             await preparedRunner.start();
+            await publishLog(
+              `Playwright Runner for ${node.id} acknowledged start signal.`,
+              'info',
+            );
             await preparedRunner.waitForCompletion();
           } catch (err: any) {
             await publishLog(

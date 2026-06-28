@@ -63,6 +63,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       eventTransport =
         await this.pubSubEventStreamManager.ensureGcpPubSubEventStream({
           creds: { accessToken: '' },
+          emulatorHost: process.env.PUBSUB_EMULATOR_HOST || null,
           executionId: testId,
           projectId: LOCAL_PUBSUB_PROJECT_ID,
         });

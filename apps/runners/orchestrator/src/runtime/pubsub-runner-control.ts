@@ -19,6 +19,7 @@ export type PubSubRunnerControl = {
   };
   publishCancel: () => Promise<void>;
   publishStart: () => Promise<void>;
+  startWithRetry: () => Promise<void>;
   statusSubscriptionName: string;
   waitUntilReady: () => Promise<void>;
 };
@@ -31,6 +32,8 @@ const RUNNER_CONTROL_ACK_DEADLINE_SECONDS = 60;
 // GCP Pub/Sub minimum subscription expiration TTL is 24 hours.
 const RUNNER_CONTROL_RETENTION_SECONDS = 24 * 60 * 60;
 const RUNNER_READY_TIMEOUT_MS = 30 * 60 * 1000;
+const RUNNER_START_CONFIRM_TIMEOUT_MS = 30 * 60 * 1000;
+const RUNNER_START_RETRY_INTERVAL_MS = 3000;
 const RUNNER_STATUS_POLL_INTERVAL_MS = 1000;
 const DEFAULT_WORKFLOW_EVENTS_TOPIC = 'playrunner-workflow-events';
 
@@ -365,6 +368,70 @@ async function waitForRunnerReady(args: {
   );
 }
 
+async function waitForRunnerStarted(args: {
+  accessToken?: string;
+  executionId: string;
+  nodeId: string;
+  projectId: string;
+  publishStart: () => Promise<void>;
+  subscriptionName: string;
+}) {
+  const startedAt = Date.now();
+  let lastStartPublishedAt = 0;
+
+  while (Date.now() - startedAt < RUNNER_START_CONFIRM_TIMEOUT_MS) {
+    if (
+      !lastStartPublishedAt ||
+      Date.now() - lastStartPublishedAt >= RUNNER_START_RETRY_INTERVAL_MS
+    ) {
+      await args.publishStart();
+      lastStartPublishedAt = Date.now();
+    }
+
+    const response = await pullRunnerStatusMessages(args);
+    const messages = response.receivedMessages || [];
+    const ackIds = messages.map((message) => message.ackId);
+
+    try {
+      for (const message of messages) {
+        const payload = decodePubSubPayload(message.message);
+        if (
+          payload.executionId !== args.executionId ||
+          payload.nodeId !== args.nodeId
+        ) {
+          continue;
+        }
+
+        if (payload.status === 'started') {
+          return;
+        }
+
+        if (
+          payload.status === 'cancelled' ||
+          payload.status === 'prepare_failed' ||
+          payload.status === 'failed'
+        ) {
+          throw new Error(
+            payload.error ||
+              `Prepared Playwright runner reported ${payload.status}.`,
+          );
+        }
+      }
+    } finally {
+      await acknowledgeRunnerStatusMessages({
+        ...args,
+        ackIds,
+      });
+    }
+
+    await sleep(RUNNER_STATUS_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    `Timed out waiting for prepared Playwright runner ${args.nodeId} to acknowledge start.`,
+  );
+}
+
 export function resolveWorkflowEventsTopicName(value: unknown): string {
   return sanitizePubSubId(
     typeof value === 'string' && value.trim()
@@ -403,6 +470,36 @@ export async function createPubSubRunnerControl(args: {
     }),
   ]);
 
+  return createPubSubRunnerControlFromSubscriptions({
+    ...args,
+    controlSubscriptionName,
+    statusSubscriptionName,
+  });
+}
+
+export function createPubSubRunnerControlFromSubscriptions(args: {
+  accessToken?: string;
+  controlSubscriptionName: string;
+  executionId: string;
+  nodeId: string;
+  projectId: string;
+  statusSubscriptionName: string;
+  topicName: string;
+}): PubSubRunnerControl {
+  const controlSubscriptionName = args.controlSubscriptionName;
+  const statusSubscriptionName = args.statusSubscriptionName;
+
+  const publishStart = async () => {
+    await publishRunnerControlMessage({
+      accessToken: args.accessToken,
+      action: 'start',
+      executionId: args.executionId,
+      nodeId: args.nodeId,
+      projectId: args.projectId,
+      topicName: args.topicName,
+    });
+  };
+
   return {
     cleanup: async () => {
       await Promise.all([
@@ -435,13 +532,16 @@ export async function createPubSubRunnerControl(args: {
       });
     },
     publishStart: async () => {
-      await publishRunnerControlMessage({
+      await publishStart();
+    },
+    startWithRetry: async () => {
+      await waitForRunnerStarted({
         accessToken: args.accessToken,
-        action: 'start',
         executionId: args.executionId,
         nodeId: args.nodeId,
         projectId: args.projectId,
-        topicName: args.topicName,
+        publishStart,
+        subscriptionName: statusSubscriptionName,
       });
     },
     statusSubscriptionName,

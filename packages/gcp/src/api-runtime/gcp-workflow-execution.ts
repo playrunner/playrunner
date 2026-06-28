@@ -9,6 +9,11 @@ import type {
 import { ensureOrchestratorService } from './cloudrun';
 import { ensureBucket, refreshGcpAccessTokenIfNeeded } from './gcs';
 import type { GcpPubSubEventStreamManager } from './gcp-pubsub-events';
+import {
+  cancelPrewarmedGcpPlaywrightRunners,
+  prewarmGcpPlaywrightRunners,
+  type PrewarmedGcpPlaywrightRunner,
+} from './playwright-prewarm';
 
 const ORCHESTRATOR_HEALTH_MAX_ATTEMPTS = 8;
 const ORCHESTRATOR_INVOKE_MAX_ATTEMPTS = 3;
@@ -314,6 +319,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       eventTransport =
         await this.pubSubEventStreamManager.ensureGcpPubSubEventStream({
           creds: this.state.gcpCredentials[testId],
+          emulatorHost: null,
           executionId: testId,
           projectId: gcp.selectedProject,
         });
@@ -378,7 +384,30 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
+    let prewarmPromise:
+      | Promise<Record<string, PrewarmedGcpPlaywrightRunner>>
+      | undefined;
+    let prewarmedPlaywrightRunners: Record<
+      string,
+      PrewarmedGcpPlaywrightRunner
+    > = {};
+
     try {
+      if (eventTransport) {
+        prewarmPromise = prewarmGcpPlaywrightRunners({
+          accessToken: refreshedToken,
+          body,
+          bucketName,
+          editorApiUrl,
+          eventTransport,
+          executionToken,
+          logTransport: this.logTransport,
+          projectId: gcp.selectedProject,
+          testId,
+          workflowId,
+        });
+      }
+
       const serviceUri = await ensureOrchestratorService(
         gcp.selectedProject,
         refreshedToken,
@@ -396,6 +425,10 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         workflowId,
       );
 
+      if (prewarmPromise) {
+        prewarmedPlaywrightRunners = await prewarmPromise;
+      }
+
       await invokeOrchestratorService(
         serviceUri,
         {
@@ -405,6 +438,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
           gcpProject: gcp.selectedProject,
           bucketName,
           executionAuthToken: executionToken,
+          prewarmedPlaywrightRunners,
           testId,
         },
         this.logTransport,
@@ -439,6 +473,19 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
       this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
+      const runnersToCancel =
+        Object.keys(prewarmedPlaywrightRunners).length > 0
+          ? prewarmedPlaywrightRunners
+          : prewarmPromise
+            ? await prewarmPromise.catch(() => ({}))
+            : {};
+
+      if (Object.keys(runnersToCancel).length > 0) {
+        await cancelPrewarmedGcpPlaywrightRunners({
+          accessToken: refreshedToken,
+          runners: runnersToCancel,
+        });
+      }
 
       try {
         await this.logTransport.publish(

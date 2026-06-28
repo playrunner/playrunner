@@ -161,7 +161,7 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
       },
       start: async () => {
         startRequested = true;
-        await runnerControl.publishStart();
+        await runnerControl.startWithRetry();
       },
       waitForCompletion: async () => {
         await completion;

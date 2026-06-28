@@ -3,6 +3,7 @@ import type { GcpExecutionEvents } from './contracts';
 
 type PubSubEventStream = {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   stop: () => void;
   subscriptionName: string;
@@ -33,6 +34,7 @@ export type GcpPubSubEventTransport = {
 export type GcpPubSubEventStreamManager = {
   ensureGcpPubSubEventStream(params: {
     creds: GcpTokenRefresh;
+    emulatorHost?: string | null;
     executionId: string;
     projectId: string;
   }): Promise<GcpPubSubEventTransport>;
@@ -79,18 +81,18 @@ function getConfiguredTopicName(): string {
   );
 }
 
-function getPubSubApiBaseUrl(): string {
-  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
-  if (!emulatorHost) {
+function getPubSubApiBaseUrl(emulatorHost: string | null): string {
+  const normalizedEmulatorHost = emulatorHost?.trim();
+  if (!normalizedEmulatorHost) {
     return PUBSUB_API_BASE_URL;
   }
 
-  const normalizedHost = emulatorHost.replace(/\/+$/, '');
+  const normalizedHost = normalizedEmulatorHost.replace(/\/+$/, '');
   return `${normalizedHost.startsWith('http') ? normalizedHost : `http://${normalizedHost}`}/v1`;
 }
 
-function isUsingPubSubEmulator(): boolean {
-  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
+function isUsingPubSubEmulator(emulatorHost: string | null): boolean {
+  return !!emulatorHost?.trim();
 }
 
 function getSubscriptionName(executionId: string): string {
@@ -112,8 +114,11 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function getFreshAccessToken(creds: GcpTokenRefresh): Promise<string> {
-  if (isUsingPubSubEmulator()) {
+async function getFreshAccessToken(
+  creds: GcpTokenRefresh,
+  emulatorHost: string | null,
+): Promise<string> {
+  if (isUsingPubSubEmulator(emulatorHost)) {
     return '';
   }
 
@@ -131,16 +136,20 @@ async function pubsubRequest<T>(
   creds: GcpTokenRefresh,
   resourcePath: string,
   init: RequestInit = {},
+  emulatorHost: string | null = null,
 ): Promise<T> {
-  const accessToken = await getFreshAccessToken(creds);
-  const response = await fetch(`${getPubSubApiBaseUrl()}/${resourcePath}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(init.headers || {}),
+  const accessToken = await getFreshAccessToken(creds, emulatorHost);
+  const response = await fetch(
+    `${getPubSubApiBaseUrl(emulatorHost)}/${resourcePath}`,
+    {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(init.headers || {}),
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     const details = await response.text().catch(() => '');
@@ -160,6 +169,7 @@ async function pubsubRequest<T>(
 
 async function ensureTopic(params: {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   topicName: string;
 }) {
@@ -168,6 +178,7 @@ async function ensureTopic(params: {
       params.creds,
       `projects/${params.projectId}/topics/${params.topicName}`,
       { method: 'GET' },
+      params.emulatorHost,
     );
     return;
   } catch (error) {
@@ -184,6 +195,7 @@ async function ensureTopic(params: {
         body: JSON.stringify({}),
         method: 'PUT',
       },
+      params.emulatorHost,
     );
     console.log(
       `[PubSub] Created topic projects/${params.projectId}/topics/${params.topicName}.`,
@@ -197,6 +209,7 @@ async function ensureTopic(params: {
 
 async function ensureSubscription(params: {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   executionId: string;
   projectId: string;
   subscriptionName: string;
@@ -219,6 +232,7 @@ async function ensureSubscription(params: {
         }),
         method: 'PUT',
       },
+      params.emulatorHost,
     );
     console.log(
       `[PubSub] Created subscription projects/${params.projectId}/subscriptions/${params.subscriptionName}.`,
@@ -232,6 +246,7 @@ async function ensureSubscription(params: {
 
 async function pullMessages(params: {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   subscriptionName: string;
 }) {
@@ -242,12 +257,14 @@ async function pullMessages(params: {
       body: JSON.stringify({ maxMessages: PULL_MAX_MESSAGES }),
       method: 'POST',
     },
+    params.emulatorHost,
   );
 }
 
 async function acknowledgeMessage(params: {
   ackId: string;
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   subscriptionName: string;
 }) {
@@ -258,12 +275,14 @@ async function acknowledgeMessage(params: {
       body: JSON.stringify({ ackIds: [params.ackId] }),
       method: 'POST',
     },
+    params.emulatorHost,
   );
 }
 
 async function nackMessage(params: {
   ackId: string;
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   subscriptionName: string;
 }) {
@@ -277,11 +296,13 @@ async function nackMessage(params: {
       }),
       method: 'POST',
     },
+    params.emulatorHost,
   );
 }
 
 async function deleteSubscription(params: {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   projectId: string;
   subscriptionName: string;
 }) {
@@ -290,6 +311,7 @@ async function deleteSubscription(params: {
       params.creds,
       `projects/${params.projectId}/subscriptions/${params.subscriptionName}`,
       { method: 'DELETE' },
+      params.emulatorHost,
     );
   } catch (error) {
     console.warn(
@@ -361,6 +383,7 @@ async function processMessage(params: {
 
 function startSubscriber(params: {
   creds: GcpTokenRefresh;
+  emulatorHost: string | null;
   executionEvents: GcpExecutionEvents;
   executionId: string;
   projectId: string;
@@ -375,6 +398,7 @@ function startSubscriber(params: {
   let stopped = false;
   const stream: PubSubEventStream = {
     creds: params.creds,
+    emulatorHost: params.emulatorHost,
     projectId: params.projectId,
     stop: () => {
       stopped = true;
@@ -410,6 +434,7 @@ function startSubscriber(params: {
             await acknowledgeMessage({
               ackId: message.ackId,
               creds: params.creds,
+              emulatorHost: params.emulatorHost,
               projectId: params.projectId,
               subscriptionName: params.subscriptionName,
             });
@@ -427,6 +452,7 @@ function startSubscriber(params: {
             await nackMessage({
               ackId: message.ackId,
               creds: params.creds,
+              emulatorHost: params.emulatorHost,
               projectId: params.projectId,
               subscriptionName: params.subscriptionName,
             }).catch((nackError) => {
@@ -456,21 +482,32 @@ function startSubscriber(params: {
 async function ensureGcpPubSubEventStream(
   params: {
     creds: GcpTokenRefresh;
+    emulatorHost?: string | null;
     executionId: string;
     projectId: string;
   },
   executionEvents: GcpExecutionEvents,
 ): Promise<GcpPubSubEventTransport> {
+  const emulatorHost = params.emulatorHost ?? null;
   const topicName = getConfiguredTopicName();
   const subscriptionName = getSubscriptionName(params.executionId);
+  const transportTarget = emulatorHost
+    ? `Pub/Sub emulator at ${emulatorHost}`
+    : 'managed GCP Pub/Sub';
+
+  console.log(
+    `[PubSub] Configuring workflow event stream for ${params.executionId} using ${transportTarget}.`,
+  );
 
   await ensureTopic({
     creds: params.creds,
+    emulatorHost,
     projectId: params.projectId,
     topicName,
   });
   await ensureSubscription({
     creds: params.creds,
+    emulatorHost,
     executionId: params.executionId,
     projectId: params.projectId,
     subscriptionName,
@@ -478,6 +515,7 @@ async function ensureGcpPubSubEventStream(
   });
   startSubscriber({
     creds: params.creds,
+    emulatorHost,
     executionEvents,
     executionId: params.executionId,
     projectId: params.projectId,
@@ -502,6 +540,7 @@ function stopGcpPubSubEventStream(executionId: string) {
   stream.stop();
   void deleteSubscription({
     creds: stream.creds,
+    emulatorHost: stream.emulatorHost,
     projectId: stream.projectId,
     subscriptionName: stream.subscriptionName,
   });
@@ -513,6 +552,7 @@ export function createGcpPubSubEventStreamManager(
   return {
     ensureGcpPubSubEventStream: (params: {
       creds: GcpTokenRefresh;
+      emulatorHost?: string | null;
       executionId: string;
       projectId: string;
     }) => ensureGcpPubSubEventStream(params, executionEvents),

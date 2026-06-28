@@ -1,7 +1,6 @@
 import type { Integration } from '@playrunner/integration-sdk';
 import { GcpSettingsModal } from './GcpSettingsModal';
-
-export const gcpIconUrl = new URL('../../assets/gcp.svg', import.meta.url).href;
+import { gcpIconUrl } from './icon';
 
 export const gcpIntegration: Integration = {
   id: 'gcp',
@@ -24,4 +23,5 @@ export const gcpCloudProvider = {
 };
 
 export { GcpSettingsModal } from './GcpSettingsModal';
+export { gcpIconUrl } from './icon';
 export { refreshGcpCloudCredentialIfNeeded } from './tokenRefresh';

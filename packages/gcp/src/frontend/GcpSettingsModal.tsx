@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { useIntegrationHost } from '@playrunner/integration-sdk';
+import { gcpIconUrl } from './icon';
 
 interface GcpSettingsModalProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ export function GcpSettingsModal({
   cloudId,
 }: GcpSettingsModalProps) {
   const { auth, store, ui } = useIntegrationHost();
+  const Button = ui.Button;
   const Input = ui.Input;
   const Modal = ui.Modal;
   const Select = ui.Select;
@@ -510,30 +512,129 @@ export function GcpSettingsModal({
       title={`Connect to ${cloudId.toUpperCase()}`}
       icon={
         <img
-          src={`/images/integrations/${cloudId.toLowerCase()}.svg`}
+          src={gcpIconUrl}
           alt={cloudId}
           className="w-5 h-5 object-contain"
         />
       }
       footer={
         cloudId === 'gcp' && !authSuccess ? (
-          <button
-            onClick={handleAuthenticateGcp}
-            disabled={!gcpClientId || !gcpClientSecret || isAuthenticating}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isAuthenticating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Authenticating...
-              </>
-            ) : (
-              <>
-                Authenticate
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          Button ? (
+            <Button
+              type="button"
+              onClick={handleAuthenticateGcp}
+              disabled={!gcpClientId || !gcpClientSecret || isAuthenticating}
+              className="gap-2"
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Authenticating...
+                </>
+              ) : (
+                <>
+                  Authenticate
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAuthenticateGcp}
+              disabled={!gcpClientId || !gcpClientSecret || isAuthenticating}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isAuthenticating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Authenticating...
+                </>
+              ) : (
+                <>
+                  Authenticate
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )
+        ) : authSuccess ? (
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="min-h-5 text-xs text-emerald-500">
+              {runnerSettingsSaved ? 'Runner settings saved.' : ''}
+            </span>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+              {Button ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="danger"
+                    onClick={handleDisconnectGcp}
+                    disabled={isSavingRunnerSettings}
+                  >
+                    Disconnect GCP
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={onClose}
+                    disabled={isSavingRunnerSettings}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSaveRunnerSettings}
+                    disabled={isSavingRunnerSettings}
+                    className="gap-2"
+                  >
+                    {isSavingRunnerSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Runner Settings'
+                    )}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectGcp}
+                    disabled={isSavingRunnerSettings}
+                    className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Disconnect GCP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSavingRunnerSettings}
+                    className="px-4 py-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveRunnerSettings}
+                    disabled={isSavingRunnerSettings}
+                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingRunnerSettings ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Runner Settings'
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         ) : undefined
       }
     >
@@ -543,18 +644,22 @@ export function GcpSettingsModal({
           Loading credentials...
         </div>
       ) : authSuccess ? (
-        <div className="text-center py-4">
-          <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
-            <Check className="w-6 h-6 text-emerald-400" />
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-left">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-[var(--background)]">
+              <Check className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-[var(--foreground)]">
+                Connected to GCP
+              </h3>
+              <p className="text-xs text-muted leading-relaxed">
+                Your workspace can run workloads in Google Cloud.
+              </p>
+            </div>
           </div>
-          <h3 className="text-base font-semibold text-[var(--foreground)] mb-2">
-            Connected to GCP
-          </h3>
-          <p className="text-sm text-muted mb-6">
-            Your workspace can now run workloads in Google Cloud.
-          </p>
 
-          <div className="bg-[var(--control-bg)] border border-[var(--border)] rounded-lg p-4 text-left max-w-2xl mx-auto mb-6 w-full space-y-4">
+          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-4">
             <div>
               <h4 className="text-sm font-medium text-[var(--foreground)] mb-2">
                 Select Google Cloud Project
@@ -667,45 +772,8 @@ export function GcpSettingsModal({
                 <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
                 the Playwright image.
               </p>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-emerald-400">
-                  {runnerSettingsSaved ? 'Runner settings saved.' : ''}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSavingRunnerSettings}
-                    className="px-4 py-2 rounded-lg border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveRunnerSettings}
-                    disabled={isSavingRunnerSettings}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSavingRunnerSettings ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save Runner Settings'
-                    )}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
-
-          <button
-            onClick={handleDisconnectGcp}
-            className="text-sm text-red-400 hover:text-red-300 transition-colors"
-          >
-            Disconnect GCP
-          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
