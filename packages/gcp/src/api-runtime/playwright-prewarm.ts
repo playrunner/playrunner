@@ -36,6 +36,14 @@ type CloudRunJob = {
   };
 };
 
+type WorkflowNodeState =
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
+
 export type PrewarmedGcpPlaywrightRunner = {
   controlSubscriptionName: string;
   executionId: string;
@@ -305,6 +313,33 @@ async function publishGcpWorkflowLog(
     );
   } catch {
     // Ignore best-effort log transport failures.
+  }
+}
+
+async function publishGcpWorkflowNodeState(
+  logTransport: LogTransport,
+  params: {
+    nodeId: string;
+    state: WorkflowNodeState;
+    testId: string;
+    workflowId?: string;
+  },
+) {
+  try {
+    await logTransport.publish(
+      JSON.stringify({
+        cloudProvider: 'GCP',
+        executionId: params.testId,
+        nodeId: params.nodeId,
+        state: params.state,
+        testId: params.testId,
+        timestamp: new Date().toISOString(),
+        type: 'node_state',
+        workflowId: params.workflowId,
+      }),
+    );
+  } catch {
+    // Ignore best-effort status transport failures.
   }
 }
 
@@ -675,6 +710,12 @@ async function prewarmPlaywrightNode(args: {
 
   await publishGcpWorkflowLog(args.logTransport, {
     message: `Prewarming Playwright runner for ${args.node.label || args.node.id} (${args.node.id}).`,
+    testId: args.testId,
+    workflowId: args.workflowId,
+  });
+  await publishGcpWorkflowNodeState(args.logTransport, {
+    nodeId: args.node.id,
+    state: 'pending',
     testId: args.testId,
     workflowId: args.workflowId,
   });
