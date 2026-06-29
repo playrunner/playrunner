@@ -97,7 +97,10 @@ logs and cloud-published runner logs remain chronological.
 The API runtime also reconciles the Orchestrator Cloud Run Service before each
 run. It keeps at least one warm service instance and sets the container resource
 policy to always-allocated CPU so the orchestrator can continue the background
-DAG run after `/execute` has returned.
+DAG run after `/execute` has returned. The service name, min/max instances, and
+CPU idle policy are required API env settings:
+`GCP_ORCHESTRATOR_SERVICE_NAME`, `GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT`,
+`GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT`, and `GCP_ORCHESTRATOR_CPU_IDLE`.
 
 Playwright runner preparation is split from execution. The Orchestrator schedules
 Cloud Run Job preparation in the background, leaves Playwright nodes in

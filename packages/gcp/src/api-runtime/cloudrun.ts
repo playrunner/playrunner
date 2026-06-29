@@ -1,10 +1,19 @@
 import { ServicesClient } from '@google-cloud/run';
 import { OAuth2Client } from 'google-auth-library';
 
-const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
-const ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
-const ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
-const ORCHESTRATOR_CPU_IDLE = false;
+const ORCHESTRATOR_SERVICE_NAME_ENV = 'GCP_ORCHESTRATOR_SERVICE_NAME';
+const ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV =
+  'GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT';
+const ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV =
+  'GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT';
+const ORCHESTRATOR_CPU_IDLE_ENV = 'GCP_ORCHESTRATOR_CPU_IDLE';
+
+type OrchestratorCloudRunConfig = {
+  cpuIdle: boolean;
+  maxInstanceCount: number;
+  minInstanceCount: number;
+  serviceName: string;
+};
 
 export interface GcpCloudRunSettings {
   cloudRunLocation?: string;
@@ -18,6 +27,63 @@ function requireSetting(value: string | undefined, name: string): string {
     throw new Error(`${name} must be configured in GCP settings.`);
   }
   return normalized;
+}
+
+function requireEnvSetting(name: string): string {
+  const normalized = process.env[name]?.trim();
+  if (!normalized) {
+    throw new Error(`${name} must be set in apps/api/.env for GCP runs.`);
+  }
+  return normalized;
+}
+
+function requireEnvPositiveInteger(name: string): number {
+  const rawValue = requireEnvSetting(name);
+  const value = Number(rawValue);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `${name} must be set to a positive integer in apps/api/.env.`,
+    );
+  }
+  return value;
+}
+
+function requireEnvBoolean(name: string): boolean {
+  const rawValue = requireEnvSetting(name).toLowerCase();
+  if (rawValue === 'true') {
+    return true;
+  }
+  if (rawValue === 'false') {
+    return false;
+  }
+  throw new Error(`${name} must be set to true or false in apps/api/.env.`);
+}
+
+function getOrchestratorCloudRunConfig(
+  settings: GcpCloudRunSettings,
+): OrchestratorCloudRunConfig {
+  const defaultServiceName = requireEnvSetting(ORCHESTRATOR_SERVICE_NAME_ENV);
+  const serviceName =
+    settings.orchestratorServiceName?.trim() || defaultServiceName;
+  const minInstanceCount = requireEnvPositiveInteger(
+    ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV,
+  );
+  const maxInstanceCount = requireEnvPositiveInteger(
+    ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV,
+  );
+
+  if (maxInstanceCount < minInstanceCount) {
+    throw new Error(
+      `${ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV} must be greater than or equal to ${ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV}.`,
+    );
+  }
+
+  return {
+    cpuIdle: requireEnvBoolean(ORCHESTRATOR_CPU_IDLE_ENV),
+    maxInstanceCount,
+    minInstanceCount,
+    serviceName,
+  };
 }
 
 function renderTemplate(
@@ -38,20 +104,28 @@ async function ensureServiceConfiguration(
   servicesClient: ServicesClient,
   service: any,
   formattedServiceName: string,
+  orchestratorConfig: OrchestratorCloudRunConfig,
   orchestratorImageUri: string,
 ): Promise<string> {
   const serviceUri = service.uri!;
   const currentMinInstances = Number(service.scaling?.minInstanceCount || 0);
+  const currentMaxInstances = Number(
+    service.template?.scaling?.maxInstanceCount || 0,
+  );
   const currentContainer = service.template?.containers?.[0];
   const currentImage = currentContainer?.image;
   const currentCpuIdle = currentContainer?.resources?.cpuIdle;
   const shouldUpdateMinInstances =
-    currentMinInstances < ORCHESTRATOR_MIN_INSTANCE_COUNT;
+    currentMinInstances !== orchestratorConfig.minInstanceCount;
+  const shouldUpdateMaxInstances =
+    currentMaxInstances !== orchestratorConfig.maxInstanceCount;
   const shouldUpdateImage = currentImage !== orchestratorImageUri;
-  const shouldUpdateCpuAllocation = currentCpuIdle !== ORCHESTRATOR_CPU_IDLE;
+  const shouldUpdateCpuAllocation =
+    currentCpuIdle !== orchestratorConfig.cpuIdle;
 
   if (
     !shouldUpdateMinInstances &&
+    !shouldUpdateMaxInstances &&
     !shouldUpdateImage &&
     !shouldUpdateCpuAllocation
   ) {
@@ -66,15 +140,27 @@ async function ensureServiceConfiguration(
   if (shouldUpdateMinInstances) {
     update.scaling = {
       ...(service.scaling || {}),
-      minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+      minInstanceCount: orchestratorConfig.minInstanceCount,
     };
     paths.push('scaling.min_instance_count');
   }
 
-  if (shouldUpdateImage || shouldUpdateCpuAllocation) {
+  if (
+    shouldUpdateMaxInstances ||
+    shouldUpdateImage ||
+    shouldUpdateCpuAllocation
+  ) {
     update.template = {
       ...(service.template || {}),
     };
+  }
+
+  if (shouldUpdateMaxInstances) {
+    update.template.scaling = {
+      ...(service.template?.scaling || {}),
+      maxInstanceCount: orchestratorConfig.maxInstanceCount,
+    };
+    paths.push('template.scaling.max_instance_count');
   }
 
   if (shouldUpdateImage || shouldUpdateCpuAllocation) {
@@ -88,7 +174,7 @@ async function ensureServiceConfiguration(
                   name: container.name || 'orchestrator',
                   resources: {
                     ...(container.resources || {}),
-                    cpuIdle: ORCHESTRATOR_CPU_IDLE,
+                    cpuIdle: orchestratorConfig.cpuIdle,
                     startupCpuBoost: true,
                   },
                 }
@@ -99,7 +185,7 @@ async function ensureServiceConfiguration(
               image: orchestratorImageUri,
               name: 'orchestrator',
               resources: {
-                cpuIdle: ORCHESTRATOR_CPU_IDLE,
+                cpuIdle: orchestratorConfig.cpuIdle,
                 startupCpuBoost: true,
               },
             },
@@ -140,9 +226,7 @@ export async function ensureOrchestratorService(
     settings.cloudRunLocation,
     'Cloud Run region',
   );
-  const orchestratorServiceName =
-    settings.orchestratorServiceName?.trim() ||
-    DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+  const orchestratorConfig = getOrchestratorCloudRunConfig(settings);
   const orchestratorImageUri = getOrchestratorImageUri(
     projectId,
     requireSetting(
@@ -154,7 +238,7 @@ export async function ensureOrchestratorService(
     authClient: oauth2Client as any,
     projectId,
   });
-  const formattedServiceName = `projects/${projectId}/locations/${cloudRunLocation}/services/${orchestratorServiceName}`;
+  const formattedServiceName = `projects/${projectId}/locations/${cloudRunLocation}/services/${orchestratorConfig.serviceName}`;
 
   let serviceUri = '';
 
@@ -166,6 +250,7 @@ export async function ensureOrchestratorService(
       servicesClient,
       service,
       formattedServiceName,
+      orchestratorConfig,
       orchestratorImageUri,
     );
   } catch (err: any) {
@@ -177,21 +262,21 @@ export async function ensureOrchestratorService(
 
       const createOperation = await servicesClient.createService({
         parent,
-        serviceId: orchestratorServiceName,
+        serviceId: orchestratorConfig.serviceName,
         service: {
           scaling: {
-            minInstanceCount: ORCHESTRATOR_MIN_INSTANCE_COUNT,
+            minInstanceCount: orchestratorConfig.minInstanceCount,
           },
           template: {
             scaling: {
-              maxInstanceCount: ORCHESTRATOR_MAX_INSTANCE_COUNT,
+              maxInstanceCount: orchestratorConfig.maxInstanceCount,
             },
             containers: [
               {
                 image: orchestratorImageUri,
                 name: 'orchestrator',
                 resources: {
-                  cpuIdle: ORCHESTRATOR_CPU_IDLE,
+                  cpuIdle: orchestratorConfig.cpuIdle,
                   startupCpuBoost: true,
                 },
               },
@@ -220,7 +305,7 @@ export async function ensureOrchestratorService(
           },
         });
         console.log(
-          `[CloudRun] Set IAM policy to allow unauthenticated invocations for ${orchestratorServiceName}.`,
+          `[CloudRun] Set IAM policy to allow unauthenticated invocations for ${orchestratorConfig.serviceName}.`,
         );
       } catch (iamErr: any) {
         console.error(

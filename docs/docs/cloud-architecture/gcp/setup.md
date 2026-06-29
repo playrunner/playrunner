@@ -18,10 +18,11 @@ Integrations modal saves to Postgres.
 
 There are two setup surfaces, and they deliberately do different jobs:
 
-| Surface              | Source                                                         | What it controls                                                                       |
-| -------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| GCP infrastructure   | `infra/gcp` Terraform                                          | Artifact Registry repositories and the shared Pub/Sub topic                            |
-| Runtime GCP settings | The GCP Integration modal, stored in the `CloudCredential` row | Selected project, Cloud Run region, Orchestrator service name, and image URI templates |
+| Surface              | Source                                                         | What it controls                                                                                                                 |
+| -------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| GCP infrastructure   | `infra/gcp` Terraform                                          | Artifact Registry repositories and the shared Pub/Sub topic                                                                      |
+| API runtime settings | `apps/api/.env`                                                | Pub/Sub topic name and required Orchestrator Cloud Run service defaults, including service name, min/max instances, and CPU idle |
+| Runtime GCP settings | The GCP Integration modal, stored in the `CloudCredential` row | Selected project, Cloud Run region, optional Orchestrator service-name override, and image URI templates                         |
 
 OAuth does not create infrastructure. After OAuth succeeds, Playrunner can list
 projects and save the runtime settings that point to your infrastructure.
@@ -30,18 +31,21 @@ apply Terraform.
 
 Keep them aligned with this contract:
 
-| Terraform value                     | Saved GCP setting                  | Expected match                                                                                                                     |
+| Terraform value                     | Runtime setting                    | Expected match                                                                                                                     |
 | ----------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `project_id`                        | `selectedProject`                  | Same GCP project ID                                                                                                                |
 | `region`                            | `cloudRunLocation`                 | Same GCP region                                                                                                                    |
 | `repository_urls.orchestrator`      | `orchestratorImageUriTemplate`     | After replacing `{projectId}`, it should be `<repository_urls.orchestrator>/playrunner-orchestrator:latest`                        |
 | `repository_urls.playwright_runner` | `playwrightImageUriTemplate`       | After replacing `{projectId}`, it should be `<repository_urls.playwright_runner>/playrunner-playwright-runner-{runtime}:{version}` |
 | `workflow_events_topic_name`        | `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC` | Same topic name; both default to `playrunner-workflow-events`                                                                      |
+| Orchestrator service name           | `GCP_ORCHESTRATOR_SERVICE_NAME`    | Default Cloud Run service name. A saved GCP integration setting can override it, but the API env variable must still be set.       |
 
 `orchestratorServiceName` is not a Terraform output. Terraform creates the
 container registry repository; Playrunner and `push-runners.sh` create or update
-the Cloud Run service. Use the default `playrunner-orchestrator` unless you have
-a reason to name the Cloud Run service differently.
+the Cloud Run service. `apps/api/.env` must define
+`GCP_ORCHESTRATOR_SERVICE_NAME`, `GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT`,
+`GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT`, and `GCP_ORCHESTRATOR_CPU_IDLE`; the API
+throws before a GCP run if any of those values are missing or invalid.
 
 ## What This Sets Up
 
@@ -302,7 +306,10 @@ Playwright Cloud Run Jobs. Later runs reuse those resources unless the image
 template, runner version, CPU, memory, or runtime selection requires a new job.
 Playrunner also keeps the Orchestrator service configured with a minimum warm
 instance and always-allocated CPU, so the background DAG run is not throttled
-after the service's `/execute` request has returned.
+after the service's `/execute` request has returned. Those service defaults come
+from `GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT`,
+`GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT`, and `GCP_ORCHESTRATOR_CPU_IDLE` in
+`apps/api/.env`.
 At execution time, the Orchestrator schedules Playwright job preparation in the
 background so dependency preparation can overlap with earlier workflow nodes. It
 then sends the Pub/Sub start signal only when the DAG reaches the corresponding

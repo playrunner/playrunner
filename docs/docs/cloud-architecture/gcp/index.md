@@ -55,13 +55,14 @@ Playwright runner jobs before runtime provisioning can succeed. The repo ships
 
 When a user initiates a workflow from the web interface targeting GCP:
 
-1. **On-the-fly Provisioning**: The Node.js API Server automatically checks if the `playrunner-orchestrator` Cloud Run Service exists in the user's selected GCP project. If not, it uses the `@google-cloud/run` SDK to dynamically create and configure the service on the fly.
+1. **On-the-fly Provisioning**: The Node.js API Server automatically checks if the configured Orchestrator Cloud Run Service exists in the user's selected GCP project. If not, it uses the `@google-cloud/run` SDK to dynamically create and configure the service on the fly.
 2. **Stateless Authentication**: The API Server passes the workflow payload to the Orchestrator, which securely injects the user's OAuth2 access token into the payload.
 3. **Impersonation-less Execution**: The Orchestrator, running in Cloud Run, uses this OAuth2 token to instantiate its own GCP clients (`JobsClient`, `ExecutionsClient`) and publish workflow events to Pub/Sub. This ensures that the Orchestrator runs exactly as the authenticated user, without requiring complex IAM role assignments to the default Compute Engine Service Account.
 
 In practice that means:
 
 - `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` must point at an Orchestrator image that is already available in a registry Cloud Run can pull from.
+- `GCP_ORCHESTRATOR_SERVICE_NAME`, `GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT`, `GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT`, and `GCP_ORCHESTRATOR_CPU_IDLE` must be set in `apps/api/.env`; GCP runs fail fast if any are missing or invalid.
 - `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` must point at Playwright runner images that are already available in a registry Cloud Run can pull from.
 - `GCS_BUCKET_PREFIX` controls the per-workflow output buckets Playrunner creates before handing execution off to Cloud Run.
 - The connected GCP user must have permission to publish Pub/Sub messages and create/use the execution event plus runner control/status subscriptions on the shared topic.
