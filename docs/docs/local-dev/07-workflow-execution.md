@@ -54,6 +54,17 @@ The Orchestrator supports four connection types between nodes:
 | `failure`     | Runs only if the source node completed with `error` state                                                                              |
 | `independent` | Always runs after source, regardless of outcome                                                                                        |
 
+When a source node has multiple outgoing connections that become eligible at
+the same trigger moment, the targets start together as sibling branches. For
+example, two `sequential` edges from A to B and C both wait for A to complete,
+then B and C run in parallel. They do not wait for each other unless there is a
+separate connection between B and C.
+
+For Playwright sibling branches in GCP, each sibling uses a node-specific Cloud
+Run Job name. That keeps sibling branches from being serialized through the same
+Cloud Run Job when they share the same runtime, version, CPU, and memory
+settings.
+
 ### 4. Node Processing by Type
 
 #### `environment`

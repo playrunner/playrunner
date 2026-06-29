@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import type {
   PlaywrightExecutionBackend,
   PlaywrightExecutionRequest,
@@ -12,6 +13,7 @@ import {
 type CloudRunOperation = {
   done?: boolean;
   error?: { message?: string };
+  metadata?: { name?: string; target?: string };
   name: string;
   response?: { name?: string };
 };
@@ -50,6 +52,7 @@ type GcpPlaywrightRunSettings = {
   imageUri: string;
   jobName: string;
   memory: number;
+  nodeId: string;
   playwrightVersion: string;
   projectId: string;
   topicName: string;
@@ -75,7 +78,7 @@ const RETRY_BASE_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
 const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE = 'playrunner-{runtime}';
-let cloudRunJobLaunchQueue = Promise.resolve();
+let cloudRunJobConfigurationQueue = Promise.resolve();
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -142,22 +145,33 @@ function getWorkflowEventsTopicName(reqBody: any): string {
   return resolveWorkflowEventsTopicName(reqBody.eventTransport?.topicName);
 }
 
-async function withCloudRunJobLaunchLock<T>(
+async function withCloudRunJobConfigurationLock<T>(
   operation: () => Promise<T>,
 ): Promise<T> {
-  const previousLaunch = cloudRunJobLaunchQueue;
-  let releaseLaunch!: () => void;
-  cloudRunJobLaunchQueue = new Promise<void>((resolve) => {
-    releaseLaunch = resolve;
+  const previousConfiguration = cloudRunJobConfigurationQueue;
+  let releaseConfiguration!: () => void;
+  cloudRunJobConfigurationQueue = new Promise<void>((resolve) => {
+    releaseConfiguration = resolve;
   });
 
-  await previousLaunch.catch(() => {});
+  await previousConfiguration.catch(() => {});
 
   try {
     return await operation();
   } finally {
-    releaseLaunch();
+    releaseConfiguration();
   }
+}
+
+function getExecutionNameFromOperation(
+  operation: CloudRunOperation,
+): string | null {
+  const name =
+    operation.response?.name ||
+    operation.metadata?.name ||
+    operation.metadata?.target ||
+    null;
+  return name?.includes('/executions/') ? name : null;
 }
 
 function resolvePlaywrightCloudImage(
@@ -179,15 +193,51 @@ function resolveJobName(
   version: string,
   cpu: number,
   memory: number,
+  nodeId: string,
 ): string {
-  return renderTemplate(template, {
+  const rendered = renderTemplate(template, {
     cpu,
     memory,
+    nodeId,
     runtime,
     version,
-  })
+  });
+  const baseName = normalizeCloudRunJobName(rendered, 'playrunner-job');
+  if (template.includes('{nodeId}')) {
+    return baseName;
+  }
+
+  const suffix = getNodeJobSuffix(nodeId);
+  const maxBaseLength = Math.max(1, 63 - suffix.length - 1);
+  const trimmedBase =
+    normalizeCloudRunJobName(
+      baseName.slice(0, maxBaseLength),
+      'playrunner',
+    ).replace(/-+$/g, '') || 'playrunner';
+  return normalizeCloudRunJobName(`${trimmedBase}-${suffix}`, 'playrunner-job');
+}
+
+function normalizeCloudRunJobName(value: string, fallback: string): string {
+  const normalized = value
     .replace(/[^a-zA-Z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
     .toLowerCase();
+  const prefixed = /^[a-z]/.test(normalized) ? normalized : `job-${normalized}`;
+  return prefixed.slice(0, 63).replace(/-+$/g, '') || fallback;
+}
+
+function getNodeJobSuffix(nodeId: string): string {
+  const slug = normalizeCloudRunJobName(nodeId, 'node')
+    .replace(/^job-/, '')
+    .slice(0, 16)
+    .replace(/-+$/g, '');
+  const hash = crypto
+    .createHash('sha1')
+    .update(nodeId)
+    .digest('hex')
+    .slice(0, 8);
+  return `${slug || 'node'}-${hash}`;
 }
 
 async function cloudRunRequest<T>(
@@ -282,10 +332,19 @@ async function waitForExecution(
   accessToken: string,
 ): Promise<void> {
   while (true) {
-    const execution = await cloudRunRequest<CloudRunExecution>(
-      executionName,
-      accessToken,
-    );
+    let execution: CloudRunExecution;
+    try {
+      execution = await cloudRunRequest<CloudRunExecution>(
+        executionName,
+        accessToken,
+      );
+    } catch (error: any) {
+      if (error.message?.includes('Cloud Run API returned 404')) {
+        await sleep(POLL_INTERVAL_MS);
+        continue;
+      }
+      throw error;
+    }
     const completed = execution.conditions?.find(
       (condition) => condition.type === 'Completed',
     );
@@ -494,7 +553,9 @@ async function startPlaywrightJob(args: {
   projectId: string;
   workers: number;
 }): Promise<string> {
-  const jobPath = await ensurePlaywrightJob(args);
+  const jobPath = await withCloudRunJobConfigurationLock(() =>
+    ensurePlaywrightJob(args),
+  );
   const env = [
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
     { name: 'GCP_PROJECT', value: args.projectId },
@@ -510,18 +571,31 @@ async function startPlaywrightJob(args: {
     'info',
   );
   const runRequestedAt = Date.now();
-  await cloudRunRequest<CloudRunOperation>(`${jobPath}:run`, args.accessToken, {
-    method: 'POST',
-    body: JSON.stringify({
-      overrides: {
-        containerOverrides: [{ env, name: 'playwright' }],
-      },
-    }),
-  });
+  const operation = await cloudRunRequest<CloudRunOperation>(
+    `${jobPath}:run`,
+    args.accessToken,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        overrides: {
+          containerOverrides: [{ env, name: 'playwright' }],
+        },
+      }),
+    },
+  );
+  const executionName = getExecutionNameFromOperation(operation);
   await args.publishLog(
     `Cloud Run accepted Playwright Job ${args.jobName}; waiting for execution startup.`,
     'info',
   );
+
+  if (executionName) {
+    await args.publishLog(
+      `Playwright Cloud Run Execution ${executionName} started.`,
+      'info',
+    );
+    return executionName;
+  }
 
   return waitForStartedExecution({
     accessToken: args.accessToken,
@@ -568,6 +642,7 @@ function resolveGcpPlaywrightRunSettings(
     playwrightVersion,
     cpu,
     memory,
+    request.nodeId,
   );
 
   return {
@@ -577,6 +652,7 @@ function resolveGcpPlaywrightRunSettings(
     imageUri,
     jobName,
     memory,
+    nodeId: request.nodeId,
     playwrightVersion,
     projectId,
     topicName: getWorkflowEventsTopicName(reqBody),
@@ -680,22 +756,20 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
             'prewarmed Playwright Cloud Run request time',
           ),
         }))
-      : await withCloudRunJobLaunchLock(() =>
-          startPlaywrightJob({
-            accessToken: settings.accessToken,
-            cpu: settings.cpu,
-            envKeys,
-            globalEnvVars,
-            imageUri: settings.imageUri,
-            jobName: settings.jobName,
-            location: settings.cloudRunLocation,
-            memory: settings.memory,
-            payloadData: preparedPayloadData,
-            publishLog,
-            projectId: settings.projectId,
-            workers: settings.workers,
-          }),
-        );
+      : await startPlaywrightJob({
+          accessToken: settings.accessToken,
+          cpu: settings.cpu,
+          envKeys,
+          globalEnvVars,
+          imageUri: settings.imageUri,
+          jobName: settings.jobName,
+          location: settings.cloudRunLocation,
+          memory: settings.memory,
+          payloadData: preparedPayloadData,
+          publishLog,
+          projectId: settings.projectId,
+          workers: settings.workers,
+        });
 
     if (prewarmedRunner) {
       await publishLog(

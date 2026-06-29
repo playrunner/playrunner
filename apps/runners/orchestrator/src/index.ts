@@ -451,64 +451,39 @@ async function executeWorkflow(reqBody: any) {
       const nodeHasRun: Record<string, boolean> = {};
       const nodeIsRunning: Record<string, boolean> = {};
       let activeNodeCount = 0;
-      const maxConcurrency = reqBody.concurrency || 100;
-      const nodeQueue: string[] = [];
 
-      const enqueueNode = (
-        nodeId: string,
-        options: {
-          priority?: 'normal' | 'high';
-          bypassConcurrency?: boolean;
-        } = {},
-      ) => {
-        const { priority = 'normal', bypassConcurrency = false } = options;
-        if (
-          nodeHasRun[nodeId] ||
-          nodeIsRunning[nodeId] ||
-          nodeQueue.includes(nodeId)
-        ) {
+      // Start a node immediately if it hasn't already started. The DAG drives
+      // parallelism: a node is triggered when its parent completes (or starts,
+      // for `concurrent` edges), so sibling branches that share a parent all
+      // fire at the same moment and run in parallel.
+      const runNode = (nodeId: string) => {
+        if (nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
           return;
         }
-        if (bypassConcurrency) {
-          processNode(nodeId)
-            .catch(console.error)
-            .finally(() => {
-              pumpQueue();
-            });
-          return;
-        }
-        if (priority === 'high') {
-          nodeQueue.unshift(nodeId);
-        } else {
-          nodeQueue.push(nodeId);
-        }
-        pumpQueue();
+        void processNode(nodeId).catch(console.error);
       };
 
-      let isPumping = false;
-      const pumpQueue = () => {
-        if (isPumping) return;
-        isPumping = true;
-        while (activeNodeCount < maxConcurrency && nodeQueue.length > 0) {
-          const id = nodeQueue.shift()!;
-          processNode(id)
-            .catch(console.error)
-            .finally(() => {
-              pumpQueue();
-            });
+      const runConnectionTargets = (
+        connectionsToTrigger: Array<{ targetId: string }>,
+      ) => {
+        const targetIds = Array.from(
+          new Set(connectionsToTrigger.map((conn) => conn.targetId)),
+        );
+        for (const targetId of targetIds) {
+          runNode(targetId);
         }
-        isPumping = false;
       };
 
       const processNode = async (nodeId: string) => {
         if (nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
           return;
         }
-        nodeIsRunning[nodeId] = true;
-        activeNodeCount++;
 
         const node = nodes.find((candidate: any) => candidate.id === nodeId);
         if (!node) return;
+
+        nodeIsRunning[nodeId] = true;
+        activeNodeCount++;
         const type = (node.nodeType || node.label).toLowerCase();
 
         await publishNodeState(
@@ -522,12 +497,7 @@ async function executeWorkflow(reqBody: any) {
         const concurrentChildren = outgoing.filter(
           (c) => (c.type || 'sequential') === 'concurrent',
         );
-        concurrentChildren.forEach((c) => {
-          enqueueNode(c.targetId, {
-            priority: 'high',
-            bypassConcurrency: true,
-          });
-        });
+        runConnectionTargets(concurrentChildren);
 
         let finalState: 'success' | 'error' | 'warning' = 'success';
 
@@ -787,13 +757,14 @@ async function executeWorkflow(reqBody: any) {
           (c) => c.type === 'success' || c.type === 'failure',
         );
         const isSuccess = finalState === 'success' || finalState === 'warning';
+        const postCompletionChildren: typeof outgoing = [];
 
         for (const conn of outgoing) {
           const connType = conn.type || 'sequential';
           let shouldTrigger = false;
 
           if (connType === 'concurrent') {
-            return;
+            continue;
           } else if (connType === 'sequential') {
             if (hasConditionals) {
               shouldTrigger = isSuccess;
@@ -809,9 +780,11 @@ async function executeWorkflow(reqBody: any) {
           }
 
           if (shouldTrigger) {
-            enqueueNode(conn.targetId);
+            postCompletionChildren.push(conn);
           }
         }
+
+        runConnectionTargets(postCompletionChildren);
       };
 
       const incomingCount: Record<string, number> = {};
@@ -827,9 +800,9 @@ async function executeWorkflow(reqBody: any) {
         .filter((n: any) => incomingCount[n.id] === 0)
         .map((n: any) => n.id);
 
-      startNodes.forEach((startNodeId: string) => enqueueNode(startNodeId));
+      startNodes.forEach((startNodeId: string) => runNode(startNodeId));
 
-      while (activeNodeCount > 0 || nodeQueue.length > 0) {
+      while (activeNodeCount > 0) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
 

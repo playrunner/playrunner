@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { LogTransport } from './contracts';
 import type { GcpPubSubEventTransport } from './gcp-pubsub-events';
 
@@ -37,12 +37,7 @@ type CloudRunJob = {
 };
 
 type WorkflowNodeState =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'warning';
+  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 export type PrewarmedGcpPlaywrightRunner = {
   controlSubscriptionName: string;
@@ -106,15 +101,47 @@ function resolveJobName(
   version: string,
   cpu: number,
   memory: number,
+  nodeId: string,
 ): string {
-  return renderTemplate(template, {
+  const rendered = renderTemplate(template, {
     cpu,
     memory,
+    nodeId,
     runtime,
     version,
-  })
+  });
+  const baseName = normalizeCloudRunJobName(rendered, 'playrunner-job');
+  if (template.includes('{nodeId}')) {
+    return baseName;
+  }
+
+  const suffix = getNodeJobSuffix(nodeId);
+  const maxBaseLength = Math.max(1, 63 - suffix.length - 1);
+  const trimmedBase =
+    normalizeCloudRunJobName(
+      baseName.slice(0, maxBaseLength),
+      'playrunner',
+    ).replace(/-+$/g, '') || 'playrunner';
+  return normalizeCloudRunJobName(`${trimmedBase}-${suffix}`, 'playrunner-job');
+}
+
+function normalizeCloudRunJobName(value: string, fallback: string): string {
+  const normalized = value
     .replace(/[^a-zA-Z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
     .toLowerCase();
+  const prefixed = /^[a-z]/.test(normalized) ? normalized : `job-${normalized}`;
+  return prefixed.slice(0, 63).replace(/-+$/g, '') || fallback;
+}
+
+function getNodeJobSuffix(nodeId: string): string {
+  const slug = normalizeCloudRunJobName(nodeId, 'node')
+    .replace(/^job-/, '')
+    .slice(0, 16)
+    .replace(/-+$/g, '');
+  const hash = createHash('sha1').update(nodeId).digest('hex').slice(0, 8);
+  return `${slug || 'node'}-${hash}`;
 }
 
 function resolvePlaywrightCloudImage(
@@ -766,6 +793,7 @@ async function prewarmPlaywrightNode(args: {
     playwrightVersion,
     cpu,
     memory,
+    args.node.id,
   );
   const { executionName, jobPath, runRequestedAt } = await startPlaywrightJob({
     accessToken: args.accessToken,

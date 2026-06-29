@@ -59,7 +59,7 @@ Result:
 **When it runs:**  
 The child node runs after the parent node completes.
 
-**Execution behaviour:**  
+**Execution behaviour:**
 
 If the parent has no conditional connections, the sequential child runs after the parent finishes.
 
@@ -186,6 +186,10 @@ Result:
 A parent node may have multiple outgoing connections of different types.
 
 Each connection is evaluated independently according to its own state.
+When multiple child nodes become eligible from the same parent at the same
+trigger moment, they start as one fan-out batch. They do not run one after the
+other merely because their connection type is `sequential`, `success`,
+`failure`, or `independent`.
 
 ```text
 A --concurrent--> D
@@ -198,13 +202,37 @@ Result:
 
 - D starts when A starts.
 - After A finishes:
-  - B runs if A succeeds.
-  - C runs if A fails.
-  - E always runs.
+  - If A succeeds, B and E start together.
+  - If A fails, C and E start together.
+
+The trigger timing still comes from each connection type: `concurrent` children
+start when A starts, while `success`, `failure`, `sequential`, and
+`independent` children are evaluated after A finishes.
+
+### 3. Sequential Fan-Out
+
+Multiple sequential children from the same parent are independent sibling
+branches. They all wait for the parent to complete, then start together.
+
+```text
+A --sequential--> B
+A --sequential--> C
+```
+
+Result:
+
+- A runs first.
+- After A completes, B and C start at the same time.
+- B and C do not wait for each other unless there is a separate connection
+  between them.
+
+For Playwright fan-out in GCP, each sibling branch uses a node-specific Cloud
+Run Job name so one sibling's job execution does not serialize another sibling
+that shares the same runtime, version, CPU, and memory settings.
 
 ---
 
-### 3. Single Execution
+### 4. Single Execution
 
 Each node may run at most once in a workflow execution.
 
@@ -222,7 +250,7 @@ Result:
 
 ---
 
-### 4. Implicit Connections
+### 5. Implicit Connections
 
 If a node has a `parentId`, and there is no explicit connection from that parent to the child, the workflow engine should treat it as an implicit sequential connection.
 
@@ -301,9 +329,8 @@ Execution:
 1. A starts.
 2. D starts immediately and runs in parallel with A.
 3. After A finishes:
-   - B runs if A succeeds.
-   - C runs if A fails.
-   - E always runs.
+   - If A succeeds, B and E start together.
+   - If A fails, C and E start together.
 
 ---
 
@@ -318,7 +345,9 @@ When implementing or modifying workflow execution logic, agents must follow thes
 5. Respect explicit connections before creating implicit `parentId` sequential connections.
 6. Apply sequential suppression when conditional connections exist.
 7. Treat `independent` as outcome-agnostic, not concurrent.
-8. Keep the execution model deterministic and easy to reason about.
+8. Start all eligible child nodes from the same parent trigger as a sibling
+   fan-out batch; do not serialize them because they share a parent.
+9. Keep the execution model deterministic and easy to reason about.
 
 ---
 
@@ -349,16 +378,20 @@ Only use more advanced connection types when the workflow requires them:
 
 ## Summary Table
 
-| Connection Type | Trigger Time | Requires Success | Requires Failure | Runs in Parallel | Runs After Parent |
-| --- | --- | --- | --- | --- | --- |
-| `concurrent` | Parent starts | No | No | Yes | No |
-| `sequential` | Parent finishes | Usually yes when conditional connections exist | No | No | Yes |
-| `success` | Parent finishes | Yes | No | No | Yes |
-| `failure` | Parent finishes | No | Yes | No | Yes |
-| `independent` | Parent finishes | No | No | No | Yes |
+| Connection Type | Trigger Time    | Requires Success                               | Requires Failure | Runs With Parent | Can Fan Out With Siblings |
+| --------------- | --------------- | ---------------------------------------------- | ---------------- | ---------------- | ------------------------- |
+| `concurrent`    | Parent starts   | No                                             | No               | Yes              | Yes                       |
+| `sequential`    | Parent finishes | Usually yes when conditional connections exist | No               | No               | Yes                       |
+| `success`       | Parent finishes | Yes                                            | No               | No               | Yes                       |
+| `failure`       | Parent finishes | No                                             | Yes              | No               | Yes                       |
+| `independent`   | Parent finishes | No                                             | No               | No               | Yes                       |
 
 ---
 
 ## Key Rule
 
 A node should only run when a connection explicitly or implicitly allows it to run, and it must never run more than once in the same workflow execution.
+
+Sibling children that become eligible from the same parent should start
+together. Add an explicit connection between sibling nodes only when one sibling
+must wait for another.

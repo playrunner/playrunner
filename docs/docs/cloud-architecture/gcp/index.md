@@ -102,7 +102,7 @@ test execution.
 
 ## Understanding Concurrency & Isolation
 
-A common point of confusion when deploying to GCP is how **Cloud Run Service Concurrency** interacts with **Workflow Node Concurrency**.
+A common point of confusion when deploying to GCP is how **Cloud Run Service Concurrency** interacts with **workflow graph parallelism**.
 
 ### 1. Cloud Run Service Concurrency (Infrastructure-Level)
 
@@ -117,12 +117,14 @@ When the Orchestrator hits a Playwright node, it uses the Google Cloud SDK to tr
 - Each Job Execution spawns in a **brand new, totally isolated container**.
 - Environment variables configured in your workflow are injected dynamically into this specific container via `envOverrides`. Therefore, **there is zero environment collision risk** between concurrent workflows or concurrent nodes.
 
-### 3. Workflow Node Concurrency (Application-Level)
+### 3. Workflow Graph Parallelism (Application-Level)
 
-In the Workflow Editor, you can specify a **Concurrency Limit** (e.g., `1`, `3`, `10`). This instructs the Orchestrator on how many _internal_ parallel nodes to process simultaneously within a single workflow diagram.
+Parallelism within a single workflow is driven entirely by the **shape of the graph**, not by a concurrency limit. The Orchestrator does not maintain a queue or a global cap on simultaneous nodes: when a node completes, every child that becomes eligible at that same trigger moment starts immediately, so sibling branches that share a parent run in parallel.
 
 - **Shared vs Isolated State**: Even though the Playwright Job containers are isolated at the infrastructure level, you may be interacting with external shared state (like a staging database).
-- If you want multiple Playwright branches within your workflow to execute **in parallel** (isolated from each other infrastructurally, but hitting your external targets simultaneously), you set a higher workflow concurrency (e.g., `10`).
-- If you need strict, **sequential** execution to avoid race conditions on your external shared resources, you simply set your workflow concurrency to `1`.
+- If you want multiple Playwright branches to execute **in parallel** (isolated from each other infrastructurally, but hitting your external targets simultaneously), fan them out from a common parent — they will start together.
+- If you need strict, **sequential** execution to avoid race conditions on your external shared resources, chain the nodes with `sequential` connections so each one only starts after the previous finishes.
+
+See [Connection Nodes](../../local-dev/connection-nodes) for the full set of connection types and how they control trigger timing.
 
 Because environment variables are scoped into a localized memory object (`globalEnvVars`) per orchestrator execution and injected securely into the Cloud Run Jobs, your workflows remain completely isolated, giving you complete application-level control without needing to tweak infrastructure deployments.

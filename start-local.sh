@@ -562,16 +562,8 @@ if [ "$RUN_SETUP" != "true" ] && [ "$SETUP_COMPLETED" != "true" ]; then
 fi
 
 # 2. Build the Orchestrator and Playwright Docker images
-echo "🔨 Building Orchestrator Docker image..."
-BASE_PATH_ARG="."
-if [ "${BASE_DIR}" != "${WORKSPACE_ROOT}" ]; then
-    BASE_PATH_ARG="${BASE_DIR#${WORKSPACE_ROOT}/}"
-fi
-docker build \
-    --build-arg BASE_PATH="${BASE_PATH_ARG}" \
-    -f "${BASE_DIR}/apps/runners/orchestrator/Dockerfile" \
-    -t playrunner-orchestrator \
-    "${WORKSPACE_ROOT}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT}" BASE_DIR="${BASE_DIR}" \
+    "${BASE_DIR}/infra/scripts/rebuild-orchestrator.sh"
 
 echo "🎭 Building Playwright Docker image..."
 PLAYWRIGHT_LATEST_TAG=$(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" latest-tag)
