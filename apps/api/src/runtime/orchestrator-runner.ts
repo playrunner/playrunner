@@ -2,7 +2,7 @@ import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import {
   EDITOR_API_URL_DOCKER,
-  ORCHESTRATOR_IMAGE,
+  LOCAL_ORCHESTRATOR_IMAGE,
   ORCHESTRATOR_PORT,
   ORCHESTRATOR_URL,
   PUBSUB_EMULATOR_HOST_DOCKER,
@@ -197,7 +197,7 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
       `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=${WORKFLOW_EVENTS_TOPIC}`,
       '-v',
       '/var/run/docker.sock:/var/run/docker.sock',
-      ORCHESTRATOR_IMAGE,
+      LOCAL_ORCHESTRATOR_IMAGE,
     ],
     {
       stdio: 'inherit',

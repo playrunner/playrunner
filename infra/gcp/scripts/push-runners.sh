@@ -9,6 +9,9 @@ cd "${REPO_ROOT}"
 PROJECT_ID=""
 REGION=""
 ORCHESTRATOR_SERVICE_NAME=""
+ORCHESTRATOR_MIN_INSTANCE_COUNT=""
+ORCHESTRATOR_MAX_INSTANCE_COUNT=""
+ORCHESTRATOR_CPU_IDLE=""
 ORCHESTRATOR_TEMPLATE=""
 PLAYWRIGHT_TEMPLATE=""
 USER_ID=""
@@ -21,6 +24,9 @@ while [ $# -gt 0 ]; do
         --project-id) PROJECT_ID="$2"; shift 2 ;;
         --region) REGION="$2"; shift 2 ;;
         --orchestrator-service-name) ORCHESTRATOR_SERVICE_NAME="$2"; shift 2 ;;
+        --orchestrator-min-instances) ORCHESTRATOR_MIN_INSTANCE_COUNT="$2"; shift 2 ;;
+        --orchestrator-max-instances) ORCHESTRATOR_MAX_INSTANCE_COUNT="$2"; shift 2 ;;
+        --orchestrator-cpu-idle) ORCHESTRATOR_CPU_IDLE="$2"; shift 2 ;;
         --user-id) USER_ID="$2"; shift 2 ;;
         --target) TARGET="$2"; shift 2 ;;
         --base-path) BASE_PATH="$2"; shift 2 ;;
@@ -34,7 +40,7 @@ Google Artifact Registry, configures Docker auth for the target registry host,
 redeploys the orchestrator Cloud Run service, and deletes stale Playwright
 Cloud Run Jobs so they pick up the new image.
 
-GCP settings (project, region, service name, image URI templates) are read from
+GCP settings (project, region, service settings, image URI templates) are read from
 the CloudCredential row that the Integrations modal writes to Postgres. CLI
 flags override the stored values.
 
@@ -42,6 +48,9 @@ Options:
   --project-id <id>                 GCP project ID (overrides DB setting)
   --region <region>                 Cloud Run region (overrides DB setting)
   --orchestrator-service-name <n>   Cloud Run service name (overrides DB)
+  --orchestrator-min-instances <n>  Minimum Cloud Run service instances
+  --orchestrator-max-instances <n>  Maximum Cloud Run service instances
+  --orchestrator-cpu-idle <bool>    Whether Cloud Run can idle CPU between requests
   --user-id <id>                    Filter Postgres lookup to a specific user
   --target orchestrator|playwright|both
                                     Skip the interactive menu
@@ -75,8 +84,26 @@ settings() {
 [ -z "$PROJECT_ID" ] && PROJECT_ID="$(settings project-id)"
 [ -z "$REGION" ] && REGION="$(settings region)"
 [ -z "$ORCHESTRATOR_SERVICE_NAME" ] && ORCHESTRATOR_SERVICE_NAME="$(settings orchestrator-service-name)"
+[ -z "$ORCHESTRATOR_MIN_INSTANCE_COUNT" ] && ORCHESTRATOR_MIN_INSTANCE_COUNT="$(settings orchestrator-min-instance-count)"
+[ -z "$ORCHESTRATOR_MAX_INSTANCE_COUNT" ] && ORCHESTRATOR_MAX_INSTANCE_COUNT="$(settings orchestrator-max-instance-count)"
+[ -z "$ORCHESTRATOR_CPU_IDLE" ] && ORCHESTRATOR_CPU_IDLE="$(settings orchestrator-cpu-idle)"
 ORCHESTRATOR_TEMPLATE="$(settings orchestrator-image-uri-template)"
 PLAYWRIGHT_TEMPLATE="$(settings playwright-image-uri-template)"
+
+case "$ORCHESTRATOR_MIN_INSTANCE_COUNT" in
+    ''|*[!0-9]*|0) echo "Invalid orchestrator min instances: ${ORCHESTRATOR_MIN_INSTANCE_COUNT}" >&2; exit 1 ;;
+esac
+case "$ORCHESTRATOR_MAX_INSTANCE_COUNT" in
+    ''|*[!0-9]*|0) echo "Invalid orchestrator max instances: ${ORCHESTRATOR_MAX_INSTANCE_COUNT}" >&2; exit 1 ;;
+esac
+if [ "$ORCHESTRATOR_MAX_INSTANCE_COUNT" -lt "$ORCHESTRATOR_MIN_INSTANCE_COUNT" ]; then
+    echo "Orchestrator max instances must be greater than or equal to min instances." >&2
+    exit 1
+fi
+case "$ORCHESTRATOR_CPU_IDLE" in
+    true|false) ;;
+    *) echo "Invalid orchestrator CPU idle value: ${ORCHESTRATOR_CPU_IDLE}. Expected true or false." >&2; exit 1 ;;
+esac
 
 substitute() {
     # Args: template, then key=value pairs.
@@ -105,12 +132,15 @@ configure_docker_auth() {
     gcloud auth configure-docker "${host}" --quiet
 }
 
-ORCHESTRATOR_IMAGE="$(substitute "$ORCHESTRATOR_TEMPLATE" "projectId=${PROJECT_ID}")"
+ORCHESTRATOR_IMAGE_URI="$(substitute "$ORCHESTRATOR_TEMPLATE" "projectId=${PROJECT_ID}")"
 
 echo "GCP Project:               $PROJECT_ID"
 echo "Cloud Run Region:          $REGION"
 echo "Orchestrator Service Name: $ORCHESTRATOR_SERVICE_NAME"
-echo "Orchestrator Image:        $ORCHESTRATOR_IMAGE"
+echo "Orchestrator Min Instances: $ORCHESTRATOR_MIN_INSTANCE_COUNT"
+echo "Orchestrator Max Instances: $ORCHESTRATOR_MAX_INSTANCE_COUNT"
+echo "Orchestrator CPU Idle:     $ORCHESTRATOR_CPU_IDLE"
+echo "Orchestrator Image:        $ORCHESTRATOR_IMAGE_URI"
 echo "Playwright Template:       $(substitute "$PLAYWRIGHT_TEMPLATE" "projectId=${PROJECT_ID}")"
 echo "Build Base Path:           $BASE_PATH"
 echo ""
@@ -144,24 +174,34 @@ push_orchestrator() {
     echo "======================================"
     echo "Building Orchestrator..."
     echo "======================================"
-    configure_docker_auth "$(image_registry_host "${ORCHESTRATOR_IMAGE}")"
+    configure_docker_auth "$(image_registry_host "${ORCHESTRATOR_IMAGE_URI}")"
 
     docker build \
         --platform linux/amd64 \
         --build-arg BASE_PATH="${BASE_PATH}" \
         -f "${REPO_ROOT}/apps/runners/orchestrator/Dockerfile" \
-        -t "${ORCHESTRATOR_IMAGE}" \
+        -t "${ORCHESTRATOR_IMAGE_URI}" \
         "${REPO_ROOT}"
 
     echo "Pushing Orchestrator..."
-    docker push "${ORCHESTRATOR_IMAGE}"
+    docker push "${ORCHESTRATOR_IMAGE_URI}"
 
     echo "Deploying Orchestrator to Cloud Run..."
+    local cpu_throttling_flag
+    if [ "$ORCHESTRATOR_CPU_IDLE" = "true" ]; then
+        cpu_throttling_flag="--cpu-throttling"
+    else
+        cpu_throttling_flag="--no-cpu-throttling"
+    fi
+
     gcloud run deploy "${ORCHESTRATOR_SERVICE_NAME}" \
-        --image "${ORCHESTRATOR_IMAGE}" \
+        --image "${ORCHESTRATOR_IMAGE_URI}" \
         --region "${REGION}" \
         --project "${PROJECT_ID}" \
-        --cpu-boost
+        --min-instances "${ORCHESTRATOR_MIN_INSTANCE_COUNT}" \
+        --max-instances "${ORCHESTRATOR_MAX_INSTANCE_COUNT}" \
+        --cpu-boost \
+        "${cpu_throttling_flag}"
 }
 
 push_playwright() {

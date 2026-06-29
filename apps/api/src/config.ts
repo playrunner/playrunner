@@ -2,8 +2,8 @@ export const ORCHESTRATOR_PORT = parseInt(
   process.env.ORCHESTRATOR_PORT || '3002',
   10,
 );
-export const ORCHESTRATOR_IMAGE =
-  process.env.ORCHESTRATOR_IMAGE || 'playrunner-orchestrator';
+export const LOCAL_ORCHESTRATOR_IMAGE =
+  process.env.LOCAL_ORCHESTRATOR_IMAGE || 'playrunner-orchestrator';
 export const ORCHESTRATOR_URL =
   process.env.ORCHESTRATOR_URL || `http://localhost:${ORCHESTRATOR_PORT}`;
 export const EDITOR_API_URL_DOCKER =

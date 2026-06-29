@@ -30,6 +30,34 @@ function missingRunnerSettings(gcp: Record<string, any>): string[] {
     missing.push('Cloud Run region');
   }
 
+  if (!gcp.orchestratorServiceName) {
+    missing.push('Orchestrator service name');
+  }
+
+  if (
+    gcp.orchestratorMinInstanceCount === undefined ||
+    gcp.orchestratorMinInstanceCount === null ||
+    gcp.orchestratorMinInstanceCount === ''
+  ) {
+    missing.push('Orchestrator minimum instance count');
+  }
+
+  if (
+    gcp.orchestratorMaxInstanceCount === undefined ||
+    gcp.orchestratorMaxInstanceCount === null ||
+    gcp.orchestratorMaxInstanceCount === ''
+  ) {
+    missing.push('Orchestrator maximum instance count');
+  }
+
+  if (
+    gcp.orchestratorCpuIdle === undefined ||
+    gcp.orchestratorCpuIdle === null ||
+    gcp.orchestratorCpuIdle === ''
+  ) {
+    missing.push('Orchestrator CPU idle policy');
+  }
+
   if (!gcp.orchestratorImageUriTemplate) {
     missing.push('Orchestrator image URI template');
   }
@@ -413,7 +441,10 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         refreshedToken,
         {
           cloudRunLocation: gcp.cloudRunLocation,
+          orchestratorCpuIdle: gcp.orchestratorCpuIdle,
           orchestratorImageUriTemplate: gcp.orchestratorImageUriTemplate,
+          orchestratorMaxInstanceCount: gcp.orchestratorMaxInstanceCount,
+          orchestratorMinInstanceCount: gcp.orchestratorMinInstanceCount,
           orchestratorServiceName: gcp.orchestratorServiceName,
         },
       );

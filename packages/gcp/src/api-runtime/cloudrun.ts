@@ -1,13 +1,6 @@
 import { ServicesClient } from '@google-cloud/run';
 import { OAuth2Client } from 'google-auth-library';
 
-const ORCHESTRATOR_SERVICE_NAME_ENV = 'GCP_ORCHESTRATOR_SERVICE_NAME';
-const ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV =
-  'GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT';
-const ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV =
-  'GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT';
-const ORCHESTRATOR_CPU_IDLE_ENV = 'GCP_ORCHESTRATOR_CPU_IDLE';
-
 type OrchestratorCloudRunConfig = {
   cpuIdle: boolean;
   maxInstanceCount: number;
@@ -17,7 +10,10 @@ type OrchestratorCloudRunConfig = {
 
 export interface GcpCloudRunSettings {
   cloudRunLocation?: string;
+  orchestratorCpuIdle?: boolean;
   orchestratorImageUriTemplate?: string;
+  orchestratorMaxInstanceCount?: number | string;
+  orchestratorMinInstanceCount?: number | string;
   orchestratorServiceName?: string;
 }
 
@@ -29,57 +25,63 @@ function requireSetting(value: string | undefined, name: string): string {
   return normalized;
 }
 
-function requireEnvSetting(name: string): string {
-  const normalized = process.env[name]?.trim();
-  if (!normalized) {
-    throw new Error(`${name} must be set in apps/api/.env for GCP runs.`);
-  }
-  return normalized;
-}
-
-function requireEnvPositiveInteger(name: string): number {
-  const rawValue = requireEnvSetting(name);
-  const value = Number(rawValue);
-  if (!Number.isInteger(value) || value <= 0) {
+function requirePositiveIntegerSetting(value: unknown, name: string): number {
+  const numberValue =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : NaN;
+  if (!Number.isInteger(numberValue) || numberValue <= 0) {
     throw new Error(
-      `${name} must be set to a positive integer in apps/api/.env.`,
+      `${name} must be configured as a positive integer in GCP runner settings.`,
     );
   }
-  return value;
+  return numberValue;
 }
 
-function requireEnvBoolean(name: string): boolean {
-  const rawValue = requireEnvSetting(name).toLowerCase();
-  if (rawValue === 'true') {
+function requireBooleanSetting(value: unknown, name: string): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().toLowerCase() === 'true') {
     return true;
   }
-  if (rawValue === 'false') {
+  if (typeof value === 'string' && value.trim().toLowerCase() === 'false') {
     return false;
   }
-  throw new Error(`${name} must be set to true or false in apps/api/.env.`);
+  throw new Error(
+    `${name} must be configured as true or false in GCP runner settings.`,
+  );
 }
 
 function getOrchestratorCloudRunConfig(
   settings: GcpCloudRunSettings,
 ): OrchestratorCloudRunConfig {
-  const defaultServiceName = requireEnvSetting(ORCHESTRATOR_SERVICE_NAME_ENV);
-  const serviceName =
-    settings.orchestratorServiceName?.trim() || defaultServiceName;
-  const minInstanceCount = requireEnvPositiveInteger(
-    ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV,
+  const serviceName = requireSetting(
+    settings.orchestratorServiceName,
+    'Orchestrator service name',
   );
-  const maxInstanceCount = requireEnvPositiveInteger(
-    ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV,
+  const minInstanceCount = requirePositiveIntegerSetting(
+    settings.orchestratorMinInstanceCount,
+    'Orchestrator minimum instance count',
+  );
+  const maxInstanceCount = requirePositiveIntegerSetting(
+    settings.orchestratorMaxInstanceCount,
+    'Orchestrator maximum instance count',
   );
 
   if (maxInstanceCount < minInstanceCount) {
     throw new Error(
-      `${ORCHESTRATOR_MAX_INSTANCE_COUNT_ENV} must be greater than or equal to ${ORCHESTRATOR_MIN_INSTANCE_COUNT_ENV}.`,
+      'Orchestrator maximum instance count must be greater than or equal to the minimum instance count.',
     );
   }
 
   return {
-    cpuIdle: requireEnvBoolean(ORCHESTRATOR_CPU_IDLE_ENV),
+    cpuIdle: requireBooleanSetting(
+      settings.orchestratorCpuIdle,
+      'Orchestrator CPU idle policy',
+    ),
     maxInstanceCount,
     minInstanceCount,
     serviceName,
@@ -197,7 +199,7 @@ async function ensureServiceConfiguration(
 
   try {
     console.log(
-      `[CloudRun] Updating ${formattedServiceName} configuration${shouldUpdateImage ? ` to image ${orchestratorImageUri}` : ''}${shouldUpdateCpuAllocation ? ' with always-allocated CPU' : ''}.`,
+      `[CloudRun] Updating ${formattedServiceName} configuration${shouldUpdateImage ? ` to image ${orchestratorImageUri}` : ''}${shouldUpdateCpuAllocation ? ` with cpuIdle=${orchestratorConfig.cpuIdle}` : ''}.`,
     );
     const [updateOperation] = await servicesClient.updateService({
       service: update,

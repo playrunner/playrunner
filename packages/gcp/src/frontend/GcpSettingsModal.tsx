@@ -16,7 +16,10 @@ type GcpCredentialData = {
   cloudRunLocation?: string;
   code?: string;
   expiresAt?: number;
+  orchestratorCpuIdle?: boolean;
   orchestratorImageUriTemplate?: string;
+  orchestratorMaxInstanceCount?: number;
+  orchestratorMinInstanceCount?: number;
   orchestratorServiceName?: string;
   playwrightImageUriTemplate?: string;
   refreshToken?: string;
@@ -25,6 +28,9 @@ type GcpCredentialData = {
 };
 
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
+const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
+const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
+const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
 const PUSH_RUNNERS_COMMAND =
   './infra/gcp/scripts/push-runners.sh --target both --yes';
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
@@ -46,6 +52,36 @@ function buildPlaywrightTemplate(region: string): string {
   return `${trimmedRegion}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`;
 }
 
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  const numberValue =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : NaN;
+
+  return Number.isInteger(numberValue) && numberValue > 0
+    ? numberValue
+    : fallback;
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+function parsePositiveIntegerInput(value: string): number | null {
+  const numberValue = Number(value.trim());
+  return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
 export function GcpSettingsModal({
   isOpen,
   onClose,
@@ -61,6 +97,13 @@ export function GcpSettingsModal({
   const [cloudRunLocation, setCloudRunLocation] = useState('');
   const [orchestratorServiceName, setOrchestratorServiceName] = useState(
     DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+  );
+  const [orchestratorMinInstanceCount, setOrchestratorMinInstanceCount] =
+    useState(String(DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT));
+  const [orchestratorMaxInstanceCount, setOrchestratorMaxInstanceCount] =
+    useState(String(DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT));
+  const [orchestratorCpuIdle, setOrchestratorCpuIdle] = useState(
+    DEFAULT_ORCHESTRATOR_CPU_IDLE,
   );
   const [orchestratorImageUriTemplate, setOrchestratorImageUriTemplate] =
     useState('');
@@ -80,6 +123,7 @@ export function GcpSettingsModal({
   const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
   const [isSavingRunnerSettings, setIsSavingRunnerSettings] = useState(false);
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
+  const [runnerSettingsError, setRunnerSettingsError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
@@ -102,6 +146,13 @@ export function GcpSettingsModal({
     setGcpClientSecret('');
     setCloudRunLocation('');
     setOrchestratorServiceName(DEFAULT_ORCHESTRATOR_SERVICE_NAME);
+    setOrchestratorMinInstanceCount(
+      String(DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT),
+    );
+    setOrchestratorMaxInstanceCount(
+      String(DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT),
+    );
+    setOrchestratorCpuIdle(DEFAULT_ORCHESTRATOR_CPU_IDLE);
     setOrchestratorImageUriTemplate('');
     setPlaywrightImageUriTemplate('');
     setOrchestratorTemplateEdited(false);
@@ -109,6 +160,7 @@ export function GcpSettingsModal({
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
+    setRunnerSettingsError('');
   }, []);
 
   const loadCredentialState = React.useCallback((data: any) => {
@@ -134,6 +186,18 @@ export function GcpSettingsModal({
         data.orchestratorServiceName.trim()
           ? data.orchestratorServiceName
           : DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+      orchestratorCpuIdle: normalizeBoolean(
+        data?.orchestratorCpuIdle,
+        DEFAULT_ORCHESTRATOR_CPU_IDLE,
+      ),
+      orchestratorMaxInstanceCount: normalizePositiveInteger(
+        data?.orchestratorMaxInstanceCount,
+        DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT,
+      ),
+      orchestratorMinInstanceCount: normalizePositiveInteger(
+        data?.orchestratorMinInstanceCount,
+        DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT,
+      ),
       playwrightImageUriTemplate:
         typeof data?.playwrightImageUriTemplate === 'string'
           ? data.playwrightImageUriTemplate
@@ -159,6 +223,23 @@ export function GcpSettingsModal({
     setGcpClientSecret(next.clientSecret || '');
     setCloudRunLocation(regionVal);
     setOrchestratorServiceName(svcName);
+    setOrchestratorMinInstanceCount(
+      String(
+        next.orchestratorMinInstanceCount ||
+          DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT,
+      ),
+    );
+    setOrchestratorMaxInstanceCount(
+      String(
+        next.orchestratorMaxInstanceCount ||
+          DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT,
+      ),
+    );
+    setOrchestratorCpuIdle(
+      typeof next.orchestratorCpuIdle === 'boolean'
+        ? next.orchestratorCpuIdle
+        : DEFAULT_ORCHESTRATOR_CPU_IDLE,
+    );
     setOrchestratorImageUriTemplate(
       storedOrch || buildOrchestratorTemplate(regionVal, svcName),
     );
@@ -169,6 +250,7 @@ export function GcpSettingsModal({
     setPlaywrightTemplateEdited(Boolean(storedPlay));
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
+    setRunnerSettingsError('');
   }, []);
 
   const persistCredentialPatch = React.useCallback(
@@ -184,6 +266,21 @@ export function GcpSettingsModal({
           patch.orchestratorServiceName?.trim() ||
           credentialRef.current.orchestratorServiceName ||
           DEFAULT_ORCHESTRATOR_SERVICE_NAME,
+        orchestratorCpuIdle:
+          typeof patch.orchestratorCpuIdle === 'boolean'
+            ? patch.orchestratorCpuIdle
+            : (credentialRef.current.orchestratorCpuIdle ??
+              DEFAULT_ORCHESTRATOR_CPU_IDLE),
+        orchestratorMaxInstanceCount:
+          typeof patch.orchestratorMaxInstanceCount === 'number'
+            ? patch.orchestratorMaxInstanceCount
+            : (credentialRef.current.orchestratorMaxInstanceCount ??
+              DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT),
+        orchestratorMinInstanceCount:
+          typeof patch.orchestratorMinInstanceCount === 'number'
+            ? patch.orchestratorMinInstanceCount
+            : (credentialRef.current.orchestratorMinInstanceCount ??
+              DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT),
         updatedAt: new Date().toISOString(),
       };
 
@@ -467,11 +564,39 @@ export function GcpSettingsModal({
   const handleSaveRunnerSettings = async () => {
     if (!auth.currentUser) return;
 
+    const minInstanceCount = parsePositiveIntegerInput(
+      orchestratorMinInstanceCount,
+    );
+    if (minInstanceCount === null) {
+      setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Minimum instances must be a positive integer.');
+      return;
+    }
+
+    const maxInstanceCount = parsePositiveIntegerInput(
+      orchestratorMaxInstanceCount,
+    );
+    if (maxInstanceCount === null) {
+      setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Maximum instances must be a positive integer.');
+      return;
+    }
+
+    if (maxInstanceCount < minInstanceCount) {
+      setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Maximum instances must be at least the minimum.');
+      return;
+    }
+
     setIsSavingRunnerSettings(true);
+    setRunnerSettingsError('');
     try {
       const next = await persistCredentialPatch({
         cloudRunLocation: cloudRunLocation.trim(),
+        orchestratorCpuIdle,
         orchestratorImageUriTemplate: orchestratorImageUriTemplate.trim(),
+        orchestratorMaxInstanceCount: maxInstanceCount,
+        orchestratorMinInstanceCount: minInstanceCount,
         orchestratorServiceName:
           orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
         playwrightImageUriTemplate: playwrightImageUriTemplate.trim(),
@@ -484,6 +609,7 @@ export function GcpSettingsModal({
       onClose();
     } catch (error) {
       console.error('Failed to save GCP runner settings', error);
+      setRunnerSettingsError('Failed to save GCP runner settings.');
     } finally {
       setIsSavingRunnerSettings(false);
     }
@@ -566,8 +692,11 @@ export function GcpSettingsModal({
           )
         ) : authSuccess ? (
           <div className="flex w-full items-center gap-3">
-            <span className="min-h-5 flex-1 text-xs text-emerald-500">
-              {runnerSettingsSaved ? 'Runner settings saved.' : ''}
+            <span
+              className={`min-h-5 flex-1 text-xs ${runnerSettingsError ? 'text-red-500' : 'text-emerald-500'}`}
+            >
+              {runnerSettingsError ||
+                (runnerSettingsSaved ? 'Runner settings saved.' : '')}
             </span>
             <div className="flex shrink-0 items-center justify-end gap-2">
               {Button ? (
@@ -744,6 +873,60 @@ export function GcpSettingsModal({
                   }}
                   placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
                 />
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">
+                    Min Instances
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={orchestratorMinInstanceCount}
+                    onChange={(e) => {
+                      setOrchestratorMinInstanceCount(e.target.value);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1.5">
+                    Max Instances
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={orchestratorMaxInstanceCount}
+                    onChange={(e) => {
+                      setOrchestratorMaxInstanceCount(e.target.value);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                  />
+                </div>
+                <label className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left">
+                  <input
+                    type="checkbox"
+                    checked={!orchestratorCpuIdle}
+                    onChange={(e) => {
+                      setOrchestratorCpuIdle(!e.target.checked);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span>
+                    <span className="block text-xs font-medium text-[var(--foreground)]">
+                      Always-allocated CPU
+                    </span>
+                    <span className="block text-xs text-muted">
+                      Keeps DAG work active after `/execute`.
+                    </span>
+                  </span>
+                </label>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">

@@ -155,7 +155,7 @@ If you want to confirm what the script will use before running it:
 node infra/gcp/scripts/gcp-settings.mjs json
 ```
 
-This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/gcp/scripts/push-runners.sh --help` for the wrapper script's options.
+This only emits the non-secret fields (`selectedProject`, `cloudRunLocation`, `orchestratorServiceName`, `orchestratorMinInstanceCount`, `orchestratorMaxInstanceCount`, `orchestratorCpuIdle`, `orchestratorImageUriTemplate`, `playwrightImageUriTemplate`). Each value is also available as its own subcommand: `project-id`, `region`, `orchestrator-service-name`, `orchestrator-min-instance-count`, `orchestrator-max-instance-count`, `orchestrator-cpu-idle`, `orchestrator-image-uri-template`, `playwright-image-uri-template`. Run `./infra/gcp/scripts/push-runners.sh --help` for the wrapper script's options.
 
 If these saved values changed, rerun the push script after saving:
 
@@ -193,6 +193,9 @@ All flags:
 | `--project-id <id>`                       | Override the stored GCP project ID                                  |
 | `--region <region>`                       | Override the stored Cloud Run region                                |
 | `--orchestrator-service-name <n>`         | Override the stored Cloud Run service name                          |
+| `--orchestrator-min-instances <n>`        | Override the stored Orchestrator minimum instance count             |
+| `--orchestrator-max-instances <n>`        | Override the stored Orchestrator maximum instance count             |
+| `--orchestrator-cpu-idle <true\|false>`   | Override the stored Orchestrator CPU idle policy                    |
 | `--user-id <id>`                          | Filter the Postgres lookup when multiple users have GCP credentials |
 | `--target orchestrator\|playwright\|both` | Skip the interactive menu                                           |
 | `--base-path <path>`                      | `BASE_PATH` build arg for the Orchestrator image (default `.`)      |
@@ -201,6 +204,6 @@ All flags:
 ### What it does
 
 - **Docker auth:** configures Docker for the target Artifact Registry host with `gcloud auth configure-docker`.
-- **Orchestrator:** builds `apps/runners/orchestrator` as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --cpu-boost` to roll out the new image.
+- **Orchestrator:** builds `apps/runners/orchestrator` as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --min-instances ... --max-instances ... --cpu-boost --[no-]cpu-throttling` to roll out the new image and service settings.
 - **Playwright:** for both `typescript` and `python`, builds every tag in `config/playwright-runner-versions.json`. The tag flagged `publishAsLatest: true` is additionally pushed as `:latest`. Tags use `playwrightImageUriTemplate` with `{projectId}`, `{runtime}`, and `{version}` substituted.
 - **Job cleanup:** deletes any existing Cloud Run Jobs named `playrunner-*` in the configured region so the next workflow execution recreates them with the new image.

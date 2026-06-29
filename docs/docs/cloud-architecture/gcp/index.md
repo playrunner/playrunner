@@ -62,7 +62,7 @@ When a user initiates a workflow from the web interface targeting GCP:
 In practice that means:
 
 - `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` must point at an Orchestrator image that is already available in a registry Cloud Run can pull from.
-- `GCP_ORCHESTRATOR_SERVICE_NAME`, `GCP_ORCHESTRATOR_MIN_INSTANCE_COUNT`, `GCP_ORCHESTRATOR_MAX_INSTANCE_COUNT`, and `GCP_ORCHESTRATOR_CPU_IDLE` must be set in `apps/api/.env`; GCP runs fail fast if any are missing or invalid.
+- The GCP integration settings must include the Orchestrator service name, min/max instances, CPU idle policy, Cloud Run region, and image URI templates; GCP runs fail fast if any required setting is missing or invalid.
 - `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` must point at Playwright runner images that are already available in a registry Cloud Run can pull from.
 - `GCS_BUCKET_PREFIX` controls the per-workflow output buckets Playrunner creates before handing execution off to Cloud Run.
 - The connected GCP user must have permission to publish Pub/Sub messages and create/use the execution event plus runner control/status subscriptions on the shared topic.
