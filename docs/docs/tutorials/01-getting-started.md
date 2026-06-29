@@ -101,7 +101,7 @@ That command starts the local Postgres container, runs Prisma bootstrap, and sta
 
 The installer writes the PostgreSQL and Prisma config into `apps/api`, including:
 
-- `.env` updates for `DATABASE_URL`, `DIRECT_URL`, and `SHADOW_DATABASE_URL`
+- `.env` updates for `DATABASE_URL` and `DIRECT_URL`
 - `prisma/schema.prisma`
 - `src/lib/prisma.ts`
 

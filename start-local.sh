@@ -223,10 +223,6 @@ function parseEnvValue(rawValue = '') {
   return trimmed;
 }
 
-function formatEnvValue(value) {
-  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-}
-
 function getEnvVariable(lines, key) {
   const line = lines.find((entry) => entry.startsWith(`${key}=`));
   if (!line) {
@@ -236,35 +232,8 @@ function getEnvVariable(lines, key) {
   return parseEnvValue(line.slice(key.length + 1));
 }
 
-function upsertEnvVariable(lines, key, value) {
-  const index = lines.findIndex((line) => line.startsWith(`${key}=`));
-
-  if (!value) {
-    if (index !== -1) {
-      lines.splice(index, 1);
-    }
-    return;
-  }
-
-  const renderedLine = `${key}=${formatEnvValue(value)}`;
-  if (index === -1) {
-    lines.push(renderedLine);
-    return;
-  }
-
-  lines[index] = renderedLine;
-}
-
 function hasCompleteLocalAuthConfig(config) {
   return Boolean(config.username && config.passwordHash && config.jwtSecret);
-}
-
-function getLegacyLocalAuthConfig(lines) {
-  return {
-    jwtSecret: getEnvVariable(lines, 'AUTH_JWT_SECRET'),
-    passwordHash: getEnvVariable(lines, 'LOCAL_AUTH_PASSWORD_HASH'),
-    username: getEnvVariable(lines, 'LOCAL_AUTH_USERNAME'),
-  };
 }
 
 async function withPrismaClient(databaseUrl, callback) {
@@ -308,61 +277,6 @@ async function readStoredLocalAuthConfig(databaseUrl) {
   });
 }
 
-async function upsertStoredLocalAuthConfig(databaseUrl, config) {
-  return withPrismaClient(databaseUrl, async (prisma) => {
-    const secretValues = [
-      {
-        description: 'Local setup admin JWT signing secret.',
-        secretKey: LOCAL_AUTH_SECRET_KEYS.jwtSecret,
-        value: config.jwtSecret,
-      },
-      {
-        description: 'Local setup admin password hash.',
-        secretKey: LOCAL_AUTH_SECRET_KEYS.passwordHash,
-        value: config.passwordHash,
-      },
-      {
-        description: 'Local setup admin username.',
-        secretKey: LOCAL_AUTH_SECRET_KEYS.username,
-        value: config.username,
-      },
-    ];
-
-    for (const secret of secretValues) {
-      await prisma.secret.upsert({
-        where: {
-          userId_secretKey: {
-            userId: LOCAL_AUTH_SECRET_OWNER,
-            secretKey: secret.secretKey,
-          },
-        },
-        update: {
-          value: secret.value,
-          description: secret.description,
-        },
-        create: {
-          userId: LOCAL_AUTH_SECRET_OWNER,
-          secretKey: secret.secretKey,
-          value: secret.value,
-          description: secret.description,
-        },
-      });
-    }
-  });
-}
-
-function writeSanitizedEnv(lines) {
-  upsertEnvVariable(lines, 'LOCAL_AUTH_USERNAME');
-  upsertEnvVariable(lines, 'LOCAL_AUTH_PASSWORD_HASH');
-  upsertEnvVariable(lines, 'AUTH_JWT_SECRET');
-
-  while (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
-
-  fs.writeFileSync(apiEnvPath, `${lines.join('\n')}\n`, 'utf8');
-}
-
 if (!fileExists(rootEnvPath) || !fileExists(apiEnvPath)) {
   process.exit(1);
 }
@@ -378,19 +292,7 @@ async function main() {
   const storedConfig = await readStoredLocalAuthConfig(databaseUrl).catch(
     () => null,
   );
-  if (storedConfig && hasCompleteLocalAuthConfig(storedConfig)) {
-    writeSanitizedEnv(envLines);
-    return true;
-  }
-
-  const legacyConfig = getLegacyLocalAuthConfig(envLines);
-  if (!hasCompleteLocalAuthConfig(legacyConfig)) {
-    return false;
-  }
-
-  await upsertStoredLocalAuthConfig(databaseUrl, legacyConfig);
-  writeSanitizedEnv(envLines);
-  return true;
+  return Boolean(storedConfig && hasCompleteLocalAuthConfig(storedConfig));
 }
 
 main()

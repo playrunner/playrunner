@@ -3,7 +3,6 @@ export type SetupPlatform = 'postgresql';
 export type RuntimePostgresConfig = {
   databaseUrl: string;
   directUrl?: string;
-  shadowDatabaseUrl?: string;
 };
 
 export type RuntimeLocalAuthConfig = {

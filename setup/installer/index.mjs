@@ -74,10 +74,6 @@ function normalizePostgresSetupPayload(body) {
   return {
     databaseUrl: normalizePostgresUrl(body.databaseUrl, "DATABASE_URL", true),
     directUrl: normalizePostgresUrl(body.directUrl, "DIRECT_URL"),
-    shadowDatabaseUrl: normalizePostgresUrl(
-      body.shadowDatabaseUrl,
-      "SHADOW_DATABASE_URL",
-    ),
     username: normalizeUsername(body.username),
     password: normalizePassword(body.password),
   };
@@ -186,14 +182,6 @@ function createApiRequire() {
   return createRequire(path.join(getApiDir(), "package.json"));
 }
 
-function getLegacyLocalAuthConfig(envLines) {
-  return {
-    jwtSecret: getEnvVariable(envLines, "AUTH_JWT_SECRET"),
-    passwordHash: getEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH"),
-    username: getEnvVariable(envLines, "LOCAL_AUTH_USERNAME"),
-  };
-}
-
 function hasCompleteLocalAuthConfig(config) {
   return Boolean(config.username && config.passwordHash && config.jwtSecret);
 }
@@ -221,7 +209,6 @@ function createPrismaCommandEnv(config) {
     ...process.env,
     DATABASE_URL: config.databaseUrl,
     DIRECT_URL: config.directUrl || "",
-    SHADOW_DATABASE_URL: config.shadowDatabaseUrl || "",
   };
 }
 
@@ -337,41 +324,12 @@ async function seedLocalAuthConfig(config) {
   });
 }
 
-async function ensureStoredLocalAuthConfig(envPath, envLines, databaseUrl) {
+async function hasStoredLocalAuthConfig(databaseUrl) {
   const storedConfig = await readStoredLocalAuthConfig(databaseUrl).catch(
     () => null,
   );
 
-  if (storedConfig && hasCompleteLocalAuthConfig(storedConfig)) {
-    upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
-    upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
-    upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
-
-    while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
-      envLines.pop();
-    }
-
-    await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
-    return true;
-  }
-
-  const legacyConfig = getLegacyLocalAuthConfig(envLines);
-  if (!hasCompleteLocalAuthConfig(legacyConfig)) {
-    return false;
-  }
-
-  await upsertStoredLocalAuthConfig(databaseUrl, legacyConfig);
-
-  upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
-  upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
-  upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
-
-  while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
-    envLines.pop();
-  }
-
-  await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
-  return true;
+  return Boolean(storedConfig && hasCompleteLocalAuthConfig(storedConfig));
 }
 
 function renderPrismaSchema(config) {
@@ -379,12 +337,6 @@ function renderPrismaSchema(config) {
 
   if (config.directUrl) {
     optionalDatasourceLines.push('  directUrl = env("DIRECT_URL")');
-  }
-
-  if (config.shadowDatabaseUrl) {
-    optionalDatasourceLines.push(
-      '  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")',
-    );
   }
 
   const datasourceBlock = [
@@ -549,10 +501,6 @@ async function installPostgresFiles(config) {
 
   upsertEnvVariable(envLines, "DATABASE_URL", config.databaseUrl);
   upsertEnvVariable(envLines, "DIRECT_URL", config.directUrl);
-  upsertEnvVariable(envLines, "SHADOW_DATABASE_URL", config.shadowDatabaseUrl);
-  upsertEnvVariable(envLines, "LOCAL_AUTH_USERNAME");
-  upsertEnvVariable(envLines, "LOCAL_AUTH_PASSWORD_HASH");
-  upsertEnvVariable(envLines, "AUTH_JWT_SECRET");
 
   while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
     envLines.pop();
@@ -600,9 +548,7 @@ async function getSetupStatus() {
   const databaseUrl = getEnvVariable(envLines, "DATABASE_URL");
 
   return {
-    completed: databaseUrl
-      ? await ensureStoredLocalAuthConfig(apiEnvPath, envLines, databaseUrl)
-      : false,
+    completed: databaseUrl ? await hasStoredLocalAuthConfig(databaseUrl) : false,
   };
 }
 
