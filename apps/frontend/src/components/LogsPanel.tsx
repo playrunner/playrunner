@@ -17,6 +17,8 @@ export interface LogItem {
   id: string;
   type: 'Build' | 'Log' | 'Debug' | 'Error' | 'Warning' | 'Info';
   message: string;
+  receivedAtMs?: number;
+  timestampMs?: number;
 }
 
 export const LogsPanel = ({ logs = [] }: { logs?: LogItem[] }) => {

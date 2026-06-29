@@ -424,17 +424,18 @@ async function executeWorkflow(reqBody: any) {
       );
 
       if (playwrightNodes.length > 0) {
-        await publishLog(
+        void publishLog(
           `Preparing ${playwrightNodes.length} Playwright runner${playwrightNodes.length === 1 ? '' : 's'} before workflow execution reaches them...`,
           'info',
         );
+
         for (const node of playwrightNodes) {
-          await publishNodeState(node.id, 'pending');
-          await publishLog(
+          const { request } = createPlaywrightExecutionRequest(node);
+          void publishNodeState(node.id, 'pending');
+          void publishLog(
             `Starting Playwright Runner preparation for ${node.label || node.id} (${node.id}).`,
             'info',
           );
-          const { request } = createPlaywrightExecutionRequest(node);
           preparedPlaywrightRunners[node.id] =
             orchestratorRuntime.playwrightExecution
               .prepare(request)

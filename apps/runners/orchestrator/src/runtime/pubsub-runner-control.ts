@@ -290,7 +290,7 @@ async function pullRunnerStatusMessages(args: {
     `projects/${args.projectId}/subscriptions/${args.subscriptionName}:pull`,
     args.accessToken,
     {
-      body: JSON.stringify({ maxMessages: 10 }),
+      body: JSON.stringify({ maxMessages: 10, returnImmediately: true }),
       method: 'POST',
     },
   );

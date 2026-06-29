@@ -331,7 +331,7 @@ async function waitForPubSubStartSignal(control: RunnerControlConfig) {
       `projects/${control.projectId}/subscriptions/${control.controlSubscriptionName}:pull`,
       gcpAccessToken,
       {
-        body: JSON.stringify({ maxMessages: 10 }),
+        body: JSON.stringify({ maxMessages: 10, returnImmediately: true }),
         method: 'POST',
       },
     );

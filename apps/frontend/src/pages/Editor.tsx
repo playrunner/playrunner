@@ -69,10 +69,19 @@ interface NodeData {
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
 
 type ConnectionType =
-  'sequential' | 'concurrent' | 'independent' | 'success' | 'failure';
+  | 'sequential'
+  | 'concurrent'
+  | 'independent'
+  | 'success'
+  | 'failure';
 
 type NodeExecutionStatus =
-  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
 
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
@@ -156,6 +165,34 @@ function formatElapsedTime(elapsedMs: number): string {
   return `${minutes.toString().padStart(2, '0')}:${seconds
     .toString()
     .padStart(2, '0')}`;
+}
+
+function appendLogByTimestamp(logs: LogItem[], log: LogItem): LogItem[] {
+  return [...logs, log].sort((a, b) => {
+    const timestampDelta =
+      (a.timestampMs ?? a.receivedAtMs ?? 0) -
+      (b.timestampMs ?? b.receivedAtMs ?? 0);
+    if (timestampDelta !== 0) {
+      return timestampDelta;
+    }
+
+    return (a.receivedAtMs ?? 0) - (b.receivedAtMs ?? 0);
+  });
+}
+
+function resolveLogTimestamp(value: unknown): Date {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return new Date();
 }
 
 function getWorkflowStartupStepIndex(phase: WorkflowStartupPhase): number {
@@ -528,7 +565,8 @@ export default function Editor() {
 
   const initialNodes = location.state?.initialNodes as NodeData[] | undefined;
   const initialConnections = location.state?.initialConnections as
-    Connection[] | undefined;
+    | Connection[]
+    | undefined;
 
   const [nodes, setNodes] = useState<NodeData[]>(initialNodes || []);
   const [connections, setConnections] = useState<Connection[]>(
@@ -567,14 +605,16 @@ export default function Editor() {
       type: LogItem['type'] = 'Info',
       timestamp = new Date(),
     ) => {
-      setOrchestratorLogs((prev) => [
-        ...prev,
-        {
-          id: `log-${Date.now()}-${Math.random()}`,
+      const receivedAtMs = Date.now();
+      setOrchestratorLogs((prev) =>
+        appendLogByTimestamp(prev, {
+          id: `log-${receivedAtMs}-${Math.random()}`,
           type,
           message: `[${timestamp.toLocaleTimeString()}] ${message}`,
-        },
-      ]);
+          receivedAtMs,
+          timestampMs: timestamp.getTime(),
+        }),
+      );
     },
     [],
   );
@@ -653,7 +693,7 @@ export default function Editor() {
 
   const handleExecutionEvent = useCallback(
     (data: Record<string, any>) => {
-      const timestamp = data.timestamp ? new Date(data.timestamp) : new Date();
+      const timestamp = resolveLogTimestamp(data.timestamp);
       const startupUpdate = getWorkflowStartupUpdateFromEvent(data);
       if (startupUpdate) {
         updateWorkflowStartupStatus(startupUpdate);
@@ -709,14 +749,16 @@ export default function Editor() {
       if (data.level === 'info') logType = 'Info';
       if (data.level === 'debug') logType = 'Debug';
 
-      setOrchestratorLogs((prev) => [
-        ...prev,
-        {
-          id: `log-${Date.now()}-${Math.random()}`,
+      const receivedAtMs = Date.now();
+      setOrchestratorLogs((prev) =>
+        appendLogByTimestamp(prev, {
+          id: `log-${receivedAtMs}-${Math.random()}`,
           type: logType,
           message: `[${timestamp.toLocaleTimeString()}] ${data.message}`,
-        },
-      ]);
+          receivedAtMs,
+          timestampMs: timestamp.getTime(),
+        }),
+      );
     },
     [
       clearWorkflowStartupStatus,

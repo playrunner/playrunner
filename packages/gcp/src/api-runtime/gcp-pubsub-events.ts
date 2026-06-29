@@ -254,7 +254,10 @@ async function pullMessages(params: {
     params.creds,
     `projects/${params.projectId}/subscriptions/${params.subscriptionName}:pull`,
     {
-      body: JSON.stringify({ maxMessages: PULL_MAX_MESSAGES }),
+      body: JSON.stringify({
+        maxMessages: PULL_MAX_MESSAGES,
+        returnImmediately: true,
+      }),
       method: 'POST',
     },
     params.emulatorHost,
