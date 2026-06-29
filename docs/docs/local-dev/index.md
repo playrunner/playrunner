@@ -26,19 +26,19 @@ The rest of the Development section assumes you have already completed that setu
 
 Playrunner is a workflow orchestration platform for running automated Playwright test pipelines. It consists of four main services that must all be running locally to have a fully functional development environment:
 
-| Service               | Technology           | Port   | How it runs                                    |
-| --------------------- | -------------------- | ------ | ---------------------------------------------- |
-| **Web App**           | React + Vite         | `3000` | `npm run dev` (host process)                   |
-| **API**               | Express + TypeScript | `3001` | `npm start` (host process)                     |
-| **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)          |
+| Service               | Technology           | Port   | How it runs                                                 |
+| --------------------- | -------------------- | ------ | ----------------------------------------------------------- |
+| **Web App**           | React + Vite         | `3000` | `npm run dev` (host process)                                |
+| **API**               | Express + TypeScript | `3001` | `npm start` (host process)                                  |
+| **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)                       |
 | **Playwright Runner** | TypeScript + Python  | —      | Docker container (prepared and started by the Orchestrator) |
 
 There is also one supporting host service:
 
-| Service                 | Port              | How it runs                         |
-| ----------------------- | ----------------- | ----------------------------------- |
-| **Docs Site**           | `3004` by default | Host process via `./start-local.sh` |
-| **Pub/Sub Emulator**    | `8085` by default | Docker container                    |
+| Service              | Port              | How it runs                         |
+| -------------------- | ----------------- | ----------------------------------- |
+| **Docs Site**        | `3004` by default | Host process via `./start-local.sh` |
+| **Pub/Sub Emulator** | `8085` by default | Docker container                    |
 
 ---
 
@@ -55,7 +55,7 @@ API Server (Express, :3001)
   │  spawns on first Editor open
   ▼
 Orchestrator (Docker, :3002)
-  │  prepares Playwright runners early, then starts them by Pub/Sub control message
+  │  schedules Playwright runner preparation in the background, then starts runners by Pub/Sub control message
   ▼
 Playwright Runner (Docker, ephemeral)
   │  publishes runner status / logs / state / output events
@@ -63,7 +63,7 @@ Playwright Runner (Docker, ephemeral)
 Pub/Sub Emulator  →  API Server  →  PostgreSQL trace  →  SSE stream  →  Web App
 ```
 
-Local Docker and GCP workflows use the same Pub/Sub messaging shape. Local runs publish to the Docker Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub; in both cases the API pulls execution events, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**. Runner control/status messages use the same topic and filtered subscriptions.
+Local Docker and GCP workflows use the same Pub/Sub messaging shape. Local runs publish to the Docker Pub/Sub emulator, while GCP runs publish to GCP Pub/Sub; in both cases the API pulls execution events with short non-blocking polling, persists them to PostgreSQL, and streams them to the editor via **Server-Sent Events (SSE)**. Runner control/status messages use the same topic and filtered subscriptions. The editor displays logs by event timestamp so API-side setup logs and cloud-published runner logs stay readable even when they arrive out of order.
 
 ---
 

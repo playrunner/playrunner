@@ -61,7 +61,9 @@ shared topic, the API creates an execution-scoped filtered subscription, writes
 each accepted execution event to PostgreSQL, acknowledges the Pub/Sub message,
 and streams the same execution back to the editor with SSE. Runner control and
 runner status messages use the same topic with filtered subscriptions owned by
-the Orchestrator/runner path.
+the Orchestrator/runner path. These pull loops use non-blocking Pub/Sub pulls so
+the API, Orchestrator, and runner keep their own short polling cadence for logs,
+readiness, and start signals.
 
 ## Prerequisites
 
@@ -298,9 +300,17 @@ Playwright jobs and `runner_status` messages to observe readiness/start/failure.
 The first run may create or update the Orchestrator Cloud Run service and
 Playwright Cloud Run Jobs. Later runs reuse those resources unless the image
 template, runner version, CPU, memory, or runtime selection requires a new job.
-At execution time, the Orchestrator starts Playwright jobs early so they can
-prepare dependencies, then sends the Pub/Sub start signal only when the DAG
-reaches the corresponding Playwright node.
+Playrunner also keeps the Orchestrator service configured with a minimum warm
+instance and always-allocated CPU, so the background DAG run is not throttled
+after the service's `/execute` request has returned.
+At execution time, the Orchestrator schedules Playwright job preparation in the
+background so dependency preparation can overlap with earlier workflow nodes. It
+then sends the Pub/Sub start signal only when the DAG reaches the corresponding
+Playwright node.
+
+During this preparation phase, Playwright nodes should remain `pending`. They
+move to `running` only after the runner receives the start signal and begins
+executing the test.
 
 ## When to Rerun `push-runners.sh`
 
@@ -311,8 +321,13 @@ Rerun the push script after changing:
 - `config/playwright-runner-versions.json`
 - The image URI templates saved in the GCP integration modal
 
-For code changes in the API or frontend only, rerunning `push-runners.sh` is not
-normally required.
+For code changes in the API, frontend, or `packages/gcp/src/api-runtime/**`,
+rerunning `push-runners.sh` is not normally required, but you do need to restart
+the local API so those changes are loaded. The next GCP run will patch the
+existing Orchestrator service configuration when API-runtime settings, such as
+always-allocated CPU, drift from what Playrunner expects. Any change to the
+Orchestrator or Playwright runner code requires rebuilding and pushing the
+corresponding Cloud Run image before a real GCP workflow can use it.
 
 ## When to Rerun Terraform
 

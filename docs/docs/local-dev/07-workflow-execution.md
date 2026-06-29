@@ -16,7 +16,7 @@ A workflow is a directed acyclic graph (DAG) of nodes. When triggered, the syste
 1. Generates a unique `testId` (UUID) for the run
 2. Sends the entire graph to the Orchestrator
 3. The Orchestrator walks the graph, processing each node according to its type and the connection types between nodes
-4. Each Playwright node prepares a runner container early, then signals it to run when the DAG reaches that node
+4. Each Playwright node gets a runner prepared in the background, then receives a start signal only when the DAG reaches that node
 
 ---
 
@@ -38,9 +38,11 @@ The Orchestrator responds `200 { status: 'started' }` immediately (async executi
 
 1. **Extracts global environment variables** from all `Environment` nodes in the graph
 2. **Resolves implicit connections**: if a node has a `parentId` and no explicit connection exists to it from that parent, a sequential connection is added automatically
-3. **Prepares Playwright runners**: scans the full workflow for Playwright nodes and starts each runner in preparation mode so dependency installation can happen before the DAG reaches the node
+3. **Schedules Playwright runner preparation**: scans the full workflow for Playwright nodes and starts each runner in preparation mode in the background so dependency installation can overlap with earlier nodes
 4. **Identifies start nodes**: any node with no incoming connections
 5. **Walks the graph** in DAG order, calling `processNode()` for each
+
+Runner preparation status events are best-effort and do not block DAG startup. For example, an `Environment` node with no incoming connections should start as soon as the Orchestrator begins graph traversal, even if Playwright Cloud Run Jobs are still preparing.
 
 ### 3. DAG Traversal & Connection Types
 
@@ -84,6 +86,8 @@ Logs the node label. Global variables have already been extracted in step 2.
 6. Signals the runner over Pub/Sub with a `runner_control=start` message when the node is ready to execute
 7. Awaits the container or Cloud Run Job execution to exit — success = `0`, failure = non-zero or `null` (killed)
 
+The Orchestrator and runner poll Pub/Sub status/control subscriptions with non-blocking pulls and their own short sleep interval. That keeps runner readiness and start acknowledgement tied to the Playrunner polling loop rather than to Pub/Sub long-poll timing.
+
 #### `slack`
 
 Checks if Slack credentials exist in `settings`. Logs a warning if missing, simulates a message send if present.
@@ -126,6 +130,8 @@ When the API receives `POST /api/outputs/:testId/:nodeId`:
 ### 7. Real-Time Logs via SSE
 
 Throughout local Docker and GCP workflows, the Playwright runner and Orchestrator publish signed event payloads to Pub/Sub. Local Docker uses the Pub/Sub emulator; GCP uses GCP Pub/Sub. In both cases, the API stores every accepted event in PostgreSQL, and the editor listens on `GET /api/executions/:executionId/stream` for the specific run it started.
+
+The API orders the SSE stream by PostgreSQL event sequence. In the editor log panel, entries are inserted by event timestamp so messages from API setup, the Orchestrator Cloud Run service, and Playwright Cloud Run Jobs display in the order they happened, even when Pub/Sub delivery and API-side events arrive at different moments.
 
 ---
 

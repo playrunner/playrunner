@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
 const ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
+const ORCHESTRATOR_CPU_IDLE = false;
 
 export interface GcpCloudRunSettings {
   cloudRunLocation?: string;
@@ -41,12 +42,19 @@ async function ensureServiceConfiguration(
 ): Promise<string> {
   const serviceUri = service.uri!;
   const currentMinInstances = Number(service.scaling?.minInstanceCount || 0);
-  const currentImage = service.template?.containers?.[0]?.image;
+  const currentContainer = service.template?.containers?.[0];
+  const currentImage = currentContainer?.image;
+  const currentCpuIdle = currentContainer?.resources?.cpuIdle;
   const shouldUpdateMinInstances =
     currentMinInstances < ORCHESTRATOR_MIN_INSTANCE_COUNT;
   const shouldUpdateImage = currentImage !== orchestratorImageUri;
+  const shouldUpdateCpuAllocation = currentCpuIdle !== ORCHESTRATOR_CPU_IDLE;
 
-  if (!shouldUpdateMinInstances && !shouldUpdateImage) {
+  if (
+    !shouldUpdateMinInstances &&
+    !shouldUpdateImage &&
+    !shouldUpdateCpuAllocation
+  ) {
     return serviceUri;
   }
 
@@ -63,13 +71,13 @@ async function ensureServiceConfiguration(
     paths.push('scaling.min_instance_count');
   }
 
-  if (shouldUpdateImage) {
+  if (shouldUpdateImage || shouldUpdateCpuAllocation) {
     update.template = {
       ...(service.template || {}),
     };
   }
 
-  if (shouldUpdateImage) {
+  if (shouldUpdateImage || shouldUpdateCpuAllocation) {
     const containers =
       service.template?.containers && service.template.containers.length > 0
         ? service.template.containers.map((container: any, index: number) =>
@@ -78,6 +86,11 @@ async function ensureServiceConfiguration(
                   ...container,
                   image: orchestratorImageUri,
                   name: container.name || 'orchestrator',
+                  resources: {
+                    ...(container.resources || {}),
+                    cpuIdle: ORCHESTRATOR_CPU_IDLE,
+                    startupCpuBoost: true,
+                  },
                 }
               : container,
           )
@@ -86,6 +99,7 @@ async function ensureServiceConfiguration(
               image: orchestratorImageUri,
               name: 'orchestrator',
               resources: {
+                cpuIdle: ORCHESTRATOR_CPU_IDLE,
                 startupCpuBoost: true,
               },
             },
@@ -97,7 +111,7 @@ async function ensureServiceConfiguration(
 
   try {
     console.log(
-      `[CloudRun] Updating ${formattedServiceName} configuration${shouldUpdateImage ? ` to image ${orchestratorImageUri}` : ''}.`,
+      `[CloudRun] Updating ${formattedServiceName} configuration${shouldUpdateImage ? ` to image ${orchestratorImageUri}` : ''}${shouldUpdateCpuAllocation ? ' with always-allocated CPU' : ''}.`,
     );
     const [updateOperation] = await servicesClient.updateService({
       service: update,
@@ -177,6 +191,7 @@ export async function ensureOrchestratorService(
                 image: orchestratorImageUri,
                 name: 'orchestrator',
                 resources: {
+                  cpuIdle: ORCHESTRATOR_CPU_IDLE,
                   startupCpuBoost: true,
                 },
               },

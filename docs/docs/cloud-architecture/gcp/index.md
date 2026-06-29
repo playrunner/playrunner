@@ -34,9 +34,9 @@ graph TD
 ## Service Breakdown
 
 1. **API Server (Cloud Run Service)**: Handles HTTP requests from the frontend, manages authentication, proxies to Jira/Github integrations, persists every workflow event to PostgreSQL, and maintains Server-Sent Events (SSE) connections to stream live logs to the browser.
-2. **Orchestrator (Cloud Run Service)**: A lightweight Node.js event-loop dispatcher that traverses your visual workflow graphs. It manages state, evaluates dependencies, prepares Playwright Cloud Run Jobs early, and signals them over Pub/Sub when their workflow node is ready to execute.
+2. **Orchestrator (Cloud Run Service)**: A lightweight Node.js event-loop dispatcher that traverses your visual workflow graphs. It manages state, evaluates dependencies, schedules Playwright Cloud Run Job preparation in the background, and signals each prepared runner over Pub/Sub when its workflow node is ready to execute. Playrunner keeps this service on at least one warm instance with always-allocated CPU because `/execute` responds immediately while the service continues the DAG run in the background.
 3. **Playwright Runner (Cloud Run Job)**: The heavy lifter. A Docker container bundled with browsers and the Playwright framework. The Orchestrator passes execution context (payloads, environment variables, event transport, and runner control metadata) to these Jobs.
-4. **Pub/Sub**: The default and required GCP runner messaging transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes execution events to PostgreSQL, then acknowledges them. Runner control/status messages also use the same topic, but they are consumed by the Orchestrator/runner path rather than stored as user-facing execution logs.
+4. **Pub/Sub**: The default and required GCP runner messaging transport. The Orchestrator and Playwright runner publish execution events to a topic. The API creates an execution-scoped pull subscription, writes execution events to PostgreSQL, then acknowledges them. Runner control/status messages also use the same topic, but they are consumed by the Orchestrator/runner path rather than stored as user-facing execution logs. These pull loops use short non-blocking pulls so Playrunner controls the retry interval instead of waiting on Pub/Sub long-poll timing.
 
 > **Runner messaging uses Pub/Sub.** GCP runners publish logs, node states, status, and output events to Pub/Sub. A local API can still debug cloud runs because it pulls Pub/Sub messages over outbound HTTPS; no tunnel is required. See [Remote Runner Messaging](../../local-dev/remote-debugging).
 
@@ -87,7 +87,7 @@ region, repository path, or workflow-events topic has not already been created.
 
 1. The editor sends `POST /api/workflows/start` to the API.
 2. The API creates the workflow execution record, configures the execution-scoped Pub/Sub event subscription, ensures the Orchestrator Cloud Run service exists, and invokes the service's `/execute` endpoint.
-3. The Orchestrator loads the full workflow, scans the entire graph for Playwright nodes, and starts their Cloud Run Jobs in preparation mode before the DAG reaches those nodes.
+3. The Orchestrator loads the full workflow, scans the entire graph for Playwright nodes, and schedules their Cloud Run Jobs in preparation mode while the DAG starts walking from its root nodes.
 4. Each Playwright runner prepares dependencies, including repository checkout and package installation, then publishes a `runner_status` message such as `ready`. It does not start the Playwright test yet.
 5. When DAG traversal reaches a Playwright node, the Orchestrator waits for the prepared runner to be ready, publishes a `runner_control` start message containing the `nodeId` and `testId`, then waits for the Cloud Run Job execution to complete.
 6. The runner publishes `started`, node-state, log, output, and terminal events through Pub/Sub. The API persists accepted execution events to PostgreSQL and streams them to the editor through SSE.
@@ -97,6 +97,11 @@ This keeps provisioning distinct from execution: a Playwright node can be
 `pending` while its runner is being prepared, but it should only become
 `running` after the runner has received the start signal and actually begins
 test execution.
+
+The editor stores all accepted events in PostgreSQL and streams them by sequence.
+For readability, the log panel displays messages by event timestamp, which keeps
+API setup logs, Orchestrator logs, and Playwright Job logs in chronological order
+when Pub/Sub delivery arrives slightly out of order.
 
 ---
 

@@ -7,24 +7,24 @@ hide_title: true
 ---
 
 import {
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="GCP"
-  packageName="@playrunner/gcp"
-  description="Connect Google Cloud credentials, configure Cloud Run runner images, and register package-owned GCP workflow runtime backends."
-  icon="gcp"
-  installCommand="npm install @playrunner/gcp"
-  npmUrl="https://www.npmjs.com/package/@playrunner/gcp"
-  badges={['OAuth', 'Cloud Run', 'GCS', 'Pub/Sub']}
-  facts={[
-    { label: 'Credential path', value: 'users/{uid}/cloud_credentials/gcp' },
-    { label: 'Backend mount', value: '/api/gcp' },
-    { label: 'Runtime provider', value: 'GCP' },
-  ]}
+name="GCP"
+packageName="@playrunner/gcp"
+description="Connect Google Cloud credentials, configure Cloud Run runner images, and register package-owned GCP workflow runtime backends."
+icon="gcp"
+installCommand="npm install @playrunner/gcp"
+npmUrl="https://www.npmjs.com/package/@playrunner/gcp"
+badges={['OAuth', 'Cloud Run', 'GCS', 'Pub/Sub']}
+facts={[
+{ label: 'Credential path', value: 'users/{uid}/cloud_credentials/gcp' },
+{ label: 'Backend mount', value: '/api/gcp' },
+{ label: 'Runtime provider', value: 'GCP' },
+]}
 />
 
 <IntegrationGrid>
@@ -86,6 +86,23 @@ constructor arguments:
 
 Local and GCP workflow execution both use the same Pub/Sub manager from this
 package; the local path changes only by setting `PUBSUB_EMULATOR_HOST`.
+
+The managed GCP path keeps PostgreSQL as the workflow trace source of truth. The
+API runtime creates an execution-scoped filtered Pub/Sub subscription, pulls
+messages without Pub/Sub long-poll blocking, verifies each execution token,
+persists accepted events, and then streams them to the editor with SSE. The
+frontend log panel sorts displayed messages by event timestamp so API-side setup
+logs and cloud-published runner logs remain chronological.
+
+The API runtime also reconciles the Orchestrator Cloud Run Service before each
+run. It keeps at least one warm service instance and sets the container resource
+policy to always-allocated CPU so the orchestrator can continue the background
+DAG run after `/execute` has returned.
+
+Playwright runner preparation is split from execution. The Orchestrator schedules
+Cloud Run Job preparation in the background, leaves Playwright nodes in
+`pending`, and sends `runner_control=start` only when DAG traversal reaches the
+node. The runner publishes `running` after it receives that start signal.
 
 ## Assets
 
