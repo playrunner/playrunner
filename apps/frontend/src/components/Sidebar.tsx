@@ -142,7 +142,7 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
       <div
         className={cn(
-          'sticky top-0 flex h-screen flex-col self-start bg-surface/50 backdrop-blur-md z-50 shadow-none transition-[width] duration-300 ease-in-out shrink-0 border-r border-strong',
+          'flex h-full min-h-0 flex-col self-stretch bg-surface/50 backdrop-blur-md z-50 shadow-none transition-[width] duration-300 ease-in-out shrink-0 border-r border-strong',
           isOpen ? 'w-56' : 'w-[52px]',
         )}
       >

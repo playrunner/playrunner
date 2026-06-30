@@ -45,9 +45,9 @@ export function PageLayout() {
 
   return (
     <HeaderContext.Provider value={{ setHeaderLeft, setHeaderCenter }}>
-      <div className="min-h-screen bg-background">
+      <div className="flex h-dvh flex-col bg-background">
         {isContributorBannerDismissed ? null : (
-          <div className="grid min-h-10 w-full grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-subtle bg-surface px-3 py-2 text-sm font-medium text-[var(--foreground)]">
+          <div className="grid min-h-10 w-full shrink-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-subtle bg-surface px-3 py-2 text-sm font-medium text-[var(--foreground)]">
             <span aria-hidden="true" />
             <a
               href={contributingUrl}
@@ -74,27 +74,21 @@ export function PageLayout() {
           </div>
         )}
 
-        <div
-          className={
-            isContributorBannerDismissed
-              ? 'flex min-h-screen'
-              : 'flex min-h-[calc(100vh-2.5rem)]'
-          }
-        >
+        <div className="flex min-h-0 flex-1">
           <Sidebar
             isOpen={isSidebarOpen}
             onClose={() => setIsSidebarOpen(false)}
             onOpen={() => setIsSidebarOpen(true)}
           />
 
-          <div className="flex-1 flex flex-col min-w-0 relative">
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
             <header className="sticky top-0 h-16 border-b border-subtle flex items-center px-6 gap-4 shrink-0 bg-surface/50 backdrop-blur-md z-30">
               {headerLeft}
               <div className="flex-1 flex justify-center">{headerCenter}</div>
               <HeaderActions />
             </header>
 
-            <div className="flex-1 flex flex-col">
+            <div className="flex min-h-0 flex-1 flex-col">
               <Outlet />
             </div>
           </div>
