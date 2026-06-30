@@ -143,6 +143,7 @@ export function GcpSettingsModal({
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedRunnerCommand, setCopiedRunnerCommand] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
     orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
@@ -154,6 +155,12 @@ export function GcpSettingsModal({
     navigator.clipboard.writeText(callbackUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const handleCopyRunnerCommand = () => {
+    navigator.clipboard.writeText(PUSH_RUNNERS_COMMAND);
+    setCopiedRunnerCommand(true);
+    setTimeout(() => setCopiedRunnerCommand(false), 2000);
   };
 
   const resetCredentialState = React.useCallback(() => {
@@ -662,6 +669,8 @@ export function GcpSettingsModal({
       onClose={onClose}
       zIndex={70}
       title={`Connect to ${cloudId.toUpperCase()}`}
+      className="select-text"
+      bodyClassName="select-text"
       icon={
         <img
           src={gcpIconUrl}
@@ -981,13 +990,36 @@ export function GcpSettingsModal({
                 <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
                 the Playwright image.
               </p>
-              <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-muted">
-                After saving changed runner settings, rerun{' '}
-                <code>{PUSH_RUNNERS_COMMAND}</code>. If the project, region, or
-                Artifact Registry repository path changed, apply{' '}
-                <code>infra/gcp</code> Terraform first so the APIs,
-                repositories, and Pub/Sub topic exist.
-              </p>
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-muted">
+                <p>After saving changed runner settings, rerun:</p>
+                <div className="relative mt-2">
+                  <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-3 pr-11 font-mono text-xs text-[var(--foreground)] select-all">
+                    {PUSH_RUNNERS_COMMAND}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyRunnerCommand}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]"
+                    title={
+                      copiedRunnerCommand ? 'Copied command' : 'Copy command'
+                    }
+                    aria-label={
+                      copiedRunnerCommand ? 'Copied command' : 'Copy command'
+                    }
+                  >
+                    {copiedRunnerCommand ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
+                <p className="mt-2">
+                  If the project, region, or Artifact Registry repository path
+                  changed, apply <code>infra/gcp</code> Terraform first so the
+                  APIs, repositories, and Pub/Sub topic exist.
+                </p>
+              </div>
             </div>
           </div>
         </div>

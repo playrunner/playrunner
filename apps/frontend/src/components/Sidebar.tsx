@@ -43,7 +43,10 @@ function NavItem({
       onClick={onClick}
       title={label}
       className={cn(
-        'w-full flex items-center rounded-md text-sm font-medium transition-colors border h-9 px-2 gap-3 overflow-hidden',
+        'flex h-9 items-center rounded-md border text-sm font-medium transition-colors overflow-hidden',
+        isOpen
+          ? 'w-full justify-start gap-3 px-2'
+          : 'mx-auto w-9 justify-center gap-0 px-0',
         isActive
           ? 'text-[var(--foreground)] bg-[var(--surface-hover)] border-[var(--border)]'
           : 'text-muted hover:text-[var(--foreground)] hover:bg-surface-hover border-transparent',
@@ -58,7 +61,7 @@ function NavItem({
       <span
         className={cn(
           'whitespace-nowrap transition-opacity duration-100',
-          isOpen ? 'opacity-100' : 'opacity-0',
+          isOpen ? 'opacity-100' : 'w-0 opacity-0',
         )}
       >
         {label}
@@ -84,13 +87,18 @@ function ExternalNavItem({
       target="_blank"
       rel="noopener noreferrer"
       title={label}
-      className="w-full flex items-center rounded-md text-sm font-medium transition-colors border h-9 px-2 gap-3 overflow-hidden text-muted hover:text-[var(--foreground)] hover:bg-surface-hover border-transparent"
+      className={cn(
+        'flex h-9 items-center rounded-md border text-sm font-medium transition-colors overflow-hidden text-muted hover:text-[var(--foreground)] hover:bg-surface-hover border-transparent',
+        isOpen
+          ? 'w-full justify-start gap-3 px-2'
+          : 'mx-auto w-9 justify-center gap-0 px-0',
+      )}
     >
       <Icon className="w-4 h-4 shrink-0" />
       <span
         className={cn(
           'whitespace-nowrap transition-opacity duration-100',
-          isOpen ? 'opacity-100' : 'opacity-0',
+          isOpen ? 'opacity-100' : 'w-0 opacity-0',
         )}
       >
         {label}
@@ -98,7 +106,7 @@ function ExternalNavItem({
       <ExternalLink
         className={cn(
           'w-3.5 h-3.5 shrink-0 ml-auto transition-opacity duration-100',
-          isOpen ? 'opacity-100' : 'opacity-0',
+          isOpen ? 'opacity-100' : 'hidden',
         )}
       />
     </a>
@@ -127,8 +135,8 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
   }, []);
 
   const textClass = cn(
-    'whitespace-nowrap transition-opacity duration-100',
-    isOpen ? 'opacity-100' : 'opacity-0',
+    'whitespace-nowrap transition-[opacity,width] duration-100',
+    isOpen ? 'opacity-100' : 'w-0 opacity-0',
   );
 
   return (
@@ -147,14 +155,36 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
         )}
       >
         <div className="w-full h-full flex flex-col overflow-hidden">
-          <div className="h-16 flex items-center shrink-0 px-2.5 gap-1 overflow-hidden">
-            <div className="w-8 h-8 flex items-center justify-center shrink-0">
-              <img
-                src="/images/playrunner-icon.svg"
-                alt="Playrunner"
-                className="w-7 h-7 object-contain"
-              />
-            </div>
+          <div
+            className={cn(
+              'h-16 flex items-center shrink-0 overflow-hidden',
+              isOpen ? 'px-2.5 gap-1' : 'justify-center px-2',
+            )}
+          >
+            {isOpen ? (
+              <div className="flex h-9 w-9 items-center justify-center shrink-0">
+                <img
+                  src="/images/playrunner-icon.svg"
+                  alt="Playrunner"
+                  className="w-7 h-7 object-contain"
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onOpen?.()}
+                title="Expand Sidebar"
+                aria-label="Expand Sidebar"
+                className="group/logo relative flex h-9 w-9 items-center justify-center rounded-md shrink-0 hover:bg-surface-hover focus:outline-none focus-visible:bg-surface-hover"
+              >
+                <img
+                  src="/images/playrunner-icon.svg"
+                  alt=""
+                  className="w-7 h-7 object-contain transition-opacity duration-150 group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0"
+                />
+                <PanelLeft className="absolute h-4 w-4 rotate-180 text-muted opacity-0 transition-opacity duration-150 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100" />
+              </button>
+            )}
             <span className={cn(textClass, 'font-bold text-lg tracking-tight')}>
               Playrunner
             </span>
@@ -269,7 +299,10 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
               )}
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="w-full flex items-center hover:bg-surface-hover transition-colors text-left focus:outline-none px-2.5 py-3 gap-3 overflow-hidden"
+                className={cn(
+                  'w-full flex items-center hover:bg-surface-hover transition-colors text-left focus:outline-none py-3 overflow-hidden',
+                  isOpen ? 'gap-3 px-2.5' : 'justify-center px-2',
+                )}
                 title="User Menu"
               >
                 <div className="w-8 h-8 rounded-full bg-surface-hover border border-strong flex items-center justify-center shrink-0">
@@ -286,7 +319,7 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
                 <MoreVertical
                   className={cn(
                     'w-4 h-4 text-muted shrink-0 ml-auto transition-opacity duration-100',
-                    isOpen ? 'opacity-100' : 'opacity-0',
+                    isOpen ? 'opacity-100' : 'hidden',
                   )}
                 />
               </button>
@@ -294,20 +327,17 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
           </div>
         </div>
 
-        <div className="absolute top-4 right-2.5 z-50">
-          <button
-            onClick={isOpen ? onClose : onOpen}
-            className="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors shrink-0 focus:outline-none"
-            title={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
-          >
-            <PanelLeft
-              className={cn(
-                'w-4 h-4 transition-transform duration-300',
-                !isOpen && 'rotate-180',
-              )}
-            />
-          </button>
-        </div>
+        {isOpen && (
+          <div className="absolute top-4 right-2.5 z-50">
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors shrink-0 focus:outline-none"
+              title="Collapse Sidebar"
+            >
+              <PanelLeft className="w-4 h-4 transition-transform duration-300" />
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
