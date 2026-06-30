@@ -1,13 +1,5 @@
-# Contributor License Agreement
+# Playrunner Contributor License Agreement
 
-By submitting a contribution to Playrunner, you grant Concept AI PTY LTD a
-perpetual, worldwide, non-exclusive, royalty-free, irrevocable right to use,
-copy, modify, distribute, sublicense, and relicense your contribution as part of
-Playrunner, including under the Playrunner Sustainable Use License or any future
-license chosen by Concept AI PTY LTD.
+I give Playrunner permission to license my contributions on any terms they like. I am giving them this license in order to make it possible for them to accept my contributions into their project.
 
-You confirm that you have the right to submit the contribution and grant this
-permission. To the fullest extent permitted by law, your contribution is
-provided as-is, without warranties or conditions of any kind, and you will not
-be liable for claims or damages arising from its use except to the extent that
-liability cannot be excluded by law.
+**_As far as the law allows, my contributions come as is, without any warranty or condition, and I will not be liable to anyone for any damages related to this software or this license, under any kind of legal claim._**
