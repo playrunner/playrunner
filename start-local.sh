@@ -305,6 +305,61 @@ main()
 NODE
 }
 
+configure_frontend_api_proxy() {
+    if [ -n "${VITE_API_URL:-}" ]; then
+        export VITE_API_URL
+        echo "🔌 Frontend API proxy: ${VITE_API_URL}"
+        return 0
+    fi
+
+    local api_port="3001"
+
+    if [ -f "${API_DIR}/.env" ]; then
+        api_port=$(node - "${API_DIR}/.env" <<'NODE' || echo "3001"
+const fs = require('fs');
+
+const [, , envPath] = process.argv;
+
+function parseEnvValue(rawValue = '') {
+  const trimmed = rawValue.trim();
+
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+
+  return trimmed;
+}
+
+function getEnvVariable(lines, key) {
+  const line = lines.find((entry) => entry.startsWith(`${key}=`));
+  if (!line) {
+    return '';
+  }
+
+  return parseEnvValue(line.slice(key.length + 1));
+}
+
+const envContents = fs.readFileSync(envPath, 'utf8');
+const port = getEnvVariable(envContents.split(/\r?\n/), 'PORT') || '3001';
+
+if (!/^\d+$/.test(port)) {
+  process.exit(1);
+}
+
+console.log(port);
+NODE
+)
+    fi
+
+    VITE_API_URL="http://127.0.0.1:${api_port}"
+    export VITE_API_URL
+    echo "🔌 Frontend API proxy: ${VITE_API_URL}"
+}
+
 bootstrap_api_prisma() {
     if [ ! -f "${API_DIR}/.env" ]; then
         echo "Missing ${API_DIR}/.env. Re-run ./start-local.sh to reopen setup."
@@ -464,7 +519,7 @@ if [ "$RUN_SETUP" != "true" ] && [ "$SETUP_COMPLETED" != "true" ]; then
 fi
 
 # 2. Build the Orchestrator and Playwright Docker images
-WORKSPACE_ROOT="${WORKSPACE_ROOT}" BASE_DIR="${BASE_DIR}" \
+env WORKSPACE_ROOT="${WORKSPACE_ROOT}" BASE_DIR="${BASE_DIR}" \
     "${BASE_DIR}/infra/scripts/rebuild-orchestrator.sh"
 
 echo "🎭 Building Playwright Docker image..."
@@ -479,29 +534,29 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.typescript" \
-            --build-arg PLAYWRIGHT_VERSION=${version} \
+            --build-arg "PLAYWRIGHT_VERSION=${version}" \
             -t playrunner-playwright-runner-typescript:latest \
-            -t playrunner-playwright-runner-typescript:${version} \
+            -t "playrunner-playwright-runner-typescript:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
-            --build-arg PLAYWRIGHT_VERSION=${version} \
+            --build-arg "PLAYWRIGHT_VERSION=${version}" \
             -t playrunner-playwright-runner-python:latest \
-            -t playrunner-playwright-runner-python:${version} \
+            -t "playrunner-playwright-runner-python:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
     else
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.typescript" \
-            --build-arg PLAYWRIGHT_VERSION=${version} \
-            -t playrunner-playwright-runner-typescript:${version} \
+            --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            -t "playrunner-playwright-runner-typescript:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
-            --build-arg PLAYWRIGHT_VERSION=${version} \
-            -t playrunner-playwright-runner-python:${version} \
+            --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            -t "playrunner-playwright-runner-python:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
     fi
 done
@@ -517,7 +572,8 @@ fi
 echo "🌟 Starting local services..."
 
 if [ "$RUN_SETUP" = "true" ]; then
-    export SETUP_SESSION_TOKEN=$(node -e "console.log(require('crypto').randomUUID())")
+    SETUP_SESSION_TOKEN=$(node -e "console.log(require('crypto').randomUUID())")
+    export SETUP_SESSION_TOKEN
     export VITE_SETUP_MODE=true
     export VITE_SETUP_SESSION_TOKEN="$SETUP_SESSION_TOKEN"
     if [ "$AUTO_SETUP" = "true" ]; then
@@ -541,6 +597,7 @@ else
         sync_api_database_url
         bootstrap_api_prisma
     fi
+    configure_frontend_api_proxy
     echo "✅ Local setup detected. Starting the normal app."
     echo "📚 Docs available at ${VITE_DOCS_URL}"
     concurrently \

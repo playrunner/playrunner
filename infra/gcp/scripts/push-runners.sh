@@ -48,7 +48,7 @@ Options:
   --project-id <id>                 GCP project ID (overrides DB setting)
   --region <region>                 Cloud Run region (overrides DB setting)
   --orchestrator-service-name <n>   Cloud Run service name (overrides DB)
-  --orchestrator-min-instances <n>  Minimum Cloud Run service instances
+  --orchestrator-min-instances <n>  Minimum Cloud Run service instances (0 allowed)
   --orchestrator-max-instances <n>  Maximum Cloud Run service instances
   --orchestrator-cpu-idle <bool>    Whether Cloud Run can idle CPU between requests
   --user-id <id>                    Filter Postgres lookup to a specific user
@@ -91,7 +91,7 @@ ORCHESTRATOR_TEMPLATE="$(settings orchestrator-image-uri-template)"
 PLAYWRIGHT_TEMPLATE="$(settings playwright-image-uri-template)"
 
 case "$ORCHESTRATOR_MIN_INSTANCE_COUNT" in
-    ''|*[!0-9]*|0) echo "Invalid orchestrator min instances: ${ORCHESTRATOR_MIN_INSTANCE_COUNT}" >&2; exit 1 ;;
+    ''|*[!0-9]*) echo "Invalid orchestrator min instances: ${ORCHESTRATOR_MIN_INSTANCE_COUNT}" >&2; exit 1 ;;
 esac
 case "$ORCHESTRATOR_MAX_INSTANCE_COUNT" in
     ''|*[!0-9]*|0) echo "Invalid orchestrator max instances: ${ORCHESTRATOR_MAX_INSTANCE_COUNT}" >&2; exit 1 ;;

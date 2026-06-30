@@ -188,18 +188,18 @@ One-off override (push to a project other than the one saved in the modal):
 
 All flags:
 
-| Flag                                      | Effect                                                              |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| `--project-id <id>`                       | Override the stored GCP project ID                                  |
-| `--region <region>`                       | Override the stored Cloud Run region                                |
-| `--orchestrator-service-name <n>`         | Override the stored Cloud Run service name                          |
-| `--orchestrator-min-instances <n>`        | Override the stored Orchestrator minimum instance count             |
-| `--orchestrator-max-instances <n>`        | Override the stored Orchestrator maximum instance count             |
-| `--orchestrator-cpu-idle <true\|false>`   | Override the stored Orchestrator CPU idle policy                    |
-| `--user-id <id>`                          | Filter the Postgres lookup when multiple users have GCP credentials |
-| `--target orchestrator\|playwright\|both` | Skip the interactive menu                                           |
-| `--base-path <path>`                      | `BASE_PATH` build arg for the Orchestrator image (default `.`)      |
-| `--yes`, `-y`                             | Skip the confirmation prompt                                        |
+| Flag                                      | Effect                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `--project-id <id>`                       | Override the stored GCP project ID                                      |
+| `--region <region>`                       | Override the stored Cloud Run region                                    |
+| `--orchestrator-service-name <n>`         | Override the stored Cloud Run service name                              |
+| `--orchestrator-min-instances <n>`        | Override the stored Orchestrator minimum instance count; `0` is allowed |
+| `--orchestrator-max-instances <n>`        | Override the stored Orchestrator maximum instance count                 |
+| `--orchestrator-cpu-idle <true\|false>`   | Override the stored Orchestrator CPU idle policy                        |
+| `--user-id <id>`                          | Filter the Postgres lookup when multiple users have GCP credentials     |
+| `--target orchestrator\|playwright\|both` | Skip the interactive menu                                               |
+| `--base-path <path>`                      | `BASE_PATH` build arg for the Orchestrator image (default `.`)          |
+| `--yes`, `-y`                             | Skip the confirmation prompt                                            |
 
 ### What it does
 

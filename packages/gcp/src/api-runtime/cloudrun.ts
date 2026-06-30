@@ -40,6 +40,24 @@ function requirePositiveIntegerSetting(value: unknown, name: string): number {
   return numberValue;
 }
 
+function requireNonNegativeIntegerSetting(
+  value: unknown,
+  name: string,
+): number {
+  const numberValue =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : NaN;
+  if (!Number.isInteger(numberValue) || numberValue < 0) {
+    throw new Error(
+      `${name} must be configured as a non-negative integer in GCP runner settings.`,
+    );
+  }
+  return numberValue;
+}
+
 function requireBooleanSetting(value: unknown, name: string): boolean {
   if (typeof value === 'boolean') {
     return value;
@@ -62,7 +80,7 @@ function getOrchestratorCloudRunConfig(
     settings.orchestratorServiceName,
     'Orchestrator service name',
   );
-  const minInstanceCount = requirePositiveIntegerSetting(
+  const minInstanceCount = requireNonNegativeIntegerSetting(
     settings.orchestratorMinInstanceCount,
     'Orchestrator minimum instance count',
   );

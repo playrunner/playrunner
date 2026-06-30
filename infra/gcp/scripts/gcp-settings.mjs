@@ -114,7 +114,7 @@ function emit(cmd, data) {
       printRequired(data.orchestratorServiceName, "orchestratorServiceName");
       break;
     case "orchestrator-min-instance-count":
-      printPositiveInteger(
+      printNonNegativeInteger(
         data.orchestratorMinInstanceCount,
         "orchestratorMinInstanceCount",
       );
@@ -183,6 +183,21 @@ function printPositiveInteger(value, label) {
   if (!Number.isInteger(numberValue) || numberValue <= 0) {
     throw new Error(
       `GCP setting "${label}" must be a positive integer. Save it in the Integrations modal first.`,
+    );
+  }
+  process.stdout.write(String(numberValue));
+}
+
+function printNonNegativeInteger(value, label) {
+  const numberValue =
+    typeof value === "string" && value.trim()
+      ? Number(value)
+      : typeof value === "number"
+        ? value
+        : NaN;
+  if (!Number.isInteger(numberValue) || numberValue < 0) {
+    throw new Error(
+      `GCP setting "${label}" must be a non-negative integer. Save it in the Integrations modal first.`,
     );
   }
   process.stdout.write(String(numberValue));

@@ -303,10 +303,11 @@ Playwright jobs and `runner_status` messages to observe readiness/start/failure.
 The first run may create or update the Orchestrator Cloud Run service and
 Playwright Cloud Run Jobs. Later runs reuse those resources unless the image
 template, runner version, CPU, memory, or runtime selection requires a new job.
-Playrunner also keeps the Orchestrator service configured with a minimum warm
-instance and always-allocated CPU, so the background DAG run is not throttled
-after the service's `/execute` request has returned. Those service defaults come
-from the GCP integration settings saved in PostgreSQL.
+Playrunner configures the Orchestrator service with the saved minimum instance
+count, which can be `0`, and the saved CPU idle policy. Keep CPU always
+allocated when the background DAG run must continue after the service's
+`/execute` request has returned. Those service defaults come from the GCP
+integration settings saved in PostgreSQL.
 At execution time, the Orchestrator schedules Playwright job preparation in the
 background so dependency preparation can overlap with earlier workflow nodes. It
 then sends the Pub/Sub start signal only when the DAG reaches the corresponding
@@ -329,9 +330,9 @@ For code changes in the API, frontend, or `packages/gcp/src/api-runtime/**`,
 rerunning `push-runners.sh` is not normally required, but you do need to restart
 the local API so those changes are loaded. The next GCP run will patch the
 existing Orchestrator service configuration when saved GCP integration settings,
-such as always-allocated CPU, drift from what Playrunner expects. Any change to the
-Orchestrator or Playwright runner code requires rebuilding and pushing the
-corresponding Cloud Run image before a real GCP workflow can use it.
+such as min/max instances or CPU idle policy, drift from what Playrunner expects.
+Any change to the Orchestrator or Playwright runner code requires rebuilding and
+pushing the corresponding Cloud Run image before a real GCP workflow can use it.
 
 ## When to Rerun Terraform
 

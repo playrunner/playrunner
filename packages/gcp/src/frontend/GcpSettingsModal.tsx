@@ -65,6 +65,19 @@ function normalizePositiveInteger(value: unknown, fallback: number): number {
     : fallback;
 }
 
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  const numberValue =
+    typeof value === 'string' && value.trim()
+      ? Number(value)
+      : typeof value === 'number'
+        ? value
+        : NaN;
+
+  return Number.isInteger(numberValue) && numberValue >= 0
+    ? numberValue
+    : fallback;
+}
+
 function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   if (typeof value === 'boolean') {
     return value;
@@ -80,6 +93,11 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 function parsePositiveIntegerInput(value: string): number | null {
   const numberValue = Number(value.trim());
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
+}
+
+function parseNonNegativeIntegerInput(value: string): number | null {
+  const numberValue = Number(value.trim());
+  return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
 }
 
 export function GcpSettingsModal({
@@ -194,7 +212,7 @@ export function GcpSettingsModal({
         data?.orchestratorMaxInstanceCount,
         DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT,
       ),
-      orchestratorMinInstanceCount: normalizePositiveInteger(
+      orchestratorMinInstanceCount: normalizeNonNegativeInteger(
         data?.orchestratorMinInstanceCount,
         DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT,
       ),
@@ -225,7 +243,7 @@ export function GcpSettingsModal({
     setOrchestratorServiceName(svcName);
     setOrchestratorMinInstanceCount(
       String(
-        next.orchestratorMinInstanceCount ||
+        next.orchestratorMinInstanceCount ??
           DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT,
       ),
     );
@@ -564,12 +582,14 @@ export function GcpSettingsModal({
   const handleSaveRunnerSettings = async () => {
     if (!auth.currentUser) return;
 
-    const minInstanceCount = parsePositiveIntegerInput(
+    const minInstanceCount = parseNonNegativeIntegerInput(
       orchestratorMinInstanceCount,
     );
     if (minInstanceCount === null) {
       setRunnerSettingsSaved(false);
-      setRunnerSettingsError('Minimum instances must be a positive integer.');
+      setRunnerSettingsError(
+        'Minimum instances must be a non-negative integer.',
+      );
       return;
     }
 
@@ -881,7 +901,7 @@ export function GcpSettingsModal({
                   </label>
                   <Input
                     type="number"
-                    min="1"
+                    min="0"
                     step="1"
                     value={orchestratorMinInstanceCount}
                     onChange={(e) => {
