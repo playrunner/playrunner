@@ -56,6 +56,7 @@ export default defineConfig(async ({ mode }) => {
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
       port: 3000,
+      strictPort: true,
       host: true,
       proxy: {
         '/setup-api': {
