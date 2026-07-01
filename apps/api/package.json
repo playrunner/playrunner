@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx --watch --env-file=.env src/index.ts"
+    "start": "tsx --watch --env-file=.env src/index.ts",
+    "start:cloud": "tsx src/index.ts"
   },
   "keywords": [],
   "author": "Concept AI PTY LTD",

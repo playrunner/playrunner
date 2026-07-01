@@ -1,5 +1,6 @@
 import { GcpOutputProxyBackend } from './gcp-output-proxy';
 import { GcpOutputSyncBackend } from './gcp-output-sync';
+import { GcpCloudSchedulerProvisioner } from './gcp-scheduler';
 import { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
 import type { GcpPubSubEventStreamManager } from './gcp-pubsub-events';
 import type {
@@ -26,6 +27,7 @@ export function createGcpApiRuntimeContribution({
     cloudProviders: [{ id: 'GCP', label: 'GCP Runner' }],
     outputProxyBackends: [new GcpOutputProxyBackend(state)],
     outputSyncBackends: [new GcpOutputSyncBackend(state)],
+    schedulerProvisioners: [new GcpCloudSchedulerProvisioner()],
     workflowExecutionBackends: [
       new GcpWorkflowExecutionBackend({
         executionEvents,
@@ -39,6 +41,7 @@ export function createGcpApiRuntimeContribution({
 
 export { GcpOutputProxyBackend } from './gcp-output-proxy';
 export { GcpOutputSyncBackend } from './gcp-output-sync';
+export { GcpCloudSchedulerProvisioner } from './gcp-scheduler';
 export { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
 export {
   createGcpPubSubEventStreamManager,

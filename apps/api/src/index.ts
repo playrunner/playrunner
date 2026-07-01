@@ -10,6 +10,7 @@ import { systemRouter } from './routes/system';
 import { executionsRouter } from './routes/executions';
 import { authRouter } from './routes/auth';
 import { insightsRouter } from './routes/insights';
+import { schedulerRouter } from './routes/scheduler';
 import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
@@ -18,6 +19,10 @@ import { storeRouter } from './routes/store';
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
+
+app.get('/health', (_req, res) => {
+  res.status(200).send('OK');
+});
 
 // Serve static outputs with a proxy for GCP bucket streams
 app.use('/outputs', async (req, res, next) => {
@@ -34,6 +39,7 @@ app.use('/api', systemRouter);
 app.use('/api/executions', executionsRouter);
 app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/scheduler', schedulerRouter);
 
 app.use('/api', requireAuth);
 registerIntegrationApiRoutes(app);

@@ -38,6 +38,7 @@ export interface IntegrationConfigPanelProps {
   onConnectOAuth?: (providerId?: string) => void;
   integrationData?: any;
   onLabelChange?: (newLabel: string) => void;
+  workflowCloudProvider?: string;
 }
 
 export interface IntegrationRefreshContext {
@@ -73,10 +74,7 @@ export interface IntegrationStore {
     providerId: string,
     data: any,
   ) => Promise<void>;
-  deleteCloudCredential?: (
-    userId: string,
-    providerId: string,
-  ) => Promise<void>;
+  deleteCloudCredential?: (userId: string, providerId: string) => Promise<void>;
   getEnvironments?: (userId: string) => Promise<any[]>;
   saveEnvironment?: (
     userId: string,

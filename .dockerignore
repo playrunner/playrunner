@@ -1,0 +1,14 @@
+.git
+**/.DS_Store
+**/.env
+**/.env.*
+**/node_modules
+**/dist
+**/.turbo
+**/.vite
+apps/api/public/outputs
+apps/frontend/dist
+apps/setup/dist
+docs/.docusaurus
+docs/build
+infra/gcp/.terraform

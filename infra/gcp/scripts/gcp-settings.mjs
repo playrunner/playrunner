@@ -140,12 +140,18 @@ function emit(cmd, data) {
         "playwrightImageUriTemplate",
       );
       break;
+    case "scheduler-service-account-email":
+      printRequired(
+        data.schedulerServiceAccountEmail,
+        "schedulerServiceAccountEmail",
+      );
+      break;
     case "json":
       process.stdout.write(JSON.stringify(publicConfig(data)));
       break;
     default:
       fail(
-        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|playwright-image-uri-template|json> [--user-id <id>]",
+        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|playwright-image-uri-template|scheduler-service-account-email|json> [--user-id <id>]",
       );
   }
 }
@@ -160,6 +166,7 @@ function publicConfig(data) {
     orchestratorCpuIdle: data.orchestratorCpuIdle ?? null,
     orchestratorImageUriTemplate: data.orchestratorImageUriTemplate || null,
     playwrightImageUriTemplate: data.playwrightImageUriTemplate || null,
+    schedulerServiceAccountEmail: data.schedulerServiceAccountEmail || null,
   };
 }
 

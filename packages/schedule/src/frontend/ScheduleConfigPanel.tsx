@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import type { IntegrationConfigPanelProps } from '@playrunner/integration-sdk';
-import { cn } from './cn';
+import React, { useState, useEffect, useRef } from "react";
+import type { IntegrationConfigPanelProps } from "@playrunner/integration-sdk";
+import { cn } from "./cn";
 import {
   Clock,
   Calendar,
@@ -8,9 +8,9 @@ import {
   Timer,
   Repeat,
   Info,
-} from 'lucide-react';
+} from "lucide-react";
 
-type FrequencyType = 'minute' | 'hour' | 'day' | 'week' | 'month';
+type FrequencyType = "minute" | "hour" | "day" | "week" | "month";
 
 interface ScheduleConfig {
   frequency: FrequencyType;
@@ -24,9 +24,9 @@ interface ScheduleConfig {
 }
 
 const DEFAULT_CONFIG: ScheduleConfig = {
-  frequency: 'day',
+  frequency: "day",
   interval: 1,
-  time: '09:00',
+  time: "09:00",
   minuteOfHour: 0,
   daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
   dayOfMonth: 1,
@@ -41,72 +41,84 @@ const FREQUENCY_OPTIONS: {
   icon: React.ReactNode;
 }[] = [
   {
-    value: 'minute',
-    label: 'Every Minute',
-    description: 'Runs every N minutes',
+    value: "minute",
+    label: "Every Minute",
+    description: "Runs every N minutes",
     icon: <Timer className="w-4 h-4" />,
   },
   {
-    value: 'hour',
-    label: 'Hourly',
-    description: 'Runs every N hours',
+    value: "hour",
+    label: "Hourly",
+    description: "Runs every N hours",
     icon: <Clock className="w-4 h-4" />,
   },
   {
-    value: 'day',
-    label: 'Daily',
-    description: 'Runs every day at a set time',
+    value: "day",
+    label: "Daily",
+    description: "Runs every day at a set time",
     icon: <Calendar className="w-4 h-4" />,
   },
   {
-    value: 'week',
-    label: 'Weekly',
-    description: 'Runs on selected days each week',
+    value: "week",
+    label: "Weekly",
+    description: "Runs on selected days each week",
     icon: <CalendarDays className="w-4 h-4" />,
   },
   {
-    value: 'month',
-    label: 'Monthly',
-    description: 'Runs on a specific day each month',
+    value: "month",
+    label: "Monthly",
+    description: "Runs on a specific day each month",
     icon: <Repeat className="w-4 h-4" />,
   },
 ];
 
 const DAYS_OF_WEEK = [
-  { value: 0, label: 'Sun', short: 'S' },
-  { value: 1, label: 'Mon', short: 'M' },
-  { value: 2, label: 'Tue', short: 'T' },
-  { value: 3, label: 'Wed', short: 'W' },
-  { value: 4, label: 'Thu', short: 'T' },
-  { value: 5, label: 'Fri', short: 'F' },
-  { value: 6, label: 'Sat', short: 'S' },
+  { value: 0, label: "Sun", short: "S" },
+  { value: 1, label: "Mon", short: "M" },
+  { value: 2, label: "Tue", short: "T" },
+  { value: 3, label: "Wed", short: "W" },
+  { value: 4, label: "Thu", short: "T" },
+  { value: 5, label: "Fri", short: "F" },
+  { value: 6, label: "Sat", short: "S" },
 ];
 
 const COMMON_TIMEZONES = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Berlin',
-  'Europe/Paris',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Asia/Kolkata',
-  'Australia/Sydney',
-  'Australia/Melbourne',
-  'Pacific/Auckland',
+  "UTC",
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Paris",
+  "Asia/Tokyo",
+  "Asia/Shanghai",
+  "Asia/Kolkata",
+  "Australia/Sydney",
+  "Australia/Melbourne",
+  "Pacific/Auckland",
 ];
+
+type NextStepItem = {
+  id: string;
+  text: React.ReactNode;
+  command?: string;
+};
 
 export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   nodeId,
   config,
   onChange,
+  workflowCloudProvider,
 }) => {
+  const isCloudSchedulerAvailable = workflowCloudProvider === "GCP";
   const [schedule, setSchedule] = useState<ScheduleConfig>(() => ({
     ...DEFAULT_CONFIG,
     ...config.schedule,
+    enabled:
+      workflowCloudProvider === "GCP"
+        ? (config.schedule?.enabled ?? DEFAULT_CONFIG.enabled)
+        : false,
   }));
   const latestConfigRef = useRef(config);
 
@@ -117,6 +129,12 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   useEffect(() => {
     onChange(nodeId, { ...latestConfigRef.current, schedule });
   }, [nodeId, onChange, schedule]);
+
+  useEffect(() => {
+    if (!isCloudSchedulerAvailable && schedule.enabled) {
+      setSchedule((prev) => ({ ...prev, enabled: false }));
+    }
+  }, [isCloudSchedulerAvailable, schedule.enabled]);
 
   const updateSchedule = (updates: Partial<ScheduleConfig>) => {
     setSchedule((prev) => ({ ...prev, ...updates }));
@@ -134,23 +152,23 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const getCronExpression = (): string => {
     const { frequency, interval, time, minuteOfHour, daysOfWeek, dayOfMonth } =
       schedule;
-    const [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = time.split(":").map(Number);
 
     switch (frequency) {
-      case 'minute':
-        return interval === 1 ? '* * * * *' : `*/${interval} * * * *`;
-      case 'hour':
+      case "minute":
+        return interval === 1 ? "* * * * *" : `*/${interval} * * * *`;
+      case "hour":
         return interval === 1
           ? `${minuteOfHour} * * * *`
           : `${minuteOfHour} */${interval} * * *`;
-      case 'day':
+      case "day":
         return `${minutes} ${hours} * * *`;
-      case 'week':
-        return `${minutes} ${hours} * * ${daysOfWeek.join(',')}`;
-      case 'month':
+      case "week":
+        return `${minutes} ${hours} * * ${daysOfWeek.join(",")}`;
+      case "month":
         return `${minutes} ${hours} ${dayOfMonth} * *`;
       default:
-        return '0 9 * * *';
+        return "0 9 * * *";
     }
   };
 
@@ -158,26 +176,99 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     const { frequency, interval, time, minuteOfHour, daysOfWeek, dayOfMonth } =
       schedule;
     switch (frequency) {
-      case 'minute':
-        return interval === 1 ? 'Every minute' : `Every ${interval} minutes`;
-      case 'hour':
+      case "minute":
+        return interval === 1 ? "Every minute" : `Every ${interval} minutes`;
+      case "hour":
         return interval === 1
-          ? `Every hour at :${String(minuteOfHour).padStart(2, '0')}`
-          : `Every ${interval} hours at :${String(minuteOfHour).padStart(2, '0')}`;
-      case 'day':
+          ? `Every hour at :${String(minuteOfHour).padStart(2, "0")}`
+          : `Every ${interval} hours at :${String(minuteOfHour).padStart(2, "0")}`;
+      case "day":
         return `Every day at ${time}`;
-      case 'week': {
+      case "week": {
         const dayNames = daysOfWeek
           .map((d) => DAYS_OF_WEEK[d]?.label)
-          .join(', ');
+          .join(", ");
         return `Every ${dayNames} at ${time}`;
       }
-      case 'month':
+      case "month":
         return `Monthly on day ${dayOfMonth} at ${time}`;
       default:
-        return '';
+        return "";
     }
   };
+
+  const scheduleStatusText = !isCloudSchedulerAvailable
+    ? "Schedules require a cloud runner. Select GCP Runner to enable."
+    : schedule.enabled
+      ? "Active - workflow will run automatically"
+      : "Paused - schedule is disabled";
+  const nextStepItems: NextStepItem[] = !isCloudSchedulerAvailable
+    ? [
+        {
+          id: "select-gcp-runner",
+          text: "Select GCP Runner in the top bar before enabling this schedule.",
+        },
+        {
+          id: "terraform-setup",
+          text: "Run Terraform from the repo root for the GCP project you select. It enables Cloud Scheduler and creates the scheduler service account.",
+          command: "terraform -chdir=infra/gcp apply",
+        },
+        {
+          id: "connect-settings",
+          text: "Connect Google Cloud settings with the same project, region, and scheduler service account.",
+        },
+      ]
+    : schedule.enabled
+      ? [
+          {
+            id: "terraform-setup",
+            text: "Before saving an enabled schedule for the first time, run Terraform from the repo root. It enables Cloud Scheduler and creates the scheduler service account.",
+            command: "terraform -chdir=infra/gcp apply",
+          },
+          {
+            id: "terraform-output",
+            text: "If Settings does not already have the scheduler service account, use the Terraform output and save it in Settings > Google Cloud.",
+            command:
+              "terraform -chdir=infra/gcp output -raw scheduler_service_account_email",
+          },
+          {
+            id: "save-workflow",
+            text: "Save the workflow to create or update the Cloud Scheduler job.",
+          },
+          {
+            id: "public-url",
+            text: (
+              <>
+                For local API callbacks, set{" "}
+                <code className="font-mono text-[var(--foreground)]">
+                  PLAYRUNNER_PUBLIC_API_URL
+                </code>{" "}
+                before saving.
+              </>
+            ),
+          },
+          {
+            id: "gcloud-fallback",
+            text: "If you are not using Terraform, enable the API directly in the same project selected in Settings > Google Cloud.",
+            command:
+              "gcloud services enable cloudscheduler.googleapis.com --project <selected-project>",
+          },
+        ]
+      : [
+          {
+            id: "terraform-setup",
+            text: "Run Terraform from the repo root before enabling a schedule for the first time. It enables Cloud Scheduler and creates the scheduler service account.",
+            command: "terraform -chdir=infra/gcp apply",
+          },
+          {
+            id: "settings-project",
+            text: "Cloud Scheduler uses the Google Cloud project, region, and scheduler service account saved in Settings.",
+          },
+          {
+            id: "enable-save",
+            text: "Enable the schedule, then save the workflow to provision Cloud Scheduler.",
+          },
+        ];
 
   return (
     <div className="space-y-6">
@@ -186,34 +277,47 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         <div className="flex items-center gap-3">
           <div
             className={cn(
-              'w-2.5 h-2.5 rounded-full transition-colors',
+              "w-2.5 h-2.5 rounded-full transition-colors",
               schedule.enabled
-                ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-                : 'bg-zinc-600',
+                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
+                : "bg-zinc-600",
             )}
           />
           <div>
             <span className="text-sm font-medium text-[var(--foreground)]">
               Schedule
             </span>
-            <p className="text-xs text-muted mt-0.5">
-              {schedule.enabled
-                ? 'Active — workflow will run automatically'
-                : 'Paused — schedule is disabled'}
-            </p>
+            <p className="text-xs text-muted mt-0.5">{scheduleStatusText}</p>
           </div>
         </div>
         <button
-          onClick={() => updateSchedule({ enabled: !schedule.enabled })}
+          disabled={!isCloudSchedulerAvailable}
+          onClick={() => {
+            if (isCloudSchedulerAvailable) {
+              updateSchedule({ enabled: !schedule.enabled });
+            }
+          }}
           className={cn(
-            'relative w-11 h-6 rounded-full transition-colors duration-200',
-            schedule.enabled ? 'bg-emerald-500' : 'bg-zinc-700',
+            "relative w-11 h-6 rounded-full transition-colors duration-200",
+            schedule.enabled && isCloudSchedulerAvailable
+              ? "bg-emerald-500"
+              : "bg-[var(--surface-hover)]",
+            !isCloudSchedulerAvailable && "cursor-not-allowed opacity-70",
           )}
+          title={
+            isCloudSchedulerAvailable
+              ? schedule.enabled
+                ? "Disable schedule"
+                : "Enable schedule"
+              : "Schedules require GCP Runner"
+          }
         >
           <div
             className={cn(
-              'absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200',
-              schedule.enabled ? 'translate-x-[22px]' : 'translate-x-0.5',
+              "absolute top-0.5 w-5 h-5 rounded-full bg-[var(--foreground)] shadow transition-transform duration-200",
+              schedule.enabled && isCloudSchedulerAvailable
+                ? "translate-x-[22px]"
+                : "translate-x-0.5",
             )}
           />
         </button>
@@ -230,18 +334,18 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               key={opt.value}
               onClick={() => updateSchedule({ frequency: opt.value })}
               className={cn(
-                'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all duration-200 text-center',
+                "flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all duration-200 text-center",
                 schedule.frequency === opt.value
-                  ? 'bg-white/10 border-white/30 text-white shadow-[0_0_12px_rgba(255,255,255,0.08)]'
-                  : 'bg-[var(--background)] border-subtle text-muted hover:text-[var(--foreground)] hover:border-[var(--border-strong)]',
+                  ? "bg-[var(--surface-hover)] border-[var(--border-strong)] text-[var(--foreground)]"
+                  : "bg-[var(--background)] border-subtle text-muted hover:text-[var(--foreground)] hover:border-[var(--border-strong)]",
               )}
             >
               <div
                 className={cn(
-                  'transition-colors',
+                  "transition-colors",
                   schedule.frequency === opt.value
-                    ? 'text-white'
-                    : 'text-muted',
+                    ? "text-[var(--foreground)]"
+                    : "text-muted",
                 )}
               >
                 {opt.icon}
@@ -253,7 +357,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       </div>
 
       {/* Interval (for minute/hour) */}
-      {(schedule.frequency === 'minute' || schedule.frequency === 'hour') && (
+      {(schedule.frequency === "minute" || schedule.frequency === "hour") && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-[var(--foreground)] border-b border-subtle pb-2">
             Interval
@@ -265,24 +369,24 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             <input
               type="number"
               min={1}
-              max={schedule.frequency === 'minute' ? 59 : 23}
+              max={schedule.frequency === "minute" ? 59 : 23}
               value={schedule.interval}
               onChange={(e) =>
                 updateSchedule({
                   interval: Math.max(1, parseInt(e.target.value) || 1),
                 })
               }
-              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-all"
+              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all"
             />
             <span className="text-sm text-muted">
-              {schedule.frequency === 'minute' ? 'minute(s)' : 'hour(s)'}
+              {schedule.frequency === "minute" ? "minute(s)" : "hour(s)"}
             </span>
           </div>
         </div>
       )}
 
       {/* Minute of hour (for hourly) */}
-      {schedule.frequency === 'hour' && (
+      {schedule.frequency === "hour" && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-[var(--foreground)] border-b border-subtle pb-2">
             At Minute
@@ -304,7 +408,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                   ),
                 })
               }
-              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-all"
+              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all"
             />
             <span className="text-sm text-muted">of each hour</span>
           </div>
@@ -312,9 +416,9 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       )}
 
       {/* Time picker (for day/week/month) */}
-      {(schedule.frequency === 'day' ||
-        schedule.frequency === 'week' ||
-        schedule.frequency === 'month') && (
+      {(schedule.frequency === "day" ||
+        schedule.frequency === "week" ||
+        schedule.frequency === "month") && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-[var(--foreground)] border-b border-subtle pb-2">
             Time
@@ -326,14 +430,14 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               type="time"
               value={schedule.time}
               onChange={(e) => updateSchedule({ time: e.target.value })}
-              className="bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-all [color-scheme:dark]"
+              className="bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all [color-scheme:dark]"
             />
           </div>
         </div>
       )}
 
       {/* Days of Week (for weekly) */}
-      {schedule.frequency === 'week' && (
+      {schedule.frequency === "week" && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-[var(--foreground)] border-b border-subtle pb-2">
             Days of Week
@@ -344,10 +448,10 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 key={day.value}
                 onClick={() => toggleDay(day.value)}
                 className={cn(
-                  'w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium border transition-all duration-200',
+                  "w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium border transition-all duration-200",
                   schedule.daysOfWeek.includes(day.value)
-                    ? 'bg-white/15 border-white/40 text-white shadow-[0_0_8px_rgba(255,255,255,0.1)]'
-                    : 'bg-[var(--background)] border-subtle text-muted hover:text-[var(--foreground)] hover:border-[var(--border-strong)]',
+                    ? "bg-[var(--surface-hover)] border-[var(--border-strong)] text-[var(--foreground)]"
+                    : "bg-[var(--background)] border-subtle text-muted hover:text-[var(--foreground)] hover:border-[var(--border-strong)]",
                 )}
                 title={day.label}
               >
@@ -356,18 +460,18 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             ))}
           </div>
           <p className="text-[10px] text-muted">
-            Selected:{' '}
+            Selected:{" "}
             {schedule.daysOfWeek.length === 0
-              ? 'None'
+              ? "None"
               : schedule.daysOfWeek
                   .map((d) => DAYS_OF_WEEK[d]?.label)
-                  .join(', ')}
+                  .join(", ")}
           </p>
         </div>
       )}
 
       {/* Day of Month (for monthly) */}
-      {schedule.frequency === 'month' && (
+      {schedule.frequency === "month" && (
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-[var(--foreground)] border-b border-subtle pb-2">
             Day of Month
@@ -388,7 +492,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                   ),
                 })
               }
-              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-all"
+              className="w-20 bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-1.5 text-sm text-[var(--foreground)] text-center focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all"
             />
             <span className="text-sm text-muted">of the month</span>
           </div>
@@ -404,11 +508,11 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           <select
             value={schedule.timezone}
             onChange={(e) => updateSchedule({ timezone: e.target.value })}
-            className="w-full bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-2 text-sm text-[var(--foreground)] appearance-none focus:outline-none focus:border-white/50 focus:ring-1 focus:ring-white/50 transition-all cursor-pointer"
+            className="w-full bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-2 text-sm text-[var(--foreground)] appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all cursor-pointer"
           >
             {COMMON_TIMEZONES.map((tz) => (
               <option key={tz} value={tz}>
-                {tz.replace(/_/g, ' ')}
+                {tz.replace(/_/g, " ")}
               </option>
             ))}
           </select>
@@ -416,27 +520,55 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       </div>
 
       {/* Summary */}
-      <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
+      <div className="bg-[var(--surface-hover)] border border-subtle rounded-lg p-4 space-y-3">
         <div className="flex items-start gap-2">
-          <Info className="w-4 h-4 text-white/70 mt-0.5 shrink-0" />
+          <Info className="w-4 h-4 text-muted mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <p className="text-sm font-medium text-white">Schedule Summary</p>
-            <p className="text-sm text-white/70">{getHumanReadable()}</p>
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Schedule Summary
+            </p>
+            <p className="text-sm text-muted">{getHumanReadable()}</p>
           </div>
         </div>
-        <div className="bg-[#1a1a1a] rounded-md p-2.5 border border-white/10">
+        <div className="bg-[var(--background)] rounded-md p-2.5 border border-subtle">
           <div className="flex items-center gap-2">
             <span className="text-[10px] text-muted uppercase tracking-wider">
               Cron
             </span>
-            <code className="text-xs font-mono text-white/80">
+            <code className="text-xs font-mono text-[var(--foreground)]">
               {getCronExpression()}
             </code>
           </div>
         </div>
         <p className="text-[10px] text-muted">
-          Timezone: {schedule.timezone.replace(/_/g, ' ')}
+          Timezone: {schedule.timezone.replace(/_/g, " ")}
         </p>
+      </div>
+
+      <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-3">
+        <div className="flex items-start gap-2">
+          <Info className="w-4 h-4 text-muted mt-0.5 shrink-0" />
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Next Steps
+            </p>
+            <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+              {nextStepItems.map((item) => (
+                <li key={item.id} className="flex gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--muted)]" />
+                  <span className="min-w-0 flex-1">
+                    <span>{item.text}</span>
+                    {item.command ? (
+                      <code className="mt-1.5 block max-w-full overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-2 font-mono text-xs text-[var(--foreground)]">
+                        {item.command}
+                      </code>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );

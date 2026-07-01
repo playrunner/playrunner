@@ -23,6 +23,7 @@ type GcpCredentialData = {
   orchestratorServiceName?: string;
   playwrightImageUriTemplate?: string;
   refreshToken?: string;
+  schedulerServiceAccountEmail?: string;
   selectedProject?: string;
   updatedAt?: string;
 };
@@ -32,7 +33,7 @@ const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
 const PUSH_RUNNERS_COMMAND =
-  './infra/gcp/scripts/push-runners.sh --target both --yes';
+  './infra/gcp/scripts/push-runners.sh --target all --yes';
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
   'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and runner settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
 
@@ -50,6 +51,12 @@ function buildPlaywrightTemplate(region: string): string {
   const trimmedRegion = region.trim();
   if (!trimmedRegion) return '';
   return `${trimmedRegion}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`;
+}
+
+function buildSchedulerServiceAccountEmail(projectId: string): string {
+  const trimmedProjectId = projectId.trim();
+  if (!trimmedProjectId) return '';
+  return `playrunner-scheduler@${trimmedProjectId}.iam.gserviceaccount.com`;
 }
 
 function normalizePositiveInteger(value: unknown, fallback: number): number {
@@ -127,9 +134,13 @@ export function GcpSettingsModal({
     useState('');
   const [playwrightImageUriTemplate, setPlaywrightImageUriTemplate] =
     useState('');
+  const [schedulerServiceAccountEmail, setSchedulerServiceAccountEmail] =
+    useState('');
   const [orchestratorTemplateEdited, setOrchestratorTemplateEdited] =
     useState(false);
   const [playwrightTemplateEdited, setPlaywrightTemplateEdited] =
+    useState(false);
+  const [schedulerServiceAccountEdited, setSchedulerServiceAccountEdited] =
     useState(false);
   const [projects, setProjects] = useState<
     { projectId: string; name: string }[]
@@ -180,8 +191,10 @@ export function GcpSettingsModal({
     setOrchestratorCpuIdle(DEFAULT_ORCHESTRATOR_CPU_IDLE);
     setOrchestratorImageUriTemplate('');
     setPlaywrightImageUriTemplate('');
+    setSchedulerServiceAccountEmail('');
     setOrchestratorTemplateEdited(false);
     setPlaywrightTemplateEdited(false);
+    setSchedulerServiceAccountEdited(false);
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
@@ -229,6 +242,10 @@ export function GcpSettingsModal({
           : undefined,
       refreshToken:
         typeof data?.refreshToken === 'string' ? data.refreshToken : undefined,
+      schedulerServiceAccountEmail:
+        typeof data?.schedulerServiceAccountEmail === 'string'
+          ? data.schedulerServiceAccountEmail
+          : undefined,
       selectedProject:
         typeof data?.selectedProject === 'string'
           ? data.selectedProject
@@ -272,7 +289,14 @@ export function GcpSettingsModal({
     setPlaywrightImageUriTemplate(
       storedPlay || buildPlaywrightTemplate(regionVal),
     );
+    setSchedulerServiceAccountEmail(
+      next.schedulerServiceAccountEmail ||
+        buildSchedulerServiceAccountEmail(next.selectedProject || ''),
+    );
     setPlaywrightTemplateEdited(Boolean(storedPlay));
+    setSchedulerServiceAccountEdited(
+      Boolean(next.schedulerServiceAccountEmail),
+    );
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
@@ -627,6 +651,9 @@ export function GcpSettingsModal({
         orchestratorServiceName:
           orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
         playwrightImageUriTemplate: playwrightImageUriTemplate.trim(),
+        schedulerServiceAccountEmail:
+          schedulerServiceAccountEmail.trim() ||
+          buildSchedulerServiceAccountEmail(selectedProject),
         selectedProject,
       });
       setOrchestratorServiceName(
@@ -839,8 +866,17 @@ export function GcpSettingsModal({
                   onChange={async (e) => {
                     const newProject = e.target.value;
                     setSelectedProject(newProject);
+                    if (!schedulerServiceAccountEdited) {
+                      setSchedulerServiceAccountEmail(
+                        buildSchedulerServiceAccountEmail(newProject),
+                      );
+                    }
                     if (auth.currentUser) {
                       await persistCredentialPatch({
+                        schedulerServiceAccountEmail:
+                          schedulerServiceAccountEdited
+                            ? schedulerServiceAccountEmail.trim()
+                            : buildSchedulerServiceAccountEmail(newProject),
                         selectedProject: newProject,
                       });
                     }
@@ -883,6 +919,25 @@ export function GcpSettingsModal({
                   }}
                   placeholder="us-central1"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Cloud Scheduler Service Account
+                </label>
+                <Input
+                  value={schedulerServiceAccountEmail}
+                  onChange={(e) => {
+                    setSchedulerServiceAccountEmail(e.target.value);
+                    setSchedulerServiceAccountEdited(true);
+                    setRunnerSettingsSaved(false);
+                    setRunnerSettingsError('');
+                  }}
+                  placeholder="playrunner-scheduler@project-id.iam.gserviceaccount.com"
+                />
+                <p className="mt-1.5 text-[10px] text-muted">
+                  Cloud Scheduler uses this service account for the OIDC token
+                  sent to Playrunner's trigger endpoint.
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">
@@ -991,7 +1046,7 @@ export function GcpSettingsModal({
                 the Playwright image.
               </p>
               <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-muted">
-                <p>After saving changed runner settings, rerun:</p>
+                <p>After saving changed cloud runtime settings, rerun:</p>
                 <div className="relative mt-2">
                   <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-3 pr-11 font-mono text-xs text-[var(--foreground)] select-all">
                     {PUSH_RUNNERS_COMMAND}
@@ -1017,7 +1072,7 @@ export function GcpSettingsModal({
                 <p className="mt-2">
                   If the project, region, or Artifact Registry repository path
                   changed, apply <code>infra/gcp</code> Terraform first so the
-                  APIs, repositories, and Pub/Sub topic exist.
+                  APIs, repositories, API service, and Pub/Sub topic exist.
                 </p>
               </div>
             </div>

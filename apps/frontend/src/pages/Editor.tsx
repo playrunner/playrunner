@@ -69,19 +69,10 @@ interface NodeData {
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
 
 type ConnectionType =
-  | 'sequential'
-  | 'concurrent'
-  | 'independent'
-  | 'success'
-  | 'failure';
+  'sequential' | 'concurrent' | 'independent' | 'success' | 'failure';
 
 type NodeExecutionStatus =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'warning';
+  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
@@ -565,8 +556,7 @@ export default function Editor() {
 
   const initialNodes = location.state?.initialNodes as NodeData[] | undefined;
   const initialConnections = location.state?.initialConnections as
-    | Connection[]
-    | undefined;
+    Connection[] | undefined;
 
   const [nodes, setNodes] = useState<NodeData[]>(initialNodes || []);
   const [connections, setConnections] = useState<Connection[]>(
@@ -1481,10 +1471,13 @@ export default function Editor() {
       showToast('Workflow saved', 'success');
     } catch (err) {
       console.error('Failed to save workflow:', err);
-      showToast('Failed to save workflow. Check console.', 'error');
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      appendOrchestratorLog(`Failed to save workflow: ${message}`, 'Error');
+      showToast('Failed to save workflow. Open Logs for details.', 'error');
     }
     setIsSaving(false);
   }, [
+    appendOrchestratorLog,
     getNodesWithParents,
     activeWorkflowId,
     connections,
@@ -1508,6 +1501,26 @@ export default function Editor() {
       clearWorkflowStartupStatus();
       setCloudProvider(nextProvider);
       localStorage.setItem('primaryCloud', nextProvider);
+      if (nextProvider === 'LOCAL_RUNNER') {
+        setNodes((currentNodes) =>
+          currentNodes.map((node) => {
+            if (node.nodeType !== 'schedule' || !node.config?.schedule) {
+              return node;
+            }
+
+            return {
+              ...node,
+              config: {
+                ...node.config,
+                schedule: {
+                  ...node.config.schedule,
+                  enabled: false,
+                },
+              },
+            };
+          }),
+        );
+      }
       setShouldAutoSave(true);
     },
     [clearWorkflowStartupStatus],
@@ -3395,6 +3408,7 @@ export default function Editor() {
                   config={node.config || {}}
                   onChange={handleNodeConfigChange}
                   onLabelChange={handleNodeLabelChange}
+                  workflowCloudProvider={cloudProvider}
                   incomingNodes={incomingNodes}
                   onConnectOAuth={(provider) => {
                     const nodeIntegration = getIntegration(node.nodeType);
@@ -3424,7 +3438,7 @@ export default function Editor() {
       {saveStatus && (
         <div
           className={cn(
-            'fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full shadow-xl flex items-center gap-2 z-[100] animate-in fade-in slide-in-from-bottom-4 transition-all',
+            'fixed bottom-6 left-1/2 max-w-[calc(100vw-2rem)] -translate-x-1/2 px-4 py-2 rounded-xl shadow-xl flex items-start gap-2 z-[100] animate-in fade-in slide-in-from-bottom-4 transition-all',
             saveStatus.type === 'success'
               ? 'bg-emerald-500 text-white'
               : saveStatus.type === 'error'
@@ -3437,7 +3451,9 @@ export default function Editor() {
           )}
           {saveStatus.type === 'error' && <XCircle className="w-4 h-4" />}
           {saveStatus.type === 'info' && <AlertTriangle className="w-4 h-4" />}
-          <span className="text-sm font-medium">{saveStatus.message}</span>
+          <span className="min-w-0 whitespace-normal break-words text-sm font-medium">
+            {saveStatus.message}
+          </span>
         </div>
       )}
     </>

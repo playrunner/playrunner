@@ -7,6 +7,9 @@ import type {
   OutputProxyBackend,
   OutputSyncBackend,
   RunnerProvisioner,
+  SchedulerProvisionRequest,
+  SchedulerProvisioner,
+  SchedulerProvisionResult,
   WorkflowExecutionBackend,
   WorkflowExecutionRequest,
   WorkflowExecutionResult,
@@ -100,12 +103,47 @@ class OutputProxyRegistry {
   }
 }
 
+class SchedulerProvisionerRegistry {
+  constructor(private readonly provisioners: SchedulerProvisioner[]) {}
+
+  private getProvisioner(provider: string): SchedulerProvisioner {
+    const provisioner = this.provisioners.find((candidate) =>
+      candidate.supports(provider),
+    );
+    if (!provisioner) {
+      throw new Error(`No scheduler provisioner registered for ${provider}.`);
+    }
+    return provisioner;
+  }
+
+  async delete(request: SchedulerProvisionRequest): Promise<void> {
+    await this.getProvisioner(request.schedule.provider).delete(request);
+  }
+
+  async pause(
+    request: SchedulerProvisionRequest,
+  ): Promise<SchedulerProvisionResult | void> {
+    return await this.getProvisioner(request.schedule.provider).pause(request);
+  }
+
+  register(provisioners: SchedulerProvisioner[]) {
+    this.provisioners.push(...provisioners);
+  }
+
+  async upsert(
+    request: SchedulerProvisionRequest,
+  ): Promise<SchedulerProvisionResult> {
+    return await this.getProvisioner(request.schedule.provider).upsert(request);
+  }
+}
+
 const logTransport = new DatabaseLogTransport();
 const gcpPubSubEventStreamManager =
   createGcpPubSubEventStreamManager(executionEvents);
 const cloudProviders = new StaticCloudProviderRegistry();
 const outputProxy = new OutputProxyRegistry([new NoopOutputProxyBackend()]);
 const outputSync = new OutputSyncRegistry([new NoopOutputSyncBackend()]);
+const scheduler = new SchedulerProvisionerRegistry([]);
 const workflowExecution = new WorkflowExecutionRegistry([
   new LocalWorkflowExecutionBackend(logTransport, gcpPubSubEventStreamManager),
 ]);
@@ -143,6 +181,9 @@ function applyContribution(contribution: ApiRuntimeContribution) {
   }
   if (contribution.outputSyncBackends?.length) {
     outputSync.register(contribution.outputSyncBackends);
+  }
+  if (contribution.schedulerProvisioners?.length) {
+    scheduler.register(contribution.schedulerProvisioners);
   }
   if (contribution.workflowExecutionBackends?.length) {
     workflowExecution.register(contribution.workflowExecutionBackends);
@@ -186,5 +227,6 @@ export const apiRuntime = {
   outputSync,
   ready: loadPremiumContribution(),
   runnerProvisioner: new LocalDockerRunnerProvisioner() as RunnerProvisioner,
+  scheduler,
   workflowExecution,
 };

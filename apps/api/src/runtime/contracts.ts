@@ -48,6 +48,38 @@ export interface RunnerProvisioner {
   start(cloudProvider?: string): Promise<RunnerProvisionResult>;
 }
 
+export interface WorkflowScheduleState {
+  cron: string;
+  enabled: boolean;
+  gcpJobName?: string | null;
+  id: string;
+  provider: string;
+  scheduleNodeId: string;
+  timezone: string;
+  userId: string;
+  workflowId: string;
+}
+
+export interface SchedulerProvisionRequest {
+  credentials: Record<string, any>;
+  schedule: WorkflowScheduleState;
+  triggerPayload: Record<string, any>;
+  triggerUrl: string;
+}
+
+export interface SchedulerProvisionResult {
+  gcpJobName?: string | null;
+}
+
+export interface SchedulerProvisioner {
+  delete(request: SchedulerProvisionRequest): Promise<void>;
+  pause(
+    request: SchedulerProvisionRequest,
+  ): Promise<SchedulerProvisionResult | void>;
+  supports(provider: string): boolean;
+  upsert(request: SchedulerProvisionRequest): Promise<SchedulerProvisionResult>;
+}
+
 export interface CloudProviderDefinition {
   id: string;
   label: string;
@@ -61,5 +93,6 @@ export interface ApiRuntimeContribution {
   cloudProviders?: CloudProviderDefinition[];
   outputProxyBackends?: OutputProxyBackend[];
   outputSyncBackends?: OutputSyncBackend[];
+  schedulerProvisioners?: SchedulerProvisioner[];
   workflowExecutionBackends?: WorkflowExecutionBackend[];
 }

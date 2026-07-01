@@ -1,3 +1,5 @@
+import type { Request } from 'express';
+
 export const ORCHESTRATOR_PORT = parseInt(
   process.env.ORCHESTRATOR_PORT || '3002',
   10,
@@ -14,4 +16,15 @@ export const LOCAL_PUBSUB_PROJECT_ID =
 export const PUBSUB_EMULATOR_HOST_DOCKER =
   process.env.PUBSUB_EMULATOR_HOST_DOCKER ||
   `host.docker.internal:${process.env.PUBSUB_EMULATOR_PORT || 8085}`;
+export const PUBLIC_API_URL =
+  process.env.PLAYRUNNER_PUBLIC_API_URL || process.env.PUBLIC_API_URL || '';
 export const PORT = process.env.PORT || 3001;
+
+export function getPublicApiBaseUrl(req: Request): string {
+  const configured = PUBLIC_API_URL.trim().replace(/\/+$/g, '');
+  if (configured) {
+    return configured;
+  }
+
+  return `${req.protocol}://${req.get('host')}`;
+}

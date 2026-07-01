@@ -2,6 +2,11 @@ import crypto from 'crypto';
 import { Prisma } from '@prisma/client';
 import { Request, Response, Router } from 'express';
 import { prisma } from '../lib/prisma';
+import {
+  assertWorkflowSchedulesCanBeSaved,
+  deleteWorkflowSchedules,
+  reconcileWorkflowSchedules,
+} from '../services/schedules';
 
 export const storeRouter = Router();
 
@@ -58,7 +63,11 @@ function toOptionalDate(value: unknown) {
 
 function sendError(res: Response, error: unknown) {
   console.error('Store route error:', error);
-  res.status(500).json({
+  const statusCode =
+    typeof (error as { statusCode?: unknown })?.statusCode === 'number'
+      ? ((error as { statusCode: number }).statusCode ?? 500)
+      : 500;
+  res.status(statusCode).json({
     error: error instanceof Error ? error.message : 'Internal server error.',
   });
 }
@@ -301,18 +310,35 @@ storeRouter.post(
   '/workflows',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const nodes = toJsonValue(req.body?.nodes);
+    const connections = toJsonValue(req.body?.connections);
+    const cloudProvider = toNullableString(req.body?.cloudProvider) ?? null;
+
+    assertWorkflowSchedulesCanBeSaved({
+      cloudProvider,
+      nodes,
+    });
+
     const workflow = await prisma.workflow.create({
       data: {
         id: crypto.randomUUID(),
         userId,
         projectId: toNullableString(req.body?.projectId) ?? null,
         title: toNullableString(req.body?.title) ?? null,
-        nodes: toJsonValue(req.body?.nodes),
-        connections: toJsonValue(req.body?.connections),
-        cloudProvider: toNullableString(req.body?.cloudProvider) ?? null,
+        nodes,
+        connections,
+        cloudProvider,
         concurrency: toOptionalNumber(req.body?.concurrency),
         createdAt: toOptionalDate(req.body?.createdAt),
       },
+    });
+
+    await reconcileWorkflowSchedules({
+      cloudProvider: workflow.cloudProvider,
+      nodes: workflow.nodes,
+      req,
+      userId,
+      workflowId: workflow.id,
     });
 
     res.status(201).json({ workflow: serializeWorkflow(workflow) });
@@ -336,6 +362,13 @@ storeRouter.put(
     const concurrency = toOptionalNumber(req.body?.concurrency);
     const nodes = toJsonValue(req.body?.nodes);
     const connections = toJsonValue(req.body?.connections);
+    const nextCloudProvider = cloudProvider ?? existing?.cloudProvider ?? null;
+    const nextNodes = nodes !== undefined ? nodes : existing?.nodes;
+
+    assertWorkflowSchedulesCanBeSaved({
+      cloudProvider: nextCloudProvider,
+      nodes: nextNodes,
+    });
 
     if (!existing) {
       const workflow = await prisma.workflow.create({
@@ -351,6 +384,15 @@ storeRouter.put(
           createdAt: toOptionalDate(req.body?.createdAt),
         },
       });
+
+      await reconcileWorkflowSchedules({
+        cloudProvider: workflow.cloudProvider,
+        nodes: workflow.nodes,
+        req,
+        userId,
+        workflowId: workflow.id,
+      });
+
       res.status(201).json({ workflow: serializeWorkflow(workflow) });
       return;
     }
@@ -380,6 +422,14 @@ storeRouter.put(
       data,
     });
 
+    await reconcileWorkflowSchedules({
+      cloudProvider: workflow.cloudProvider,
+      nodes: workflow.nodes,
+      req,
+      userId,
+      workflowId: workflow.id,
+    });
+
     res.json({ workflow: serializeWorkflow(workflow) });
   }),
 );
@@ -388,6 +438,11 @@ storeRouter.delete(
   '/workflows/:id',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    await deleteWorkflowSchedules({
+      req,
+      userId,
+      workflowId: req.params.id,
+    });
     await prisma.workflow.deleteMany({
       where: {
         id: req.params.id,

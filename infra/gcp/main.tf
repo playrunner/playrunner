@@ -15,13 +15,19 @@ provider "google" {
 locals {
   project_services = toset([
     "artifactregistry.googleapis.com",
+    "cloudscheduler.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
     "storage.googleapis.com",
   ])
 
   artifact_repositories = {
+    api = {
+      repository_id = "api"
+      description   = "Docker repository for Playrunner API images"
+    }
     orchestrator = {
       repository_id = "orchestrator"
       description   = "Docker repository for Playrunner orchestrator images"
@@ -31,6 +37,13 @@ locals {
       description   = "Docker repository for Playwright runner images"
     }
   }
+
+  api_environment_variables = merge(
+    {
+      GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC = var.workflow_events_topic_name
+    },
+    var.api_environment_variables,
+  )
 }
 
 resource "google_project_service" "services" {
@@ -60,6 +73,89 @@ resource "google_pubsub_topic" "workflow_events" {
   depends_on = [
     google_project_service.services,
   ]
+}
+
+resource "google_service_account" "scheduler" {
+  account_id   = var.scheduler_service_account_id
+  display_name = "Playrunner Cloud Scheduler"
+  description  = "Used by Cloud Scheduler to call Playrunner schedule trigger endpoints with OIDC."
+
+  depends_on = [
+    google_project_service.services,
+  ]
+}
+
+resource "google_service_account_iam_member" "scheduler_service_account_users" {
+  for_each = var.scheduler_service_account_users
+
+  service_account_id = google_service_account.scheduler.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = each.value
+}
+
+resource "google_cloud_run_v2_service" "api" {
+  name     = var.api_service_name
+  location = var.region
+  ingress  = var.api_ingress
+
+  template {
+    scaling {
+      min_instance_count = var.api_min_instance_count
+      max_instance_count = var.api_max_instance_count
+    }
+
+    containers {
+      name  = "api"
+      image = var.api_bootstrap_image_uri
+
+      ports {
+        container_port = var.api_container_port
+      }
+
+      resources {
+        cpu_idle          = var.api_cpu_idle
+        startup_cpu_boost = true
+      }
+
+      dynamic "env" {
+        for_each = toset(keys(nonsensitive(local.api_environment_variables)))
+
+        content {
+          name  = env.value
+          value = local.api_environment_variables[env.value]
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
+
+  depends_on = [
+    google_artifact_registry_repository.repositories,
+    google_project_service.services,
+  ]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "api_public_invoker" {
+  count = var.api_allow_unauthenticated ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.api.location
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "api_scheduler_invoker" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.api.location
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler.email}"
 }
 
 resource "google_artifact_registry_repository_iam_member" "repo_reader" {

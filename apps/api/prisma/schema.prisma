@@ -30,9 +30,45 @@ model Workflow {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  schedules    WorkflowSchedule[]
 
   @@index([userId])
   @@index([projectId])
+}
+
+model WorkflowSchedule {
+  id              String                    @id @default(cuid())
+  userId          String
+  workflowId      String
+  scheduleNodeId  String
+  provider        String
+  cron            String
+  timezone        String
+  enabled         Boolean                   @default(false)
+  gcpJobName      String?
+  lastTriggerTime DateTime?
+  lastError       String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  workflow        Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  triggers        WorkflowScheduleTrigger[]
+
+  @@unique([workflowId, scheduleNodeId])
+  @@index([userId])
+  @@index([provider])
+}
+
+model WorkflowScheduleTrigger {
+  id            String           @id @default(cuid())
+  scheduleId    String
+  scheduledTime DateTime
+  executionId   String?
+  status        String           @default("started")
+  createdAt     DateTime         @default(now())
+  schedule      WorkflowSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, scheduledTime])
+  @@index([scheduleId])
 }
 
 model WorkflowExecution {
