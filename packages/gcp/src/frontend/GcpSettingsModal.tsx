@@ -1097,75 +1097,35 @@ export function GcpSettingsModal({
       ) : (
         <div className="flex flex-col gap-6">
           {renderSetupGuideCallout(
-            'OAuth connects Playrunner to a Google account. The full setup guide covers the infrastructure and runner image steps you must run after authentication.',
+            'Use the setup guide to create the Google OAuth client, configure infrastructure, and publish runner images. Paste the generated client values here after the OAuth client is created.',
           )}
 
-          <ol className="list-decimal pl-4 space-y-3 text-sm text-[var(--foreground)]">
-            <li>
-              Go to the{' '}
-              <a
-                href="https://console.cloud.google.com/apis/credentials"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 hover:underline"
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted">
+              Authorized redirect URI
+            </p>
+            <p className="text-xs leading-relaxed text-muted">
+              Use this value when the setup guide asks for the Google OAuth
+              redirect URI.
+            </p>
+            <div className="relative">
+              <code className="block p-3 pr-10 bg-[var(--background)] border border-subtle rounded text-xs select-all font-mono text-blue-400 overflow-x-auto whitespace-nowrap">
+                {callbackUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="absolute top-2 right-2 p-1 rounded bg-[var(--background)] text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
+                title="Copy URL"
               >
-                Google Cloud Console APIs &amp; Services
-              </a>{' '}
-              page.
-            </li>
-            <li>
-              Before creating credentials, click{' '}
-              <strong>OAuth consent screen</strong> on the left menu.
-            </li>
-            <li>
-              Choose the user type (for example <strong>External</strong>) and
-              click <strong>Create</strong>. Under{' '}
-              <strong>App information / Branding</strong>, set the app name and
-              provide user support emails, then save.
-            </li>
-            <li>
-              In the <strong>Test users</strong> step of the consent screen, add
-              your email address.
-              <p className="mt-2 text-xs text-blue-400 font-medium">
-                IMPORTANT: Skipping this will cause an "Access blocked" or
-                "Access denied" error when you authenticate.
-              </p>
-            </li>
-            <li>
-              Go back to <strong>Credentials</strong>, click{' '}
-              <strong>Create Credentials</strong>, and select{' '}
-              <strong>OAuth client ID</strong>.
-            </li>
-            <li>
-              Set <strong>Application type</strong> to{' '}
-              <strong>Web application</strong>.
-            </li>
-            <li>
-              Add the following <strong>Authorized redirect URI</strong>:
-              <div className="relative mt-2">
-                <code className="block p-3 pr-10 bg-[var(--background)] border border-subtle rounded text-xs select-all font-mono text-blue-400 overflow-x-auto whitespace-nowrap">
-                  {callbackUrl}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyUrl}
-                  className="absolute top-2 right-2 p-1 rounded bg-[var(--background)] text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
-                  title="Copy URL"
-                >
-                  {copiedUrl ? (
-                    <Check className="w-3.5 h-3.5 text-green-500" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              </div>
-            </li>
-            <li>
-              Copy your <strong>Client ID</strong> and{' '}
-              <strong>Client Secret</strong> and paste them into the fields
-              below.
-            </li>
-          </ol>
+                {copiedUrl ? (
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
 
           <div className="space-y-4 pt-2 border-t border-subtle">
             <div>

@@ -49,6 +49,22 @@ import {
   </IntegrationCard>
 </IntegrationGrid>
 
+## Setup
+
+Open Playrunner, go to **Integrations**, and open **Connect to Jira**. Copy the
+callback URL shown in the dialog, then create the Atlassian OAuth integration:
+
+1. Go to the
+   [Atlassian Developer Console](https://developer.atlassian.com/console/myapps/).
+2. Click **Create** and select **OAuth 2.0 integration**.
+3. Give the app a name, accept the terms, and click **Create**.
+4. In the left menu, select **Permissions** and add the Jira API.
+5. Grant the scopes `read:jira-work`, `write:jira-work`, and `offline_access`.
+6. In the left menu, select **Authorization** and add the callback URL copied
+   from Playrunner.
+7. Go back to **Settings** and copy the **Client ID** and **Secret**.
+8. Paste the client ID and secret into Playrunner and click **Authenticate**.
+
 ## Exports
 
 ```ts

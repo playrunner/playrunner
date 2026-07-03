@@ -312,10 +312,13 @@ configure_frontend_api_proxy() {
         return 0
     fi
 
-    local api_port="3001"
+    if [ ! -f "${API_DIR}/.env" ]; then
+        echo "Missing ${API_DIR}/.env. Re-run ./start-local.sh to reopen setup."
+        exit 1
+    fi
 
-    if [ -f "${API_DIR}/.env" ]; then
-        api_port=$(node - "${API_DIR}/.env" <<'NODE' || echo "3001"
+    local api_port
+    if ! api_port=$(node - "${API_DIR}/.env" <<'NODE'
 const fs = require('fs');
 
 const [, , envPath] = process.argv;
@@ -344,7 +347,7 @@ function getEnvVariable(lines, key) {
 }
 
 const envContents = fs.readFileSync(envPath, 'utf8');
-const port = getEnvVariable(envContents.split(/\r?\n/), 'PORT') || '3001';
+const port = getEnvVariable(envContents.split(/\r?\n/), 'PORT');
 
 if (!/^\d+$/.test(port)) {
   process.exit(1);
@@ -352,7 +355,9 @@ if (!/^\d+$/.test(port)) {
 
 console.log(port);
 NODE
-)
+); then
+        echo "Invalid or missing PORT in ${API_DIR}/.env."
+        exit 1
     fi
 
     VITE_API_URL="http://127.0.0.1:${api_port}"

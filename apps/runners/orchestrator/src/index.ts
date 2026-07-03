@@ -10,17 +10,18 @@ import type {
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3002;
-const EDITOR_API_URL = process.env.EDITOR_API_URL || 'http://localhost:3001';
+const PORT = process.env.PORT || 3012;
+const EDITOR_API_URL = process.env.EDITOR_API_URL?.trim() || '';
+
+function requiredEditorApiUrl(): never {
+  throw new Error(
+    'EDITOR_API_URL is required for local runner callbacks. Set EDITOR_API_URL in the orchestrator environment from apps/api/.env EDITOR_API_URL_DOCKER.',
+  );
+}
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
 type WorkflowNodeState =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'warning';
+  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 type WorkflowEventPublisher = {
   executionId: string;
@@ -187,8 +188,7 @@ function createWorkflowEventPublisher(
       ? reqBody.executionAuthToken
       : '';
   const eventTransport = reqBody.eventTransport as
-    | GcpPubSubEventTransport
-    | undefined;
+    GcpPubSubEventTransport | undefined;
   const gcpAccessToken = getString(reqBody.settings?.gcp?.accessToken);
   const basePayload = {
     cloudProvider: reqBody.cloudProvider || 'LOCAL_RUNNER',
@@ -378,9 +378,7 @@ async function executeWorkflow(reqBody: any) {
             playwrightVersion: config.playwrightVersion || 'latest',
             workers,
             editorApiUrl:
-              reqBody.editorApiUrl ||
-              EDITOR_API_URL ||
-              'http://host.docker.internal:3001',
+              reqBody.editorApiUrl || EDITOR_API_URL || requiredEditorApiUrl(),
             eventTransport: reqBody.eventTransport,
             bucketName: reqBody.bucketName || bucketName || null,
             cloudProvider,

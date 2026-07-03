@@ -163,8 +163,8 @@ readiness, and start signals.
   `PLAYRUNNER_PUBLIC_API_URL` in `apps/api/.env` to the externally reachable API
   base URL before saving an enabled schedule. Without this override, Playrunner
   uses the current request host for scheduler callback URLs.
-- A Google OAuth client for the Playrunner app. Add the exact redirect URI shown
-  in the Connect to GCP dialog. With the default local app URL, this is:
+- A Google OAuth client for the Playrunner app. You create this in the Connect
+  GCP step below. With the default local app URL, the redirect URI is:
 
 ```text
 http://127.0.0.1:3100/oauth/callback/gcp
@@ -238,19 +238,38 @@ Start the local stack from the repo root:
 
 Open the app, go to **Integrations**, and connect **GCP**.
 
-1. Copy the callback URL from the modal.
-2. Create or update a Google OAuth web client with that callback URL as an
-   authorized redirect URI.
-3. Enter the OAuth client ID and client secret in Playrunner.
-4. Authenticate with Google.
-5. Select the Google Cloud project you chose for Terraform.
-6. Set the same Cloud Run region you will put in `terraform.tfvars`, for example
+### Create the Google OAuth Client
+
+1. Copy the authorized redirect URI from the Connect to GCP dialog.
+2. Go to
+   [Google Cloud Console APIs & Services](https://console.cloud.google.com/apis/credentials).
+3. Before creating credentials, open **OAuth consent screen** from the left
+   menu.
+4. Choose the user type, such as **External**, and click **Create**.
+5. Under **App information / Branding**, set the app name and provide user
+   support emails, then save.
+6. In **Test users**, add the Google account that will authenticate with
+   Playrunner. Skipping this for a testing app can cause Google to return
+   `Access blocked` or `Access denied`.
+7. Go back to **Credentials**, click **Create Credentials**, and select
+   **OAuth client ID**.
+8. Set **Application type** to **Web application**.
+9. Add the redirect URI copied from the Connect to GCP dialog as an
+   **Authorized redirect URI**.
+10. Copy the generated **Client ID** and **Client Secret**.
+
+### Save GCP Settings in Playrunner
+
+1. Enter the OAuth client ID and client secret in Playrunner.
+2. Authenticate with Google.
+3. Select the Google Cloud project you chose for Terraform.
+4. Set the same Cloud Run region you will put in `terraform.tfvars`, for example
    `us-central1`.
-7. Keep the default Orchestrator service name unless you need a custom one:
+5. Keep the default Orchestrator service name unless you need a custom one:
    `playrunner-orchestrator`.
-8. Keep the default Cloud Scheduler service account unless Terraform prints a
+6. Keep the default Cloud Scheduler service account unless Terraform prints a
    custom value.
-9. Save the image URI templates.
+7. Save the image URI templates.
 
 For a standard Artifact Registry setup in `us-central1`, use:
 

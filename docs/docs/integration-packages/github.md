@@ -50,6 +50,12 @@ import {
   </IntegrationCard>
 </IntegrationGrid>
 
+## Setup
+
+For the end-user setup flow, including the GitHub App fields, callback URL, app
+installation, and repository selection, see
+[Connect GitHub](../tutorials/connect-github).
+
 ## Exports
 
 ```ts

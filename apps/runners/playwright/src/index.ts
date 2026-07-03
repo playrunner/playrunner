@@ -837,17 +837,25 @@ async function parsePayload() {
   }
 }
 
+function requiredEditorApiUrl(value: unknown): string {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  throw new Error(
+    'PAYLOAD.data.editorApiUrl is required for runner callbacks. Pass the value from apps/api/.env EDITOR_API_URL_DOCKER.',
+  );
+}
+
 async function run() {
   const payload = await parsePayload();
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
   const runnerControl = payload?.data?.runnerControl as
-    | RunnerControlConfig
-    | undefined;
+    RunnerControlConfig | undefined;
   runnerEventContext = {
     cloudProvider,
-    editorApiUrl:
-      payload?.data?.editorApiUrl || 'http://host.docker.internal:3001',
+    editorApiUrl: requiredEditorApiUrl(payload?.data?.editorApiUrl),
     executionToken: payload?.data?.executionAuthToken || '',
     eventTransport: payload?.data?.eventTransport,
     gcpAccessToken: payload?.settings?.gcp?.accessToken,

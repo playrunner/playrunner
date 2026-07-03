@@ -6,16 +6,17 @@ import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const repoRoot = path.resolve(__dirname, '../..');
   const playwrightRunnerConfig = loadPlaywrightRunnerConfig();
-  const defaultApiUrl = 'http://127.0.0.1:3001';
   const apiProxyTarget = normalizeLocalProxyTarget(
-    env.VITE_API_URL || process.env.VITE_API_URL || defaultApiUrl,
+    env.VITE_API_URL ||
+      process.env.VITE_API_URL ||
+      getApiUrlFromApiEnv(repoRoot),
   );
   const editionRuntimePath = resolveEditionRuntimePath(
     env.ENABLE_PREMIUM !== 'false',
     env.PREMIUM_WEB_RUNTIME_PATH,
   );
-  const repoRoot = path.resolve(__dirname, '../..');
   const webNodeModulesDir = path.resolve(__dirname, 'node_modules');
   console.log(`Proxying API requests to: ${apiProxyTarget}`);
 
@@ -112,6 +113,50 @@ function normalizeLocalProxyTarget(target: string): string {
   } catch {
     return target;
   }
+}
+
+function parseEnvValue(rawValue = '') {
+  const trimmed = rawValue.trim();
+
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      return JSON.parse(trimmed) as string;
+    } catch {
+      return trimmed.slice(1, -1);
+    }
+  }
+
+  return trimmed;
+}
+
+function getEnvVariable(envPath: string, key: string) {
+  if (!fs.existsSync(envPath)) {
+    return '';
+  }
+
+  const line = fs
+    .readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(`${key}=`));
+
+  return line ? parseEnvValue(line.slice(key.length + 1)) : '';
+}
+
+function getApiUrlFromApiEnv(repoRoot: string) {
+  const apiEnvPath = path.resolve(repoRoot, 'apps/api/.env');
+  const apiPort = getEnvVariable(apiEnvPath, 'PORT');
+
+  if (!apiPort) {
+    throw new Error(
+      `VITE_API_URL is not set and ${apiEnvPath} does not define PORT.`,
+    );
+  }
+
+  if (!/^\d+$/.test(apiPort)) {
+    throw new Error(`Invalid PORT in ${apiEnvPath}: ${apiPort}`);
+  }
+
+  return `http://127.0.0.1:${apiPort}`;
 }
 
 function loadPlaywrightRunnerConfig() {

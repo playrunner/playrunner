@@ -3,7 +3,6 @@ import {
   IntegrationCopyableCode,
   IntegrationConfigField,
   IntegrationSettingsModal,
-  IntegrationSetupGuide,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
 import { jiraIconUrl } from './icon';
@@ -11,6 +10,26 @@ import { jiraIconUrl } from './icon';
 interface JiraSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const JIRA_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/jira');
+
+type DocsImportMeta = ImportMeta & {
+  env?: {
+    VITE_DOCS_URL?: string;
+  };
+};
+
+function getDocsUrl(path = '') {
+  const baseUrl = (
+    (import.meta as DocsImportMeta).env?.VITE_DOCS_URL || DEFAULT_DOCS_URL
+  )
+    .trim()
+    .replace(/\/+$/, '');
+  const normalizedPath = path.trim().replace(/^\/+/, '');
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
 }
 
 export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
@@ -212,43 +231,31 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
       }
       onPrimaryAction={handleAuthenticateJira}
     >
-      <IntegrationSetupGuide>
-        <li>
-          Go to the{' '}
-          <a
-            href="https://developer.atlassian.com/console/myapps/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 hover:underline"
-          >
-            Atlassian Developer Console
-          </a>
-          .
-        </li>
-        <li>
-          Click <strong>Create</strong> and select{' '}
-          <strong>OAuth 2.0 integration</strong>.
-        </li>
-        <li>
-          Give your app a name and agree to the terms, then click{' '}
-          <strong>Create</strong>.
-        </li>
-        <li>
-          In the left menu, select <strong>Permissions</strong> and add the Jira
-          API. Grant <code>read:jira-work</code> and{' '}
-          <code>write:jira-work</code> scopes.
-        </li>
-        <li>
-          In the left menu, select <strong>Authorization</strong>. Add the
-          following callback URL:
-          <IntegrationCopyableCode value={callbackUrl} />
-        </li>
-        <li>
-          Go back to <strong>Settings</strong> to find your{' '}
-          <strong>Client ID</strong> and <strong>Secret</strong>.
-        </li>
-        <li>Copy and paste them below.</li>
-      </IntegrationSetupGuide>
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
+        <p className="text-sm font-medium text-[var(--foreground)]">
+          Jira OAuth setup
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          Use the setup guide to create the Atlassian OAuth integration, assign
+          Jira scopes, and find the client ID and secret.
+        </p>
+        <a
+          href={JIRA_SETUP_DOCS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+        >
+          Open Jira setup guide
+        </a>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted">Callback URL</p>
+        <p className="text-xs leading-relaxed text-muted">
+          Use this value when the setup guide asks for the Jira callback URL.
+        </p>
+        <IntegrationCopyableCode value={callbackUrl} />
+      </div>
 
       <div className="space-y-4 border-t border-subtle pt-2">
         <IntegrationConfigField label="Client ID">

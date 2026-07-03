@@ -1,11 +1,38 @@
 import React, { useState } from 'react';
-import { Check, ChevronRight, Loader2, Copy } from 'lucide-react';
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  Loader2,
+} from 'lucide-react';
 import { useIntegrationHost } from '@playrunner/integration-sdk';
 import { GithubIcon } from './GithubIcon';
 
 interface GithubSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const GITHUB_SETUP_DOCS_URL = getDocsUrl('docs/tutorials/connect-github');
+
+type DocsImportMeta = ImportMeta & {
+  env?: {
+    VITE_DOCS_URL?: string;
+  };
+};
+
+function getDocsUrl(path = '') {
+  const baseUrl = (
+    (import.meta as DocsImportMeta).env?.VITE_DOCS_URL || DEFAULT_DOCS_URL
+  )
+    .trim()
+    .replace(/\/+$/, '');
+  const normalizedPath = path.trim().replace(/^\/+/, '');
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
 }
 
 export function GithubSettingsModal({
@@ -333,91 +360,57 @@ export function GithubSettingsModal({
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <ol className="list-decimal pl-4 space-y-3 text-sm text-[var(--foreground)]">
-            <li>
-              Go to your{' '}
-              <a
-                href="https://github.com/settings/apps"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 hover:underline"
-              >
-                GitHub Developer Settings
-              </a>
-              .
-            </li>
-            <li>
-              Click <strong>New GitHub App</strong>.
-            </li>
-            <li>
-              Under <strong>Basic information</strong>, give your app a{' '}
-              <strong>GitHub App Name</strong> (this becomes your app slug) and
-              set a <strong>Homepage URL</strong>.
-            </li>
-            <li>
-              Under <strong>Identifying and authorizing users</strong>, add the
-              following callback URL:
-              <div className="relative mt-2">
-                <code className="block p-3 pr-10 bg-[var(--background)] border border-subtle rounded text-xs select-all font-mono text-blue-400 overflow-x-auto whitespace-nowrap">
-                  {callbackUrl}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyUrl}
-                  className="absolute top-2 right-2 p-1 rounded bg-[var(--background)] text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
-                  title="Copy URL"
-                >
-                  {copiedUrl ? (
-                    <Check className="w-3.5 h-3.5 text-green-500" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
+                <BookOpen className="h-4 w-4 text-muted" />
               </div>
-              <p className="mt-2 text-xs text-blue-400 font-medium">
-                IMPORTANT: You must check "Request user authorization (OAuth)
-                during installation" just below the callback URL.
-              </p>
-            </li>
-            <li>
-              Under <strong>Post installation</strong>, set the{' '}
-              <strong>Setup URL</strong> to the exact same URL as above.
-              <br />
-              Check the box for <strong>Redirect on update</strong>.
-            </li>
-            <li>
-              Under <strong>Webhook</strong>, uncheck <strong>Active</strong>.
-            </li>
-            <li>
-              Under <strong>Repository permissions</strong>, set{' '}
-              <strong>Contents</strong> to <strong>Read and write</strong>.
-            </li>
-            <li>
-              Under <strong>Where can this GitHub App be installed?</strong>,
-              select:
-              <ul className="list-disc pl-4 mt-2 space-y-1 text-muted">
-                <li>
-                  <strong>Only on this account:</strong> If only you will use
-                  this app with your repositories.
-                </li>
-                <li>
-                  <strong>Any account:</strong> If you plan to let other users
-                  connect their own GitHub accounts and use this app with their
-                  repositories.
-                </li>
-              </ul>
-            </li>
-            <li>
-              Click <strong>Create GitHub App</strong>.
-            </li>
-            <li>
-              Generate a new <strong>Client Secret</strong>.
-            </li>
-            <li>
-              Copy and paste the App Name, Client ID, and Secret below. You can
-              decide which repositories to install it on in the next step.
-            </li>
-          </ol>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  GitHub App setup
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Use the setup guide to create the GitHub App, configure
+                  repository permissions, and find the app slug, client ID, and
+                  client secret.
+                </p>
+                <a
+                  href={GITHUB_SETUP_DOCS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+                >
+                  Open GitHub setup guide
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted">Callback URL</p>
+            <p className="text-xs leading-relaxed text-muted">
+              Use this value when the setup guide asks for the callback URL and
+              setup URL.
+            </p>
+            <div className="relative">
+              <code className="block p-3 pr-10 bg-[var(--background)] border border-subtle rounded text-xs select-all font-mono text-blue-400 overflow-x-auto whitespace-nowrap">
+                {callbackUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopyUrl}
+                className="absolute top-2 right-2 p-1 rounded bg-[var(--background)] text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
+                title="Copy URL"
+              >
+                {copiedUrl ? (
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
 
           <div className="space-y-4 pt-2 border-t border-subtle">
             <div>

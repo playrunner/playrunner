@@ -1,7 +1,7 @@
 {
   "id": "tutorials/connect-github",
   "title": "Connect GitHub",
-  "description": "Playrunner uses GitHub OAuth to clone your private test repositories. This tutorial shows you how to authenticate, select a repository, and set a target branch.",
+  "description": "Playrunner uses a GitHub App with OAuth user authorization to clone private test",
   "source": "@site/docs/tutorials/03-connect-github.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/connect-github",

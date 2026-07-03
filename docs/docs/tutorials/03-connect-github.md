@@ -5,48 +5,65 @@ title: Connect GitHub
 
 # Connect GitHub
 
-Playrunner uses GitHub OAuth to clone your private test repositories. This tutorial shows you how to authenticate, select a repository, and set a target branch.
+Playrunner uses a GitHub App with OAuth user authorization to clone private test
+repositories. This tutorial shows you how to create the app, authenticate, select
+a repository, and set a target branch.
 
 **Prerequisites:** A GitHub account and a repository containing Playwright tests.
 
 ---
 
-## Step 1 — Create a GitHub OAuth App
+## Step 1 - Create a GitHub App
 
-1. Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**.
-2. Fill in:
-   - **Application name:** `Playrunner Local`
-   - **Homepage URL:** the normal app URL printed by `./start-local.sh` (with defaults: `http://127.0.0.1:3100`)
-   - **Authorization callback URL:** the same base URL with `/oauth/callback/github` appended (with defaults: `http://127.0.0.1:3100/oauth/callback/github`)
-3. Click **Register application**.
-4. Copy the **Client ID** and generate a **Client Secret**.
-
----
-
-## Step 2 — Add credentials to your API `.env`
-
-Open `apps/api/.env` and set:
-
-```env
-GITHUB_CLIENT_ID=your_client_id_here
-GITHUB_CLIENT_SECRET=your_client_secret_here
-```
-
-Restart the API for the changes to take effect (re-run `./start-local.sh`).
-
----
-
-## Step 3 — Authenticate in the editor
-
-1. Open the Playrunner editor at the URL printed by `./start-local.sh`. With defaults, that is `http://127.0.0.1:3100`.
-2. Click on a **Playwright** node to open its configuration panel.
-3. In the **GitHub** section, click **Connect GitHub**.
-4. A popup window opens → authorise Playrunner in GitHub.
-5. The popup closes automatically and your GitHub username appears in the panel — you're connected.
+1. Open Playrunner, go to **Integrations**, and open **Connect to GitHub**.
+2. Copy the callback URL shown in the dialog.
+3. Go to
+   **GitHub -> Settings -> Developer settings -> GitHub Apps -> New GitHub App**.
+4. Under **Basic information**, set:
+   - **GitHub App name:** a local name such as `Playrunner Local`
+   - **Homepage URL:** the normal app URL printed by `./start-local.sh` (with
+     defaults: `http://127.0.0.1:3100`)
+5. Under **Identifying and authorizing users**, paste the callback URL from
+   Playrunner.
+6. Check **Request user authorization (OAuth) during installation**.
+7. Under **Post installation**, set **Setup URL** to the same callback URL and
+   check **Redirect on update**.
+8. Under **Webhook**, uncheck **Active**.
+9. Under **Repository permissions**, set **Contents** to **Read and write**.
+10. Under **Where can this GitHub App be installed?**, select the installation
+    scope you want:
+    - **Only on this account** for your own repositories.
+    - **Any account** if other users will install this app for their
+      repositories.
+11. Click **Create GitHub App**.
+12. Generate a new **Client Secret**.
+13. Copy the **Client ID**, **Client Secret**, and the app URL slug from
+    `https://github.com/apps/<slug>`.
 
 ---
 
-## Step 4 — Select a repository and branch
+## Step 2 - Paste Credentials in Playrunner
+
+In the **Connect to GitHub** dialog, fill in:
+
+- **GitHub App Name (URL Slug):** the `<slug>` from
+  `https://github.com/apps/<slug>`
+- **Client ID:** the GitHub App client ID
+- **Client Secret:** the generated client secret
+
+---
+
+## Step 3 - Install and Authenticate
+
+1. Click **Authenticate** in the Playrunner dialog.
+2. A GitHub popup opens for app installation.
+3. Choose the repositories Playrunner can access.
+4. Authorize the app.
+5. The popup closes automatically and Playrunner stores the GitHub credentials.
+
+---
+
+## Step 4 - Select a Repository and Branch
 
 With GitHub connected:
 
