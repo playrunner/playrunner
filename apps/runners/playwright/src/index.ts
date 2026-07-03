@@ -852,7 +852,8 @@ async function run() {
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
   const runnerControl = payload?.data?.runnerControl as
-    RunnerControlConfig | undefined;
+    | RunnerControlConfig
+    | undefined;
   runnerEventContext = {
     cloudProvider,
     editorApiUrl: requiredEditorApiUrl(payload?.data?.editorApiUrl),

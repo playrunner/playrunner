@@ -21,7 +21,12 @@ function requiredEditorApiUrl(): never {
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
 type WorkflowNodeState =
-  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
 
 type WorkflowEventPublisher = {
   executionId: string;
@@ -188,7 +193,8 @@ function createWorkflowEventPublisher(
       ? reqBody.executionAuthToken
       : '';
   const eventTransport = reqBody.eventTransport as
-    GcpPubSubEventTransport | undefined;
+    | GcpPubSubEventTransport
+    | undefined;
   const gcpAccessToken = getString(reqBody.settings?.gcp?.accessToken);
   const basePayload = {
     cloudProvider: reqBody.cloudProvider || 'LOCAL_RUNNER',
