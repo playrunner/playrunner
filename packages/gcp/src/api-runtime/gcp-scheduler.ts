@@ -110,10 +110,9 @@ function clarifySchedulerError(
     const projectLabel = projectId
       ? `project ${projectId}`
       : 'the selected project';
-    const gcloudProject = projectId || '<project-id>';
     const terraformCommand = buildTerraformApplyCommand(projectId, location);
 
-    return `${normalizedMessage}. Enable Cloud Scheduler for ${projectLabel} by running "${terraformCommand}" from the repo root, or save project_id and region in infra/gcp/terraform.tfvars and run "terraform -chdir=infra/gcp apply". This is the preferred setup path because Terraform also manages the scheduler service account. If you need a direct API enable step, run "gcloud services enable cloudscheduler.googleapis.com --project ${gcloudProject}".`;
+    return `${normalizedMessage}. Enable Cloud Scheduler for ${projectLabel} by running "${terraformCommand}" from the repo root, or save project_id and region in infra/gcp/terraform.tfvars and run "terraform -chdir=infra/gcp apply". Terraform also creates the scheduler service account used by schedule triggers.`;
   }
 
   return message;

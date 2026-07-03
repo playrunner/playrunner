@@ -278,7 +278,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           },
           {
             id: "scheduler-service-account",
-            text: "Cloud Scheduler will use the scheduler service account saved in the Connect to GCP dialog.",
+            text: "Cloud Scheduler will use the scheduler service account created by Terraform for the selected project.",
           },
         ]
       : [

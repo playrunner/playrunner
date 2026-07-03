@@ -158,13 +158,9 @@ export function GcpSettingsModal({
     useState('');
   const [playwrightImageUriTemplate, setPlaywrightImageUriTemplate] =
     useState('');
-  const [schedulerServiceAccountEmail, setSchedulerServiceAccountEmail] =
-    useState('');
   const [orchestratorTemplateEdited, setOrchestratorTemplateEdited] =
     useState(false);
   const [playwrightTemplateEdited, setPlaywrightTemplateEdited] =
-    useState(false);
-  const [schedulerServiceAccountEdited, setSchedulerServiceAccountEdited] =
     useState(false);
   const [projects, setProjects] = useState<
     { projectId: string; name: string }[]
@@ -178,17 +174,32 @@ export function GcpSettingsModal({
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedTerraformVars, setCopiedTerraformVars] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
     orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
   });
 
   const callbackUrl = `${window.location.origin}/oauth/callback/gcp`;
+  const schedulerServiceAccountEmail =
+    buildSchedulerServiceAccountEmail(selectedProject);
+  const terraformVars = React.useMemo(() => {
+    const projectId = selectedProject.trim() || '<project-id>';
+    const region = cloudRunLocation.trim() || 'us-central1';
+
+    return `project_id = "${projectId}"\nregion     = "${region}"`;
+  }, [cloudRunLocation, selectedProject]);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(callbackUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
+  const handleCopyTerraformVars = () => {
+    navigator.clipboard.writeText(terraformVars);
+    setCopiedTerraformVars(true);
+    setTimeout(() => setCopiedTerraformVars(false), 2000);
   };
 
   const resetCredentialState = React.useCallback(() => {
@@ -208,14 +219,13 @@ export function GcpSettingsModal({
     setOrchestratorCpuIdle(DEFAULT_ORCHESTRATOR_CPU_IDLE);
     setOrchestratorImageUriTemplate('');
     setPlaywrightImageUriTemplate('');
-    setSchedulerServiceAccountEmail('');
     setOrchestratorTemplateEdited(false);
     setPlaywrightTemplateEdited(false);
-    setSchedulerServiceAccountEdited(false);
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
+    setCopiedTerraformVars(false);
   }, []);
 
   const loadCredentialState = React.useCallback((data: any) => {
@@ -306,14 +316,7 @@ export function GcpSettingsModal({
     setPlaywrightImageUriTemplate(
       storedPlay || buildPlaywrightTemplate(regionVal),
     );
-    setSchedulerServiceAccountEmail(
-      next.schedulerServiceAccountEmail ||
-        buildSchedulerServiceAccountEmail(next.selectedProject || ''),
-    );
     setPlaywrightTemplateEdited(Boolean(storedPlay));
-    setSchedulerServiceAccountEdited(
-      Boolean(next.schedulerServiceAccountEmail),
-    );
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
@@ -669,7 +672,6 @@ export function GcpSettingsModal({
           orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
         playwrightImageUriTemplate: playwrightImageUriTemplate.trim(),
         schedulerServiceAccountEmail:
-          schedulerServiceAccountEmail.trim() ||
           buildSchedulerServiceAccountEmail(selectedProject),
         selectedProject,
       });
@@ -909,17 +911,10 @@ export function GcpSettingsModal({
                   onChange={async (e) => {
                     const newProject = e.target.value;
                     setSelectedProject(newProject);
-                    if (!schedulerServiceAccountEdited) {
-                      setSchedulerServiceAccountEmail(
-                        buildSchedulerServiceAccountEmail(newProject),
-                      );
-                    }
                     if (auth.currentUser) {
                       await persistCredentialPatch({
                         schedulerServiceAccountEmail:
-                          schedulerServiceAccountEdited
-                            ? schedulerServiceAccountEmail.trim()
-                            : buildSchedulerServiceAccountEmail(newProject),
+                          buildSchedulerServiceAccountEmail(newProject),
                         selectedProject: newProject,
                       });
                     }
@@ -965,21 +960,43 @@ export function GcpSettingsModal({
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">
-                  Cloud Scheduler Service Account
+                  Cloud Scheduler Service Account (Terraform-managed)
                 </label>
                 <Input
                   value={schedulerServiceAccountEmail}
-                  onChange={(e) => {
-                    setSchedulerServiceAccountEmail(e.target.value);
-                    setSchedulerServiceAccountEdited(true);
-                    setRunnerSettingsSaved(false);
-                    setRunnerSettingsError('');
-                  }}
+                  readOnly
                   placeholder="playrunner-scheduler@project-id.iam.gserviceaccount.com"
                 />
                 <p className="mt-1.5 text-[10px] text-muted">
-                  Cloud Scheduler uses this service account for the OIDC token
-                  sent to Playrunner's trigger endpoint.
+                  Terraform creates this service account from the selected
+                  project and grants it permission to invoke the Playrunner API.
+                </p>
+              </div>
+              <div>
+                <div className="mb-1.5 flex items-center justify-between gap-3">
+                  <label className="block text-xs font-medium text-muted">
+                    Terraform values
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleCopyTerraformVars}
+                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-[10px] font-medium text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                    title="Copy terraform.tfvars"
+                  >
+                    {copiedTerraformVars ? (
+                      <Check className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {copiedTerraformVars ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <pre className="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-3 text-xs leading-relaxed text-blue-400">
+                  <code>{terraformVars}</code>
+                </pre>
+                <p className="mt-1.5 text-[10px] text-muted">
+                  Save this as <code>infra/gcp/terraform.tfvars</code>, then run
+                  Terraform from the repo root.
                 </p>
               </div>
               <div>

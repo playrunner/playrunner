@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
+    }
   }
 }
 
@@ -20,6 +24,7 @@ locals {
     "iam.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
+    "serviceusage.googleapis.com",
     "storage.googleapis.com",
   ])
 
@@ -54,6 +59,14 @@ resource "google_project_service" "services" {
   disable_on_destroy = false
 }
 
+resource "time_sleep" "wait_for_project_services" {
+  create_duration = "30s"
+
+  depends_on = [
+    google_project_service.services,
+  ]
+}
+
 resource "google_artifact_registry_repository" "repositories" {
   for_each = local.artifact_repositories
 
@@ -63,7 +76,7 @@ resource "google_artifact_registry_repository" "repositories" {
   format        = "DOCKER"
 
   depends_on = [
-    google_project_service.services,
+    time_sleep.wait_for_project_services,
   ]
 }
 
@@ -71,7 +84,7 @@ resource "google_pubsub_topic" "workflow_events" {
   name = var.workflow_events_topic_name
 
   depends_on = [
-    google_project_service.services,
+    time_sleep.wait_for_project_services,
   ]
 }
 
@@ -81,7 +94,7 @@ resource "google_service_account" "scheduler" {
   description  = "Used by Cloud Scheduler to call Playrunner schedule trigger endpoints with OIDC."
 
   depends_on = [
-    google_project_service.services,
+    time_sleep.wait_for_project_services,
   ]
 }
 
@@ -136,7 +149,15 @@ resource "google_cloud_run_v2_service" "api" {
 
   depends_on = [
     google_artifact_registry_repository.repositories,
-    google_project_service.services,
+    time_sleep.wait_for_project_services,
+  ]
+}
+
+resource "time_sleep" "wait_for_api_service_iam" {
+  create_duration = "30s"
+
+  depends_on = [
+    google_cloud_run_v2_service.api,
   ]
 }
 
@@ -148,6 +169,10 @@ resource "google_cloud_run_v2_service_iam_member" "api_public_invoker" {
   name     = google_cloud_run_v2_service.api.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+
+  depends_on = [
+    time_sleep.wait_for_api_service_iam,
+  ]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "api_scheduler_invoker" {
@@ -156,6 +181,10 @@ resource "google_cloud_run_v2_service_iam_member" "api_scheduler_invoker" {
   name     = google_cloud_run_v2_service.api.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.scheduler.email}"
+
+  depends_on = [
+    time_sleep.wait_for_api_service_iam,
+  ]
 }
 
 resource "google_artifact_registry_repository_iam_member" "repo_reader" {
