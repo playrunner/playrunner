@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Copy, Check, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  BookOpen,
+  Copy,
+  Check,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+} from 'lucide-react';
 import { useIntegrationHost } from '@playrunner/integration-sdk';
 import { gcpIconUrl } from './icon';
 
@@ -32,10 +39,27 @@ const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
 const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
-const PUSH_RUNNERS_COMMAND =
-  './infra/gcp/scripts/push-runners.sh --target all --yes';
+const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const GCP_SETUP_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/setup');
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
   'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and runner settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
+
+type DocsImportMeta = ImportMeta & {
+  env?: {
+    VITE_DOCS_URL?: string;
+  };
+};
+
+function getDocsUrl(path = '') {
+  const baseUrl = (
+    (import.meta as DocsImportMeta).env?.VITE_DOCS_URL || DEFAULT_DOCS_URL
+  )
+    .trim()
+    .replace(/\/+$/, '');
+  const normalizedPath = path.trim().replace(/^\/+/, '');
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
+}
 
 function buildOrchestratorTemplate(
   region: string,
@@ -154,7 +178,6 @@ export function GcpSettingsModal({
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedRunnerCommand, setCopiedRunnerCommand] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
     orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
@@ -166,12 +189,6 @@ export function GcpSettingsModal({
     navigator.clipboard.writeText(callbackUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
-  };
-
-  const handleCopyRunnerCommand = () => {
-    navigator.clipboard.writeText(PUSH_RUNNERS_COMMAND);
-    setCopiedRunnerCommand(true);
-    setTimeout(() => setCopiedRunnerCommand(false), 2000);
   };
 
   const resetCredentialState = React.useCallback(() => {
@@ -660,7 +677,6 @@ export function GcpSettingsModal({
         next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
       );
       setRunnerSettingsSaved(true);
-      onClose();
     } catch (error) {
       console.error('Failed to save GCP runner settings', error);
       setRunnerSettingsError('Failed to save GCP runner settings.');
@@ -668,6 +684,33 @@ export function GcpSettingsModal({
       setIsSavingRunnerSettings(false);
     }
   };
+
+  const renderSetupGuideCallout = (description: string) => (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
+      <div className="flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
+          <BookOpen className="h-4 w-4 text-muted" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[var(--foreground)]">
+            First-time Google Cloud setup
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            {description}
+          </p>
+          <a
+            href={GCP_SETUP_DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+          >
+            Open GCP setup guide
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 
   const handleDisconnectGcp = async () => {
     if (!auth.currentUser) return;
@@ -1045,41 +1088,18 @@ export function GcpSettingsModal({
                 <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
                 the Playwright image.
               </p>
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-muted">
-                <p>After saving changed cloud runtime settings, rerun:</p>
-                <div className="relative mt-2">
-                  <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-3 pr-11 font-mono text-xs text-[var(--foreground)] select-all">
-                    {PUSH_RUNNERS_COMMAND}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={handleCopyRunnerCommand}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]"
-                    title={
-                      copiedRunnerCommand ? 'Copied command' : 'Copy command'
-                    }
-                    aria-label={
-                      copiedRunnerCommand ? 'Copied command' : 'Copy command'
-                    }
-                  >
-                    {copiedRunnerCommand ? (
-                      <Check className="h-3.5 w-3.5 text-emerald-500" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                  </button>
-                </div>
-                <p className="mt-2">
-                  If the project, region, or Artifact Registry repository path
-                  changed, apply <code>infra/gcp</code> Terraform first so the
-                  APIs, repositories, API service, and Pub/Sub topic exist.
-                </p>
-              </div>
+              {renderSetupGuideCallout(
+                'Terraform commands, Cloudflare tunnel guidance for local scheduler callbacks, and the runner-publishing command live in the setup guide. Complete that guide after selecting the project and region here.',
+              )}
             </div>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
+          {renderSetupGuideCallout(
+            'OAuth connects Playrunner to a Google account. The full setup guide covers the infrastructure and runner image steps you must run after authentication.',
+          )}
+
           <ol className="list-decimal pl-4 space-y-3 text-sm text-[var(--foreground)]">
             <li>
               Go to the{' '}

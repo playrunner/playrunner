@@ -13,7 +13,7 @@ In this tutorial you'll build a simple two-node workflow in the Playrunner visua
 
 ## Step 1 — Open the Editor
 
-Navigate to the URL printed by `./start-local.sh` and click **Editor** in the sidebar. With defaults, that is `http://127.0.0.1:3000`. The canvas opens with an empty workflow.
+Navigate to the URL printed by `./start-local.sh` and click **Editor** in the sidebar. With defaults, that is `http://127.0.0.1:3100`. The canvas opens with an empty workflow.
 
 ---
 
@@ -38,7 +38,7 @@ Navigate to the URL printed by `./start-local.sh` and click **Editor** in the si
 
 Click the **output port** on the right edge of the Schedule node and drag a connection line to the **input port** on the left edge of the Playwright node.
 
-The workflow now reads: *"On schedule → run Playwright tests"*.
+The workflow now reads: _"On schedule → run Playwright tests"_.
 
 ---
 

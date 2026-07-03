@@ -146,7 +146,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        'bg-surface border border-strong rounded-xl shadow-xl flex overflow-hidden',
+        'bg-surface border border-strong rounded-xl shadow-xl flex overflow-hidden select-text',
         className,
       )}
       onPointerDown={onPointerDown}

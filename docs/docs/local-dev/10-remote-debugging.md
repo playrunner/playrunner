@@ -13,7 +13,7 @@ title: Remote Runner Messaging
 
 Local Docker workflows publish logs, node states, output events, `runner_control`
 messages, and `runner_status` messages through the local Pub/Sub emulator. The
-Playwright runner still reaches the API at `http://host.docker.internal:3001`
+Playwright runner still reaches the API at `http://host.docker.internal:3011`
 to upload compressed output archives.
 
 GCP workflows use the same messaging architecture against GCP Pub/Sub. The
@@ -32,13 +32,13 @@ Future cloud runners should follow the same shape with their provider-native mes
 
 ## Debugging Checklist
 
-| Symptom | Check |
-| --- | --- |
-| Local logs do not appear | Confirm the `pubsub` Docker service is running and `PUBSUB_EMULATOR_HOST` points to it from the API process. |
-| Local runner waits forever | Confirm `PUBSUB_EMULATOR_HOST_DOCKER` points to the emulator from inside Docker, usually `host.docker.internal:8085`. |
-| GCP logs do not appear | Confirm Terraform created the workflow events topic and the connected GCP user can create filtered pull subscriptions. |
-| GCP runner does not start tests | Confirm the Orchestrator can publish runner control messages to the workflow events topic and the Playwright job has the current runner image. |
-| Editor stream connects but is empty | Confirm the API process is pulling execution events and writing them to PostgreSQL. |
+| Symptom                             | Check                                                                                                                                          |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local logs do not appear            | Confirm the `pubsub` Docker service is running and `PUBSUB_EMULATOR_HOST` points to it from the API process.                                   |
+| Local runner waits forever          | Confirm `PUBSUB_EMULATOR_HOST_DOCKER` points to the emulator from inside Docker, usually `host.docker.internal:8054`.                          |
+| GCP logs do not appear              | Confirm Terraform created the workflow events topic and the connected GCP user can create filtered pull subscriptions.                         |
+| GCP runner does not start tests     | Confirm the Orchestrator can publish runner control messages to the workflow events topic and the Playwright job has the current runner image. |
+| Editor stream connects but is empty | Confirm the API process is pulling execution events and writing them to PostgreSQL.                                                            |
 
 ---
 

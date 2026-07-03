@@ -86,7 +86,20 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-function clarifySchedulerError(message: string, projectId?: string): string {
+function buildTerraformApplyCommand(projectId?: string, location?: string) {
+  const args = [
+    projectId ? `-var="project_id=${projectId}"` : '',
+    location ? `-var="region=${location}"` : '',
+  ].filter(Boolean);
+
+  return `terraform -chdir=infra/gcp apply${args.length ? ` ${args.join(' ')}` : ''}`;
+}
+
+function clarifySchedulerError(
+  message: string,
+  projectId?: string,
+  location?: string,
+): string {
   if (
     message.includes('cloudscheduler.googleapis.com') &&
     (message.includes('has not been used') ||
@@ -98,8 +111,9 @@ function clarifySchedulerError(message: string, projectId?: string): string {
       ? `project ${projectId}`
       : 'the selected project';
     const gcloudProject = projectId || '<project-id>';
+    const terraformCommand = buildTerraformApplyCommand(projectId, location);
 
-    return `${normalizedMessage}. Enable Cloud Scheduler for ${projectLabel} by running "terraform -chdir=infra/gcp apply" from the repo root. This is the preferred setup path because Terraform also manages the scheduler service account. If you need a direct API enable step, run "gcloud services enable cloudscheduler.googleapis.com --project ${gcloudProject}".`;
+    return `${normalizedMessage}. Enable Cloud Scheduler for ${projectLabel} by running "${terraformCommand}" from the repo root, or save project_id and region in infra/gcp/terraform.tfvars and run "terraform -chdir=infra/gcp apply". This is the preferred setup path because Terraform also manages the scheduler service account. If you need a direct API enable step, run "gcloud services enable cloudscheduler.googleapis.com --project ${gcloudProject}".`;
   }
 
   return message;
@@ -110,10 +124,12 @@ async function schedulerRequest<T>({
   body,
   method,
   path,
+  location,
   projectId,
 }: {
   accessToken: string;
   body?: Record<string, any>;
+  location?: string;
   method: string;
   path: string;
   projectId?: string;
@@ -128,7 +144,11 @@ async function schedulerRequest<T>({
   });
 
   if (!response.ok) {
-    const message = clarifySchedulerError(await readError(response), projectId);
+    const message = clarifySchedulerError(
+      await readError(response),
+      projectId,
+      location,
+    );
     const error = new Error(`Cloud Scheduler request failed: ${message}`);
     (error as Error & { status?: number }).status = response.status;
     throw error;
@@ -145,10 +165,12 @@ async function tryGetJob(
   accessToken: string,
   jobName: string,
   projectId: string,
+  location: string,
 ): Promise<CloudSchedulerJob | null> {
   try {
     return await schedulerRequest<CloudSchedulerJob>({
       accessToken,
+      location,
       method: 'GET',
       path: jobName,
       projectId,
@@ -181,6 +203,8 @@ function buildJobBody({
   request: SchedulerProvisionRequest;
   serviceAccountEmail: string;
 }) {
+  assertHttpsSchedulerTarget(request.triggerUrl);
+
   return {
     name: jobName,
     description: `Playrunner schedule ${request.schedule.scheduleNodeId} for workflow ${request.schedule.workflowId}`,
@@ -203,23 +227,42 @@ function buildJobBody({
   };
 }
 
+function assertHttpsSchedulerTarget(triggerUrl: string) {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(triggerUrl);
+  } catch {
+    throw new Error(
+      `Cloud Scheduler target URL is invalid: "${triggerUrl}". Set PLAYRUNNER_PUBLIC_API_URL in apps/api/.env to the HTTPS base URL that Google Cloud Scheduler can reach, then restart the API and save the workflow again.`,
+    );
+  }
+
+  if (parsedUrl.protocol === 'https:') {
+    return;
+  }
+
+  throw new Error(
+    `Cloud Scheduler target URL must start with https:// because Playrunner uses OIDC authentication for scheduled runs. Current target is "${triggerUrl}". Set PLAYRUNNER_PUBLIC_API_URL in apps/api/.env to an HTTPS public API base URL, such as the Terraform api_service_uri output or a Cloudflare Tunnel URL, then restart the API and save the workflow again. For local API testing, run "cloudflared tunnel --url http://127.0.0.1:<api-port>" and use the printed https://... URL.`,
+  );
+}
+
 async function getSchedulerContext(request: SchedulerProvisionRequest) {
   const credentials = request.credentials as GcpTokenRefresh &
     Record<string, any>;
   const accessToken = requiredString(
     credentials.accessToken,
     'GCP access token',
-    'GCP credentials required. Connect a GCP account in Settings.',
+    'GCP credentials required. Connect GCP from the GCP Runner menu or Integrations.',
   );
   const projectId = requiredString(
     credentials.selectedProject,
     'GCP project',
-    'GCP project required. Select a project in Settings > Google Cloud.',
+    'GCP project required. Select a project in the Connect to GCP dialog.',
   );
   const location = requiredString(
     credentials.schedulerLocation || credentials.cloudRunLocation,
     'Cloud Scheduler location',
-    'Cloud Scheduler location required. Save a Cloud Run region in Settings > Google Cloud.',
+    'Cloud Scheduler location required. Save a Cloud Run region in the Connect to GCP dialog.',
   );
   const configuredServiceAccountEmail =
     typeof credentials.schedulerServiceAccountEmail === 'string'
@@ -252,13 +295,14 @@ export class GcpCloudSchedulerProvisioner implements SchedulerProvisioner {
   }
 
   async delete(request: SchedulerProvisionRequest): Promise<void> {
-    const { accessToken, jobName, projectId } =
+    const { accessToken, jobName, location, projectId } =
       await getSchedulerContext(request);
     const name = request.schedule.gcpJobName || jobName;
 
     await ignoreMissingJob(() =>
       schedulerRequest({
         accessToken,
+        location,
         method: 'DELETE',
         path: name,
         projectId,
@@ -269,13 +313,14 @@ export class GcpCloudSchedulerProvisioner implements SchedulerProvisioner {
   async pause(
     request: SchedulerProvisionRequest,
   ): Promise<SchedulerProvisionResult | void> {
-    const { accessToken, jobName, projectId } =
+    const { accessToken, jobName, location, projectId } =
       await getSchedulerContext(request);
     const name = request.schedule.gcpJobName || jobName;
 
     await ignoreMissingJob(() =>
       schedulerRequest({
         accessToken,
+        location,
         method: 'POST',
         path: `${name}:pause`,
         projectId,
@@ -295,21 +340,16 @@ export class GcpCloudSchedulerProvisioner implements SchedulerProvisioner {
       request,
       serviceAccountEmail,
     });
-    const existing = await tryGetJob(accessToken, jobName, projectId);
+    const existing = await tryGetJob(accessToken, jobName, projectId, location);
 
     if (!existing) {
       const parent = `projects/${projectId}/locations/${location}`;
       await schedulerRequest({
         accessToken,
         body: jobBody,
+        location,
         method: 'POST',
-        path: `${parent}/jobs?jobId=${encodeURIComponent(
-          jobName.split('/').pop() ||
-            buildJobId(
-              request.schedule.workflowId,
-              request.schedule.scheduleNodeId,
-            ),
-        )}`,
+        path: `${parent}/jobs`,
         projectId,
       });
 
@@ -319,6 +359,7 @@ export class GcpCloudSchedulerProvisioner implements SchedulerProvisioner {
     await schedulerRequest({
       accessToken,
       body: jobBody,
+      location,
       method: 'PATCH',
       path: `${jobName}?updateMask=${encodeURIComponent(
         'description,schedule,timeZone,httpTarget',
@@ -329,6 +370,7 @@ export class GcpCloudSchedulerProvisioner implements SchedulerProvisioner {
     if (existing.state === 'PAUSED') {
       await schedulerRequest({
         accessToken,
+        location,
         method: 'POST',
         path: `${jobName}:resume`,
         projectId,

@@ -21,11 +21,11 @@ title: Troubleshooting
    docker build -t playrunner-orchestrator ./apps/runners/orchestrator
    ```
 
-2. **Port 3002 is already in use.**
+2. **Port 3012 is already in use.**
    Find and kill the process using the port:
 
    ```bash
-   lsof -i :3002
+   lsof -i :3012
    kill -9 <PID>
    ```
 
@@ -33,16 +33,16 @@ title: Troubleshooting
    Current local runners also expose `/runtime` with Pub/Sub metadata. Check it:
 
    ```bash
-   curl http://localhost:3002/runtime
+   curl http://localhost:3012/runtime
    ```
 
    If it returns `404` or does not show `"runnerControl":"pubsub"`, reopen the
    editor or call `/api/runners/start`; the API should stop the stale container
-   bound to port `3002` and start a fresh `playrunner-orchestrator-local`
+   bound to port `3012` and start a fresh `playrunner-orchestrator-local`
    container. You can also stop it manually:
 
    ```bash
-   docker ps --filter publish=3002
+   docker ps --filter publish=3012
    docker stop <container-id>
    ```
 
@@ -77,20 +77,20 @@ title: Troubleshooting
    If you changed the local Postgres port, confirm the repo-root `.env.local` matches it as well. Restart the API after changing `.env.local`.
 
 3. **The API cannot pull execution events from the Pub/Sub emulator.**
-   Confirm `PUBSUB_EMULATOR_HOST` points to the emulator from the host, usually `127.0.0.1:8085`, and that `PUBSUB_EMULATOR_HOST_DOCKER` points to the same emulator from inside Docker, usually `host.docker.internal:8085` on Docker Desktop. Restart the API and Orchestrator after changing these values.
+   Confirm `PUBSUB_EMULATOR_HOST` points to the emulator from the host, usually `127.0.0.1:8054`, and that `PUBSUB_EMULATOR_HOST_DOCKER` points to the same emulator from inside Docker, usually `host.docker.internal:8054` on Docker Desktop. Restart the API and Orchestrator after changing these values.
 
 ---
 
-## Postgres port 5432 is already allocated
+## Postgres port 5431 is already allocated
 
-**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5432` failed because the port is already allocated.
+**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5431` failed because the port is already allocated.
 
 **Fix:**
 
 1. Edit the repo-root `.env.local`.
-2. Set a different host port, for example:
+2. Set `POSTGRES_PORT` to an available local port:
    ```dotenv
-   POSTGRES_PORT=55432
+   POSTGRES_PORT=<free-local-port>
    ```
 3. Re-run `./start-local.sh --setup` or `./start-local.sh`.
 

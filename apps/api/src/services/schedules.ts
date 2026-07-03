@@ -278,7 +278,7 @@ async function getGcpCredential(userId: string): Promise<Record<string, any>> {
 
   if (!credential || typeof credential.data !== 'object' || !credential.data) {
     throw new ScheduleValidationError(
-      'GCP credentials required. Connect a GCP account in Settings.',
+      'GCP credentials required. Connect GCP from the GCP Runner menu or Integrations.',
     );
   }
 

@@ -50,7 +50,7 @@ export function Modal({
       />
       <div
         className={cn(
-          'relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]',
+          'relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] select-text',
           maxWidth,
           className,
         )}
@@ -86,7 +86,12 @@ export function Modal({
         </div>
 
         {/* Body */}
-        <div className={cn('overflow-y-auto flex-1 p-6', bodyClassName)}>
+        <div
+          className={cn(
+            'overflow-y-auto flex-1 p-6 select-text',
+            bodyClassName,
+          )}
+        >
           {children}
         </div>
 

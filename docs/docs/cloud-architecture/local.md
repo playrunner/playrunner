@@ -37,7 +37,7 @@ graph TD
 3. **Pub/Sub Emulator**: Runs through `docker-compose.yml` and provides the same
    topic/subscription workflow used by the GCP runner path.
 4. **Orchestrator**: Runs as the `playrunner-orchestrator-local` Docker
-   container on port `3002`. It receives workflow execution requests, prepares
+   container on port `3012`. It receives workflow execution requests, prepares
    Playwright runners early, and starts them with Pub/Sub `runner_control`
    messages when the DAG reaches their nodes.
 5. **Playwright Runner**: Runs as an ephemeral Docker container. It prepares
@@ -53,7 +53,7 @@ graph TD
 4. If no compatible runner is running, the API starts
    `playrunner-orchestrator-local` with `PUBSUB_EMULATOR_HOST` and
    `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC` injected.
-5. If a stale container is still bound to port `3002` but does not expose the
+5. If a stale container is still bound to port `3012` but does not expose the
    expected Pub/Sub runtime metadata, the API stops it and starts a fresh
    Orchestrator container from the current image.
 
@@ -90,7 +90,7 @@ payload shape. Local development varies only by environment:
 - `LOCAL_PUBSUB_PROJECT_ID` defaults local emulator resources to
   `playrunner-local`.
 - `PUBSUB_EMULATOR_HOST_DOCKER` points Docker containers at the host emulator,
-  usually `host.docker.internal:8085`.
+  usually `host.docker.internal:8054`.
 
 That keeps the local path close to the GCP runner path while avoiding duplicate
 local-only control/status code.

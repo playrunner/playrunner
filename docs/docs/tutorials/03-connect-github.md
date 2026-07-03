@@ -16,8 +16,8 @@ Playrunner uses GitHub OAuth to clone your private test repositories. This tutor
 1. Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**.
 2. Fill in:
    - **Application name:** `Playrunner Local`
-   - **Homepage URL:** the normal app URL printed by `./start-local.sh` (with defaults: `http://127.0.0.1:3000`)
-   - **Authorization callback URL:** the same base URL with `/oauth/callback/github` appended (with defaults: `http://127.0.0.1:3000/oauth/callback/github`)
+   - **Homepage URL:** the normal app URL printed by `./start-local.sh` (with defaults: `http://127.0.0.1:3100`)
+   - **Authorization callback URL:** the same base URL with `/oauth/callback/github` appended (with defaults: `http://127.0.0.1:3100/oauth/callback/github`)
 3. Click **Register application**.
 4. Copy the **Client ID** and generate a **Client Secret**.
 
@@ -38,7 +38,7 @@ Restart the API for the changes to take effect (re-run `./start-local.sh`).
 
 ## Step 3 — Authenticate in the editor
 
-1. Open the Playrunner editor at the URL printed by `./start-local.sh`. With defaults, that is `http://127.0.0.1:3000`.
+1. Open the Playrunner editor at the URL printed by `./start-local.sh`. With defaults, that is `http://127.0.0.1:3100`.
 2. Click on a **Playwright** node to open its configuration panel.
 3. In the **GitHub** section, click **Connect GitHub**.
 4. A popup window opens → authorise Playrunner in GitHub.

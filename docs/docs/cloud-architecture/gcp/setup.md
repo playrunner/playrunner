@@ -12,7 +12,69 @@ by the app, and the `push-runners.sh` image publishing flow.
 
 The order matters: `push-runners.sh` reads the selected project, Cloud Run
 region, service name, and image templates from the GCP credential row that the
-Integrations modal saves to Postgres.
+Connect to GCP dialog saves to Postgres.
+
+## First-Time Setup Order
+
+For a new Google Cloud project, do the setup in this order:
+
+1. Start Playrunner locally and open the **Connect to GCP** dialog from
+   **Integrations** or the **GCP Runner** menu in the editor.
+2. Authenticate with Google, select the project, set the Cloud Run region, and
+   save the runner settings.
+3. Create `infra/gcp/terraform.tfvars` with the same project and region:
+
+```hcl
+project_id = "my-gcp-project"
+region     = "us-central1"
+```
+
+4. From the repo root, initialize and apply Terraform:
+
+```bash
+terraform -chdir=infra/gcp init
+terraform -chdir=infra/gcp plan
+terraform -chdir=infra/gcp apply
+```
+
+5. Check the Terraform outputs against the values saved in the Connect to GCP
+   dialog:
+
+```bash
+terraform -chdir=infra/gcp output repository_urls
+terraform -chdir=infra/gcp output api_service_uri
+terraform -chdir=infra/gcp output scheduler_service_account_email
+node infra/gcp/scripts/gcp-settings.mjs json
+```
+
+6. After Terraform succeeds, publish the runtime images:
+
+```bash
+./infra/gcp/scripts/push-runners.sh --target all --yes
+```
+
+7. If Cloud Scheduler will call your local API, create a public HTTPS tunnel
+   before saving an enabled schedule:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3011
+```
+
+Use the API port printed by `./start-local.sh` or the `PORT` value in
+`apps/api/.env` if your local API is not on `3011`. Put Cloudflare's printed
+`https://...trycloudflare.com` URL in `apps/api/.env`:
+
+```dotenv
+PLAYRUNNER_PUBLIC_API_URL=https://your-tunnel.trycloudflare.com
+```
+
+Restart the local API after changing `apps/api/.env`, then save the workflow
+with the schedule enabled.
+
+Terraform creates the GCP infrastructure first: Artifact Registry repositories,
+the API Cloud Run service, Pub/Sub, and the scheduler service account. The push
+script runs after that so it can build and publish the API, Orchestrator, and
+Playwright runner images into infrastructure that already exists.
 
 ## How Terraform and Saved Settings Fit Together
 
@@ -22,7 +84,7 @@ There are three setup surfaces, and they deliberately do different jobs:
 | -------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | GCP infrastructure   | `infra/gcp` Terraform                                          | Artifact Registry repositories, the API Cloud Run service, the shared Pub/Sub topic, and the scheduler service account                  |
 | API runtime settings | `apps/api/.env` or Terraform `api_environment_variables`       | Local or Cloud Run API database/output settings and the Pub/Sub topic name                                                              |
-| Runtime GCP settings | The GCP Integration modal, stored in the `CloudCredential` row | Selected project, Cloud Run region, Orchestrator service name, Orchestrator min/max instances, CPU idle policy, and image URI templates |
+| Runtime GCP settings | The Connect to GCP dialog, stored in the `CloudCredential` row | Selected project, Cloud Run region, Orchestrator service name, Orchestrator min/max instances, CPU idle policy, and image URI templates |
 
 OAuth does not create infrastructure. After OAuth succeeds, Playrunner can list
 projects and save the runtime settings that point to your infrastructure.
@@ -41,7 +103,7 @@ Keep them aligned with this contract:
 | `repository_urls.playwright_runner` | `playwrightImageUriTemplate`       | After replacing `{projectId}`, it should be `<repository_urls.playwright_runner>/playrunner-playwright-runner-{runtime}:{version}` |
 | `workflow_events_topic_name`        | `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC` | Same topic name; both default to `playrunner-workflow-events`                                                                      |
 | `scheduler_service_account_email`   | `schedulerServiceAccountEmail`     | Same service account email; the modal defaults this from the selected project                                                      |
-| Orchestrator service settings       | GCP integration modal              | Service name, min/max instances, and CPU idle policy used by `push-runners.sh` and the runtime service reconciliation path.        |
+| Orchestrator service settings       | Connect to GCP dialog              | Service name, min/max instances, and CPU idle policy used by `push-runners.sh` and the runtime service reconciliation path.        |
 
 Terraform creates the API Cloud Run service with a bootstrap image so the
 service URL and IAM policy exist before the real API image is pushed. The
@@ -102,10 +164,10 @@ readiness, and start signals.
   base URL before saving an enabled schedule. Without this override, Playrunner
   uses the current request host for scheduler callback URLs.
 - A Google OAuth client for the Playrunner app. Add the exact redirect URI shown
-  in the GCP integration modal. With the default local app URL, this is:
+  in the Connect to GCP dialog. With the default local app URL, this is:
 
 ```text
-http://127.0.0.1:3000/oauth/callback/gcp
+http://127.0.0.1:3100/oauth/callback/gcp
 ```
 
 For local evaluation, the simplest IAM path is to use a project owner account.
@@ -126,6 +188,33 @@ scheduler_service_account_users = [
   "user:you@example.com",
 ]
 ```
+
+### Local Scheduler Callbacks Through Cloudflare
+
+`PLAYRUNNER_PUBLIC_API_URL` is only needed when a Google Cloud Scheduler job must
+call your local Playrunner API. Cloud Scheduler runs in Google Cloud, so it
+cannot reach `http://127.0.0.1:3011` on your laptop directly. The variable tells
+Playrunner which public HTTPS base URL to put into the scheduler job callback.
+
+For a quick local tunnel, start Cloudflare Tunnel against the local API port:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:3011
+```
+
+Use the API port printed by `./start-local.sh` or the `PORT` value in
+`apps/api/.env` if your local API is not on `3011`. Cloudflare prints a public
+`https://...trycloudflare.com` URL. Put that base URL in `apps/api/.env`:
+
+```dotenv
+PLAYRUNNER_PUBLIC_API_URL=https://your-tunnel.trycloudflare.com
+```
+
+Use `PLAYRUNNER_PUBLIC_API_URL`; there is no separate generic `PUBLIC_API_URL`
+setting for this path. Restart the local API after changing `apps/api/.env`,
+then save the workflow with the schedule enabled. If you use a named Cloudflare
+Tunnel and DNS hostname instead of a quick tunnel, set
+`PLAYRUNNER_PUBLIC_API_URL` to that hostname.
 
 ## 1. Choose a Project and Region
 
@@ -221,7 +310,7 @@ workflow_events_topic_name = "playrunner-workflow-events"
 # Optional for local-only API debugging. Required when the Playrunner API should
 # run in GCP. Use a Postgres URL reachable from Cloud Run, not localhost.
 api_environment_variables = {
-  DATABASE_URL = "postgresql://USER:PASSWORD@HOST:5432/playrunner?schema=public"
+  DATABASE_URL = "postgresql://USER:PASSWORD@HOST:PORT/playrunner?schema=public"
 }
 
 # Optional; grant non-owner users permission to create scheduler jobs with the
@@ -291,7 +380,7 @@ us-central1-docker.pkg.dev/{projectId}/orchestrator/playrunner-orchestrator:late
 us-central1-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}
 ```
 
-If they do not line up, reopen the GCP Integration modal, update the saved
+If they do not line up, reopen the Connect to GCP dialog, update the saved
 project, region, or image URI templates, and save again before running
 `push-runners.sh`.
 
@@ -394,7 +483,7 @@ Rerun the push script after changing:
 - `packages/*/src/api/**` or `packages/*/src/api-runtime/**` code consumed by
   the API image
 - `config/playwright-runner-versions.json`
-- The image URI templates saved in the GCP integration modal
+- The image URI templates saved in the Connect to GCP dialog
 
 For local-only API debugging, restarting the local API is enough. For a live GCP
 API, any API or API-runtime package change requires rebuilding and pushing the

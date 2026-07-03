@@ -5,67 +5,67 @@ title: Services & Ports
 
 # Services & Ports
 
-> **Local development only.** The defaults below come from the repo-root `.env.local.example` file and can be overridden in a local `.env.local`.
+> **Local development only.** The standard local-flow ports below come from the repo-root `.env.local.example` file and package `.env.example` files. Override them in `.env.local` or the relevant service `.env`.
 
 ---
 
 ## Port Map
 
-| Service                | Port              | Binding                          | Notes                                                        |
-| ---------------------- | ----------------- | -------------------------------- | ------------------------------------------------------------ |
-| Web App (Vite)         | `3000` by default | `localhost:WEB_PORT`             | Product app in normal runs                                   |
-| Setup App (Vite)       | `3000` by default | `localhost:WEB_PORT`             | Dedicated setup UI during `--setup` runs                     |
-| Docs Site (Docusaurus) | `3004` by default | `localhost:DOCS_PORT`            | Host process started by `start-local.sh`; not part of Docker |
-| API Server             | `3001`            | `localhost:3001`                 | Express, started via `npm start`                             |
-| Setup Installer        | `3003` by default | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
-| Orchestrator           | `3002`            | `localhost:3002`                 | Docker container, port-mapped `3002:8080`                    |
-| PostgreSQL             | `5432` by default | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
-| Pub/Sub Emulator       | `8085` by default | `localhost:PUBSUB_EMULATOR_PORT` | Docker container started by `start-local.sh`                 |
+| Service                | Port   | Binding                          | Notes                                                        |
+| ---------------------- | ------ | -------------------------------- | ------------------------------------------------------------ |
+| Web App (Vite)         | `3100` | `localhost:WEB_PORT`             | Product app in normal runs                                   |
+| Setup App (Vite)       | `3100` | `localhost:WEB_PORT`             | Dedicated setup UI during `--setup` runs                     |
+| Docs Site (Docusaurus) | `3104` | `localhost:DOCS_PORT`            | Host process started by `start-local.sh`; not part of Docker |
+| API Server             | `3011` | `localhost:3011`                 | Express, started via `npm start`                             |
+| Setup Installer        | `3103` | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
+| Orchestrator           | `3012` | `localhost:3012`                 | Docker container, port-mapped `3012:8080`                    |
+| PostgreSQL             | `5431` | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
+| Pub/Sub Emulator       | `8054` | `localhost:PUBSUB_EMULATOR_PORT` | Docker container started by `start-local.sh`                 |
 
 ---
 
-## Web App — Port 3000 by Default
+## Web App — Port 3100
 
 **Location:** `apps/frontend`
-**Start command:** `cd apps/frontend && npm run dev`
+**Start command:** `./start-local.sh` or `cd apps/frontend && npm run dev -- --port 3100`
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
 The product app proxies two path prefixes so the browser never hits CORS issues:
 
 | Proxy path   | Forwarded to            |
 | ------------ | ----------------------- |
-| `/api/*`     | `http://127.0.0.1:3001` |
-| `/outputs/*` | `http://127.0.0.1:3001` |
+| `/api/*`     | `http://127.0.0.1:3011` |
+| `/outputs/*` | `http://127.0.0.1:3011` |
 
 This proxy is configured in `apps/frontend/vite.config.ts` and targets the URL in `VITE_API_URL`.
 
 ---
 
-## Setup App — Port 3000 by Default (setup runs only)
+## Setup App — Port 3100 (setup runs only)
 
 **Location:** `apps/setup`
-**Start command:** `cd apps/frontend && npm exec vite -- --config ../setup/vite.config.ts`
+**Start command:** `./start-local.sh --setup` or `cd apps/frontend && npm exec vite -- --config ../setup/vite.config.ts --port 3100`
 **Technology:** React 19 + Vite 6 + TailwindCSS 4 + TypeScript
 
-The setup app exists only while the repo-root startup flow is running in setup mode. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3003` by default.
+The setup app exists only while the repo-root startup flow is running in setup mode. It serves the PostgreSQL, Prisma, and local-auth setup wizard and proxies `/setup-api/*` to the local-only installer on port `3103`.
 
 `./start-local.sh` starts this app automatically when local setup has not been completed yet, and `./start-local.sh --setup` can still force it explicitly. No product routes are available during setup.
 
 ---
 
-## Docs Site — Port 3004 by Default
+## Docs Site — Port 3104
 
 **Location:** `docs`
-**Start command:** `cd docs && npm run start -- --port 3004`
+**Start command:** `cd docs && npm run start -- --port 3104`
 **Technology:** Docusaurus 3 + React 19 + TypeScript
 
-`./start-local.sh` and `./start-local.sh --setup` also start the Docusaurus site on the host so the product header's `Docs` link can stay local during development. The default local landing URL is `http://127.0.0.1:3004/playrunner/`.
+`./start-local.sh` and `./start-local.sh --setup` also start the Docusaurus site on the host so the product header's `Docs` link can stay local during development. The standard local landing URL is `http://127.0.0.1:3104/playrunner/`.
 
 This service is not part of Docker.
 
 ---
 
-## API Server — Port 3001
+## API Server — Port 3011
 
 **Location:** `apps/api`  
 **Start command:** `cd apps/api && npm start` (runs `tsx src/index.ts`)  
@@ -95,10 +95,10 @@ This service is not part of Docker.
 
 ---
 
-## Setup Installer — Port 3003 by Default
+## Setup Installer — Port 3103
 
 **Location:** `setup/installer`  
-**Start command:** `node setup/installer/index.mjs`  
+**Start command:** `SETUP_INSTALLER_PORT=3103 node setup/installer/index.mjs`
 **Technology:** Node.js HTTP server using built-in modules only
 
 ### What the setup installer does
@@ -115,7 +115,7 @@ This service is intentionally separate from the main API so it is never part of 
 
 ---
 
-## Orchestrator — Port 3002
+## Orchestrator — Port 3012
 
 **Location:** `apps/runners/orchestrator`  
 **Technology:** Express 5 + TypeScript + Docker CLI (inside the container)  
@@ -127,10 +127,10 @@ The Orchestrator runs inside Docker and is given access to the host's Docker soc
 ```bash
 docker run --rm \
   --name playrunner-orchestrator-local \
-  -p 3002:8080 \
+  -p 3012:8080 \
   -e PORT=8080 \
-  -e EDITOR_API_URL=http://host.docker.internal:3001 \
-  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8085 \
+  -e EDITOR_API_URL=http://host.docker.internal:3011 \
+  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8054 \
   -e GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=playrunner-workflow-events \
   -v /var/run/docker.sock:/var/run/docker.sock \
   playrunner-orchestrator
@@ -138,11 +138,11 @@ docker run --rm \
 
 ### Orchestrator Endpoints
 
-| Method | Path       | Description                                                                                         |
-| ------ | ---------- | --------------------------------------------------------------------------------------------------- |
-| `POST` | `/execute` | Accepts a workflow (nodes + connections + settings) and runs it                                     |
-| `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`                                                  |
-| `GET`  | `/health`  | Health check — returns `200 OK` when the container is up                                            |
+| Method | Path       | Description                                                                                        |
+| ------ | ---------- | -------------------------------------------------------------------------------------------------- |
+| `POST` | `/execute` | Accepts a workflow (nodes + connections + settings) and runs it                                    |
+| `POST` | `/stop`    | Kills the Docker container for a specific `nodeId`                                                 |
+| `GET`  | `/health`  | Health check — returns `200 OK` when the container is up                                           |
 | `GET`  | `/runtime` | Runtime metadata used by the API to confirm the local runner has Pub/Sub control/status configured |
 
 ### Orchestrator Lifecycle
@@ -150,7 +150,7 @@ docker run --rm \
 The Orchestrator is a standby runner. Once started, it stays up until the container or process is stopped explicitly. It no longer exits just because the editor heartbeat is unavailable.
 
 When the editor mounts, `/api/runners/start` checks both `/health` and
-`/runtime`. If a stale container is still bound to port `3002` but does not
+`/runtime`. If a stale container is still bound to port `3012` but does not
 report the expected local Pub/Sub metadata, the API stops that container and
 starts a fresh `playrunner-orchestrator-local` container from the current image.
 

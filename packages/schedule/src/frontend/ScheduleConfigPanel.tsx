@@ -8,6 +8,7 @@ import {
   Timer,
   Repeat,
   Info,
+  ExternalLink,
 } from "lucide-react";
 
 type FrequencyType = "minute" | "hour" | "day" | "week" | "month";
@@ -102,8 +103,41 @@ const COMMON_TIMEZONES = [
 type NextStepItem = {
   id: string;
   text: React.ReactNode;
-  command?: string;
 };
+
+const DEFAULT_DOCS_URL = "https://docs.playrunner.dev";
+const GCP_SETUP_DOCS_URL = getDocsUrl("docs/cloud-architecture/gcp/setup");
+
+type DocsImportMeta = ImportMeta & {
+  env?: {
+    VITE_DOCS_URL?: string;
+  };
+};
+
+function getDocsUrl(path = "") {
+  const baseUrl = (
+    (import.meta as DocsImportMeta).env?.VITE_DOCS_URL || DEFAULT_DOCS_URL
+  )
+    .trim()
+    .replace(/\/+$/, "");
+  const normalizedPath = path.trim().replace(/^\/+/, "");
+
+  return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
+}
+
+function renderGcpSetupDocsLink() {
+  return (
+    <a
+      href={GCP_SETUP_DOCS_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+    >
+      GCP setup guide
+      <ExternalLink className="h-3 w-3" />
+    </a>
+  );
+}
 
 export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   nodeId,
@@ -209,60 +243,53 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           text: "Select GCP Runner in the top bar before enabling this schedule.",
         },
         {
-          id: "terraform-setup",
-          text: "Run Terraform from the repo root for the GCP project you select. It enables Cloud Scheduler and creates the scheduler service account.",
-          command: "terraform -chdir=infra/gcp apply",
-        },
-        {
-          id: "connect-settings",
-          text: "Connect Google Cloud settings with the same project, region, and scheduler service account.",
+          id: "connect-gcp",
+          text: (
+            <>
+              Open the Connect to GCP dialog and complete the{" "}
+              {renderGcpSetupDocsLink()} before enabling schedules.
+            </>
+          ),
         },
       ]
     : schedule.enabled
       ? [
           {
-            id: "terraform-setup",
-            text: "Before saving an enabled schedule for the first time, run Terraform from the repo root. It enables Cloud Scheduler and creates the scheduler service account.",
-            command: "terraform -chdir=infra/gcp apply",
-          },
-          {
-            id: "terraform-output",
-            text: "If Settings does not already have the scheduler service account, use the Terraform output and save it in Settings > Google Cloud.",
-            command:
-              "terraform -chdir=infra/gcp output -raw scheduler_service_account_email",
-          },
-          {
-            id: "save-workflow",
-            text: "Save the workflow to create or update the Cloud Scheduler job.",
-          },
-          {
-            id: "public-url",
+            id: "gcp-setup",
             text: (
               <>
-                For local API callbacks, set{" "}
-                <code className="font-mono text-[var(--foreground)]">
-                  PLAYRUNNER_PUBLIC_API_URL
-                </code>{" "}
-                before saving.
+                Confirm the {renderGcpSetupDocsLink()} is complete, including
+                Terraform infrastructure and pushed runner images.
               </>
             ),
           },
           {
-            id: "gcloud-fallback",
-            text: "If you are not using Terraform, enable the API directly in the same project selected in Settings > Google Cloud.",
-            command:
-              "gcloud services enable cloudscheduler.googleapis.com --project <selected-project>",
+            id: "save-workflow",
+            text: (
+              <>
+                Save the workflow to create or update the Cloud Scheduler job.
+                The job will call the Playrunner API endpoint{" "}
+                <code className="font-mono text-[var(--foreground)]">
+                  /api/scheduler/trigger/...
+                </code>{" "}
+                configured during Google Cloud setup.
+              </>
+            ),
+          },
+          {
+            id: "scheduler-service-account",
+            text: "Cloud Scheduler will use the scheduler service account saved in the Connect to GCP dialog.",
           },
         ]
       : [
           {
-            id: "terraform-setup",
-            text: "Run Terraform from the repo root before enabling a schedule for the first time. It enables Cloud Scheduler and creates the scheduler service account.",
-            command: "terraform -chdir=infra/gcp apply",
-          },
-          {
-            id: "settings-project",
-            text: "Cloud Scheduler uses the Google Cloud project, region, and scheduler service account saved in Settings.",
+            id: "gcp-setup",
+            text: (
+              <>
+                Complete the {renderGcpSetupDocsLink()} from the Connect to GCP
+                dialog before this schedule can be provisioned.
+              </>
+            ),
           },
           {
             id: "enable-save",
@@ -556,14 +583,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               {nextStepItems.map((item) => (
                 <li key={item.id} className="flex gap-2">
                   <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--muted)]" />
-                  <span className="min-w-0 flex-1">
-                    <span>{item.text}</span>
-                    {item.command ? (
-                      <code className="mt-1.5 block max-w-full overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-2 font-mono text-xs text-[var(--foreground)]">
-                        {item.command}
-                      </code>
-                    ) : null}
-                  </span>
+                  <span className="min-w-0 flex-1">{item.text}</span>
                 </li>
               ))}
             </ul>

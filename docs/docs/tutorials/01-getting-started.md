@@ -51,7 +51,7 @@ cp .env.local.example .env.local
 
 This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup. For the standard local flow, `./start-local.sh` creates and updates `apps/api/.env` for you whenever setup is active.
+Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. The default Postgres port is `5431`, matching `.env.local.example`. If that port is already in use locally, set `POSTGRES_PORT=<free-local-port>` before setup. For the standard local flow, `./start-local.sh` creates and updates `apps/api/.env` for you whenever setup is active.
 
 ---
 
@@ -72,7 +72,7 @@ This is the main local-development entry point. On the first run it:
 Then open the setup URL printed by the script. With defaults:
 
 ```text
-http://127.0.0.1:3000/setup
+http://127.0.0.1:3100/setup
 ```
 
 This route is only available while startup has put the workspace into setup mode. The setup app is gated by a one-time session token and talks to the local installer through `/setup-api/*`.
@@ -80,7 +80,7 @@ This route is only available while startup has put the workspace into setup mode
 On first-time setup, the local docs site also opens in the browser. With defaults:
 
 ```text
-http://127.0.0.1:3004/playrunner/
+http://127.0.0.1:3104/playrunner/
 ```
 
 ### What the setup UI does
@@ -156,7 +156,7 @@ Use these fallback checks before going deeper:
 5. If startup succeeds but the browser did not land on setup, open the setup URL directly. With defaults:
 
    ```text
-   http://127.0.0.1:3000/setup
+   http://127.0.0.1:3100/setup
    ```
 
 ---
@@ -166,7 +166,7 @@ Use these fallback checks before going deeper:
 Once the script output settles, open the URL printed by the script. With defaults:
 
 ```
-http://127.0.0.1:3000
+http://127.0.0.1:3100
 ```
 
 Log in with the username and password you configured in the setup wizard. You should then see the Playrunner product app and can continue into the workflow editor.

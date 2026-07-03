@@ -28,17 +28,17 @@ Playrunner is a workflow orchestration platform for running automated Playwright
 
 | Service               | Technology           | Port   | How it runs                                                 |
 | --------------------- | -------------------- | ------ | ----------------------------------------------------------- |
-| **Web App**           | React + Vite         | `3000` | `npm run dev` (host process)                                |
-| **API**               | Express + TypeScript | `3001` | `npm start` (host process)                                  |
-| **Orchestrator**      | Express + TypeScript | `3002` | Docker container (spawned by the API)                       |
+| **Web App**           | React + Vite         | `3100` | `npm run dev` (host process)                                |
+| **API**               | Express + TypeScript | `3011` | `npm start` (host process)                                  |
+| **Orchestrator**      | Express + TypeScript | `3012` | Docker container (spawned by the API)                       |
 | **Playwright Runner** | TypeScript + Python  | —      | Docker container (prepared and started by the Orchestrator) |
 
 There is also one supporting host service:
 
-| Service              | Port              | How it runs                         |
-| -------------------- | ----------------- | ----------------------------------- |
-| **Docs Site**        | `3004` by default | Host process via `./start-local.sh` |
-| **Pub/Sub Emulator** | `8085` by default | Docker container                    |
+| Service              | Port   | How it runs                         |
+| -------------------- | ------ | ----------------------------------- |
+| **Docs Site**        | `3104` | Host process via `./start-local.sh` |
+| **Pub/Sub Emulator** | `8054` | Docker container                    |
 
 ---
 
@@ -48,13 +48,13 @@ There is also one supporting host service:
 Browser
   │
   ▼
-Web App (Vite, :3000)
+Web App (Vite, :3100)
   │  /api/* and /outputs/* proxied to API
   ▼
-API Server (Express, :3001)
+API Server (Express, :3011)
   │  spawns on first Editor open
   ▼
-Orchestrator (Docker, :3002)
+Orchestrator (Docker, :3012)
   │  schedules Playwright runner preparation in the background, then starts runners by Pub/Sub control message
   ▼
 Playwright Runner (Docker, ephemeral)

@@ -11,11 +11,11 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 
 ## What's in these docs?
 
-| Section                                        | Description                                    |
-| ---------------------------------------------- | ---------------------------------------------- |
-| [Tutorials](./tutorials)                       | Step-by-step guides to get up and running      |
-| [Development](./local-dev)                     | Deep reference for the local development stack |
-| [Integrations](./integration-packages)         | Installable integrations for Playrunner        |
+| Section                                | Description                                    |
+| -------------------------------------- | ---------------------------------------------- |
+| [Tutorials](./tutorials)               | Step-by-step guides to get up and running      |
+| [Development](./local-dev)             | Deep reference for the local development stack |
+| [Integrations](./integration-packages) | Installable integrations for Playrunner        |
 
 ---
 
@@ -25,13 +25,13 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 Browser
   │
   ▼
-Web App (Vite, :3000)
+Web App (Vite, :3100)
   │  /api/* and /outputs/* proxied to API
   ▼
-API Server (Express, :3001)
+API Server (Express, :3011)
   │  spawns on first Editor open
   ▼
-Orchestrator (Docker, :3002)
+Orchestrator (Docker, :3012)
   │  spawns per node execution
   ▼
 Playwright Runner (Docker, ephemeral)

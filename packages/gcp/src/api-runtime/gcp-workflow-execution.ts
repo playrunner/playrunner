@@ -253,7 +253,8 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     if (!gcp?.accessToken) {
       return {
         body: {
-          error: 'GCP credentials required. Connect a GCP account in Settings.',
+          error:
+            'GCP credentials required. Connect GCP from the GCP Runner menu or Integrations before running.',
         },
         status: 400,
       };
@@ -263,7 +264,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       return {
         body: {
           error:
-            'GCP project required. Select a project in the UI before running.',
+            'GCP project required. Select a project in the Connect to GCP dialog before running.',
         },
         status: 400,
       };
@@ -273,7 +274,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     if (missingSettings.length > 0) {
       return {
         body: {
-          error: `GCP runner settings required. Open Settings > Google Cloud and complete: ${missingSettings.join(', ')}.`,
+          error: `GCP runner settings required. Open the Connect to GCP dialog and complete: ${missingSettings.join(', ')}.`,
         },
         status: 400,
       };
@@ -413,8 +414,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
 
     let prewarmPromise:
-      | Promise<Record<string, PrewarmedGcpPlaywrightRunner>>
-      | undefined;
+      Promise<Record<string, PrewarmedGcpPlaywrightRunner>> | undefined;
     let prewarmedPlaywrightRunners: Record<
       string,
       PrewarmedGcpPlaywrightRunner
