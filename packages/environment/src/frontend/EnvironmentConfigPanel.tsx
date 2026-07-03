@@ -13,6 +13,18 @@ interface EnvironmentConfigPanelProps extends IntegrationConfigPanelProps {
   onPointerDown?: (e: React.PointerEvent) => void;
 }
 
+function areEnvironmentConfigsEqual(
+  currentConfig: Record<string, any>,
+  nextConfig: Record<string, any>,
+) {
+  return (
+    (currentConfig.environmentId ?? null) === nextConfig.environmentId &&
+    JSON.stringify(
+      Array.isArray(currentConfig.variables) ? currentConfig.variables : [],
+    ) === JSON.stringify(nextConfig.variables)
+  );
+}
+
 export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   nodeId,
   nodeLabel,
@@ -65,6 +77,16 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const getEnvironments = store.getEnvironments;
   const saveEnvironment = store.saveEnvironment;
   const saveSecret = store.saveSecret;
+  const latestConfigRef = useRef(config);
+  const latestOnChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
+
+  useEffect(() => {
+    latestOnChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!currentUserId || !getEnvironments) return;
@@ -123,8 +145,13 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
     } else {
       updatedConfig['environmentId'] = null;
     }
-    onChange(nodeId, updatedConfig);
-  }, [variables, linkedEnvId, nodeId, onChange]);
+
+    if (areEnvironmentConfigsEqual(latestConfigRef.current, updatedConfig)) {
+      return;
+    }
+
+    latestOnChangeRef.current(nodeId, updatedConfig);
+  }, [variables, linkedEnvId, nodeId]);
 
   useEffect(() => {
     const lastVar = variables[variables.length - 1];

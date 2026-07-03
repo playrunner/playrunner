@@ -48,10 +48,15 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [rightWidth, setRightWidth] = useState(33.33);
   const containerRef = useRef<HTMLDivElement>(null);
   const latestConfigRef = useRef(config);
+  const latestOnChangeRef = useRef(onChange);
 
   useEffect(() => {
     latestConfigRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    latestOnChangeRef.current = onChange;
+  }, [onChange]);
 
   const startResize = (e: React.PointerEvent, side: 'left' | 'right') => {
     e.preventDefault();
@@ -91,10 +96,22 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   useEffect(() => {
     if (!auth.currentUser) return;
 
+    if (
+      currentIntegration?.requiresAuth === false &&
+      !currentIntegration.authProviderId &&
+      !currentIntegration.authProviders?.length
+    ) {
+      setIsConnected(true);
+      setIntegrationData(null);
+      return;
+    }
+
     const integrationId =
       authProvider ||
       currentIntegration?.authProviderId ||
-      currentIntegration?.id;
+      (currentIntegration?.authProviders?.length
+        ? undefined
+        : currentIntegration?.id);
 
     if (!integrationId) {
       if (currentIntegration?.authProviders) {
@@ -107,7 +124,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 provider.id,
               );
               if (integration) {
-                onChange(nodeId, {
+                latestOnChangeRef.current(nodeId, {
                   ...latestConfigRef.current,
                   authProvider: provider.id,
                 });
@@ -135,7 +152,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     );
 
     return () => unsubscribe();
-  }, [authProvider, currentIntegration, nodeId, onChange]);
+  }, [authProvider, currentIntegration, nodeId]);
 
   const showInputPanel = currentIntegration?.showInputPanel !== false;
   const showAuthenticationPanel =
