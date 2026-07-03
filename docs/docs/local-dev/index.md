@@ -38,7 +38,7 @@ There is also one supporting host service:
 | Service              | Port   | How it runs                         |
 | -------------------- | ------ | ----------------------------------- |
 | **Docs Site**        | `3104` | Host process via `./start-local.sh` |
-| **Pub/Sub Emulator** | `8054` | Docker container                    |
+| **Pub/Sub Emulator** | `8084` | Docker container                    |
 
 ---
 

@@ -15,7 +15,7 @@ export const LOCAL_PUBSUB_PROJECT_ID =
   process.env.LOCAL_PUBSUB_PROJECT_ID || 'playrunner-local';
 export const PUBSUB_EMULATOR_HOST_DOCKER =
   process.env.PUBSUB_EMULATOR_HOST_DOCKER ||
-  `host.docker.internal:${process.env.PUBSUB_EMULATOR_PORT || 8085}`;
+  `host.docker.internal:${process.env.PUBSUB_EMULATOR_PORT || 8084}`;
 const schedulerPublicApiUrl = process.env.PLAYRUNNER_PUBLIC_API_URL || '';
 export const PORT = process.env.PORT || 3001;
 

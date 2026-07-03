@@ -90,7 +90,7 @@ reaches those nodes. Locally, each prepared runner starts with the equivalent of
 ```bash
 docker run --rm \
   -e GCP_PROJECT=local-dev \
-  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8054 \
+  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8084 \
   -e MY_ENV_VAR=value \           # user-defined env vars from the Environment node
   -e PAYLOAD='{"data":{...},...}' \  # full JSON config
   playrunner-playwright-runner-typescript:<configured-tag>

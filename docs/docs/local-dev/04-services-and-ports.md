@@ -19,8 +19,8 @@ title: Services & Ports
 | API Server             | `3011` | `localhost:3011`                 | Express, started via `npm start`                             |
 | Setup Installer        | `3103` | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
 | Orchestrator           | `3012` | `localhost:3012`                 | Docker container, port-mapped `3012:8080`                    |
-| PostgreSQL             | `5431` | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
-| Pub/Sub Emulator       | `8054` | `localhost:PUBSUB_EMULATOR_PORT` | Docker container started by `start-local.sh`                 |
+| PostgreSQL             | `5432` | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
+| Pub/Sub Emulator       | `8084` | `localhost:PUBSUB_EMULATOR_PORT` | Docker container started by `start-local.sh`                 |
 
 ---
 
@@ -130,7 +130,7 @@ docker run --rm \
   -p 3012:8080 \
   -e PORT=8080 \
   -e EDITOR_API_URL=http://host.docker.internal:3011 \
-  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8054 \
+  -e PUBSUB_EMULATOR_HOST=host.docker.internal:8084 \
   -e GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=playrunner-workflow-events \
   -v /var/run/docker.sock:/var/run/docker.sock \
   playrunner-orchestrator

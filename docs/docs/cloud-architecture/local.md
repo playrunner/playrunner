@@ -90,7 +90,7 @@ payload shape. Local development varies only by environment:
 - `LOCAL_PUBSUB_PROJECT_ID` defaults local emulator resources to
   `playrunner-local`.
 - `PUBSUB_EMULATOR_HOST_DOCKER` points Docker containers at the host emulator,
-  usually `host.docker.internal:8054`.
+  usually `host.docker.internal:8084`.
 
 That keeps the local path close to the GCP runner path while avoiding duplicate
 local-only control/status code.

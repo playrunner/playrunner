@@ -24,7 +24,7 @@ title: PostgreSQL, Prisma & Local Auth
 `./start-local.sh` now starts the local Postgres container automatically from `docker-compose.yml`. By default it uses:
 
 ```text
-postgresql://postgres:postgres@127.0.0.1:5431/playrunner?schema=public
+postgresql://postgres:postgres@127.0.0.1:5432/playrunner?schema=public
 ```
 
 These values come from the repo-root `.env.local` file, which is created from `.env.local.example` on first run if it does not already exist.

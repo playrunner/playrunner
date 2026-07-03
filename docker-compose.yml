@@ -28,7 +28,7 @@ services:
         "--project=${LOCAL_PUBSUB_PROJECT_ID:-playrunner-local}",
       ]
     ports:
-      - "${PUBSUB_EMULATOR_PORT:-8085}:${PUBSUB_EMULATOR_PORT:-8085}"
+      - "${PUBSUB_EMULATOR_PORT:-8084}:${PUBSUB_EMULATOR_PORT:-8085}"
 
 volumes:
   playrunner-postgres-data:

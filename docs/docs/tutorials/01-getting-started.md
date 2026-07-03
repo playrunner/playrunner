@@ -51,7 +51,7 @@ cp .env.local.example .env.local
 
 This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. The default Postgres port is `5431`, matching `.env.local.example`. If that port is already in use locally, set `POSTGRES_PORT=<free-local-port>` before setup. For the standard local flow, `./start-local.sh` creates and updates `apps/api/.env` for you whenever setup is active.
+Edit `.env.local` before continuing if you want different local web, docs, or Postgres ports. The default Postgres port is `5432`, matching `.env.local.example`. If that port is already in use locally, set `POSTGRES_PORT=<free-local-port>` before setup. For the standard local flow, `./start-local.sh` creates and updates `apps/api/.env` for you whenever setup is active.
 
 ---
 

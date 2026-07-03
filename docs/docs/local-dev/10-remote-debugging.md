@@ -35,7 +35,7 @@ Future cloud runners should follow the same shape with their provider-native mes
 | Symptom                             | Check                                                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Local logs do not appear            | Confirm the `pubsub` Docker service is running and `PUBSUB_EMULATOR_HOST` points to it from the API process.                                   |
-| Local runner waits forever          | Confirm `PUBSUB_EMULATOR_HOST_DOCKER` points to the emulator from inside Docker, usually `host.docker.internal:8054`.                          |
+| Local runner waits forever          | Confirm `PUBSUB_EMULATOR_HOST_DOCKER` points to the emulator from inside Docker, usually `host.docker.internal:8084`.                          |
 | GCP logs do not appear              | Confirm Terraform created the workflow events topic and the connected GCP user can create filtered pull subscriptions.                         |
 | GCP runner does not start tests     | Confirm the Orchestrator can publish runner control messages to the workflow events topic and the Playwright job has the current runner image. |
 | Editor stream connects but is empty | Confirm the API process is pulling execution events and writing them to PostgreSQL.                                                            |

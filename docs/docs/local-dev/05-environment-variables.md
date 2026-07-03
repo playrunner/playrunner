@@ -18,13 +18,13 @@ Copy from `.env.local.example`.
 | `WEB_PORT`                  | `3100`                              | Port used by both the setup app and the normal web app                                          |
 | `DOCS_PORT`                 | `3104`                              | Port used by the local Docusaurus docs site started by `./start-local.sh`                       |
 | `SETUP_INSTALLER_PORT`      | `3103`                              | Port used by the local setup installer service                                                  |
-| `POSTGRES_PORT`             | `5431`                              | Host port mapped to the Docker-backed Postgres container                                        |
+| `POSTGRES_PORT`             | `5432`                              | Host port mapped to the Docker-backed Postgres container                                        |
 | `POSTGRES_HOST`             | `127.0.0.1`                         | Hostname used when deriving the default local Prisma connection                                 |
 | `POSTGRES_DB`               | `playrunner`                        | Database name for the standard local Postgres container                                         |
 | `POSTGRES_USER`             | `postgres`                          | Username for the standard local Postgres container                                              |
 | `POSTGRES_PASSWORD`         | `postgres`                          | Password for the standard local Postgres container                                              |
-| `PUBSUB_EMULATOR_PORT`      | `8054`                              | Host port mapped to the Docker-backed Pub/Sub emulator                                          |
-| `PUBSUB_EMULATOR_HOST`      | `127.0.0.1:8054`                    | Host-facing Pub/Sub emulator endpoint used by the API                                           |
+| `PUBSUB_EMULATOR_PORT`      | `8084`                              | Host port mapped to the Docker-backed Pub/Sub emulator                                          |
+| `PUBSUB_EMULATOR_HOST`      | `127.0.0.1:8084`                    | Host-facing Pub/Sub emulator endpoint used by the API                                           |
 | `LOCAL_PUBSUB_PROJECT_ID`   | `playrunner-local`                  | Project ID used for local Pub/Sub emulator topics and subscriptions                             |
 | `DATABASE_URL`              | _(optional)_                        | Explicit Prisma datasource URL override for both setup defaults and the normal API startup path |
 | `VITE_DEFAULT_DATABASE_URL` | _(optional)_                        | Override only the database URL prefilled in the setup form                                      |

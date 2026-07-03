@@ -77,13 +77,13 @@ title: Troubleshooting
    If you changed the local Postgres port, confirm the repo-root `.env.local` matches it as well. Restart the API after changing `.env.local`.
 
 3. **The API cannot pull execution events from the Pub/Sub emulator.**
-   Confirm `PUBSUB_EMULATOR_HOST` points to the emulator from the host, usually `127.0.0.1:8054`, and that `PUBSUB_EMULATOR_HOST_DOCKER` points to the same emulator from inside Docker, usually `host.docker.internal:8054` on Docker Desktop. Restart the API and Orchestrator after changing these values.
+   Confirm `PUBSUB_EMULATOR_HOST` points to the emulator from the host, usually `127.0.0.1:8084`, and that `PUBSUB_EMULATOR_HOST_DOCKER` points to the same emulator from inside Docker, usually `host.docker.internal:8084` on Docker Desktop. Restart the API and Orchestrator after changing these values.
 
 ---
 
-## Postgres port 5431 is already allocated
+## Postgres port 5432 is already allocated
 
-**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5431` failed because the port is already allocated.
+**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5432` failed because the port is already allocated.
 
 **Fix:**
 
