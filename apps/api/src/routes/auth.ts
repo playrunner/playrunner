@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
+import { verifyToken } from '../auth/verify-token';
 import {
   getLocalAuthPublicUser,
   isLocalAuthConfigured,
@@ -9,6 +10,14 @@ import {
 } from '../auth/local-auth';
 
 export const authRouter = Router();
+
+function getBearerToken(authHeader: unknown) {
+  if (typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) {
+    return '';
+  }
+
+  return authHeader.slice('Bearer '.length).trim();
+}
 
 authRouter.post('/login', async (req, res) => {
   if (!(await isLocalAuthConfigured())) {
@@ -47,6 +56,22 @@ authRouter.post('/login', async (req, res) => {
           ? error.message
           : 'Failed to validate local credentials.',
     });
+  }
+});
+
+authRouter.get('/session', async (req, res) => {
+  const token = getBearerToken(req.headers.authorization);
+  if (!token) {
+    res.json({ user: null });
+    return;
+  }
+
+  try {
+    await verifyToken(token);
+    const user = await getLocalAuthPublicUser();
+    res.json({ user });
+  } catch {
+    res.json({ user: null });
   }
 });
 

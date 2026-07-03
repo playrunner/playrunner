@@ -2,7 +2,6 @@ import fs from "fs/promises";
 import http from "http";
 import path from "path";
 import crypto from "crypto";
-import { spawn } from "child_process";
 import { createRequire } from "module";
 import { fileURLToPath } from "url";
 
@@ -204,52 +203,6 @@ async function withApiPrismaClient(databaseUrl, callback) {
   }
 }
 
-function createPrismaCommandEnv(config) {
-  return {
-    ...process.env,
-    DATABASE_URL: config.databaseUrl,
-    DIRECT_URL: config.directUrl || "",
-  };
-}
-
-async function runCommand(command, args, options = {}) {
-  await new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: "inherit",
-    });
-
-    child.on("error", reject);
-    child.on("exit", (code) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(
-        new Error(
-          `Command failed: ${command} ${args.join(" ")} (exit code ${code ?? "unknown"})`,
-        ),
-      );
-    });
-  });
-}
-
-async function ensureApiPrismaReady(config) {
-  const apiDir = getApiDir();
-  const env = createPrismaCommandEnv(config);
-
-  await runCommand("npm", ["run", "prisma:generate"], {
-    cwd: apiDir,
-    env,
-  });
-  await runCommand("npx", ["prisma", "db", "push", "--skip-generate"], {
-    cwd: apiDir,
-    env,
-  });
-}
-
 async function upsertStoredLocalAuthConfig(databaseUrl, config) {
   const secretValues = [
     {
@@ -332,170 +285,10 @@ async function hasStoredLocalAuthConfig(databaseUrl) {
   return Boolean(storedConfig && hasCompleteLocalAuthConfig(storedConfig));
 }
 
-function renderPrismaSchema(config) {
-  const optionalDatasourceLines = [];
-
-  if (config.directUrl) {
-    optionalDatasourceLines.push('  directUrl = env("DIRECT_URL")');
-  }
-
-  const datasourceBlock = [
-    "datasource db {",
-    '  provider = "postgresql"',
-    '  url      = env("DATABASE_URL")',
-    ...optionalDatasourceLines,
-    "}",
-  ].join("\n");
-
-  return `generator client {
-  provider = "prisma-client-js"
-}
-
-${datasourceBlock}
-
-model Project {
-  id        String     @id
-  userId    String
-  title     String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  workflows Workflow[]
-
-  @@index([userId])
-}
-
-model Workflow {
-  id           String    @id
-  userId       String
-  projectId    String?
-  title        String?
-  nodes        Json?
-  connections  Json?
-  cloudProvider String?
-  concurrency  Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([projectId])
-}
-
-model WorkflowExecution {
-  id             String          @id
-  userId         String
-  workflowId     String?
-  cloudProvider  String
-  status         String          @default("running")
-  ingestTokenHash String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  startedAt      DateTime        @default(now())
-  completedAt    DateTime?
-  events         WorkflowEvent[]
-
-  @@index([userId])
-  @@index([workflowId])
-}
-
-model WorkflowEvent {
-  id            BigInt            @id @default(autoincrement())
-  executionId   String
-  sourceEventId String?           @unique
-  userId        String
-  workflowId    String?
-  nodeId        String?
-  type          String
-  level         String?
-  message       String?
-  payload       Json
-  occurredAt    DateTime?
-  createdAt     DateTime          @default(now())
-  execution     WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-
-  @@index([executionId])
-  @@index([userId])
-  @@index([workflowId])
-}
-
-model Integration {
-  id        String   @id @default(cuid())
-  userId    String
-  provider  String
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, provider])
-  @@index([userId])
-}
-
-model CloudCredential {
-  id        String   @id @default(cuid())
-  userId    String
-  provider  String
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, provider])
-  @@index([userId])
-}
-
-model Environment {
-  id          String   @id
-  userId      String
-  name        String
-  description String?
-  variables   Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([userId])
-}
-
-model Secret {
-  id          String   @id @default(cuid())
-  userId      String
-  secretKey   String
-  value       String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([userId, secretKey])
-  @@index([userId])
-}
-`;
-}
-
-function renderPrismaClientTs() {
-  return `import {PrismaClient} from '@prisma/client';
-
-declare global {
-  var prisma: PrismaClient | undefined;
-}
-
-export const prisma =
-  globalThis.prisma ||
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'warn', 'error'] : ['error'],
-  });
-
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.prisma = prisma;
-}
-`;
-}
-
 async function installPostgresFiles(config) {
-  const apiDir = getApiDir();
-  const prismaDir = path.join(apiDir, "prisma");
-  const apiLibDir = path.join(apiDir, "src", "lib");
   const envPath = getApiEnvPath();
 
-  await fs.mkdir(prismaDir, { recursive: true });
-  await fs.mkdir(apiLibDir, { recursive: true });
+  await fs.mkdir(path.dirname(envPath), { recursive: true });
 
   const envLines = await readApiEnvTemplateLines();
 
@@ -505,18 +298,7 @@ async function installPostgresFiles(config) {
   while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
     envLines.pop();
   }
-  await fs.writeFile(
-    path.join(prismaDir, "schema.prisma"),
-    renderPrismaSchema(config),
-    "utf8",
-  );
-  await fs.writeFile(
-    path.join(apiLibDir, "prisma.ts"),
-    renderPrismaClientTs(),
-    "utf8",
-  );
 
-  await ensureApiPrismaReady(config);
   await seedLocalAuthConfig(config);
   await fs.writeFile(envPath, `${envLines.join("\n")}\n`, "utf8");
 }
@@ -548,7 +330,9 @@ async function getSetupStatus() {
   const databaseUrl = getEnvVariable(envLines, "DATABASE_URL");
 
   return {
-    completed: databaseUrl ? await hasStoredLocalAuthConfig(databaseUrl) : false,
+    completed: databaseUrl
+      ? await hasStoredLocalAuthConfig(databaseUrl)
+      : false,
   };
 }
 

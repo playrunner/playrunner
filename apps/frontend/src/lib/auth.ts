@@ -162,16 +162,11 @@ class LocalAuth {
     }
 
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch('/api/auth/session', {
         headers: {
           Authorization: `Bearer ${this.token}`,
         },
       });
-
-      if (response.status === 401 || response.status === 403) {
-        await this.signOut();
-        return null;
-      }
 
       if (!response.ok) {
         return this.currentUser;

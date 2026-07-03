@@ -384,6 +384,19 @@ bootstrap_api_prisma() {
     )
 }
 
+prepare_setup_database_schema() {
+    if [ -z "${VITE_DEFAULT_DATABASE_URL:-}" ]; then
+        echo "Missing setup database URL. Set DATABASE_URL or VITE_DEFAULT_DATABASE_URL in ${ROOT_ENV_FILE}."
+        exit 1
+    fi
+
+    echo "🗃️  Applying Prisma schema to setup PostgreSQL database..."
+    (
+        cd "${API_DIR}"
+        PRISMA_HIDE_UPDATE_MESSAGE=true DATABASE_URL="${VITE_DEFAULT_DATABASE_URL}" npx prisma db push --skip-generate
+    )
+}
+
 sync_api_database_url() {
     if [ ! -f "${API_DIR}/.env" ]; then
         return 0
@@ -490,8 +503,6 @@ wait_for_compose_service pubsub 30
 
 if [ -f "${API_DIR}/.env" ]; then
     sync_api_database_url
-    bootstrap_api_prisma
-    API_ENV_PREPARED=true
 fi
 
 if has_completed_local_setup; then
@@ -521,6 +532,15 @@ if [ "$RUN_SETUP" != "true" ] && [ "$SETUP_COMPLETED" != "true" ]; then
     RUN_SETUP=true
     AUTO_SETUP=true
     echo "🛠️  No completed local setup detected. Opening setup automatically."
+fi
+
+if [ "$RUN_SETUP" = "true" ]; then
+    prepare_setup_database_schema
+fi
+
+if [ "$RUN_SETUP" != "true" ] && [ -f "${API_DIR}/.env" ]; then
+    bootstrap_api_prisma
+    API_ENV_PREPARED=true
 fi
 
 # 2. Build the Orchestrator and Playwright Docker images
