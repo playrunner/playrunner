@@ -26,8 +26,18 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "cloud-architecture/gcp/oauth",
+              "path": "/playrunner/docs/cloud-architecture/gcp/oauth",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "cloud-architecture/gcp/setup",
               "path": "/playrunner/docs/cloud-architecture/gcp/setup",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "cloud-architecture/gcp/terraform",
+              "path": "/playrunner/docs/cloud-architecture/gcp/terraform",
               "sidebar": "tutorialSidebar"
             },
             {

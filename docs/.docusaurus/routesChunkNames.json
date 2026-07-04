@@ -249,17 +249,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-687"
   },
-  "/playrunner/docs-aca": {
+  "/playrunner/docs-7f8": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docsaba-84d"
     }
   },
-  "/playrunner/docs-526": {
+  "/playrunner/docs-a7f": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-607-284"
   },
-  "/playrunner/docs-215": {
+  "/playrunner/docs-28d": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/category/runner-architecture-b7c": {
@@ -278,9 +278,17 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-cloud-architecture-gcp-ff-9-191"
   },
+  "/playrunner/docs/cloud-architecture/gcp/oauth-0a9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-cloud-architecture-gcp-oauthb-04-a4a"
+  },
   "/playrunner/docs/cloud-architecture/gcp/setup-bd0": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-cloud-architecture-gcp-setupe-3-c-8ce"
+  },
+  "/playrunner/docs/cloud-architecture/gcp/terraform-067": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-cloud-architecture-gcp-terraforma-0-f-a67"
   },
   "/playrunner/docs/cloud-architecture/local-440": {
     "__comp": "__comp---theme-doc-item-178-a40",

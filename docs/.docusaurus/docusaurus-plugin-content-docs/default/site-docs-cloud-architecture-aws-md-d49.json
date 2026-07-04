@@ -19,8 +19,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Setup",
-    "permalink": "/playrunner/docs/cloud-architecture/gcp/setup"
+    "title": "Terraform",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/terraform"
   },
   "next": {
     "title": "Azure",

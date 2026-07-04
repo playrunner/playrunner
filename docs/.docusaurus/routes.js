@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', 'aca'),
+    component: ComponentCreator('/playrunner/docs', '7f8'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '526'),
+        component: ComponentCreator('/playrunner/docs', 'a7f'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '215'),
+            component: ComponentCreator('/playrunner/docs', '28d'),
             routes: [
               {
                 path: '/playrunner/docs/category/runner-architecture',
@@ -149,8 +149,20 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
+                path: '/playrunner/docs/cloud-architecture/gcp/oauth',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/oauth', '0a9'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
                 path: '/playrunner/docs/cloud-architecture/gcp/setup',
                 component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/setup', 'bd0'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/cloud-architecture/gcp/terraform',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/terraform', '067'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

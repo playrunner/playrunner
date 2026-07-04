@@ -1,7 +1,7 @@
 {
   "id": "cloud-architecture/gcp/setup",
   "title": "GCP Setup",
-  "description": "Use this runbook when you want Playrunner to execute workflows on Google Cloud.",
+  "description": "Use this page as the top-level setup checklist. The detailed instructions are",
   "source": "@site/docs/cloud-architecture/gcp/setup.md",
   "sourceDirName": "cloud-architecture/gcp",
   "slug": "/cloud-architecture/gcp/setup",
@@ -23,7 +23,7 @@
     "permalink": "/playrunner/docs/cloud-architecture/gcp/"
   },
   "next": {
-    "title": "AWS",
-    "permalink": "/playrunner/docs/cloud-architecture/aws"
+    "title": "OAuth",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/oauth"
   }
 }
