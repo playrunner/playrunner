@@ -1,0 +1,7 @@
+interface:
+  display_name: "Playrunner UI Design System Alignment"
+  short_description: "Align UI work to Playrunner design system"
+  default_prompt: "Use $playrunner-ui to align this UI change with the repo design system and shared components."
+
+policy:
+  allow_implicit_invocation: true
