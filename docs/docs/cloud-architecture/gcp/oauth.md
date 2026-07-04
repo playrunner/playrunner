@@ -49,12 +49,18 @@ different host or port.
 1. Paste the **Client ID** and **Client Secret** into the Connect to GCP dialog.
 2. Click **Authenticate**.
 3. Complete the Google OAuth popup.
-4. After the dialog shows **Connected to GCP**, select the Google Cloud project.
+4. After the dialog shows **Connected to GCP**, select or enter the Google
+   Cloud project ID.
 5. Set the Cloud Run region, for example `us-central1`.
 6. Click **Save GCP Settings**.
 
 Playrunner stores the OAuth tokens, selected project, Cloud Run region, and
 standard runner defaults in the local `CloudCredential` row.
+
+The project list is only an autocomplete convenience. On a new Google Cloud
+project, the lookup can be unavailable until Cloud Resource Manager is enabled.
+Enter the project ID manually and continue to Terraform; Terraform enables the
+required APIs for the selected project.
 
 ## 4. Continue to Terraform
 

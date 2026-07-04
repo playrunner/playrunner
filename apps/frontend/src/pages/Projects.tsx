@@ -6,7 +6,7 @@ import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import {
   CLOUD_PROVIDERS,
-  getDefaultCloudProviderId,
+  getDefaultWorkflowCloudProviderId,
 } from '../runtime/cloudProviders';
 import { PremiumOnboardingModal } from '../runtime/onboarding';
 
@@ -71,7 +71,7 @@ export default function Projects() {
         nodes,
         connections,
         title: 'Default Workflow',
-        cloudProvider: getDefaultCloudProviderId(),
+        cloudProvider: getDefaultWorkflowCloudProviderId(),
       });
       navigate(`/projects/${projectId}`);
     } else {
@@ -129,7 +129,7 @@ export default function Projects() {
         nodes: defaultNodes,
         connections: defaultConnections,
         title: 'Default Workflow',
-        cloudProvider: getDefaultCloudProviderId(),
+        cloudProvider: getDefaultWorkflowCloudProviderId(),
       });
       navigate(`/projects/${projectId}`);
     } catch (error) {

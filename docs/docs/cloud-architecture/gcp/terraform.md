@@ -151,10 +151,11 @@ image URI templates from the same local `CloudCredential` row.
 
 ## Troubleshooting
 
-| Symptom                                   | Check                                                                                                                                                             |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `No GCP cloud credential found`           | Complete OAuth, select a project and region, then click **Save GCP Settings**.                                                                                    |
-| `GCP setting "selectedProject" is empty`  | Reopen Connect to GCP, select the project, and save again.                                                                                                        |
-| `GCP setting "cloudRunLocation" is empty` | Reopen Connect to GCP, set the Cloud Run region, and save again.                                                                                                  |
-| Terraform cannot create resources         | Confirm the account used by Terraform can enable services and create Artifact Registry, Cloud Run, Pub/Sub, IAM, and Scheduler resources in the selected project. |
-| Cloud Run cannot pull images              | Run `./infra/gcp/scripts/push-runners.sh --target all --yes` after Terraform creates the Artifact Registry repositories.                                          |
+| Symptom                                                      | Check                                                                                                                                                             |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `No GCP cloud credential found`                              | Complete OAuth, select a project and region, then click **Save GCP Settings**.                                                                                    |
+| `GCP setting "selectedProject" is empty`                     | Reopen Connect to GCP, select the project, and save again.                                                                                                        |
+| `GCP setting "cloudRunLocation" is empty`                    | Reopen Connect to GCP, set the Cloud Run region, and save again.                                                                                                  |
+| Cloud Resource Manager is disabled while selecting a project | Enter the project ID manually in Connect to GCP. The project list is autocomplete only; Terraform enables the required APIs for the selected project.             |
+| Terraform cannot create resources                            | Confirm the account used by Terraform can enable services and create Artifact Registry, Cloud Run, Pub/Sub, IAM, and Scheduler resources in the selected project. |
+| Cloud Run cannot pull images                                 | Run `./infra/gcp/scripts/push-runners.sh --target all --yes` after Terraform creates the Artifact Registry repositories.                                          |

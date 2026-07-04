@@ -35,6 +35,16 @@ type GcpCredentialData = {
   updatedAt?: string;
 };
 
+type GcpProject = {
+  name?: string;
+  projectId: string;
+};
+
+const PROJECT_LOOKUP_DISABLED_MESSAGE =
+  'Project lookup is unavailable until the Cloud Resource Manager API is enabled. Enter the project ID manually to continue setup.';
+const PROJECT_LOOKUP_EMPTY_MESSAGE =
+  'No projects were returned for this Google account. Enter the project ID manually to continue setup.';
+
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
 const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
@@ -96,6 +106,33 @@ function buildSchedulerServiceAccountEmail(projectId: string): string {
   return `${DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID}@${trimmedProjectId}.iam.gserviceaccount.com`;
 }
 
+function isCloudResourceManagerDisabledError(data: any): boolean {
+  const message =
+    typeof data?.error?.message === 'string' ? data.error.message : '';
+  if (message.includes('cloudresourcemanager.googleapis.com')) {
+    return true;
+  }
+
+  const details = Array.isArray(data?.error?.details) ? data.error.details : [];
+
+  return details.some((detail: any) => {
+    return (
+      detail?.reason === 'SERVICE_DISABLED' &&
+      detail?.metadata?.service === 'cloudresourcemanager.googleapis.com'
+    );
+  });
+}
+
+function getProjectLookupErrorMessage(data: any): string {
+  if (isCloudResourceManagerDisabledError(data)) {
+    return PROJECT_LOOKUP_DISABLED_MESSAGE;
+  }
+
+  return typeof data?.error?.message === 'string'
+    ? data.error.message
+    : 'Failed to fetch projects from Google Cloud. Enter the project ID manually to continue setup.';
+}
+
 function normalizePositiveInteger(value: unknown, fallback: number): number {
   const numberValue =
     typeof value === 'string' && value.trim()
@@ -153,7 +190,6 @@ export function GcpSettingsModal({
   const Button = ui.Button;
   const Input = ui.Input;
   const Modal = ui.Modal;
-  const Select = ui.Select;
   const [gcpClientId, setGcpClientId] = useState('');
   const [gcpClientSecret, setGcpClientSecret] = useState('');
   const [cloudRunLocation, setCloudRunLocation] = useState('');
@@ -167,11 +203,10 @@ export function GcpSettingsModal({
   const [orchestratorCpuIdle, setOrchestratorCpuIdle] = useState(
     DEFAULT_ORCHESTRATOR_CPU_IDLE,
   );
-  const [projects, setProjects] = useState<
-    { projectId: string; name: string }[]
-  >([]);
+  const [projects, setProjects] = useState<GcpProject[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [projectFetchError, setProjectFetchError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
   const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
@@ -228,6 +263,7 @@ export function GcpSettingsModal({
     setOrchestratorCpuIdle(DEFAULT_ORCHESTRATOR_CPU_IDLE);
     setProjects([]);
     setSelectedProject('');
+    setProjectFetchError('');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
     setCopiedTerraformCommand(false);
@@ -370,6 +406,7 @@ export function GcpSettingsModal({
       expiresAt?: number;
     }) => {
       setIsLoadingProjects(true);
+      setProjectFetchError('');
       try {
         let currentToken = cred.accessToken;
         let refreshed = false;
@@ -418,6 +455,55 @@ export function GcpSettingsModal({
           return false;
         };
 
+        const fetchProjectsWithToken = async (accessToken: string) => {
+          const loadedProjects: GcpProject[] = [];
+          let pageToken = '';
+
+          do {
+            const url = new URL(
+              'https://cloudresourcemanager.googleapis.com/v1/projects',
+            );
+            if (pageToken) {
+              url.searchParams.set('pageToken', pageToken);
+            }
+
+            const res = await fetch(url.toString(), {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+              return { data, ok: false, status: res.status } as const;
+            }
+
+            if (Array.isArray(data.projects)) {
+              loadedProjects.push(
+                ...data.projects
+                  .filter(
+                    (project: { projectId?: unknown }) =>
+                      typeof project.projectId === 'string' &&
+                      project.projectId.trim(),
+                  )
+                  .map((project: { name?: unknown; projectId: string }) => ({
+                    name: typeof project.name === 'string' ? project.name : '',
+                    projectId: project.projectId,
+                  })),
+              );
+            }
+
+            pageToken =
+              typeof data.nextPageToken === 'string' ? data.nextPageToken : '';
+          } while (pageToken);
+
+          const uniqueProjects = Array.from(
+            new Map(
+              loadedProjects.map((project) => [project.projectId, project]),
+            ).values(),
+          ).sort((a, b) => a.projectId.localeCompare(b.projectId));
+
+          return { ok: true, projects: uniqueProjects } as const;
+        };
+
         const isExpired = cred.expiresAt
           ? Date.now() > cred.expiresAt - 5 * 60 * 1000
           : false;
@@ -425,32 +511,30 @@ export function GcpSettingsModal({
           refreshed = await performRefresh();
         }
 
-        let res = await fetch(
-          'https://cloudresourcemanager.googleapis.com/v1/projects',
-          {
-            headers: { Authorization: `Bearer ${currentToken}` },
-          },
-        );
+        let projectResult = await fetchProjectsWithToken(currentToken);
 
-        if (res.status === 401 && !refreshed) {
+        if (!projectResult.ok && projectResult.status === 401 && !refreshed) {
           const success = await performRefresh();
           if (success) {
-            res = await fetch(
-              'https://cloudresourcemanager.googleapis.com/v1/projects',
-              {
-                headers: { Authorization: `Bearer ${currentToken}` },
-              },
-            );
+            projectResult = await fetchProjectsWithToken(currentToken);
           }
         }
 
-        const data = await res.json();
-        if (res.ok && data.projects) {
-          setProjects(data.projects);
+        if (projectResult.ok) {
+          setProjects(projectResult.projects);
+          if (!projectResult.projects.length) {
+            setProjectFetchError(PROJECT_LOOKUP_EMPTY_MESSAGE);
+          }
         } else {
-          console.error('Failed to fetch projects or no projects found:', data);
+          setProjectFetchError(
+            getProjectLookupErrorMessage(projectResult.data),
+          );
+          console.error('Failed to fetch projects:', projectResult.data);
         }
       } catch (err) {
+        setProjectFetchError(
+          'Failed to fetch projects from Google Cloud. Enter the project ID manually to continue setup.',
+        );
         console.error('Error fetching projects', err);
       } finally {
         setIsLoadingProjects(false);
@@ -971,29 +1055,47 @@ export function GcpSettingsModal({
                     projects...
                   </div>
                 ) : (
-                  <Select
-                    value={selectedProject}
-                    onChange={async (e) => {
-                      const newProject = e.target.value;
-                      setSelectedProject(newProject);
-                      setRunnerSettingsSaved(false);
-                      setRunnerSettingsError('');
-                      if (auth.currentUser) {
-                        await persistCredentialPatch({
-                          schedulerServiceAccountEmail:
-                            buildSchedulerServiceAccountEmail(newProject),
-                          selectedProject: newProject,
-                        });
-                      }
-                    }}
-                  >
-                    <option value="">Select a project</option>
-                    {projects.map((project) => (
-                      <option key={project.projectId} value={project.projectId}>
-                        {project.name || project.projectId}
-                      </option>
-                    ))}
-                  </Select>
+                  <>
+                    <Input
+                      list="gcp-project-options"
+                      placeholder="project-id"
+                      value={selectedProject}
+                      onChange={(e) => {
+                        const newProject = e.target.value;
+                        setSelectedProject(newProject);
+                        setRunnerSettingsSaved(false);
+                        setRunnerSettingsError('');
+                        setProjectFetchError('');
+                      }}
+                      onBlur={async () => {
+                        const newProject = selectedProject.trim();
+                        if (auth.currentUser) {
+                          await persistCredentialPatch({
+                            schedulerServiceAccountEmail:
+                              buildSchedulerServiceAccountEmail(newProject),
+                            selectedProject: newProject,
+                          });
+                        }
+                      }}
+                    />
+                    <datalist id="gcp-project-options">
+                      {projects.map((project) => (
+                        <option
+                          key={project.projectId}
+                          value={project.projectId}
+                        >
+                          {project.name || project.projectId}
+                        </option>
+                      ))}
+                    </datalist>
+                    <p className="mt-1.5 text-xs text-muted leading-relaxed">
+                      {projectFetchError
+                        ? projectFetchError
+                        : projects.length
+                          ? `${projects.length} project${projects.length === 1 ? '' : 's'} loaded.`
+                          : 'Enter a Google Cloud project ID. Project lookup is optional before Terraform.'}
+                    </p>
+                  </>
                 )}
               </div>
 

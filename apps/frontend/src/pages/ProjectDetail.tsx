@@ -17,7 +17,7 @@ import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import {
   getCloudProvider,
-  getDefaultCloudProviderId,
+  getDefaultWorkflowCloudProviderId,
 } from '../runtime/cloudProviders';
 
 const getProviderIcon = (provider?: string) => {
@@ -189,7 +189,7 @@ export default function ProjectDetail() {
         nodes: defaultNodes,
         connections: defaultConnections,
         title: 'New Workflow',
-        cloudProvider: getDefaultCloudProviderId(),
+        cloudProvider: getDefaultWorkflowCloudProviderId(),
       });
       navigate(`/workflow/${newId}`);
     } catch (error) {

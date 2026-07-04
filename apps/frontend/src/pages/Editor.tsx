@@ -50,7 +50,8 @@ import { DbAPI } from '../lib/db';
 import {
   CLOUD_PROVIDERS,
   getCloudProvider,
-  getDefaultCloudProviderId,
+  getDefaultWorkflowCloudProviderId,
+  getPreferredCloudProviderId,
 } from '../runtime/cloudProviders';
 
 interface NodeData {
@@ -125,7 +126,6 @@ interface WorkflowStartupUpdate {
 }
 
 const availableCloudProviders = CLOUD_PROVIDERS;
-const defaultCloudProvider = getDefaultCloudProviderId();
 const WORKFLOW_STARTUP_STEPS = [
   'Request',
   'Orchestrator',
@@ -575,12 +575,14 @@ export default function Editor() {
   const [workflowStartupNow, setWorkflowStartupNow] = useState(Date.now());
   const presenceStreamRef = useRef<EventSource | null>(null);
   const executionStreamRef = useRef<EventSource | null>(null);
+  const hasOpenedCloudSettingsRef = useRef(false);
   const runnerStartupSequenceRef = useRef(0);
   const [isWorkflowLoaded, setIsWorkflowLoaded] = useState(
     Boolean(initialNodes && initialConnections),
   );
-  const [cloudProvider, setCloudProvider] =
-    useState<string>(defaultCloudProvider);
+  const [cloudProvider, setCloudProvider] = useState<string>(
+    getDefaultWorkflowCloudProviderId,
+  );
   const [cloudProjectId, setCloudProjectId] = useState<string>('');
   const [isCloudSettingsOpen, setIsCloudSettingsOpen] = useState(false);
   const [connectedCloudIds, setConnectedCloudIds] = useState<Set<string>>(
@@ -1145,9 +1147,15 @@ export default function Editor() {
     ? getIntegration(activeIntegrationSettingsId)?.SettingsModal
     : undefined;
 
-  // Keep syncing state if another tab changes the cloud provider
   useEffect(() => {
-    setCloudProvider(getDefaultCloudProviderId());
+    if (isCloudSettingsOpen) {
+      hasOpenedCloudSettingsRef.current = true;
+      return;
+    }
+
+    if (hasOpenedCloudSettingsRef.current) {
+      setCloudProvider(getPreferredCloudProviderId());
+    }
   }, [isCloudSettingsOpen]);
 
   // Fetch connection status and selected project for all cloud providers
@@ -2450,7 +2458,6 @@ export default function Editor() {
             isOpen={isCloudSettingsOpen}
             onClose={() => {
               setIsCloudSettingsOpen(false);
-              setCloudProvider(getDefaultCloudProviderId());
             }}
             cloudId={
               activeCloudProvider?.credentialId || cloudProvider.toLowerCase()

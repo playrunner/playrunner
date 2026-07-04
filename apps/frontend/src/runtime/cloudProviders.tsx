@@ -16,12 +16,14 @@ export type CloudProvider = {
   }>;
 };
 
+export const LOCAL_RUNNER_PROVIDER_ID = 'LOCAL_RUNNER';
+
 const disabledCloudRunnerMessage =
   'This runner is currently in development and will be available soon.';
 
 const baseProviders: CloudProvider[] = [
   {
-    id: 'LOCAL_RUNNER',
+    id: LOCAL_RUNNER_PROVIDER_ID,
     label: 'Local Runner',
   },
   {
@@ -56,12 +58,16 @@ export function getCloudProvider(id: string): CloudProvider | undefined {
   return CLOUD_PROVIDERS.find((provider) => provider.id === id);
 }
 
-export function getDefaultCloudProviderId(): string {
+export function getDefaultWorkflowCloudProviderId(): string {
+  return LOCAL_RUNNER_PROVIDER_ID;
+}
+
+export function getPreferredCloudProviderId(): string {
   const saved = localStorage.getItem('primaryCloud') || '';
   const savedProvider = getCloudProvider(saved);
   if (savedProvider && !savedProvider.disabled) {
     return saved;
   }
 
-  return 'LOCAL_RUNNER';
+  return getDefaultWorkflowCloudProviderId();
 }
