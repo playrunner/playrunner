@@ -21,6 +21,7 @@ import { getDocsUrl } from '../lib/docs';
 
 interface SidebarProps {
   isOpen: boolean;
+  isPinned?: boolean;
   onClose: () => void;
   onOpen?: () => void;
 }
@@ -119,7 +120,12 @@ function getUserDisplayName(user: typeof auth.currentUser) {
   );
 }
 
-export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
+export function Sidebar({
+  isOpen,
+  isPinned = false,
+  onClose,
+  onOpen,
+}: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -150,7 +156,10 @@ export function Sidebar({ isOpen, onClose, onOpen }: SidebarProps) {
 
       <div
         className={cn(
-          'flex h-full min-h-0 flex-col self-stretch bg-surface/50 backdrop-blur-md z-50 shadow-none transition-[width] duration-300 ease-in-out shrink-0 border-r border-strong',
+          'flex min-h-0 flex-col bg-surface/50 backdrop-blur-md z-50 shadow-none transition-[width] duration-300 ease-in-out shrink-0 border-r border-strong',
+          isPinned
+            ? 'sticky top-0 h-dvh max-h-dvh self-start'
+            : 'h-full self-stretch',
           isOpen ? 'w-56' : 'w-[52px]',
         )}
       >
