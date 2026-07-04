@@ -20,7 +20,7 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "AWS",
-    "permalink": "/playrunner/docs/cloud-architecture/aws"
+    "permalink": "/playrunner/docs/cloud-architecture/aws/"
   },
   "next": {
     "title": "Contributing",

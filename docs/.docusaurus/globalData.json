@@ -11,8 +11,8 @@
           "mainDocId": "overview",
           "docs": [
             {
-              "id": "cloud-architecture/aws",
-              "path": "/playrunner/docs/cloud-architecture/aws",
+              "id": "cloud-architecture/aws/aws",
+              "path": "/playrunner/docs/cloud-architecture/aws/",
               "sidebar": "tutorialSidebar"
             },
             {
