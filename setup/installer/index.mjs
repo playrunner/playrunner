@@ -72,7 +72,6 @@ function normalizePostgresUrl(value, fieldName, required = false) {
 function normalizePostgresSetupPayload(body) {
   return {
     databaseUrl: normalizePostgresUrl(body.databaseUrl, "DATABASE_URL", true),
-    directUrl: normalizePostgresUrl(body.directUrl, "DIRECT_URL"),
     username: normalizeUsername(body.username),
     password: normalizePassword(body.password),
   };
@@ -293,7 +292,6 @@ async function installPostgresFiles(config) {
   const envLines = await readApiEnvTemplateLines();
 
   upsertEnvVariable(envLines, "DATABASE_URL", config.databaseUrl);
-  upsertEnvVariable(envLines, "DIRECT_URL", config.directUrl);
 
   while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
     envLines.pop();

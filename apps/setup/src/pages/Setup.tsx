@@ -6,7 +6,7 @@ import { getActiveSetupSessionToken } from '../lib/setup';
 
 type SetupPhase = 'configure' | 'complete';
 
-type SetupFormState = Omit<RuntimeSetupConfig, 'directUrl'> & {
+type SetupFormState = RuntimeSetupConfig & {
   confirmPassword: string;
 };
 
