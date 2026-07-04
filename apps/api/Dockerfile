@@ -16,6 +16,7 @@ RUN npx prisma generate
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV API_BASE_PATH=${BASE_PATH}
+ENV NODE_PATH=/app/${BASE_PATH}/apps/api/node_modules
 EXPOSE 8080
 
 CMD ["npm", "run", "start:cloud"]

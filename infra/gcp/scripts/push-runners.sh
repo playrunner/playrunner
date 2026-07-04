@@ -22,6 +22,7 @@ USER_ID=""
 TARGET=""
 ASSUME_YES="false"
 BASE_PATH="."
+SKIP_DOCKER_CLEANUP="false"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -38,6 +39,7 @@ while [ $# -gt 0 ]; do
         --user-id) USER_ID="$2"; shift 2 ;;
         --target) TARGET="$2"; shift 2 ;;
         --base-path) BASE_PATH="$2"; shift 2 ;;
+        --skip-docker-cleanup) SKIP_DOCKER_CLEANUP="true"; shift ;;
         --yes|-y) ASSUME_YES="true"; shift ;;
         -h|--help)
             cat <<EOF
@@ -67,6 +69,7 @@ Options:
   --target api|orchestrator|playwright|both|all
                                     Skip the interactive menu
   --base-path <path>                BASE_PATH build arg for orchestrator (default ".")
+  --skip-docker-cleanup             Do not remove stale local Playrunner Artifact Registry tags
   --yes, -y                         Skip confirmation prompt
 
 Requires: docker, gcloud, node, and a populated apps/api/.env (DATABASE_URL).
@@ -188,6 +191,29 @@ configure_docker_auth() {
     gcloud auth configure-docker "${host}" --quiet
 }
 
+cleanup_stale_artifact_registry_tags() {
+    if [ "$SKIP_DOCKER_CLEANUP" = "true" ]; then
+        return
+    fi
+
+    local stale_images=()
+    while IFS= read -r image; do
+        case "$image" in
+            "${REGION}-docker.pkg.dev/${PROJECT_ID}/"*) continue ;;
+            *".pkg.dev/"*"/api/playrunner-"*|*".pkg.dev/"*"/orchestrator/playrunner-"*|*".pkg.dev/"*"/playwright-runner/playrunner-"*)
+                stale_images+=("$image")
+                ;;
+        esac
+    done < <(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -v '<none>' || true)
+
+    if [ "${#stale_images[@]}" -eq 0 ]; then
+        return
+    fi
+
+    echo "Removing stale local Playrunner Artifact Registry tags from other projects..."
+    docker image rm "${stale_images[@]}" >/dev/null 2>&1 || true
+}
+
 if includes_orchestrator; then
     ORCHESTRATOR_IMAGE_URI="$(substitute "$ORCHESTRATOR_TEMPLATE" "projectId=${PROJECT_ID}")"
 fi
@@ -221,6 +247,8 @@ if [ "$ASSUME_YES" != "true" ]; then
     esac
 fi
 
+cleanup_stale_artifact_registry_tags
+
 push_api() {
     echo ""
     echo "======================================"
@@ -236,7 +264,7 @@ push_api() {
         "${REPO_ROOT}"
 
     echo "Pushing API..."
-    docker push "${API_IMAGE_URI}"
+    docker push --quiet "${API_IMAGE_URI}"
 
     echo "Deploying API to Cloud Run..."
     gcloud run deploy "${API_SERVICE_NAME}" \
@@ -261,7 +289,7 @@ push_orchestrator() {
         "${REPO_ROOT}"
 
     echo "Pushing Orchestrator..."
-    docker push "${ORCHESTRATOR_IMAGE_URI}"
+    docker push --quiet "${ORCHESTRATOR_IMAGE_URI}"
 
     echo "Deploying Orchestrator to Cloud Run..."
     local cpu_throttling_flag
@@ -343,7 +371,7 @@ push_playwright() {
             *":latest") suffix=" [latest -> ${latest_tag}]" ;;
         esac
         echo "Pushing ${image}${suffix}..."
-        docker push "${image}"
+        docker push --quiet "${image}"
     done
 
     echo ""
