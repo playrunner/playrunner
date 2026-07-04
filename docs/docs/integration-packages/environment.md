@@ -7,24 +7,24 @@ hide_title: true
 ---
 
 import {
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="Environment"
-  packageName="@playrunner/environment"
-  description="Configure reusable environment variables and inject them into workflow nodes from a shared package-owned UI."
-  icon="environment"
-  installCommand="npm install @playrunner/environment"
-  npmUrl="https://www.npmjs.com/package/@playrunner/environment"
-  badges={['Config node', 'Variables table', 'Shared storage']}
-  facts={[
-    { label: 'Node type', value: 'Config' },
-    { label: 'Integration id', value: 'environment' },
-    { label: 'Backend mount', value: '/api/environment' },
-  ]}
+name="Environment"
+packageName="@playrunner/environment"
+description="Configure reusable environment variables and inject them into workflow nodes from a shared package-owned UI."
+icon="environment"
+installCommand="npm install @playrunner/environment"
+npmUrl="https://www.npmjs.com/package/@playrunner/environment"
+badges={['Config node', 'Variables table', 'Shared storage']}
+facts={[
+{ label: 'Node type', value: 'Config' },
+{ label: 'Integration id', value: 'environment' },
+{ label: 'Backend mount', value: '/api/environment' },
+]}
 />
 
 <IntegrationGrid>
@@ -66,6 +66,8 @@ import { environmentRouter } from "@playrunner/environment/api";
 The frontend entrypoint exports `environmentIntegration`, which keeps the existing integration id as `environment` so saved workflows continue to resolve their config nodes.
 
 The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers Environment in `apps/frontend/src/integrations/registry.ts`, and the Environments page reuses the package's `VariablesTable` and environment types.
+
+Environment sets `showInputPanel: false`, so it does not accept inbound workflow connections. It can be added directly to the canvas and connected out to nodes such as Playwright, but it appears disabled in the node selector when the user is completing a connection target.
 
 ## API
 

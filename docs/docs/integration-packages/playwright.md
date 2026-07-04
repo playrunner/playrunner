@@ -7,25 +7,25 @@ hide_title: true
 ---
 
 import {
-  IntegrationCallout,
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCallout,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="Playwright"
-  packageName="@playrunner/playwright"
-  description="Trigger Playwright test runs from workflow nodes with repository, script, artifact, and runner configuration built into the package."
-  icon="playwright"
-  installCommand="npm install @playrunner/playwright @playrunner/github"
-  npmUrl="https://www.npmjs.com/package/@playrunner/playwright"
-  badges={['Trigger node', 'GitHub dependency', 'Runner config']}
-  facts={[
-    { label: 'Node type', value: 'Trigger' },
-    { label: 'Peer dependency', value: '@playrunner/github' },
-    { label: 'Backend mount', value: '/api/playwright' },
-  ]}
+name="Playwright"
+packageName="@playrunner/playwright"
+description="Trigger Playwright test runs from workflow nodes with repository, script, artifact, and runner configuration built into the package."
+icon="playwright"
+installCommand="npm install @playrunner/playwright @playrunner/github"
+npmUrl="https://www.npmjs.com/package/@playrunner/playwright"
+badges={['Trigger node', 'GitHub dependency', 'Runner config']}
+facts={[
+{ label: 'Node type', value: 'Trigger' },
+{ label: 'Peer dependency', value: '@playrunner/github' },
+{ label: 'Backend mount', value: '/api/playwright' },
+]}
 />
 
 <IntegrationGrid>
@@ -72,6 +72,8 @@ import { playwrightRouter } from "@playrunner/playwright/api";
 The frontend entrypoint exports `playwrightIntegration`, which keeps the existing integration id as `playwright` so saved workflows continue to resolve their test runner nodes.
 
 Playwright owns the configuration UI, including repository selection, inline script editing, zip upload metadata, environment variable injection, and runner resource settings.
+
+Playwright keeps its input panel enabled, so it can receive inbound workflow context from nodes such as Environment even though its selector category is `Trigger`.
 
 ## GitHub Dependency
 

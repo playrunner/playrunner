@@ -6,9 +6,9 @@ hide_title: true
 ---
 
 import {
-  IntegrationDirectory,
-  IntegrationDirectoryHero,
-  IntegrationDirectoryItem,
+IntegrationDirectory,
+IntegrationDirectoryHero,
+IntegrationDirectoryItem,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationDirectoryHero title="Integrations">
@@ -82,15 +82,15 @@ The current integrations are `@playrunner/environment` in `packages/environment`
 
 These packages will be published publicly on npm. The links below are placeholders until the packages are published.
 
-| Integration | Install command | npm |
-| --- | --- | --- |
-| Environment | `npm install @playrunner/environment` | [@playrunner/environment](https://www.npmjs.com/package/@playrunner/environment) |
-| GCP | `npm install @playrunner/gcp` | [@playrunner/gcp](https://www.npmjs.com/package/@playrunner/gcp) |
-| GitHub | `npm install @playrunner/github` | [@playrunner/github](https://www.npmjs.com/package/@playrunner/github) |
-| JavaScript | `npm install @playrunner/javascript` | [@playrunner/javascript](https://www.npmjs.com/package/@playrunner/javascript) |
-| Jira | `npm install @playrunner/jira` | [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira) |
-| Playwright | `npm install @playrunner/playwright @playrunner/github` | [@playrunner/playwright](https://www.npmjs.com/package/@playrunner/playwright) |
-| Schedule | `npm install @playrunner/schedule` | [@playrunner/schedule](https://www.npmjs.com/package/@playrunner/schedule) |
+| Integration | Install command                                         | npm                                                                              |
+| ----------- | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Environment | `npm install @playrunner/environment`                   | [@playrunner/environment](https://www.npmjs.com/package/@playrunner/environment) |
+| GCP         | `npm install @playrunner/gcp`                           | [@playrunner/gcp](https://www.npmjs.com/package/@playrunner/gcp)                 |
+| GitHub      | `npm install @playrunner/github`                        | [@playrunner/github](https://www.npmjs.com/package/@playrunner/github)           |
+| JavaScript  | `npm install @playrunner/javascript`                    | [@playrunner/javascript](https://www.npmjs.com/package/@playrunner/javascript)   |
+| Jira        | `npm install @playrunner/jira`                          | [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira)               |
+| Playwright  | `npm install @playrunner/playwright @playrunner/github` | [@playrunner/playwright](https://www.npmjs.com/package/@playrunner/playwright)   |
+| Schedule    | `npm install @playrunner/schedule`                      | [@playrunner/schedule](https://www.npmjs.com/package/@playrunner/schedule)       |
 
 ## Package layout
 
@@ -164,12 +164,27 @@ Use `@playrunner/integration-sdk` for the pieces that every integration should s
 
 Integrations should not import from `apps/frontend/src/...`. The host app provides auth, persistence, and UI primitives through `IntegrationSdkProvider`.
 
+## Node selector and inbound connections
+
+Package metadata controls how a node behaves in the visual editor:
+
+| Field                       | Editor behaviour                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `nodeType`                  | Describes the node category shown in the selector: `trigger`, `action`, or `config`.                                         |
+| `showInNodeSelector: false` | Hides the integration from the add-node selector.                                                                            |
+| `showInputPanel: false`     | Removes the inbound input panel and prevents the node from being selected as a connection target while drawing a connection. |
+
+Use `showInputPanel: false` for nodes that provide workflow context or start
+workflow behavior but should not receive upstream inputs. Environment and
+Schedule use this setting, so they can be added directly from the selector but
+appear disabled when the selector is opened to complete an inbound connection.
+
 ## How integrations use the SDK
 
 Frontend integration code runs inside the host app, but it should only talk to the host through the SDK:
 
 ```ts
-import { useIntegrationHost } from '@playrunner/integration-sdk';
+import { useIntegrationHost } from "@playrunner/integration-sdk";
 
 export function ProviderSettingsModal() {
   const { auth, store, ui } = useIntegrationHost();
@@ -209,12 +224,12 @@ data = { clientId, clientSecret, accessToken, refreshToken, expiresAt }
 
 Use this split when deciding where data belongs:
 
-| Data | Store it in |
-| --- | --- |
-| OAuth credentials, connected account IDs, provider-level settings | `store.saveIntegration(userId, provider, data)` |
-| Node-specific settings such as selected project, script, branch, or schedule frequency | the workflow node `config` |
-| Named environment variables shared across workflow nodes | `store.saveEnvironment` |
-| Standalone sensitive values that should be referenced by key | `store.saveSecret` |
+| Data                                                                                   | Store it in                                     |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| OAuth credentials, connected account IDs, provider-level settings                      | `store.saveIntegration(userId, provider, data)` |
+| Node-specific settings such as selected project, script, branch, or schedule frequency | the workflow node `config`                      |
+| Named environment variables shared across workflow nodes                               | `store.saveEnvironment`                         |
+| Standalone sensitive values that should be referenced by key                           | `store.saveSecret`                              |
 
 An integration saves account-level data through the SDK store:
 
@@ -222,7 +237,7 @@ An integration saves account-level data through the SDK store:
 const userId = auth.currentUser?.uid;
 if (!userId) return;
 
-await store.saveIntegration(userId, 'jira', {
+await store.saveIntegration(userId, "jira", {
   clientId,
   clientSecret,
   accessToken,
@@ -235,7 +250,7 @@ await store.saveIntegration(userId, 'jira', {
 `saveIntegration` currently replaces the provider's `data` JSON object. If you are updating one field, first read the existing record and write back the complete provider-owned data shape:
 
 ```ts
-const current = await store.getIntegration(userId, 'jira');
+const current = await store.getIntegration(userId, "jira");
 const {
   id,
   provider,
@@ -245,7 +260,7 @@ const {
   ...currentData
 } = current ?? {};
 
-await store.saveIntegration(userId, 'jira', {
+await store.saveIntegration(userId, "jira", {
   ...currentData,
   accessToken,
   refreshToken,

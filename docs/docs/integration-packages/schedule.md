@@ -7,24 +7,24 @@ hide_title: true
 ---
 
 import {
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="Schedule"
-  packageName="@playrunner/schedule"
-  description="Start workflows on recurring schedules with frequency, interval, timezone, and cron summary state built into the node."
-  icon="schedule"
-  installCommand="npm install @playrunner/schedule"
-  npmUrl="https://www.npmjs.com/package/@playrunner/schedule"
-  badges={['Trigger node', 'Recurring runs', 'No auth']}
-  facts={[
-    { label: 'Node type', value: 'Trigger' },
-    { label: 'Integration id', value: 'schedule' },
-    { label: 'Backend mount', value: '/api/schedule' },
-  ]}
+name="Schedule"
+packageName="@playrunner/schedule"
+description="Start workflows on recurring schedules with frequency, interval, timezone, and cron summary state built into the node."
+icon="schedule"
+installCommand="npm install @playrunner/schedule"
+npmUrl="https://www.npmjs.com/package/@playrunner/schedule"
+badges={['Trigger node', 'Recurring runs', 'No auth']}
+facts={[
+{ label: 'Node type', value: 'Trigger' },
+{ label: 'Integration id', value: 'schedule' },
+{ label: 'Backend mount', value: '/api/schedule' },
+]}
 />
 
 <IntegrationGrid>
@@ -61,6 +61,8 @@ import { scheduleRouter } from "@playrunner/schedule/api";
 The frontend entrypoint exports `scheduleIntegration`, which keeps the existing integration id as `schedule` so saved workflows continue to resolve their trigger nodes.
 
 Schedule owns the configuration UI, including frequency, interval, timezone, and cron summary state.
+
+Schedule sets `showInputPanel: false`, so it does not accept inbound workflow connections. It can be added directly to the canvas, but it appears disabled in the node selector when the user is completing a connection target.
 
 ## API
 

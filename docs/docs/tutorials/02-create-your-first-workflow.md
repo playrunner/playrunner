@@ -5,7 +5,7 @@ title: Create Your First Workflow
 
 # Create Your First Workflow
 
-In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor — a **Schedule** trigger that fires a **Playwright** test run.
+In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor: an **Environment** config node feeds variables into a **Playwright** test run.
 
 **Prerequisites:** Complete [Getting Started](./getting-started) first.
 
@@ -17,28 +17,30 @@ Navigate to the URL printed by `./start-local.sh` and click **Editor** in the si
 
 ---
 
-## Step 2 — Add a Schedule node
+## Step 2 — Add an Environment node
 
-1. Click the **+** button (or right-click the canvas) to open the node selector.
-2. Under **Triggers**, choose **Schedule**.
+1. Click the **+** button to open the node selector.
+2. Choose **Environment**.
 3. The node appears on the canvas. Click it to open its configuration panel.
-4. Set a cron expression, e.g. `0 9 * * 1-5` for weekdays at 9 AM.
+4. Add a variable your tests can use, such as `BASE_URL`.
 
 ---
 
 ## Step 3 — Add a Playwright node
 
 1. Open the node selector again.
-2. Under **Integrations**, choose **Playwright**.
-3. Drag it to the right of the Schedule node.
+2. Choose **Playwright**.
+3. Drag it to the right of the Environment node.
 
 ---
 
 ## Step 4 — Connect the nodes
 
-Click the **output port** on the right edge of the Schedule node and drag a connection line to the **input port** on the left edge of the Playwright node.
+Click the **output port** on the right edge of the Environment node and drag a connection line to the **input port** on the left edge of the Playwright node.
 
-The workflow now reads: _"On schedule → run Playwright tests"_.
+The workflow now reads: _"Use these environment variables → run Playwright tests"_.
+
+Environment and Schedule nodes do not accept inbound workflow connections. If you open the node selector while drawing a connection, nodes without inbound support appear disabled as connection targets.
 
 ---
 

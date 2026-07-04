@@ -1,7 +1,7 @@
 {
   "id": "tutorials/create-your-first-workflow",
   "title": "Create Your First Workflow",
-  "description": "In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor — a Schedule trigger that fires a Playwright test run.",
+  "description": "In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor: an Environment config node feeds variables into a Playwright test run.",
   "source": "@site/docs/tutorials/02-create-your-first-workflow.md",
   "sourceDirName": "tutorials",
   "slug": "/tutorials/create-your-first-workflow",

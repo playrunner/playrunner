@@ -26,6 +26,26 @@ Each node must run at most once per workflow execution.
 
 ---
 
+## Inbound Connection Eligibility
+
+Connections can only target node types that accept inbound connections. In the
+editor this is derived from package integration metadata:
+
+- `showInputPanel !== false` means the node can be an inbound connection target.
+- `showInputPanel: false` means the node has no inbound input panel and cannot
+  be selected as a connection target.
+
+When a user is drawing a connection and the node selector opens, no-inbound node
+types appear disabled in the list. This prevents workflows such as
+`Playwright -> Schedule` or `Playwright -> Environment`; those nodes can still be
+added directly to the canvas when the user is not creating a connection.
+
+`nodeType` is not the inbound capability flag. For example, Playwright is a
+trigger node but still accepts inbound workflow context because it keeps the
+input panel enabled.
+
+---
+
 ## Connection Types
 
 ### Concurrent
