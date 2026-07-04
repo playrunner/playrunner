@@ -8,6 +8,16 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const apiDir = path.join(repoRoot, "apps", "api");
 const apiEnvPath = path.join(apiDir, ".env");
+const terraformDir = path.join(repoRoot, "infra", "gcp");
+const defaultTerraformTfvarsPath = path.join(terraformDir, "terraform.tfvars");
+const DEFAULT_API_SERVICE_NAME = "playrunner-api";
+const DEFAULT_ORCHESTRATOR_SERVICE_NAME = "playrunner-orchestrator";
+const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
+const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
+const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
+const DEFAULT_PLAYWRIGHT_RUNNER_REPOSITORY = "playwright-runner";
+const DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID = "playrunner-scheduler";
+const DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME = "playrunner-workflow-events";
 
 const args = process.argv.slice(2);
 const command = args.shift();
@@ -76,7 +86,7 @@ const prisma = new PrismaClient();
 
 try {
   const credential = await loadCredential();
-  emit(command, credential);
+  emit(command, normalizeConfig(credential));
 } catch (error) {
   fail(error instanceof Error ? error.message : String(error));
 } finally {
@@ -146,14 +156,55 @@ function emit(cmd, data) {
         "schedulerServiceAccountEmail",
       );
       break;
+    case "terraform-tfvars":
+      process.stdout.write(renderTerraformTfvars(data));
+      break;
+    case "write-terraform-tfvars":
+      writeTerraformTfvars(data);
+      break;
     case "json":
       process.stdout.write(JSON.stringify(publicConfig(data)));
       break;
     default:
       fail(
-        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|playwright-image-uri-template|scheduler-service-account-email|json> [--user-id <id>]",
+        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|playwright-image-uri-template|scheduler-service-account-email|terraform-tfvars|write-terraform-tfvars|json> [--user-id <id>] [--out <path>] [--force]",
       );
   }
+}
+
+function normalizeConfig(data) {
+  const selectedProject = normalizeString(data.selectedProject);
+  const cloudRunLocation = normalizeString(data.cloudRunLocation);
+  const orchestratorServiceName =
+    normalizeString(data.orchestratorServiceName) ||
+    DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+
+  return {
+    selectedProject,
+    cloudRunLocation,
+    orchestratorServiceName,
+    orchestratorMinInstanceCount: normalizeNonNegativeIntegerValue(
+      data.orchestratorMinInstanceCount,
+      DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT,
+    ),
+    orchestratorMaxInstanceCount: normalizePositiveIntegerValue(
+      data.orchestratorMaxInstanceCount,
+      DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT,
+    ),
+    orchestratorCpuIdle: normalizeBooleanValue(
+      data.orchestratorCpuIdle,
+      DEFAULT_ORCHESTRATOR_CPU_IDLE,
+    ),
+    orchestratorImageUriTemplate:
+      normalizeString(data.orchestratorImageUriTemplate) ||
+      buildOrchestratorTemplate(cloudRunLocation, orchestratorServiceName),
+    playwrightImageUriTemplate:
+      normalizeString(data.playwrightImageUriTemplate) ||
+      buildPlaywrightTemplate(cloudRunLocation),
+    schedulerServiceAccountEmail:
+      normalizeString(data.schedulerServiceAccountEmail) ||
+      buildSchedulerServiceAccountEmail(selectedProject),
+  };
 }
 
 function publicConfig(data) {
@@ -168,6 +219,110 @@ function publicConfig(data) {
     playwrightImageUriTemplate: data.playwrightImageUriTemplate || null,
     schedulerServiceAccountEmail: data.schedulerServiceAccountEmail || null,
   };
+}
+
+function renderTerraformTfvars(data) {
+  const projectId = requireValue(data.selectedProject, "selectedProject");
+  const region = requireValue(data.cloudRunLocation, "cloudRunLocation");
+
+  return [
+    "# Generated from the GCP settings saved by Playrunner.",
+    "# Re-run `./infra/gcp/scripts/setup-terraform.sh` after changing the selected project or region.",
+    `project_id = ${hclString(projectId)}`,
+    `region     = ${hclString(region)}`,
+    "",
+    "# Terraform combines this service account ID with project_id to create:",
+    `# ${buildSchedulerServiceAccountEmail(projectId)}`,
+    `scheduler_service_account_id = ${hclString(DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID)}`,
+    "",
+    "# Defaults used by Playrunner runtime and setup scripts.",
+    `api_service_name           = ${hclString(DEFAULT_API_SERVICE_NAME)}`,
+    `workflow_events_topic_name = ${hclString(DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME)}`,
+    "",
+  ].join("\n");
+}
+
+function writeTerraformTfvars(data) {
+  const outPath = flags.out
+    ? path.resolve(repoRoot, flags.out)
+    : defaultTerraformTfvarsPath;
+
+  if (fs.existsSync(outPath) && flags.force !== "true") {
+    throw new Error(
+      `${path.relative(repoRoot, outPath)} already exists. Pass --force to overwrite it.`,
+    );
+  }
+
+  fs.mkdirSync(path.dirname(outPath), { recursive: true });
+  fs.writeFileSync(outPath, renderTerraformTfvars(data), "utf8");
+  process.stdout.write(`Wrote ${path.relative(repoRoot, outPath)}\n`);
+}
+
+function buildOrchestratorTemplate(region, serviceName) {
+  if (!region) return "";
+  return `${region}-docker.pkg.dev/{projectId}/orchestrator/${serviceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME}:latest`;
+}
+
+function buildPlaywrightTemplate(region) {
+  if (!region) return "";
+  return `${region}-docker.pkg.dev/{projectId}/${DEFAULT_PLAYWRIGHT_RUNNER_REPOSITORY}/playrunner-playwright-runner-{runtime}:{version}`;
+}
+
+function buildSchedulerServiceAccountEmail(projectId) {
+  if (!projectId) return "";
+  return `${DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID}@${projectId}.iam.gserviceaccount.com`;
+}
+
+function normalizeString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function requireValue(value, label) {
+  const trimmed = normalizeString(value);
+  if (!trimmed) {
+    throw new Error(
+      `GCP setting "${label}" is empty. Save it in the Integrations modal first.`,
+    );
+  }
+  return trimmed;
+}
+
+function hclString(value) {
+  return JSON.stringify(value);
+}
+
+function normalizePositiveIntegerValue(value, fallback) {
+  const numberValue =
+    typeof value === "string" && value.trim()
+      ? Number(value)
+      : typeof value === "number"
+        ? value
+        : NaN;
+  return Number.isInteger(numberValue) && numberValue > 0
+    ? numberValue
+    : fallback;
+}
+
+function normalizeNonNegativeIntegerValue(value, fallback) {
+  const numberValue =
+    typeof value === "string" && value.trim()
+      ? Number(value)
+      : typeof value === "number"
+        ? value
+        : NaN;
+  return Number.isInteger(numberValue) && numberValue >= 0
+    ? numberValue
+    : fallback;
+}
+
+function normalizeBooleanValue(value, fallback) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+  return fallback;
 }
 
 function printRequired(value, label) {

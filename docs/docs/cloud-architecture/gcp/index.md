@@ -8,8 +8,9 @@ sidebar_label: Overview
 
 Playrunner is designed to be easily deployable to Google Cloud Platform, providing a massively scalable, auto-scaling execution environment for your visual Playwright workflows.
 
-Need the concrete setup flow? Start with [GCP Setup](./setup) for the
-Terraform, saved GCP settings, and runner image publishing steps.
+Need the concrete setup flow? Start with [GCP Setup](./setup), then use the
+separate [OAuth](./oauth) and [Terraform](./terraform) pages for step-by-step
+instructions.
 
 ---
 
@@ -61,9 +62,13 @@ When a user initiates a workflow from the web interface targeting GCP:
 
 In practice that means:
 
-- `GCP_ORCHESTRATOR_IMAGE_URI_TEMPLATE` must point at an Orchestrator image that is already available in a registry Cloud Run can pull from.
-- The GCP integration settings must include the Orchestrator service name, min/max instances, CPU idle policy, Cloud Run region, and image URI templates; GCP runs fail fast if any required setting is missing or invalid.
-- `GCP_PLAYWRIGHT_IMAGE_URI_TEMPLATE` must point at Playwright runner images that are already available in a registry Cloud Run can pull from.
+- Playrunner stores the selected project, Cloud Run region, Orchestrator service
+  name, min/max instances, CPU idle policy, and generated image URI templates in
+  the GCP integration credential row.
+- The generated Orchestrator image URI must point at an image that is already
+  available in a registry Cloud Run can pull from.
+- The generated Playwright runner image URI must point at runner images that are
+  already available in a registry Cloud Run can pull from.
 - `GCS_BUCKET_PREFIX` controls the per-workflow output buckets Playrunner creates before handing execution off to Cloud Run.
 - The connected GCP user must have permission to publish Pub/Sub messages and create/use the execution event plus runner control/status subscriptions on the shared topic.
 
@@ -74,9 +79,8 @@ that topic at runtime.
 
 The GCP settings saved after OAuth are runtime pointers into that infrastructure.
 The selected project and Cloud Run region should match the Terraform
-`project_id` and `region`, and the saved image URI templates should render to
-the Terraform-created Artifact Registry repository URLs. The setup runbook has
-the exact matching checklist.
+`project_id` and `region`. The Terraform setup script reads those saved values
+and writes `infra/gcp/terraform.tfvars`.
 
 If those saved values change, publish the runners again so Cloud Run uses the
 new image locations. Apply the `infra/gcp` Terraform first when the new project,

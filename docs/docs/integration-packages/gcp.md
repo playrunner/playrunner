@@ -30,8 +30,9 @@ facts={[
 <IntegrationGrid>
   <IntegrationCard eyebrow="Frontend" title="Cloud credential settings">
     Exports `gcpIntegration`, `gcpCloudProvider`, and `GcpSettingsModal`.
-    The modal writes selected project, OAuth tokens, Cloud Run region, and image
-    URI templates to the shared cloud credential store.
+    The modal writes OAuth tokens, selected project, Cloud Run region, runner
+    defaults, and generated image URI templates to the shared cloud credential
+    store.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Backend" title="OAuth proxy routes">

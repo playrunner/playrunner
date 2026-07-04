@@ -59,8 +59,9 @@ leave them unset.
 | `GCS_PROJECT_ID`                   | _(optional fallback for GCP)_                  | Optional fallback project for GCS clients when a selected project is not supplied by the GCP workflow request.                                                                                                                                                                  |
 
 Remote GCP runner settings such as Cloud Run region, Orchestrator service name,
-Orchestrator min/max instances, CPU idle policy, and image URI templates are
-stored in the GCP integration credential row, not in `apps/api/.env`.
+Orchestrator min/max instances, CPU idle policy, and generated image URI
+templates are stored in the GCP integration credential row, not in
+`apps/api/.env`.
 
 ---
 

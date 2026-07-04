@@ -39,10 +39,23 @@ const DEFAULT_ORCHESTRATOR_SERVICE_NAME = 'playrunner-orchestrator';
 const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
+const DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID = 'playrunner-scheduler';
+const DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME = 'playrunner-workflow-events';
+const DEFAULT_API_SERVICE_NAME = 'playrunner-api';
+const TERRAFORM_SETUP_COMMAND = './infra/gcp/scripts/setup-terraform.sh';
+const TERRAFORM_DIRECT_COMMANDS = [
+  'terraform -chdir=infra/gcp init',
+  'terraform -chdir=infra/gcp plan',
+  'terraform -chdir=infra/gcp apply',
+].join('\n');
 const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
 const GCP_SETUP_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/setup');
+const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/oauth');
+const GCP_TERRAFORM_DOCS_URL = getDocsUrl(
+  'docs/cloud-architecture/gcp/terraform',
+);
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
-  'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and runner settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
+  'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
 
 type DocsImportMeta = ImportMeta & {
   env?: {
@@ -80,7 +93,7 @@ function buildPlaywrightTemplate(region: string): string {
 function buildSchedulerServiceAccountEmail(projectId: string): string {
   const trimmedProjectId = projectId.trim();
   if (!trimmedProjectId) return '';
-  return `playrunner-scheduler@${trimmedProjectId}.iam.gserviceaccount.com`;
+  return `${DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID}@${trimmedProjectId}.iam.gserviceaccount.com`;
 }
 
 function normalizePositiveInteger(value: unknown, fallback: number): number {
@@ -154,14 +167,6 @@ export function GcpSettingsModal({
   const [orchestratorCpuIdle, setOrchestratorCpuIdle] = useState(
     DEFAULT_ORCHESTRATOR_CPU_IDLE,
   );
-  const [orchestratorImageUriTemplate, setOrchestratorImageUriTemplate] =
-    useState('');
-  const [playwrightImageUriTemplate, setPlaywrightImageUriTemplate] =
-    useState('');
-  const [orchestratorTemplateEdited, setOrchestratorTemplateEdited] =
-    useState(false);
-  const [playwrightTemplateEdited, setPlaywrightTemplateEdited] =
-    useState(false);
   const [projects, setProjects] = useState<
     { projectId: string; name: string }[]
   >([]);
@@ -174,20 +179,24 @@ export function GcpSettingsModal({
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedTerraformVars, setCopiedTerraformVars] = useState(false);
+  const [copiedTerraformCommand, setCopiedTerraformCommand] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
     orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
   });
 
   const callbackUrl = `${window.location.origin}/oauth/callback/gcp`;
-  const schedulerServiceAccountEmail =
-    buildSchedulerServiceAccountEmail(selectedProject);
   const terraformVars = React.useMemo(() => {
     const projectId = selectedProject.trim() || '<project-id>';
     const region = cloudRunLocation.trim() || 'us-central1';
 
-    return `project_id = "${projectId}"\nregion     = "${region}"`;
+    return [
+      `project_id = "${projectId}"`,
+      `region     = "${region}"`,
+      `scheduler_service_account_id = "${DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID}"`,
+      `api_service_name = "${DEFAULT_API_SERVICE_NAME}"`,
+      `workflow_events_topic_name = "${DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME}"`,
+    ].join('\n');
   }, [cloudRunLocation, selectedProject]);
 
   const handleCopyUrl = () => {
@@ -196,10 +205,10 @@ export function GcpSettingsModal({
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  const handleCopyTerraformVars = () => {
-    navigator.clipboard.writeText(terraformVars);
-    setCopiedTerraformVars(true);
-    setTimeout(() => setCopiedTerraformVars(false), 2000);
+  const handleCopyTerraformCommand = () => {
+    navigator.clipboard.writeText(TERRAFORM_SETUP_COMMAND);
+    setCopiedTerraformCommand(true);
+    setTimeout(() => setCopiedTerraformCommand(false), 2000);
   };
 
   const resetCredentialState = React.useCallback(() => {
@@ -217,15 +226,11 @@ export function GcpSettingsModal({
       String(DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT),
     );
     setOrchestratorCpuIdle(DEFAULT_ORCHESTRATOR_CPU_IDLE);
-    setOrchestratorImageUriTemplate('');
-    setPlaywrightImageUriTemplate('');
-    setOrchestratorTemplateEdited(false);
-    setPlaywrightTemplateEdited(false);
     setProjects([]);
     setSelectedProject('');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
-    setCopiedTerraformVars(false);
+    setCopiedTerraformCommand(false);
   }, []);
 
   const loadCredentialState = React.useCallback((data: any) => {
@@ -285,8 +290,6 @@ export function GcpSettingsModal({
     const regionVal = next.cloudRunLocation || '';
     const svcName =
       next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
-    const storedOrch = next.orchestratorImageUriTemplate || '';
-    const storedPlay = next.playwrightImageUriTemplate || '';
 
     setGcpClientId(next.clientId || '');
     setGcpClientSecret(next.clientSecret || '');
@@ -309,14 +312,6 @@ export function GcpSettingsModal({
         ? next.orchestratorCpuIdle
         : DEFAULT_ORCHESTRATOR_CPU_IDLE,
     );
-    setOrchestratorImageUriTemplate(
-      storedOrch || buildOrchestratorTemplate(regionVal, svcName),
-    );
-    setOrchestratorTemplateEdited(Boolean(storedOrch));
-    setPlaywrightImageUriTemplate(
-      storedPlay || buildPlaywrightTemplate(regionVal),
-    );
-    setPlaywrightTemplateEdited(Boolean(storedPlay));
     setSelectedProject(next.selectedProject || '');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
@@ -633,6 +628,23 @@ export function GcpSettingsModal({
   const handleSaveRunnerSettings = async () => {
     if (!auth.currentUser) return;
 
+    const normalizedProject = selectedProject.trim();
+    if (!normalizedProject) {
+      setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Select a Google Cloud project first.');
+      return;
+    }
+
+    const normalizedRegion = cloudRunLocation.trim();
+    if (!normalizedRegion) {
+      setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Cloud Run region is required.');
+      return;
+    }
+
+    const normalizedServiceName =
+      orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
+
     const minInstanceCount = parseNonNegativeIntegerInput(
       orchestratorMinInstanceCount,
     );
@@ -663,31 +675,73 @@ export function GcpSettingsModal({
     setRunnerSettingsError('');
     try {
       const next = await persistCredentialPatch({
-        cloudRunLocation: cloudRunLocation.trim(),
+        cloudRunLocation: normalizedRegion,
         orchestratorCpuIdle,
-        orchestratorImageUriTemplate: orchestratorImageUriTemplate.trim(),
+        orchestratorImageUriTemplate: buildOrchestratorTemplate(
+          normalizedRegion,
+          normalizedServiceName,
+        ),
         orchestratorMaxInstanceCount: maxInstanceCount,
         orchestratorMinInstanceCount: minInstanceCount,
-        orchestratorServiceName:
-          orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
-        playwrightImageUriTemplate: playwrightImageUriTemplate.trim(),
+        orchestratorServiceName: normalizedServiceName,
+        playwrightImageUriTemplate: buildPlaywrightTemplate(normalizedRegion),
         schedulerServiceAccountEmail:
-          buildSchedulerServiceAccountEmail(selectedProject),
-        selectedProject,
+          buildSchedulerServiceAccountEmail(normalizedProject),
+        selectedProject: normalizedProject,
       });
       setOrchestratorServiceName(
         next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
       );
       setRunnerSettingsSaved(true);
     } catch (error) {
-      console.error('Failed to save GCP runner settings', error);
-      setRunnerSettingsError('Failed to save GCP runner settings.');
+      console.error('Failed to save GCP settings', error);
+      setRunnerSettingsError('Failed to save GCP settings.');
     } finally {
       setIsSavingRunnerSettings(false);
     }
   };
 
-  const renderSetupGuideCallout = (description: string) => (
+  const renderCommandBlock = ({
+    command,
+    copied,
+    onCopy,
+    title,
+  }: {
+    command: string;
+    copied: boolean;
+    onCopy: () => void;
+    title: string;
+  }) => (
+    <div className="relative">
+      <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 pr-12 font-mono text-xs text-[var(--foreground)]">
+        {command}
+      </code>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--background)] text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+        title={title}
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-green-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </div>
+  );
+
+  const renderSetupGuideCallout = ({
+    description,
+    href = GCP_SETUP_DOCS_URL,
+    linkLabel = 'Open GCP setup guide',
+    title = 'First-time Google Cloud setup',
+  }: {
+    description: string;
+    href?: string;
+    linkLabel?: string;
+    title?: string;
+  }) => (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
       <div className="flex items-start gap-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
@@ -695,18 +749,18 @@ export function GcpSettingsModal({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-[var(--foreground)]">
-            First-time Google Cloud setup
+            {title}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             {description}
           </p>
           <a
-            href={GCP_SETUP_DOCS_URL}
+            href={href}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
           >
-            Open GCP setup guide
+            {linkLabel}
             <ExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -797,7 +851,7 @@ export function GcpSettingsModal({
               className={`min-h-5 flex-1 text-xs ${runnerSettingsError ? 'text-red-500' : 'text-emerald-500'}`}
             >
               {runnerSettingsError ||
-                (runnerSettingsSaved ? 'Runner settings saved.' : '')}
+                (runnerSettingsSaved ? 'GCP settings saved.' : '')}
             </span>
             <div className="flex shrink-0 items-center justify-end gap-2">
               {Button ? (
@@ -830,7 +884,7 @@ export function GcpSettingsModal({
                         Saving...
                       </>
                     ) : (
-                      'Save Runner Settings'
+                      'Save GCP Settings'
                     )}
                   </Button>
                 </>
@@ -864,7 +918,7 @@ export function GcpSettingsModal({
                         Saving...
                       </>
                     ) : (
-                      'Save Runner Settings'
+                      'Save GCP Settings'
                     )}
                   </button>
                 </>
@@ -895,42 +949,54 @@ export function GcpSettingsModal({
             </div>
           </div>
 
-          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-4">
-            <div>
-              <h4 className="text-sm font-medium text-[var(--foreground)] mb-2">
-                Select Google Cloud Project
+          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-5">
+            <div className="border-b border-subtle pb-3">
+              <h4 className="text-sm font-medium text-[var(--foreground)]">
+                2. Project and region
               </h4>
-              {isLoadingProjects ? (
-                <div className="flex items-center gap-2 text-xs text-muted">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Loading
-                  projects...
-                </div>
-              ) : (
-                <Select
-                  value={selectedProject}
-                  onChange={async (e) => {
-                    const newProject = e.target.value;
-                    setSelectedProject(newProject);
-                    if (auth.currentUser) {
-                      await persistCredentialPatch({
-                        schedulerServiceAccountEmail:
-                          buildSchedulerServiceAccountEmail(newProject),
-                        selectedProject: newProject,
-                      });
-                    }
-                  }}
-                >
-                  <option value="">Select a project</option>
-                  {projects.map((project) => (
-                    <option key={project.projectId} value={project.projectId}>
-                      {project.name || project.projectId}
-                    </option>
-                  ))}
-                </Select>
-              )}
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Save the GCP project and Cloud Run region here. The Terraform
+                setup script reads these saved values from Postgres.
+              </p>
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1.5">
+                  Google Cloud Project
+                </label>
+                {isLoadingProjects ? (
+                  <div className="flex items-center gap-2 text-xs text-muted">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Loading
+                    projects...
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedProject}
+                    onChange={async (e) => {
+                      const newProject = e.target.value;
+                      setSelectedProject(newProject);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                      if (auth.currentUser) {
+                        await persistCredentialPatch({
+                          schedulerServiceAccountEmail:
+                            buildSchedulerServiceAccountEmail(newProject),
+                          selectedProject: newProject,
+                        });
+                      }
+                    }}
+                  >
+                    <option value="">Select a project</option>
+                    {projects.map((project) => (
+                      <option key={project.projectId} value={project.projectId}>
+                        {project.name || project.projectId}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-muted mb-1.5">
                   Cloud Run Region
@@ -938,184 +1004,157 @@ export function GcpSettingsModal({
                 <Input
                   value={cloudRunLocation}
                   onChange={(e) => {
-                    const nextRegion = e.target.value;
-                    setCloudRunLocation(nextRegion);
-                    if (!orchestratorTemplateEdited) {
-                      setOrchestratorImageUriTemplate(
-                        buildOrchestratorTemplate(
-                          nextRegion,
-                          orchestratorServiceName,
-                        ),
-                      );
-                    }
-                    if (!playwrightTemplateEdited) {
-                      setPlaywrightImageUriTemplate(
-                        buildPlaywrightTemplate(nextRegion),
-                      );
-                    }
+                    setCloudRunLocation(e.target.value);
                     setRunnerSettingsSaved(false);
+                    setRunnerSettingsError('');
                   }}
                   placeholder="us-central1"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Cloud Scheduler Service Account (Terraform-managed)
-                </label>
-                <Input
-                  value={schedulerServiceAccountEmail}
-                  readOnly
-                  placeholder="playrunner-scheduler@project-id.iam.gserviceaccount.com"
-                />
-                <p className="mt-1.5 text-[10px] text-muted">
-                  Terraform creates this service account from the selected
-                  project and grants it permission to invoke the Playrunner API.
-                </p>
-              </div>
-              <div>
-                <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <label className="block text-xs font-medium text-muted">
-                    Terraform values
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleCopyTerraformVars}
-                    className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 text-[10px] font-medium text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
-                    title="Copy terraform.tfvars"
-                  >
-                    {copiedTerraformVars ? (
-                      <Check className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <Copy className="h-3.5 w-3.5" />
-                    )}
-                    {copiedTerraformVars ? 'Copied' : 'Copy'}
-                  </button>
+
+              <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+                <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
+                  Advanced runner defaults
+                </summary>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted mb-1.5">
+                      Orchestrator Service Name
+                    </label>
+                    <Input
+                      value={orchestratorServiceName}
+                      onChange={(e) => {
+                        setOrchestratorServiceName(e.target.value);
+                        setRunnerSettingsSaved(false);
+                        setRunnerSettingsError('');
+                      }}
+                      placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
+                    />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-medium text-muted mb-1.5">
+                        Min Instances
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={orchestratorMinInstanceCount}
+                        onChange={(e) => {
+                          setOrchestratorMinInstanceCount(e.target.value);
+                          setRunnerSettingsSaved(false);
+                          setRunnerSettingsError('');
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-muted mb-1.5">
+                        Max Instances
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={orchestratorMaxInstanceCount}
+                        onChange={(e) => {
+                          setOrchestratorMaxInstanceCount(e.target.value);
+                          setRunnerSettingsSaved(false);
+                          setRunnerSettingsError('');
+                        }}
+                      />
+                    </div>
+                    <label className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-left">
+                      <input
+                        type="checkbox"
+                        checked={!orchestratorCpuIdle}
+                        onChange={(e) => {
+                          setOrchestratorCpuIdle(!e.target.checked);
+                          setRunnerSettingsSaved(false);
+                          setRunnerSettingsError('');
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span>
+                        <span className="block text-xs font-medium text-[var(--foreground)]">
+                          Always-allocated CPU
+                        </span>
+                        <span className="block text-xs text-muted">
+                          Keeps DAG work active after `/execute`.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
                 </div>
-                <pre className="overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-3 text-xs leading-relaxed text-blue-400">
-                  <code>{terraformVars}</code>
-                </pre>
-                <p className="mt-1.5 text-[10px] text-muted">
-                  Save this as <code>infra/gcp/terraform.tfvars</code>, then run
-                  Terraform from the repo root.
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Orchestrator Service Name
-                </label>
-                <Input
-                  value={orchestratorServiceName}
-                  onChange={(e) => {
-                    const nextName = e.target.value;
-                    setOrchestratorServiceName(nextName);
-                    if (!orchestratorTemplateEdited) {
-                      setOrchestratorImageUriTemplate(
-                        buildOrchestratorTemplate(cloudRunLocation, nextName),
-                      );
-                    }
-                    setRunnerSettingsSaved(false);
-                  }}
-                  placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
-                />
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">
-                    Min Instances
-                  </label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={orchestratorMinInstanceCount}
-                    onChange={(e) => {
-                      setOrchestratorMinInstanceCount(e.target.value);
-                      setRunnerSettingsSaved(false);
-                      setRunnerSettingsError('');
-                    }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1.5">
-                    Max Instances
-                  </label>
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={orchestratorMaxInstanceCount}
-                    onChange={(e) => {
-                      setOrchestratorMaxInstanceCount(e.target.value);
-                      setRunnerSettingsSaved(false);
-                      setRunnerSettingsError('');
-                    }}
-                  />
-                </div>
-                <label className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-left">
-                  <input
-                    type="checkbox"
-                    checked={!orchestratorCpuIdle}
-                    onChange={(e) => {
-                      setOrchestratorCpuIdle(!e.target.checked);
-                      setRunnerSettingsSaved(false);
-                      setRunnerSettingsError('');
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <span>
-                    <span className="block text-xs font-medium text-[var(--foreground)]">
-                      Always-allocated CPU
-                    </span>
-                    <span className="block text-xs text-muted">
-                      Keeps DAG work active after `/execute`.
-                    </span>
-                  </span>
-                </label>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Orchestrator Image URI Template
-                </label>
-                <Input
-                  value={orchestratorImageUriTemplate}
-                  onChange={(e) => {
-                    setOrchestratorImageUriTemplate(e.target.value);
-                    setOrchestratorTemplateEdited(true);
-                    setRunnerSettingsSaved(false);
-                  }}
-                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/orchestrator/${orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME}:latest`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Playwright Image URI Template
-                </label>
-                <Input
-                  value={playwrightImageUriTemplate}
-                  onChange={(e) => {
-                    setPlaywrightImageUriTemplate(e.target.value);
-                    setPlaywrightTemplateEdited(true);
-                    setRunnerSettingsSaved(false);
-                  }}
-                  placeholder={`${cloudRunLocation || 'region'}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`}
-                />
-              </div>
-              <p className="text-xs text-muted">
-                Use <code>{'{projectId}'}</code> in both image templates, plus{' '}
-                <code>{'{runtime}'}</code> and <code>{'{version}'}</code> for
-                the Playwright image.
-              </p>
-              {renderSetupGuideCallout(
-                'Terraform commands, Cloudflare tunnel guidance for local scheduler callbacks, and the runner-publishing command live in the setup guide. Complete that guide after selecting the project and region here.',
-              )}
+              </details>
             </div>
+          </div>
+
+          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-4">
+            <div className="border-b border-subtle pb-3">
+              <h4 className="text-sm font-medium text-[var(--foreground)]">
+                3. Terraform setup
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                After saving, run this from the repo root. It writes
+                <code> infra/gcp/terraform.tfvars</code> from the saved project
+                and region. It does not run Terraform.
+              </p>
+            </div>
+
+            {renderCommandBlock({
+              command: TERRAFORM_SETUP_COMMAND,
+              copied: copiedTerraformCommand,
+              onCopy: handleCopyTerraformCommand,
+              title: 'Copy Terraform setup command',
+            })}
+
+            <p className="text-xs leading-relaxed text-muted">
+              After reviewing the generated file, run Terraform directly:
+            </p>
+
+            <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
+              <code>{TERRAFORM_DIRECT_COMMANDS}</code>
+            </pre>
+
+            <p className="text-xs leading-relaxed text-muted">
+              Terraform creates the scheduler service account from{' '}
+              <code>scheduler_service_account_id</code>; the full email is an
+              output, not a value you enter by hand.
+            </p>
+
+            <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+              <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
+                Generated terraform.tfvars preview
+              </summary>
+              <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
+                <code>{terraformVars}</code>
+              </pre>
+              <p className="mt-2 text-[10px] leading-relaxed text-muted">
+                The setup script writes this file from the saved settings. It
+                also keeps the standard Artifact Registry image paths generated
+                automatically for Playrunner.
+              </p>
+            </details>
+
+            {renderSetupGuideCallout({
+              description:
+                'Use this guide when you need the exact Terraform steps, optional tfvars values, or image publishing command.',
+              href: GCP_TERRAFORM_DOCS_URL,
+              linkLabel: 'Open Terraform setup guide',
+              title: 'Terraform setup guide',
+            })}
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          {renderSetupGuideCallout(
-            'Use the setup guide to create the Google OAuth client, configure infrastructure, and publish runner images. Paste the generated client values here after the OAuth client is created.',
-          )}
+          {renderSetupGuideCallout({
+            description:
+              'Create the Google OAuth client first, then paste the generated client ID and secret here. Terraform setup happens after authentication succeeds.',
+            href: GCP_OAUTH_DOCS_URL,
+            linkLabel: 'Open OAuth setup guide',
+            title: '1. Google OAuth setup',
+          })}
 
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted">

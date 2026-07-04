@@ -70,6 +70,7 @@ resource "time_sleep" "wait_for_project_services" {
 resource "google_artifact_registry_repository" "repositories" {
   for_each = local.artifact_repositories
 
+  project       = var.project_id
   location      = var.region
   repository_id = each.value.repository_id
   description   = each.value.description
@@ -78,17 +79,27 @@ resource "google_artifact_registry_repository" "repositories" {
   depends_on = [
     time_sleep.wait_for_project_services,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_pubsub_topic" "workflow_events" {
-  name = var.workflow_events_topic_name
+  project = var.project_id
+  name    = var.workflow_events_topic_name
 
   depends_on = [
     time_sleep.wait_for_project_services,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_service_account" "scheduler" {
+  project      = var.project_id
   account_id   = var.scheduler_service_account_id
   display_name = "Playrunner Cloud Scheduler"
   description  = "Used by Cloud Scheduler to call Playrunner schedule trigger endpoints with OIDC."
@@ -96,6 +107,10 @@ resource "google_service_account" "scheduler" {
   depends_on = [
     time_sleep.wait_for_project_services,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_service_account_iam_member" "scheduler_service_account_users" {
@@ -107,6 +122,7 @@ resource "google_service_account_iam_member" "scheduler_service_account_users" {
 }
 
 resource "google_cloud_run_v2_service" "api" {
+  project  = var.project_id
   name     = var.api_service_name
   location = var.region
   ingress  = var.api_ingress
@@ -141,16 +157,17 @@ resource "google_cloud_run_v2_service" "api" {
     }
   }
 
-  lifecycle {
-    ignore_changes = [
-      template[0].containers[0].image,
-    ]
-  }
-
   depends_on = [
     google_artifact_registry_repository.repositories,
     time_sleep.wait_for_project_services,
   ]
+
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes = [
+      template[0].containers[0].image,
+    ]
+  }
 }
 
 resource "time_sleep" "wait_for_api_service_iam" {
