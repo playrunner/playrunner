@@ -1,0 +1,12 @@
+# Generated from the GCP settings saved by Playrunner.
+# Re-run `./infra/gcp/scripts/setup-terraform.sh` after changing the selected project or region.
+project_id = "playrunner-t2"
+region     = "us-central1"
+
+# Terraform combines this service account ID with project_id to create:
+# playrunner-scheduler@playrunner-t2.iam.gserviceaccount.com
+scheduler_service_account_id = "playrunner-scheduler"
+
+# Defaults used by Playrunner runtime and setup scripts.
+api_service_name           = "playrunner-api"
+workflow_events_topic_name = "playrunner-workflow-events"
