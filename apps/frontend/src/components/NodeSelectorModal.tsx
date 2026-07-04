@@ -7,9 +7,10 @@ interface NodeSelectorModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (data: { typeId: string; label: string }) => void;
+  getNodeDisabledReason?: (node: AppNodeType) => string | null | undefined;
 }
 
-type AppNodeType = {
+export type AppNodeType = {
   id: string;
   label: string;
   type: string;
@@ -19,6 +20,7 @@ type AppNodeType = {
   color?: string;
   fallbackText?: string;
   nodeSelectorOrder?: number;
+  acceptsInboundConnection: boolean;
 };
 
 export const NODE_TYPES: AppNodeType[] = [
@@ -29,6 +31,7 @@ export const NODE_TYPES: AppNodeType[] = [
     color: i.color,
     iconRenderMode: i.iconRenderMode,
     nodeSelectorOrder: i.nodeSelectorOrder,
+    acceptsInboundConnection: i.showInputPanel !== false,
     ...(typeof i.icon === 'string'
       ? { iconSrc: i.icon }
       : { fallbackIcon: i.icon }),
@@ -39,6 +42,7 @@ export function NodeSelectorModal({
   isOpen,
   onClose,
   onSelect,
+  getNodeDisabledReason,
 }: NodeSelectorModalProps) {
   const [search, setSearch] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,51 +62,74 @@ export function NodeSelectorModal({
     (a, b) => (a.nodeSelectorOrder ?? 0) - (b.nodeSelectorOrder ?? 0),
   );
 
-  const renderNodeButton = (node: AppNodeType) => (
-    <button
-      key={node.id}
-      onClick={() => onSelect({ typeId: node.id, label: node.label })}
-      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-surface-hover transition-colors text-left group"
-    >
-      <div className="w-10 h-10 rounded-lg bg-background border border-subtle flex items-center justify-center shrink-0 shadow-sm p-1.5">
-        {node.iconSrc ? (
-          node.iconRenderMode === 'mask' ? (
-            <div
-              className="w-full h-full bg-current"
-              style={{
-                WebkitMaskImage: `url(${node.iconSrc})`,
-                WebkitMaskSize: 'contain',
-                WebkitMaskRepeat: 'no-repeat',
-                WebkitMaskPosition: 'center',
-                maskImage: `url(${node.iconSrc})`,
-                maskSize: 'contain',
-                maskRepeat: 'no-repeat',
-                maskPosition: 'center',
-              }}
-            />
-          ) : (
-            <img
-              src={node.iconSrc}
-              alt={node.label}
-              className="w-full h-full object-contain"
-            />
-          )
-        ) : node.fallbackIcon ? (
-          <node.fallbackIcon className={cn('w-5 h-5', node.color)} />
-        ) : node.fallbackText ? (
-          <div className="text-[12px] font-medium tracking-wide">
-            {node.fallbackText}
-          </div>
-        ) : null}
-      </div>
-      <div>
-        <div className="text-sm font-medium text-[var(--foreground)]">
-          {node.label}
+  const isNodeDisabled = (node: AppNodeType) =>
+    Boolean(getNodeDisabledReason?.(node));
+
+  const renderNodeButton = (node: AppNodeType) => {
+    const disabledReason = getNodeDisabledReason?.(node);
+    const isDisabled = Boolean(disabledReason);
+
+    return (
+      <button
+        key={node.id}
+        onClick={() => onSelect({ typeId: node.id, label: node.label })}
+        className={cn(
+          'w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left group',
+          isDisabled
+            ? 'opacity-45 cursor-not-allowed'
+            : 'hover:bg-surface-hover',
+        )}
+        disabled={isDisabled}
+      >
+        <div className="w-10 h-10 rounded-lg bg-background border border-subtle flex items-center justify-center shrink-0 shadow-sm p-1.5">
+          {node.iconSrc ? (
+            node.iconRenderMode === 'mask' ? (
+              <div
+                className="w-full h-full bg-current"
+                style={{
+                  WebkitMaskImage: `url(${node.iconSrc})`,
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: `url(${node.iconSrc})`,
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center',
+                }}
+              />
+            ) : (
+              <img
+                src={node.iconSrc}
+                alt={node.label}
+                className="w-full h-full object-contain"
+              />
+            )
+          ) : node.fallbackIcon ? (
+            <node.fallbackIcon className={cn('w-5 h-5', node.color)} />
+          ) : node.fallbackText ? (
+            <div className="text-[12px] font-medium tracking-wide">
+              {node.fallbackText}
+            </div>
+          ) : null}
         </div>
-        <div className="text-xs text-muted capitalize">{node.type} node</div>
-      </div>
-    </button>
-  );
+        <div>
+          <div
+            className={cn(
+              'text-sm font-medium',
+              isDisabled ? 'text-muted' : 'text-[var(--foreground)]',
+            )}
+          >
+            {node.label}
+          </div>
+          <div className="text-xs text-muted">
+            {disabledReason || (
+              <span className="capitalize">{node.type} node</span>
+            )}
+          </div>
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -124,8 +151,9 @@ export function NodeSelectorModal({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') onClose();
                 if (e.key === 'Enter' && filteredNodes.length > 0) {
-                  const firstNode =
-                    pinnedNodes.length > 0 ? pinnedNodes[0] : otherNodes[0];
+                  const firstNode = [...pinnedNodes, ...otherNodes].find(
+                    (node) => !isNodeDisabled(node),
+                  );
                   if (firstNode)
                     onSelect({ typeId: firstNode.id, label: firstNode.label });
                 }

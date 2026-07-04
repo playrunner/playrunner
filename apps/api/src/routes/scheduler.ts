@@ -10,6 +10,7 @@ import { state } from '../state';
 export const schedulerRouter = Router();
 
 const oidcClient = new OAuth2Client();
+const PLAYRUNNER_SCHEDULER_JOB_NAME_HEADER = 'X-Playrunner-Scheduler-JobName';
 
 function getBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
@@ -39,6 +40,27 @@ function parseScheduledTime(req: Request): Date {
 
 function defaultSchedulerServiceAccountEmail(projectId: string): string {
   return `playrunner-scheduler@${projectId}.iam.gserviceaccount.com`;
+}
+
+function getSchedulerJobId(jobName: string): string {
+  const normalized = jobName.trim();
+  const match = normalized.match(/\/jobs\/([^/]+)$/);
+
+  return match?.[1] || normalized;
+}
+
+function schedulerJobNameMatches(
+  receivedJobName: string,
+  expectedJobName: string,
+): boolean {
+  const normalizedReceived = receivedJobName.trim();
+  const normalizedExpected = expectedJobName.trim();
+
+  return (
+    normalizedReceived === normalizedExpected ||
+    getSchedulerJobId(normalizedReceived) ===
+      getSchedulerJobId(normalizedExpected)
+  );
 }
 
 function createExecutionRequest(req: Request, userId: string): Request {
@@ -166,8 +188,19 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
     return;
   }
 
-  const jobName = req.get('X-CloudScheduler-JobName');
-  if (jobName && schedule.gcpJobName && jobName !== schedule.gcpJobName) {
+  const jobName =
+    req.get(PLAYRUNNER_SCHEDULER_JOB_NAME_HEADER) ||
+    req.get('X-CloudScheduler-JobName');
+  if (
+    jobName &&
+    schedule.gcpJobName &&
+    !schedulerJobNameMatches(jobName, schedule.gcpJobName)
+  ) {
+    console.warn('Scheduler job name mismatch:', {
+      expectedJobName: schedule.gcpJobName,
+      receivedJobName: jobName,
+      scheduleId: schedule.id,
+    });
     res.status(403).json({ error: 'Scheduler job name mismatch.' });
     return;
   }

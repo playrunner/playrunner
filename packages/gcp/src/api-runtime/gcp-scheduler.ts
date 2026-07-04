@@ -214,6 +214,7 @@ function buildJobBody({
       httpMethod: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Playrunner-Scheduler-JobName': jobName,
       },
       body: Buffer.from(JSON.stringify(request.triggerPayload)).toString(
         'base64',

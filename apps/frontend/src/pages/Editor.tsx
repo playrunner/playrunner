@@ -39,6 +39,7 @@ import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
 
 import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
+import type { AppNodeType } from '../components/NodeSelectorModal';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { getIntegration } from '../integrations/registry';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
@@ -70,10 +71,19 @@ interface NodeData {
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
 
 type ConnectionType =
-  'sequential' | 'concurrent' | 'independent' | 'success' | 'failure';
+  | 'sequential'
+  | 'concurrent'
+  | 'independent'
+  | 'success'
+  | 'failure';
 
 type NodeExecutionStatus =
-  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
 
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
@@ -99,6 +109,11 @@ interface DrawingConnection {
   fixedNodeId: string;
   fixedPort: PortPosition;
   isForward: boolean; // true if drawing from source to target, false if drawing from target to source
+}
+
+function nodeTypeAcceptsInboundConnection(typeId?: string) {
+  const nodeType = NODE_TYPES.find((n) => n.id === typeId);
+  return nodeType?.acceptsInboundConnection ?? true;
 }
 
 type WorkflowStartupPhase =
@@ -556,7 +571,8 @@ export default function Editor() {
 
   const initialNodes = location.state?.initialNodes as NodeData[] | undefined;
   const initialConnections = location.state?.initialConnections as
-    Connection[] | undefined;
+    | Connection[]
+    | undefined;
 
   const [nodes, setNodes] = useState<NodeData[]>(initialNodes || []);
   const [connections, setConnections] = useState<Connection[]>(
@@ -1749,17 +1765,29 @@ export default function Editor() {
       isDrawingConnection &&
       isDrawingConnection.fixedNodeId !== targetNodeId
     ) {
+      const sourceId = isDrawingConnection.isForward
+        ? isDrawingConnection.fixedNodeId
+        : targetNodeId;
+      const targetId = isDrawingConnection.isForward
+        ? targetNodeId
+        : isDrawingConnection.fixedNodeId;
+      const targetNode = nodes.find((node) => node.id === targetId);
+
+      if (
+        !targetNode ||
+        !nodeTypeAcceptsInboundConnection(targetNode.nodeType)
+      ) {
+        setIsDrawingConnection(null);
+        return;
+      }
+
       const newConnection: Connection = {
         id: `c_${Date.now()}`,
-        sourceId: isDrawingConnection.isForward
-          ? isDrawingConnection.fixedNodeId
-          : targetNodeId,
+        sourceId,
         sourcePort: isDrawingConnection.isForward
           ? isDrawingConnection.fixedPort
           : portPos,
-        targetId: isDrawingConnection.isForward
-          ? targetNodeId
-          : isDrawingConnection.fixedNodeId,
+        targetId,
         targetPort: isDrawingConnection.isForward
           ? portPos
           : isDrawingConnection.fixedPort,
@@ -1820,6 +1848,20 @@ export default function Editor() {
     typeId: string;
     label: string;
   }) => {
+    const pendingConnectionTargetType = pendingConnectionSource
+      ? pendingConnectionSource.isForward
+        ? data.typeId
+        : nodes.find((node) => node.id === pendingConnectionSource.fixedNodeId)
+            ?.nodeType
+      : undefined;
+
+    if (
+      pendingConnectionTargetType &&
+      !nodeTypeAcceptsInboundConnection(pendingConnectionTargetType)
+    ) {
+      return;
+    }
+
     const pos =
       nodeSelectorPos ||
       screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
@@ -2271,6 +2313,14 @@ export default function Editor() {
     );
   };
 
+  const getConnectionTargetDisabledReason = (node: AppNodeType) => {
+    if (!pendingConnectionSource?.isForward) {
+      return null;
+    }
+
+    return node.acceptsInboundConnection ? null : 'No inbound connection';
+  };
+
   useEffect(() => {
     setHeaderLeft(
       <>
@@ -2451,6 +2501,11 @@ export default function Editor() {
           isOpen={showNodeSelector}
           onClose={() => setShowNodeSelector(false)}
           onSelect={handleAddNodeFromSelector}
+          getNodeDisabledReason={
+            pendingConnectionSource
+              ? getConnectionTargetDisabledReason
+              : undefined
+          }
         />
 
         {ActiveCloudSettingsModal ? (
