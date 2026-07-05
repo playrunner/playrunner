@@ -1,0 +1,44 @@
+.cardTitleIcon {
+  align-items: center;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 1.6rem;
+  justify-content: center;
+  margin-right: 0.6rem;
+}
+
+.cloudProviderIcon {
+  height: 1.65rem;
+  width: 1.65rem;
+}
+
+.cloudProviderIcon svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.gcpIcon,
+.azureIcon {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 0.16rem;
+}
+
+.awsIcon {
+  background: #232f3e;
+  border-radius: 6px;
+  padding: 0.18rem;
+}
+
+.localIcon {
+  color: var(--ifm-color-primary);
+}
+
+.localIcon svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
