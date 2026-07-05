@@ -1200,16 +1200,6 @@ export function GcpSettingsModal({
                 setRunnerSettingsError('');
                 setProjectFetchError('');
               }}
-              onBlur={async () => {
-                const newProject = selectedProject.trim();
-                if (auth.currentUser) {
-                  await persistCredentialPatch({
-                    schedulerServiceAccountEmail:
-                      buildSchedulerServiceAccountEmail(newProject),
-                    selectedProject: newProject,
-                  });
-                }
-              }}
               onFocus={loadProjectsFromSavedCredential}
             />
             <datalist id="gcp-project-options">
