@@ -7,15 +7,18 @@ sidebar_label: Setup
 # GCP Setup
 
 Use this page as the top-level setup checklist. The detailed instructions are
-split into the two setup phases that happen in the app:
+split into the three setup phases that happen in the app:
 
 1. [Google OAuth setup](./oauth) connects Playrunner to your Google account.
-2. [Terraform setup](./terraform) creates the Google Cloud infrastructure.
+2. [Project and Region setup](./project-region) saves the existing Google Cloud
+   project and Cloud Run region Playrunner should use.
+3. [Terraform setup](./terraform) creates the Google Cloud infrastructure
+   inside that existing project.
 
-OAuth and Terraform are separate on purpose. OAuth saves credentials, the
-selected project, and the Cloud Run region in Playrunner's local database.
-Terraform reads those saved values through the setup script and writes
-`infra/gcp/terraform.tfvars`.
+OAuth, Project and Region, and Terraform are separate on purpose. OAuth saves
+credentials, Project and Region saves the existing GCP project ID and Cloud Run
+region in Playrunner's local database, and Terraform reads those saved values
+through the setup script and writes `infra/gcp/terraform.tfvars`.
 
 ## First-Time Setup Order
 
@@ -27,8 +30,9 @@ Terraform reads those saved values through the setup script and writes
 
 2. Open **Integrations** and choose **Connect to GCP**.
 3. Complete [Google OAuth setup](./oauth).
-4. After OAuth succeeds, select the Google Cloud project and Cloud Run region in
-   the dialog, then click **Save GCP Settings**.
+4. Complete [Project and Region setup](./project-region). Create the project in
+   GCP first if it does not already exist, then save the project ID and Cloud
+   Run region in the dialog.
 5. From the repo root, generate `infra/gcp/terraform.tfvars`:
 
 ```bash
@@ -53,11 +57,12 @@ terraform -chdir=infra/gcp apply
 
 ## What Each Step Owns
 
-| Step          | Owner                 | What it creates or saves                                                                                                            |
-| ------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| OAuth         | Connect to GCP dialog | Google OAuth tokens, selected project, Cloud Run region, and standard Playrunner runner defaults in the local `CloudCredential` row |
-| Terraform     | `infra/gcp`           | Required APIs, Artifact Registry repositories, API Cloud Run service, shared Pub/Sub topic, and Cloud Scheduler service account     |
-| Image publish | `push-runners.sh`     | API, Orchestrator, and Playwright runner images, plus Cloud Run service redeploys using the standard generated image paths          |
+| Step             | Owner                 | What it creates or saves                                                                                                        |
+| ---------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| OAuth            | Connect to GCP dialog | Google OAuth tokens in the local `CloudCredential` row                                                                          |
+| Project & Region | Connect to GCP dialog | Existing Google Cloud project ID, Cloud Run region, scheduler service account email, and standard Playrunner runner defaults    |
+| Terraform        | `infra/gcp`           | Required APIs, Artifact Registry repositories, API Cloud Run service, shared Pub/Sub topic, and Cloud Scheduler service account |
+| Image publish    | `push-runners.sh`     | API, Orchestrator, and Playwright runner images, plus Cloud Run service redeploys using the standard generated image paths      |
 
 The Connect to GCP dialog does not ask for image URI templates. Playrunner
 generates the standard Artifact Registry paths from the saved region:
@@ -110,6 +115,7 @@ with the schedule enabled.
 ## More Detail
 
 - [Google OAuth setup](./oauth)
+- [Project and Region setup](./project-region)
 - [Terraform setup](./terraform)
 - [Publishing to GCP](../../local-dev/docker-images#publishing-to-gcp)
 - [Remote Runner Messaging](../../local-dev/remote-debugging)

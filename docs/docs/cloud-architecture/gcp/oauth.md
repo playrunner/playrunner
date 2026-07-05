@@ -20,14 +20,17 @@ Start Playrunner locally from the repo root (if not already running):
 Open **Integrations**, choose **Connect to GCP**, and copy the **Authorized
 redirect URI** shown in the dialog.
 
-With the default local app URL, the redirect URI is:
+It will be something like the following
 
 ```text
 http://127.0.0.1:3100/oauth/callback/gcp
 ```
 
-Use the value shown in your dialog if your local frontend is running on a
-different host or port.
+or
+
+```
+http://localhost:3100/oauth/callback/gcp
+```
 
 ## 2. Create the Google OAuth Client
 
@@ -57,10 +60,14 @@ different host or port.
 Playrunner stores the OAuth tokens, selected project, Cloud Run region, and
 standard runner defaults in the local `CloudCredential` row.
 
-The project list is only an autocomplete convenience. On a new Google Cloud
-project, the lookup can be unavailable until Cloud Resource Manager is enabled.
-Enter the project ID manually and continue to Terraform; Terraform enables the
-required APIs for the selected project.
+After OAuth succeeds, Playrunner loads the Google Cloud projects visible to the
+connected account on the **Project & Region** step. Start typing in the project
+field and select the matching **Project ID** from the suggestions.
+
+If the project is new, not visible to the connected account, or Google project
+lookup fails, click **Refresh projects**. If it still does not appear, type the
+Project ID manually. The project must already exist in GCP before you continue
+to Terraform.
 
 ## 4. Continue to Terraform
 

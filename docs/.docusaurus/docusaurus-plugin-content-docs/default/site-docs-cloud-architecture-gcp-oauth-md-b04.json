@@ -23,7 +23,7 @@
     "permalink": "/playrunner/docs/cloud-architecture/gcp/setup"
   },
   "next": {
-    "title": "Terraform",
-    "permalink": "/playrunner/docs/cloud-architecture/gcp/terraform"
+    "title": "Project & Region",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/project-region"
   }
 }

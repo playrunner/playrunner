@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { useIntegrationHost } from '@playrunner/integration-sdk';
 import { gcpIconUrl } from './icon';
@@ -40,6 +41,36 @@ type GcpProject = {
   projectId: string;
 };
 
+type GcpWizardStep = 'oauth' | 'project-region' | 'terraform';
+
+type GcpActionButtonVariant = 'primary' | 'secondary' | 'danger' | 'tertiary';
+
+const GCP_WIZARD_STEPS: Array<{
+  description: string;
+  id: GcpWizardStep;
+  label: string;
+  stepNumber: number;
+}> = [
+  {
+    description: 'Google OAuth access',
+    id: 'oauth',
+    label: 'OAuth',
+    stepNumber: 1,
+  },
+  {
+    description: 'Project and region',
+    id: 'project-region',
+    label: 'Project & Region',
+    stepNumber: 2,
+  },
+  {
+    description: 'Terraform commands',
+    id: 'terraform',
+    label: 'Terraform',
+    stepNumber: 3,
+  },
+];
+
 const PROJECT_LOOKUP_DISABLED_MESSAGE =
   'Project lookup is unavailable until the Cloud Resource Manager API is enabled. Enter the project ID manually to continue setup.';
 const PROJECT_LOOKUP_EMPTY_MESSAGE =
@@ -61,6 +92,9 @@ const TERRAFORM_DIRECT_COMMANDS = [
 const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
 const GCP_SETUP_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/setup');
 const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/oauth');
+const GCP_PROJECT_REGION_DOCS_URL = getDocsUrl(
+  'docs/cloud-architecture/gcp/project-region',
+);
 const GCP_TERRAFORM_DOCS_URL = getDocsUrl(
   'docs/cloud-architecture/gcp/terraform',
 );
@@ -209,10 +243,12 @@ export function GcpSettingsModal({
   const [projectFetchError, setProjectFetchError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
   const [isSavingRunnerSettings, setIsSavingRunnerSettings] = useState(false);
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
+  const [activeStep, setActiveStep] = useState<GcpWizardStep>('oauth');
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedTerraformCommand, setCopiedTerraformCommand] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
@@ -264,8 +300,10 @@ export function GcpSettingsModal({
     setProjects([]);
     setSelectedProject('');
     setProjectFetchError('');
+    setAuthError('');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
+    setActiveStep('oauth');
     setCopiedTerraformCommand(false);
   }, []);
 
@@ -559,6 +597,7 @@ export function GcpSettingsModal({
             if (data && isMounted) {
               loadCredentialState(data);
               if (data.clientId && data.accessToken) {
+                setAuthError('');
                 setAuthSuccess(true);
                 fetchGcpProjects({
                   accessToken: data.accessToken,
@@ -580,6 +619,7 @@ export function GcpSettingsModal({
       fetchCredentials();
     } else if (!isOpen) {
       setAuthSuccess(false);
+      setAuthError('');
       setIsAuthenticating(false);
       setIsFetchingCredentials(false);
       resetCredentialState();
@@ -601,6 +641,7 @@ export function GcpSettingsModal({
   const handleAuthenticateGcp = async () => {
     try {
       setIsAuthenticating(true);
+      setAuthError('');
 
       if (auth.currentUser) {
         await persistCredentialPatch({
@@ -612,6 +653,8 @@ export function GcpSettingsModal({
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'oauth_callback' && event.data?.success) {
+          let didConnect = false;
+
           if (auth.currentUser && event.data?.params?.code) {
             try {
               const token = await auth.currentUser.getIdToken();
@@ -647,7 +690,8 @@ export function GcpSettingsModal({
                   ? Date.now() + tokenData.expires_in * 1000
                   : undefined,
               });
-              fetchGcpProjects({
+              didConnect = true;
+              void fetchGcpProjects({
                 accessToken: next.accessToken || tokenData.access_token,
                 refreshToken: next.refreshToken,
                 clientId: next.clientId,
@@ -661,17 +705,28 @@ export function GcpSettingsModal({
                 );
             } catch (err) {
               console.error('Failed to save auth code:', err);
+              setAuthError(
+                'Failed to complete Google OAuth. Check the client ID and secret, then try again.',
+              );
               if (popupRef.current)
                 popupRef.current.postMessage(
                   { type: 'oauth_close' },
                   window.location.origin,
                 );
             }
+          } else {
+            setAuthError(
+              'Google OAuth did not return an authorization code. Try authenticating again.',
+            );
           }
 
           setIsAuthenticating(false);
-          setAuthSuccess(true);
-          localStorage.setItem('primaryCloud', cloudId.toUpperCase());
+          if (didConnect) {
+            setAuthError('');
+            setAuthSuccess(true);
+            setActiveStep('project-region');
+            localStorage.setItem('primaryCloud', cloudId.toUpperCase());
+          }
           window.removeEventListener('message', messageListener);
         }
       };
@@ -705,6 +760,9 @@ export function GcpSettingsModal({
       }, 500);
     } catch (error) {
       console.error('Failed to save credentials', error);
+      setAuthError(
+        'Failed to start Google OAuth. Check the client ID and secret, then try again.',
+      );
       setIsAuthenticating(false);
     }
   };
@@ -777,6 +835,7 @@ export function GcpSettingsModal({
         next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
       );
       setRunnerSettingsSaved(true);
+      setActiveStep('terraform');
     } catch (error) {
       console.error('Failed to save GCP settings', error);
       setRunnerSettingsError('Failed to save GCP settings.');
@@ -865,6 +924,7 @@ export function GcpSettingsModal({
 
       await store.deleteCloudCredential(auth.currentUser.uid, 'gcp');
       setAuthSuccess(false);
+      setAuthError('');
       resetCredentialState();
       localStorage.removeItem('primaryCloud');
       onClose();
@@ -873,391 +933,146 @@ export function GcpSettingsModal({
     }
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      zIndex={70}
-      title={`Connect to ${cloudId.toUpperCase()}`}
-      className="select-text"
-      bodyClassName="select-text"
-      icon={
-        <img
-          src={gcpIconUrl}
-          alt={cloudId}
-          className="w-5 h-5 object-contain"
-        />
-      }
-      footer={
-        cloudId === 'gcp' && !authSuccess ? (
-          Button ? (
-            <Button
-              type="button"
-              onClick={handleAuthenticateGcp}
-              disabled={!gcpClientId || !gcpClientSecret || isAuthenticating}
-              className="gap-2"
-            >
-              {isAuthenticating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  Authenticate
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </Button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleAuthenticateGcp}
-              disabled={!gcpClientId || !gcpClientSecret || isAuthenticating}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isAuthenticating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Authenticating...
-                </>
-              ) : (
-                <>
-                  Authenticate
-                  <ChevronRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          )
-        ) : authSuccess ? (
-          <div className="flex w-full items-center gap-3">
+  const loadProjectsFromSavedCredential = React.useCallback(() => {
+    if (!authSuccess || isLoadingProjects) return;
+
+    const credential = credentialRef.current;
+    if (!credential.accessToken) {
+      setProjectFetchError(
+        'Project lookup needs a saved Google OAuth token. Reconnect OAuth, then try again.',
+      );
+      return;
+    }
+
+    void fetchGcpProjects({
+      accessToken: credential.accessToken,
+      refreshToken: credential.refreshToken,
+      clientId: credential.clientId,
+      clientSecret: credential.clientSecret,
+      expiresAt: credential.expiresAt,
+    });
+  }, [authSuccess, fetchGcpProjects, isLoadingProjects]);
+
+  const isProjectRegionComplete = Boolean(
+    selectedProject.trim() && cloudRunLocation.trim(),
+  );
+
+  const isStepComplete = (stepId: GcpWizardStep) => {
+    if (stepId === 'oauth') return authSuccess;
+    if (stepId === 'project-region') return isProjectRegionComplete;
+    return false;
+  };
+
+  const renderActionButton = ({
+    children,
+    className = '',
+    variant = 'primary',
+    ...buttonProps
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: GcpActionButtonVariant;
+  }) => {
+    if (Button) {
+      return (
+        <Button {...buttonProps} variant={variant} className={className}>
+          {children}
+        </Button>
+      );
+    }
+
+    const variantClassName =
+      variant === 'danger'
+        ? 'border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20'
+        : variant === 'secondary'
+          ? 'border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] shadow-sm'
+          : variant === 'tertiary'
+            ? 'text-muted hover:text-[var(--foreground)] hover:bg-[var(--surface-hover)]'
+            : 'bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent)]/90 shadow-sm';
+
+    return (
+      <button
+        {...buttonProps}
+        className={`inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variantClassName} ${className}`}
+      >
+        {children}
+      </button>
+    );
+  };
+
+  const renderWizardSteps = () => (
+    <div className="grid gap-2 sm:grid-cols-3">
+      {GCP_WIZARD_STEPS.map((step) => {
+        const isActive = activeStep === step.id;
+        const isComplete = isStepComplete(step.id);
+
+        return (
+          <button
+            key={step.id}
+            type="button"
+            onClick={() => setActiveStep(step.id)}
+            aria-pressed={isActive}
+            className={`flex min-h-[82px] items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+              isActive
+                ? 'border-[var(--border-strong)] bg-[var(--surface-hover)] text-[var(--foreground)]'
+                : 'border-[var(--border)] bg-[var(--background)] text-muted hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]'
+            }`}
+          >
             <span
-              className={`min-h-5 flex-1 text-xs ${runnerSettingsError ? 'text-red-500' : 'text-emerald-500'}`}
+              className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                isComplete
+                  ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                  : isActive
+                    ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
+                    : 'border border-[var(--border)] bg-[var(--surface)] text-muted'
+              }`}
             >
-              {runnerSettingsError ||
-                (runnerSettingsSaved ? 'GCP settings saved.' : '')}
+              {isComplete ? <Check className="h-3.5 w-3.5" /> : step.stepNumber}
             </span>
-            <div className="flex shrink-0 items-center justify-end gap-2">
-              {Button ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="danger"
-                    onClick={handleDisconnectGcp}
-                    disabled={isSavingRunnerSettings}
-                  >
-                    Disconnect GCP
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={onClose}
-                    disabled={isSavingRunnerSettings}
-                  >
-                    Close
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleSaveRunnerSettings}
-                    disabled={isSavingRunnerSettings}
-                    className="gap-2"
-                  >
-                    {isSavingRunnerSettings ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save GCP Settings'
-                    )}
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleDisconnectGcp}
-                    disabled={isSavingRunnerSettings}
-                    className="px-4 py-2 rounded-lg border border-red-500/20 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Disconnect GCP
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    disabled={isSavingRunnerSettings}
-                    className="px-4 py-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--foreground)] hover:bg-[var(--surface-hover)] font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveRunnerSettings}
-                    disabled={isSavingRunnerSettings}
-                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--accent-foreground)] font-medium text-sm transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSavingRunnerSettings ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      'Save GCP Settings'
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        ) : undefined
-      }
-    >
-      {isFetchingCredentials ? (
-        <div className="py-8 flex items-center justify-center gap-2 text-muted">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Loading credentials...
-        </div>
-      ) : authSuccess ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-left">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-[var(--background)]">
-              <Check className="w-4 h-4 text-emerald-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-[var(--foreground)]">
-                Connected to GCP
-              </h3>
-              <p className="text-xs text-muted leading-relaxed">
-                Your workspace can run workloads in Google Cloud.
-              </p>
-            </div>
-          </div>
+            <span className="min-w-0">
+              <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted">
+                Step {step.stepNumber}
+              </span>
+              <span className="block text-sm font-medium">{step.label}</span>
+              <span className="mt-0.5 block text-xs leading-snug text-muted">
+                {step.description}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 
-          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-5">
-            <div className="border-b border-subtle pb-3">
-              <h4 className="text-sm font-medium text-[var(--foreground)]">
-                2. Project and region
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                Save the GCP project and Cloud Run region here. The Terraform
-                setup script reads these saved values from Postgres.
-              </p>
-            </div>
+  const renderConnectedStatusCard = () => (
+    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-left">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-[var(--background)]">
+        <Check className="h-5 w-5 text-emerald-500" />
+      </div>
+      <div>
+        <h3 className="text-sm font-medium text-[var(--foreground)]">
+          Connected already
+        </h3>
+        <p className="text-xs leading-relaxed text-muted">
+          Your workspace can run workloads in Google Cloud. OAuth credentials
+          are already saved for this connection.
+        </p>
+      </div>
+    </div>
+  );
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Google Cloud Project
-                </label>
-                {isLoadingProjects ? (
-                  <div className="flex items-center gap-2 text-xs text-muted">
-                    <Loader2 className="w-3 h-3 animate-spin" /> Loading
-                    projects...
-                  </div>
-                ) : (
-                  <>
-                    <Input
-                      list="gcp-project-options"
-                      placeholder="project-id"
-                      value={selectedProject}
-                      onChange={(e) => {
-                        const newProject = e.target.value;
-                        setSelectedProject(newProject);
-                        setRunnerSettingsSaved(false);
-                        setRunnerSettingsError('');
-                        setProjectFetchError('');
-                      }}
-                      onBlur={async () => {
-                        const newProject = selectedProject.trim();
-                        if (auth.currentUser) {
-                          await persistCredentialPatch({
-                            schedulerServiceAccountEmail:
-                              buildSchedulerServiceAccountEmail(newProject),
-                            selectedProject: newProject,
-                          });
-                        }
-                      }}
-                    />
-                    <datalist id="gcp-project-options">
-                      {projects.map((project) => (
-                        <option
-                          key={project.projectId}
-                          value={project.projectId}
-                        >
-                          {project.name || project.projectId}
-                        </option>
-                      ))}
-                    </datalist>
-                    <p className="mt-1.5 text-xs text-muted leading-relaxed">
-                      {projectFetchError
-                        ? projectFetchError
-                        : projects.length
-                          ? `${projects.length} project${projects.length === 1 ? '' : 's'} loaded.`
-                          : 'Enter a Google Cloud project ID. Project lookup is optional before Terraform.'}
-                    </p>
-                  </>
-                )}
-              </div>
+  const renderOauthStep = () => (
+    <div className="space-y-4">
+      {renderSetupGuideCallout({
+        description:
+          'Create the Google OAuth client first, then paste the generated client ID and secret here. Terraform setup happens after authentication succeeds.',
+        href: GCP_OAUTH_DOCS_URL,
+        linkLabel: 'Open OAuth setup guide',
+        title: '1. Google OAuth setup',
+      })}
 
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  Cloud Run Region
-                </label>
-                <Input
-                  value={cloudRunLocation}
-                  onChange={(e) => {
-                    setCloudRunLocation(e.target.value);
-                    setRunnerSettingsSaved(false);
-                    setRunnerSettingsError('');
-                  }}
-                  placeholder="us-central1"
-                />
-              </div>
-
-              <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-                <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
-                  Advanced runner defaults
-                </summary>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-muted mb-1.5">
-                      Orchestrator Service Name
-                    </label>
-                    <Input
-                      value={orchestratorServiceName}
-                      onChange={(e) => {
-                        setOrchestratorServiceName(e.target.value);
-                        setRunnerSettingsSaved(false);
-                        setRunnerSettingsError('');
-                      }}
-                      placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
-                    />
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div>
-                      <label className="block text-xs font-medium text-muted mb-1.5">
-                        Min Instances
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={orchestratorMinInstanceCount}
-                        onChange={(e) => {
-                          setOrchestratorMinInstanceCount(e.target.value);
-                          setRunnerSettingsSaved(false);
-                          setRunnerSettingsError('');
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-muted mb-1.5">
-                        Max Instances
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={orchestratorMaxInstanceCount}
-                        onChange={(e) => {
-                          setOrchestratorMaxInstanceCount(e.target.value);
-                          setRunnerSettingsSaved(false);
-                          setRunnerSettingsError('');
-                        }}
-                      />
-                    </div>
-                    <label className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-left">
-                      <input
-                        type="checkbox"
-                        checked={!orchestratorCpuIdle}
-                        onChange={(e) => {
-                          setOrchestratorCpuIdle(!e.target.checked);
-                          setRunnerSettingsSaved(false);
-                          setRunnerSettingsError('');
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <span>
-                        <span className="block text-xs font-medium text-[var(--foreground)]">
-                          Always-allocated CPU
-                        </span>
-                        <span className="block text-xs text-muted">
-                          Keeps DAG work active after `/execute`.
-                        </span>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              </details>
-            </div>
-          </div>
-
-          <div className="bg-[var(--background)] border border-[var(--border)] rounded-xl p-4 text-left max-w-2xl mx-auto w-full space-y-4">
-            <div className="border-b border-subtle pb-3">
-              <h4 className="text-sm font-medium text-[var(--foreground)]">
-                3. Terraform setup
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                After saving, run this from the repo root. It writes
-                <code> infra/gcp/terraform.tfvars</code> from the saved project
-                and region. It does not run Terraform.
-              </p>
-            </div>
-
-            {renderCommandBlock({
-              command: TERRAFORM_SETUP_COMMAND,
-              copied: copiedTerraformCommand,
-              onCopy: handleCopyTerraformCommand,
-              title: 'Copy Terraform setup command',
-            })}
-
-            <p className="text-xs leading-relaxed text-muted">
-              After reviewing the generated file, run Terraform directly:
-            </p>
-
-            <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
-              <code>{TERRAFORM_DIRECT_COMMANDS}</code>
-            </pre>
-
-            <p className="text-xs leading-relaxed text-muted">
-              Terraform creates the scheduler service account from{' '}
-              <code>scheduler_service_account_id</code>; the full email is an
-              output, not a value you enter by hand.
-            </p>
-
-            <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-              <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
-                Generated terraform.tfvars preview
-              </summary>
-              <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
-                <code>{terraformVars}</code>
-              </pre>
-              <p className="mt-2 text-[10px] leading-relaxed text-muted">
-                The setup script writes this file from the saved settings. It
-                also keeps the standard Artifact Registry image paths generated
-                automatically for Playrunner.
-              </p>
-            </details>
-
-            {renderSetupGuideCallout({
-              description:
-                'Use this guide when you need the exact Terraform steps, optional tfvars values, or image publishing command.',
-              href: GCP_TERRAFORM_DOCS_URL,
-              linkLabel: 'Open Terraform setup guide',
-              title: 'Terraform setup guide',
-            })}
-          </div>
-        </div>
+      {authSuccess ? (
+        renderConnectedStatusCard()
       ) : (
-        <div className="flex flex-col gap-6">
-          {renderSetupGuideCallout({
-            description:
-              'Create the Google OAuth client first, then paste the generated client ID and secret here. Terraform setup happens after authentication succeeds.',
-            href: GCP_OAUTH_DOCS_URL,
-            linkLabel: 'Open OAuth setup guide',
-            title: '1. Google OAuth setup',
-          })}
-
+        <div className="space-y-5 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-left">
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted">
               Authorized redirect URI
@@ -1267,29 +1082,29 @@ export function GcpSettingsModal({
               redirect URI.
             </p>
             <div className="relative">
-              <code className="block p-3 pr-10 bg-[var(--background)] border border-subtle rounded text-xs select-all font-mono text-blue-400 overflow-x-auto whitespace-nowrap">
+              <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 pr-10 font-mono text-xs text-[var(--foreground)] select-all">
                 {callbackUrl}
               </code>
               <button
                 type="button"
                 onClick={handleCopyUrl}
-                className="absolute top-2 right-2 p-1 rounded bg-[var(--background)] text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
+                className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--background)] text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
                 title="Copy URL"
               >
                 {copiedUrl ? (
-                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <Check className="h-3.5 w-3.5 text-green-500" />
                 ) : (
-                  <Copy className="w-3.5 h-3.5" />
+                  <Copy className="h-3.5 w-3.5" />
                 )}
               </button>
             </div>
           </div>
 
-          <div className="space-y-4 pt-2 border-t border-subtle">
+          <div className="space-y-4 border-t border-subtle pt-4">
             <div>
               <label
                 htmlFor="gcp-oauth-client-id"
-                className="block text-xs font-medium text-muted mb-1.5"
+                className="mb-1.5 block text-xs font-medium text-muted"
               >
                 Client ID
               </label>
@@ -1308,7 +1123,7 @@ export function GcpSettingsModal({
             <div>
               <label
                 htmlFor="gcp-oauth-client-secret"
-                className="block text-xs font-medium text-muted mb-1.5"
+                className="mb-1.5 block text-xs font-medium text-muted"
               >
                 Client Secret
               </label>
@@ -1326,6 +1141,448 @@ export function GcpSettingsModal({
               />
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderProjectRegionStep = () => (
+    <div className="space-y-4">
+      {renderSetupGuideCallout({
+        description:
+          'Save the GCP project and Cloud Run region here. The Terraform setup script reads these saved values from Postgres.',
+        href: GCP_PROJECT_REGION_DOCS_URL,
+        linkLabel: 'Open Project and Region guide',
+        title: '2. Project and region',
+      })}
+
+      <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-left">
+        {!authSuccess ? (
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs leading-relaxed text-muted">
+            OAuth is not connected yet. You can still enter project and region
+            settings now, then complete OAuth before running workloads.
+          </div>
+        ) : null}
+
+        <div className="space-y-4">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <label
+                htmlFor="gcp-project-id"
+                className="block text-xs font-medium text-muted"
+              >
+                Google Cloud Project
+              </label>
+              {authSuccess ? (
+                <button
+                  type="button"
+                  onClick={loadProjectsFromSavedCredential}
+                  disabled={isLoadingProjects}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-60"
+                  title="Refresh Google Cloud project list"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${isLoadingProjects ? 'animate-spin' : ''}`}
+                  />
+                  Refresh projects
+                </button>
+              ) : null}
+            </div>
+            <Input
+              id="gcp-project-id"
+              list="gcp-project-options"
+              placeholder="project-id"
+              value={selectedProject}
+              onChange={(e) => {
+                const newProject = e.target.value;
+                setSelectedProject(newProject);
+                setRunnerSettingsSaved(false);
+                setRunnerSettingsError('');
+                setProjectFetchError('');
+              }}
+              onBlur={async () => {
+                const newProject = selectedProject.trim();
+                if (auth.currentUser) {
+                  await persistCredentialPatch({
+                    schedulerServiceAccountEmail:
+                      buildSchedulerServiceAccountEmail(newProject),
+                    selectedProject: newProject,
+                  });
+                }
+              }}
+              onFocus={loadProjectsFromSavedCredential}
+            />
+            <datalist id="gcp-project-options">
+              {projects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.name || project.projectId}
+                </option>
+              ))}
+            </datalist>
+            <p
+              className="mt-1.5 flex min-h-4 items-center gap-1.5 text-xs leading-relaxed text-muted"
+              aria-live="polite"
+            >
+              {isLoadingProjects ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading projects...
+                </>
+              ) : projectFetchError ? (
+                projectFetchError
+              ) : projects.length ? (
+                `${projects.length} project${projects.length === 1 ? '' : 's'} loaded.`
+              ) : (
+                'Start typing to select a loaded project, or type the Project ID manually if it is not listed.'
+              )}
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="gcp-cloud-run-region"
+              className="mb-1.5 block text-xs font-medium text-muted"
+            >
+              Cloud Run Region
+            </label>
+            <Input
+              id="gcp-cloud-run-region"
+              value={cloudRunLocation}
+              onChange={(e) => {
+                setCloudRunLocation(e.target.value);
+                setRunnerSettingsSaved(false);
+                setRunnerSettingsError('');
+              }}
+              autoComplete="off"
+              placeholder="us-central1"
+            />
+          </div>
+
+          <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
+              Advanced runner defaults
+            </summary>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label
+                  htmlFor="gcp-orchestrator-service-name"
+                  className="mb-1.5 block text-xs font-medium text-muted"
+                >
+                  Orchestrator Service Name
+                </label>
+                <Input
+                  id="gcp-orchestrator-service-name"
+                  value={orchestratorServiceName}
+                  onChange={(e) => {
+                    setOrchestratorServiceName(e.target.value);
+                    setRunnerSettingsSaved(false);
+                    setRunnerSettingsError('');
+                  }}
+                  autoComplete="off"
+                  placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div>
+                  <label
+                    htmlFor="gcp-orchestrator-min-instances"
+                    className="mb-1.5 block text-xs font-medium text-muted"
+                  >
+                    Min Instances
+                  </label>
+                  <Input
+                    id="gcp-orchestrator-min-instances"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={orchestratorMinInstanceCount}
+                    onChange={(e) => {
+                      setOrchestratorMinInstanceCount(e.target.value);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="gcp-orchestrator-max-instances"
+                    className="mb-1.5 block text-xs font-medium text-muted"
+                  >
+                    Max Instances
+                  </label>
+                  <Input
+                    id="gcp-orchestrator-max-instances"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={orchestratorMaxInstanceCount}
+                    onChange={(e) => {
+                      setOrchestratorMaxInstanceCount(e.target.value);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                  />
+                </div>
+                <label className="flex min-h-[62px] items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-left">
+                  <input
+                    type="checkbox"
+                    checked={!orchestratorCpuIdle}
+                    onChange={(e) => {
+                      setOrchestratorCpuIdle(!e.target.checked);
+                      setRunnerSettingsSaved(false);
+                      setRunnerSettingsError('');
+                    }}
+                    className="h-4 w-4"
+                  />
+                  <span>
+                    <span className="block text-xs font-medium text-[var(--foreground)]">
+                      Always-allocated CPU
+                    </span>
+                    <span className="block text-xs text-muted">
+                      Keeps DAG work active after `/execute`.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTerraformStep = () => (
+    <div className="space-y-4">
+      {renderSetupGuideCallout({
+        description:
+          'After saving, run this from the repo root. It writes infra/gcp/terraform.tfvars from the saved project and region. It does not run Terraform.',
+        href: GCP_TERRAFORM_DOCS_URL,
+        linkLabel: 'Open Terraform setup guide',
+        title: '3. Terraform setup',
+      })}
+
+      <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-left">
+        {renderCommandBlock({
+          command: TERRAFORM_SETUP_COMMAND,
+          copied: copiedTerraformCommand,
+          onCopy: handleCopyTerraformCommand,
+          title: 'Copy Terraform setup command',
+        })}
+
+        <p className="text-xs leading-relaxed text-muted">
+          After reviewing the generated file, run Terraform directly:
+        </p>
+
+        <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
+          <code>{TERRAFORM_DIRECT_COMMANDS}</code>
+        </pre>
+
+        <p className="text-xs leading-relaxed text-muted">
+          Terraform creates the scheduler service account from{' '}
+          <code>scheduler_service_account_id</code>; the full email is an
+          output, not a value you enter by hand.
+        </p>
+
+        <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+          <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
+            Generated terraform.tfvars preview
+          </summary>
+          <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
+            <code>{terraformVars}</code>
+          </pre>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted">
+            The setup script writes this file from the saved settings. It also
+            keeps the standard Artifact Registry image paths generated
+            automatically for Playrunner.
+          </p>
+        </details>
+      </div>
+    </div>
+  );
+
+  const renderActiveStep = () => {
+    if (activeStep === 'project-region') return renderProjectRegionStep();
+    if (activeStep === 'terraform') return renderTerraformStep();
+    return renderOauthStep();
+  };
+
+  const renderWizardFooter = () => {
+    if (isFetchingCredentials) return undefined;
+
+    const footerStatusMessage =
+      runnerSettingsError || (runnerSettingsSaved ? 'GCP settings saved.' : '');
+    const footerStatusClassName = runnerSettingsError
+      ? 'text-red-500'
+      : 'text-emerald-500';
+
+    if (activeStep === 'oauth') {
+      const oauthStatusMessage = authSuccess ? 'Connected to GCP.' : authError;
+      const oauthStatusClassName = authError
+        ? 'text-red-500'
+        : authSuccess
+          ? 'text-emerald-500'
+          : 'text-muted';
+
+      return (
+        <div className="flex w-full items-center gap-3">
+          <span className={`min-h-5 flex-1 text-xs ${oauthStatusClassName}`}>
+            {oauthStatusMessage}
+          </span>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {authSuccess ? (
+              <>
+                {renderActionButton({
+                  children: 'Disconnect GCP',
+                  disabled: isSavingRunnerSettings,
+                  onClick: handleDisconnectGcp,
+                  type: 'button',
+                  variant: 'danger',
+                })}
+                {renderActionButton({
+                  children: 'Close',
+                  disabled: isSavingRunnerSettings,
+                  onClick: onClose,
+                  type: 'button',
+                  variant: 'secondary',
+                })}
+                {renderActionButton({
+                  children: (
+                    <>
+                      Project & Region
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  ),
+                  className: 'gap-2',
+                  disabled: isSavingRunnerSettings,
+                  onClick: () => setActiveStep('project-region'),
+                  type: 'button',
+                })}
+              </>
+            ) : (
+              <>
+                {renderActionButton({
+                  children: 'Close',
+                  onClick: onClose,
+                  type: 'button',
+                  variant: 'secondary',
+                })}
+                {renderActionButton({
+                  children: isAuthenticating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Authenticating...
+                    </>
+                  ) : (
+                    <>
+                      Authenticate
+                      <ChevronRight className="h-4 w-4" />
+                    </>
+                  ),
+                  className: 'gap-2',
+                  disabled:
+                    !gcpClientId || !gcpClientSecret || isAuthenticating,
+                  onClick: handleAuthenticateGcp,
+                  type: 'button',
+                })}
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeStep === 'project-region') {
+      return (
+        <div className="flex w-full items-center gap-3">
+          <span className={`min-h-5 flex-1 text-xs ${footerStatusClassName}`}>
+            {footerStatusMessage}
+          </span>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            {renderActionButton({
+              children: 'Back',
+              disabled: isSavingRunnerSettings,
+              onClick: () => setActiveStep('oauth'),
+              type: 'button',
+              variant: 'secondary',
+            })}
+            {renderActionButton({
+              children: 'Close',
+              disabled: isSavingRunnerSettings,
+              onClick: onClose,
+              type: 'button',
+              variant: 'secondary',
+            })}
+            {renderActionButton({
+              children: isSavingRunnerSettings ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  Save and Continue
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              ),
+              className: 'gap-2',
+              disabled: isSavingRunnerSettings,
+              onClick: handleSaveRunnerSettings,
+              type: 'button',
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex w-full items-center gap-3">
+        <span className={`min-h-5 flex-1 text-xs ${footerStatusClassName}`}>
+          {footerStatusMessage}
+        </span>
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          {renderActionButton({
+            children: 'Back to Project & Region',
+            onClick: () => setActiveStep('project-region'),
+            type: 'button',
+            variant: 'secondary',
+          })}
+          {renderActionButton({
+            children: 'Close',
+            onClick: onClose,
+            type: 'button',
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      zIndex={70}
+      title={`Connect to ${cloudId.toUpperCase()}`}
+      maxWidth="max-w-[860px]"
+      className="select-text"
+      bodyClassName="select-text"
+      icon={
+        <img
+          src={gcpIconUrl}
+          alt={cloudId}
+          className="w-5 h-5 object-contain"
+        />
+      }
+      footer={cloudId === 'gcp' ? renderWizardFooter() : undefined}
+    >
+      {isFetchingCredentials ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading credentials...
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {renderWizardSteps()}
+          {renderActiveStep()}
         </div>
       )}
     </Modal>

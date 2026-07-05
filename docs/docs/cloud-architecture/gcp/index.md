@@ -9,8 +9,8 @@ sidebar_label: Overview
 Playrunner is designed to be easily deployable to Google Cloud Platform, providing a massively scalable, auto-scaling execution environment for your visual Playwright workflows.
 
 Need the concrete setup flow? Start with [GCP Setup](./setup), then use the
-separate [OAuth](./oauth) and [Terraform](./terraform) pages for step-by-step
-instructions.
+separate [OAuth](./oauth), [Project & Region](./project-region), and
+[Terraform](./terraform) pages for step-by-step instructions.
 
 ---
 

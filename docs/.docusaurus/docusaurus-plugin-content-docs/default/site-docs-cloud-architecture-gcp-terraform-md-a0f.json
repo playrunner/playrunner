@@ -1,7 +1,7 @@
 {
   "id": "cloud-architecture/gcp/terraform",
   "title": "Terraform Setup",
-  "description": "Run this after Google OAuth setup is complete and the Connect to GCP",
+  "description": "Run this after Google OAuth setup and",
   "source": "@site/docs/cloud-architecture/gcp/terraform.md",
   "sourceDirName": "cloud-architecture/gcp",
   "slug": "/cloud-architecture/gcp/terraform",
@@ -11,16 +11,16 @@
   "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/cloud-architecture/gcp/terraform.md",
   "tags": [],
   "version": "current",
-  "sidebarPosition": 4,
+  "sidebarPosition": 5,
   "frontMatter": {
-    "sidebar_position": 4,
+    "sidebar_position": 5,
     "title": "Terraform Setup",
     "sidebar_label": "Terraform"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "OAuth",
-    "permalink": "/playrunner/docs/cloud-architecture/gcp/oauth"
+    "title": "Project & Region",
+    "permalink": "/playrunner/docs/cloud-architecture/gcp/project-region"
   },
   "next": {
     "title": "AWS",

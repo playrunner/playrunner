@@ -31,6 +31,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "cloud-architecture/gcp/project-region",
+              "path": "/playrunner/docs/cloud-architecture/gcp/project-region",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "cloud-architecture/gcp/setup",
               "path": "/playrunner/docs/cloud-architecture/gcp/setup",
               "sidebar": "tutorialSidebar"
