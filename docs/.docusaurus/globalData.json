@@ -186,8 +186,8 @@
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "/category/runner-architecture",
-              "path": "/playrunner/docs/category/runner-architecture",
+              "id": "/category/cloud-architecture",
+              "path": "/playrunner/docs/category/cloud-architecture",
               "sidebar": "tutorialSidebar"
             }
           ],

@@ -1,9 +1,9 @@
 {
-  "label": "Runner Architecture",
+  "label": "Cloud Architecture",
   "position": 2,
   "link": {
     "type": "generated-index",
-    "title": "Runner Architecture",
-    "description": "Runner architecture notes for local development, supported cloud providers, and planned providers."
+    "title": "Cloud Architecture",
+    "description": "Cloud architecture notes for local development, supported cloud providers, and planned providers."
   }
 }
