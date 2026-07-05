@@ -1287,23 +1287,41 @@ export function GcpSettingsModal({
 
           <div className="space-y-4 pt-2 border-t border-subtle">
             <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
+              <label
+                htmlFor="gcp-oauth-client-id"
+                className="block text-xs font-medium text-muted mb-1.5"
+              >
                 Client ID
               </label>
               <Input
+                id="gcp-oauth-client-id"
+                name="playrunner-gcp-oauth-client-id"
                 value={gcpClientId}
                 onChange={(e) => setGcpClientId(e.target.value)}
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Enter Google OAuth client ID"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
+              <label
+                htmlFor="gcp-oauth-client-secret"
+                className="block text-xs font-medium text-muted mb-1.5"
+              >
                 Client Secret
               </label>
               <Input
+                id="gcp-oauth-client-secret"
+                name="playrunner-gcp-oauth-client-secret"
                 type="password"
                 value={gcpClientSecret}
                 onChange={(e) => setGcpClientSecret(e.target.value)}
+                autoComplete="new-password"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Enter Google OAuth client secret"
               />
             </div>

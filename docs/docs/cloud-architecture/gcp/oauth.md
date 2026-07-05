@@ -11,7 +11,7 @@ Cloud infrastructure and it does not run Terraform.
 
 ## 1. Open the Connect Dialog
 
-Start Playrunner locally from the repo root:
+Start Playrunner locally from the repo root (if not already running):
 
 ```bash
 ./start-local.sh
