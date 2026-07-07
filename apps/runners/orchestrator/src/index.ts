@@ -45,6 +45,27 @@ type GcpPubSubEventTransport = {
   type?: 'gcp_pubsub';
 };
 
+type WorkflowTemplateContext = {
+  definition: {
+    id: string;
+    name: string;
+  };
+  run: {
+    durationMs: number | '';
+    failedNode: {
+      id: string;
+      name: string;
+    };
+    finishedAt: string;
+    id: string;
+    runner: string;
+    startedAt: string;
+    status: 'running' | 'completed' | 'failed' | 'cancelled';
+    trigger: string;
+    url: string;
+  };
+};
+
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 const REDACTED_VALUE = '[redacted]';
 const SENSITIVE_PAYLOAD_KEY_PATTERN = /authorization|secret|token/i;
@@ -78,6 +99,154 @@ const activeNodePublishers: Record<string, WorkflowEventPublisher> = {};
 
 function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function getRecord(value: unknown): Record<string, any> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {};
+}
+
+function getPathValue(source: Record<string, any>, path: string): unknown {
+  return path.split('.').reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined;
+    }
+
+    return (current as Record<string, unknown>)[segment];
+  }, source);
+}
+
+function formatTemplateValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function getDurationMs(startedAt: string, finishedAt: Date): number {
+  const startedAtMs = new Date(startedAt).getTime();
+  if (Number.isNaN(startedAtMs)) {
+    return 0;
+  }
+
+  return Math.max(0, finishedAt.getTime() - startedAtMs);
+}
+
+function createWorkflowTemplateContext(
+  reqBody: Record<string, any>,
+  testId: string,
+  startedAt: Date,
+): WorkflowTemplateContext {
+  const workflow = getRecord(reqBody.workflow);
+  const definition = getRecord(workflow.definition);
+  const run = getRecord(workflow.run);
+  const failedNode = getRecord(run.failedNode);
+  const workflowId = getString(definition.id) || getString(reqBody.workflowId);
+
+  return {
+    definition: {
+      id: workflowId,
+      name:
+        getString(definition.name) ||
+        getString(reqBody.workflowName) ||
+        getString(reqBody.title) ||
+        'Untitled Workflow',
+    },
+    run: {
+      durationMs: '',
+      failedNode: {
+        id: getString(failedNode.id),
+        name: getString(failedNode.name),
+      },
+      finishedAt: '',
+      id: testId,
+      runner:
+        getString(run.runner) ||
+        getString(reqBody.cloudProvider) ||
+        'LOCAL_RUNNER',
+      startedAt: startedAt.toISOString(),
+      status: 'running',
+      trigger:
+        getString(run.trigger) || (reqBody.scheduler ? 'schedule' : 'manual'),
+      url: getString(run.url),
+    },
+  };
+}
+
+function finishWorkflowRun(
+  workflow: WorkflowTemplateContext,
+  status: WorkflowTemplateContext['run']['status'],
+) {
+  const finishedAt = new Date();
+  workflow.run.status = status;
+  workflow.run.finishedAt = finishedAt.toISOString();
+  workflow.run.durationMs = getDurationMs(workflow.run.startedAt, finishedAt);
+}
+
+function markWorkflowRunFailed(
+  workflow: WorkflowTemplateContext,
+  node?: { id?: string; label?: string },
+) {
+  if (!workflow.run.failedNode.id && node?.id) {
+    workflow.run.failedNode.id = node.id;
+    workflow.run.failedNode.name = getString(node.label) || node.id;
+  }
+
+  finishWorkflowRun(workflow, 'failed');
+}
+
+function prepareWorkflowRunStatusForNode({
+  activeNodeCount,
+  outgoingCount,
+  workflow,
+}: {
+  activeNodeCount: number;
+  outgoingCount: number;
+  workflow: WorkflowTemplateContext;
+}) {
+  if (workflow.run.status === 'failed') {
+    return;
+  }
+
+  if (activeNodeCount === 1 && outgoingCount === 0) {
+    finishWorkflowRun(workflow, 'completed');
+    return;
+  }
+
+  workflow.run.status = 'running';
+  workflow.run.finishedAt = '';
+  workflow.run.durationMs = '';
+}
+
+function renderNodeTemplate(
+  text: string,
+  context: {
+    env: Record<string, string>;
+    workflow: WorkflowTemplateContext;
+  },
+) {
+  if (!text) {
+    return text;
+  }
+
+  return text.replace(/{{\s*([^{}]+?)\s*}}/g, (match, expression) => {
+    const path = expression.trim();
+    if (!path.startsWith('env.') && !path.startsWith('workflow.')) {
+      return match;
+    }
+
+    return formatTemplateValue(getPathValue(context, path));
+  });
 }
 
 function isSensitivePayloadKey(key: string): boolean {
@@ -267,6 +436,11 @@ function createWorkflowEventPublisher(
 async function executeWorkflow(reqBody: any) {
   const eventPublisher = createWorkflowEventPublisher(reqBody);
   const { publishEvent, publishLog, publishNodeState } = eventPublisher;
+  const workflowContext = createWorkflowTemplateContext(
+    reqBody,
+    getString(reqBody.testId),
+    new Date(),
+  );
   let terminalEventPublished = false;
   let workflowFailed = false;
 
@@ -284,6 +458,7 @@ async function executeWorkflow(reqBody: any) {
       message: `Cloud orchestrator received workflow execution request with ${nodeCount} node${nodeCount === 1 ? '' : 's'}.`,
       timestamp: new Date().toISOString(),
       type: 'workflow_started',
+      workflow: workflowContext,
     });
 
     if (nodes && Array.isArray(nodes)) {
@@ -499,6 +674,11 @@ async function executeWorkflow(reqBody: any) {
         const outgoing = processedConnections.filter(
           (c) => c.sourceId === node.id,
         );
+        prepareWorkflowRunStatusForNode({
+          activeNodeCount,
+          outgoingCount: outgoing.length,
+          workflow: workflowContext,
+        });
         const concurrentChildren = outgoing.filter(
           (c) => (c.type || 'sequential') === 'concurrent',
         );
@@ -625,17 +805,11 @@ async function executeWorkflow(reqBody: any) {
                 );
               }
 
-              const replaceVars = (text: string) => {
-                if (!text) return text;
-                let result = text;
-                for (const [k, v] of Object.entries(globalEnvVars)) {
-                  result = result.replace(
-                    new RegExp(`{{\\s*env\\.${k}\\s*}}`, 'g'),
-                    v,
-                  );
-                }
-                return result;
-              };
+              const replaceVars = (text: string) =>
+                renderNodeTemplate(text, {
+                  env: globalEnvVars,
+                  workflow: workflowContext,
+                });
 
               const summary = replaceVars(config.summary || '');
               const description = replaceVars(config.description || '');
@@ -752,6 +926,7 @@ async function executeWorkflow(reqBody: any) {
         await publishNodeState(node.id, finalState);
         if (finalState === 'error') {
           workflowFailed = true;
+          markWorkflowRunFailed(workflowContext, node);
         }
 
         nodeIsRunning[nodeId] = false;
@@ -820,6 +995,7 @@ async function executeWorkflow(reqBody: any) {
     }
 
     terminalEventPublished = true;
+    finishWorkflowRun(workflowContext, workflowFailed ? 'failed' : 'completed');
     await publishEvent({
       level: workflowFailed ? 'error' : 'info',
       message: workflowFailed
@@ -827,14 +1003,17 @@ async function executeWorkflow(reqBody: any) {
         : 'Workflow execution completed.',
       timestamp: new Date().toISOString(),
       type: workflowFailed ? 'workflow_failed' : 'workflow_completed',
+      workflow: workflowContext,
     });
   } catch (err: any) {
     if (!terminalEventPublished) {
+      markWorkflowRunFailed(workflowContext);
       await publishEvent({
         level: 'error',
         message: `Workflow execution failed: ${err?.message || 'Unknown error'}`,
         timestamp: new Date().toISOString(),
         type: 'workflow_failed',
+        workflow: workflowContext,
       });
     }
     throw err;

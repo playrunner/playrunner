@@ -1240,6 +1240,17 @@ export default function Editor() {
           connections: connectionsToRun,
           settings,
           workflowId: activeWorkflowId,
+          workflow: {
+            definition: {
+              id: activeWorkflowId,
+              name: workflowName,
+            },
+            run: {
+              runner: currentCloudProvider,
+              trigger: 'manual',
+              url: `${window.location.origin}/workflow/${activeWorkflowId}`,
+            },
+          },
           cloudProvider: currentCloudProvider,
           concurrency,
         }),
@@ -1300,6 +1311,7 @@ export default function Editor() {
       concurrency,
       handleExecutionEvent,
       updateWorkflowStartupStatus,
+      workflowName,
     ],
   );
 

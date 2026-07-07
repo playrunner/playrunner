@@ -6,7 +6,14 @@ import { Select } from './ui/Select';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import { INTEGRATIONS } from '../integrations/registry';
-import { ChevronDown, ChevronUp, Info, Eye, EyeOff } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Eye,
+  EyeOff,
+  Workflow as WorkflowIcon,
+} from 'lucide-react';
 
 interface IntegrationConfigPanelProps {
   nodeId: string;
@@ -20,6 +27,42 @@ interface IntegrationConfigPanelProps {
   incomingNodes?: any[];
   onLabelChange?: (nodeId: string, newLabel: string) => void;
   workflowCloudProvider?: string;
+}
+
+type WorkflowInputVariable = {
+  path: string;
+  type: string;
+};
+
+const WORKFLOW_INPUT_PANEL_ID = '__workflow__';
+const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
+  { path: 'workflow.definition.id', type: 'string' },
+  { path: 'workflow.definition.name', type: 'string' },
+  { path: 'workflow.run.id', type: 'string' },
+  { path: 'workflow.run.status', type: 'string' },
+  { path: 'workflow.run.startedAt', type: 'datetime' },
+  { path: 'workflow.run.finishedAt', type: 'datetime' },
+  { path: 'workflow.run.durationMs', type: 'number' },
+  { path: 'workflow.run.failedNode.id', type: 'string' },
+  { path: 'workflow.run.failedNode.name', type: 'string' },
+  { path: 'workflow.run.trigger', type: 'string' },
+  { path: 'workflow.run.runner', type: 'string' },
+  { path: 'workflow.run.url', type: 'url' },
+];
+
+function setDragText(event: React.DragEvent, dragText: string) {
+  event.dataTransfer.setData('text/plain', dragText);
+
+  const dragGhost = document.createElement('div');
+  dragGhost.textContent = dragText;
+  dragGhost.className =
+    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+  document.body.appendChild(dragGhost);
+  event.dataTransfer.setDragImage(dragGhost, 10, 10);
+
+  setTimeout(() => {
+    document.body.removeChild(dragGhost);
+  }, 0);
 }
 
 export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
@@ -39,7 +82,9 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [integrationData, setIntegrationData] = useState<any>(null);
   const [collapsedInputs, setCollapsedInputs] = useState<
     Record<string, boolean>
-  >({});
+  >({
+    [WORKFLOW_INPUT_PANEL_ID]: true,
+  });
   const [expandedMediaItems, setExpandedMediaItems] = useState<
     Record<string, boolean>
   >({});
@@ -181,16 +226,69 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               </h3>
             </div>
             <div className="p-4 flex-1 overflow-y-auto space-y-6">
-              {incomingNodes && incomingNodes.length > 0 && (
-                <div className="bg-[#18181b] border border-subtle text-gray-300 rounded-lg p-3 flex items-start gap-3 shadow-inner">
-                  <div className="mt-0.5 text-muted">
-                    <Info className="w-4 h-4" />
-                  </div>
-                  <p className="text-xs leading-relaxed">
-                    Drag any variable to the configuration panel.
-                  </p>
+              <div className="bg-[var(--surface-hover)] border border-subtle text-muted rounded-lg p-3 flex items-start gap-3 shadow-inner">
+                <div className="mt-0.5 text-muted">
+                  <Info className="w-4 h-4" />
                 </div>
-              )}
+                <p className="text-xs leading-relaxed">
+                  Drag any variable to the configuration panel.
+                </p>
+              </div>
+
+              {(() => {
+                const isCollapsed = collapsedInputs[WORKFLOW_INPUT_PANEL_ID];
+                const toggleCollapse = () =>
+                  setCollapsedInputs((prev) => ({
+                    ...prev,
+                    [WORKFLOW_INPUT_PANEL_ID]: !prev[WORKFLOW_INPUT_PANEL_ID],
+                  }));
+
+                return (
+                  <div className="space-y-3 border border-subtle rounded-md p-2">
+                    <button
+                      onClick={toggleCollapse}
+                      className="flex items-center justify-between w-full text-left group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <WorkflowIcon className="w-4 h-4 text-blue-400" />
+                        <h4 className="text-xs font-medium text-muted uppercase tracking-wider group-hover:text-[var(--foreground)] transition-colors">
+                          Workflow
+                        </h4>
+                      </div>
+                      {isCollapsed ? (
+                        <ChevronDown className="w-4 h-4 text-muted group-hover:text-[var(--foreground)] transition-colors" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4 text-muted group-hover:text-[var(--foreground)] transition-colors" />
+                      )}
+                    </button>
+                    {!isCollapsed && (
+                      <div className="space-y-2 mt-2">
+                        {WORKFLOW_INPUT_VARIABLES.map((variable) => {
+                          const dragText = `{{${variable.path}}}`;
+
+                          return (
+                            <div
+                              key={variable.path}
+                              className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                              draggable
+                              onDragStart={(e) => setDragText(e, dragText)}
+                              title={`Drag ${dragText} to inject this value`}
+                            >
+                              <span className="text-xs font-mono text-blue-400">
+                                {variable.path}
+                              </span>
+                              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                                {variable.type}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {incomingNodes.length > 0 ? (
                 incomingNodes.map((inNode) => {
                   const isCollapsed = collapsedInputs[inNode.id];

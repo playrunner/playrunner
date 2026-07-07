@@ -315,6 +315,16 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
         },
         settings,
         workflowId: schedule.workflowId,
+        workflow: {
+          definition: {
+            id: schedule.workflowId,
+            name: schedule.workflow.title || 'Untitled Workflow',
+          },
+          run: {
+            runner: 'GCP',
+            trigger: 'schedule',
+          },
+        },
       },
       req: createExecutionRequest(req, schedule.userId),
       testId,
