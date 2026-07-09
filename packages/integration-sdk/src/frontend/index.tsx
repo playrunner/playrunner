@@ -155,18 +155,157 @@ export function useIntegrationHost() {
 export function IntegrationConfigField({
   label,
   hint,
+  htmlFor,
   children,
 }: {
   label: string;
   hint?: React.ReactNode;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted">{label}</label>
+      <label htmlFor={htmlFor} className="text-xs font-medium text-muted">
+        {label}
+      </label>
       {children}
       {hint ? <p className="text-[10px] text-muted">{hint}</p> : null}
     </div>
+  );
+}
+
+export type IntegrationConnectionInputMode = 'text' | 'secret';
+
+export interface IntegrationConnectionInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'autoCapitalize' | 'autoComplete' | 'autoCorrect' | 'name' | 'spellCheck'
+> {
+  connectionId: string;
+  fieldSlot: string;
+  mode?: IntegrationConnectionInputMode;
+}
+
+function normalizeConnectionInputToken(value: string) {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'field';
+}
+
+function getConnectionInputName({
+  connectionId,
+  fieldSlot,
+  mode,
+}: {
+  connectionId: string;
+  fieldSlot: string;
+  mode: IntegrationConnectionInputMode;
+}) {
+  return [
+    'pr',
+    normalizeConnectionInputToken(connectionId),
+    normalizeConnectionInputToken(fieldSlot),
+    mode === 'secret' ? 'protected' : 'manual',
+    'entry',
+  ].join('-');
+}
+
+export function IntegrationConnectionAutofillGuard({
+  connectionId,
+}: {
+  connectionId: string;
+}) {
+  const token = normalizeConnectionInputToken(connectionId);
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        height: 1,
+        left: -10000,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        position: 'absolute',
+        top: 'auto',
+        width: 1,
+      }}
+    >
+      <input
+        autoComplete="username"
+        name={`pr-${token}-browser-user`}
+        tabIndex={-1}
+        type="text"
+      />
+      <input
+        autoComplete="current-password"
+        name={`pr-${token}-browser-pass`}
+        tabIndex={-1}
+        type="password"
+      />
+    </div>
+  );
+}
+
+export function IntegrationConnectionInput({
+  connectionId,
+  fieldSlot,
+  mode = 'text',
+  onBlur,
+  onFocus,
+  onPointerDown,
+  readOnly,
+  type,
+  ...props
+}: IntegrationConnectionInputProps) {
+  const { ui } = useIntegrationHost();
+  const Input = ui.Input;
+  const [isEditing, setIsEditing] = useState(false);
+  const effectiveMode =
+    mode === 'secret' || type === 'password' ? 'secret' : mode;
+  const managedReadOnly = readOnly ?? !isEditing;
+
+  const handlePointerDown: React.PointerEventHandler<HTMLInputElement> = (
+    event,
+  ) => {
+    setIsEditing(true);
+    onPointerDown?.(event);
+  };
+
+  const handleFocus: React.FocusEventHandler<HTMLInputElement> = (event) => {
+    setIsEditing(true);
+    onFocus?.(event);
+  };
+
+  const handleBlur: React.FocusEventHandler<HTMLInputElement> = (event) => {
+    setIsEditing(false);
+    onBlur?.(event);
+  };
+
+  return (
+    <Input
+      {...props}
+      autoCapitalize="off"
+      autoComplete={effectiveMode === 'secret' ? 'new-password' : 'off'}
+      autoCorrect="off"
+      data-1p-ignore="true"
+      data-bwignore="true"
+      data-form-type="other"
+      data-lpignore="true"
+      name={getConnectionInputName({
+        connectionId,
+        fieldSlot,
+        mode: effectiveMode,
+      })}
+      onBlur={handleBlur}
+      onFocus={handleFocus}
+      onPointerDown={handlePointerDown}
+      readOnly={managedReadOnly}
+      spellCheck={false}
+      type={effectiveMode === 'secret' ? 'password' : type}
+    />
   );
 }
 
@@ -330,7 +469,10 @@ export function IntegrationSettingsModal({
           )}
         </div>
       ) : (
-        <div className="flex flex-col gap-6">{children}</div>
+        <div className="flex flex-col gap-6">
+          <IntegrationConnectionAutofillGuard connectionId={title} />
+          {children}
+        </div>
       )}
     </Modal>
   );

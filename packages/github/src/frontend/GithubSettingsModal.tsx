@@ -7,7 +7,11 @@ import {
   ExternalLink,
   Loader2,
 } from 'lucide-react';
-import { useIntegrationHost } from '@playrunner/integration-sdk';
+import {
+  IntegrationConnectionAutofillGuard,
+  IntegrationConnectionInput,
+  useIntegrationHost,
+} from '@playrunner/integration-sdk';
 import { GithubIcon } from './GithubIcon';
 
 interface GithubSettingsModalProps {
@@ -40,7 +44,6 @@ export function GithubSettingsModal({
   onClose,
 }: GithubSettingsModalProps) {
   const { auth, store, ui } = useIntegrationHost();
-  const Input = ui.Input;
   const Modal = ui.Modal;
   const [githubAppName, setGithubAppName] = useState('');
   const [githubClientId, setGithubClientId] = useState('');
@@ -360,6 +363,8 @@ export function GithubSettingsModal({
         </div>
       ) : (
         <div className="flex flex-col gap-6">
+          <IntegrationConnectionAutofillGuard connectionId="github" />
+
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
             <div className="flex items-start gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
@@ -414,32 +419,50 @@ export function GithubSettingsModal({
 
           <div className="space-y-4 pt-2 border-t border-subtle">
             <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
+              <label
+                htmlFor="github-connection-field-a"
+                className="block text-xs font-medium text-muted mb-1.5"
+              >
                 GitHub App Name (URL Slug)
               </label>
-              <Input
+              <IntegrationConnectionInput
+                id="github-connection-field-a"
+                connectionId="github"
+                fieldSlot="a"
                 placeholder="e.g. my-awesome-app"
                 value={githubAppName}
                 onChange={(e) => setGithubAppName(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
+              <label
+                htmlFor="github-connection-field-b"
+                className="block text-xs font-medium text-muted mb-1.5"
+              >
                 Client ID
               </label>
-              <Input
-                placeholder="Enter GitHub App Client ID"
+              <IntegrationConnectionInput
+                id="github-connection-field-b"
+                connectionId="github"
+                fieldSlot="b"
+                placeholder="Paste value from GitHub app"
                 value={githubClientId}
                 onChange={(e) => setGithubClientId(e.target.value)}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
+              <label
+                htmlFor="github-connection-field-c"
+                className="block text-xs font-medium text-muted mb-1.5"
+              >
                 Client Secret
               </label>
-              <Input
-                type="password"
-                placeholder="Enter GitHub App Client Secret"
+              <IntegrationConnectionInput
+                id="github-connection-field-c"
+                connectionId="github"
+                fieldSlot="c"
+                mode="secret"
+                placeholder="Paste value from GitHub app"
                 value={githubClientSecret}
                 onChange={(e) => setGithubClientSecret(e.target.value)}
               />

@@ -8,7 +8,11 @@ import {
   Loader2,
   RefreshCw,
 } from 'lucide-react';
-import { useIntegrationHost } from '@playrunner/integration-sdk';
+import {
+  IntegrationConnectionAutofillGuard,
+  IntegrationConnectionInput,
+  useIntegrationHost,
+} from '@playrunner/integration-sdk';
 import { gcpIconUrl } from './icon';
 
 interface GcpSettingsModalProps {
@@ -222,7 +226,6 @@ export function GcpSettingsModal({
 }: GcpSettingsModalProps) {
   const { auth, store, ui } = useIntegrationHost();
   const Button = ui.Button;
-  const Input = ui.Input;
   const Modal = ui.Modal;
   const [gcpClientId, setGcpClientId] = useState('');
   const [gcpClientSecret, setGcpClientSecret] = useState('');
@@ -1103,41 +1106,35 @@ export function GcpSettingsModal({
           <div className="space-y-4 border-t border-subtle pt-4">
             <div>
               <label
-                htmlFor="gcp-oauth-client-id"
+                htmlFor="gcp-connection-field-a"
                 className="mb-1.5 block text-xs font-medium text-muted"
               >
                 Client ID
               </label>
-              <Input
-                id="gcp-oauth-client-id"
-                name="playrunner-gcp-oauth-client-id"
+              <IntegrationConnectionInput
+                id="gcp-connection-field-a"
+                connectionId="gcp"
+                fieldSlot="a"
                 value={gcpClientId}
                 onChange={(e) => setGcpClientId(e.target.value)}
-                autoComplete="off"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="Enter Google OAuth client ID"
+                placeholder="Paste value from Google OAuth app"
               />
             </div>
             <div>
               <label
-                htmlFor="gcp-oauth-client-secret"
+                htmlFor="gcp-connection-field-b"
                 className="mb-1.5 block text-xs font-medium text-muted"
               >
                 Client Secret
               </label>
-              <Input
-                id="gcp-oauth-client-secret"
-                name="playrunner-gcp-oauth-client-secret"
-                type="password"
+              <IntegrationConnectionInput
+                id="gcp-connection-field-b"
+                connectionId="gcp"
+                fieldSlot="b"
+                mode="secret"
                 value={gcpClientSecret}
                 onChange={(e) => setGcpClientSecret(e.target.value)}
-                autoComplete="new-password"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder="Enter Google OAuth client secret"
+                placeholder="Paste value from Google OAuth app"
               />
             </div>
           </div>
@@ -1168,7 +1165,7 @@ export function GcpSettingsModal({
           <div>
             <div className="mb-1.5 flex items-center justify-between gap-3">
               <label
-                htmlFor="gcp-project-id"
+                htmlFor="gcp-connection-field-c"
                 className="block text-xs font-medium text-muted"
               >
                 Google Cloud Project
@@ -1188,8 +1185,10 @@ export function GcpSettingsModal({
                 </button>
               ) : null}
             </div>
-            <Input
-              id="gcp-project-id"
+            <IntegrationConnectionInput
+              id="gcp-connection-field-c"
+              connectionId="gcp"
+              fieldSlot="c"
               list="gcp-project-options"
               placeholder="project-id"
               value={selectedProject}
@@ -1230,20 +1229,21 @@ export function GcpSettingsModal({
 
           <div>
             <label
-              htmlFor="gcp-cloud-run-region"
+              htmlFor="gcp-connection-field-d"
               className="mb-1.5 block text-xs font-medium text-muted"
             >
               Cloud Run Region
             </label>
-            <Input
-              id="gcp-cloud-run-region"
+            <IntegrationConnectionInput
+              id="gcp-connection-field-d"
+              connectionId="gcp"
+              fieldSlot="d"
               value={cloudRunLocation}
               onChange={(e) => {
                 setCloudRunLocation(e.target.value);
                 setRunnerSettingsSaved(false);
                 setRunnerSettingsError('');
               }}
-              autoComplete="off"
               placeholder="us-central1"
             />
           </div>
@@ -1255,33 +1255,36 @@ export function GcpSettingsModal({
             <div className="mt-4 space-y-4">
               <div>
                 <label
-                  htmlFor="gcp-orchestrator-service-name"
+                  htmlFor="gcp-connection-field-e"
                   className="mb-1.5 block text-xs font-medium text-muted"
                 >
                   Orchestrator Service Name
                 </label>
-                <Input
-                  id="gcp-orchestrator-service-name"
+                <IntegrationConnectionInput
+                  id="gcp-connection-field-e"
+                  connectionId="gcp"
+                  fieldSlot="e"
                   value={orchestratorServiceName}
                   onChange={(e) => {
                     setOrchestratorServiceName(e.target.value);
                     setRunnerSettingsSaved(false);
                     setRunnerSettingsError('');
                   }}
-                  autoComplete="off"
                   placeholder={DEFAULT_ORCHESTRATOR_SERVICE_NAME}
                 />
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <div>
                   <label
-                    htmlFor="gcp-orchestrator-min-instances"
+                    htmlFor="gcp-connection-field-f"
                     className="mb-1.5 block text-xs font-medium text-muted"
                   >
                     Min Instances
                   </label>
-                  <Input
-                    id="gcp-orchestrator-min-instances"
+                  <IntegrationConnectionInput
+                    id="gcp-connection-field-f"
+                    connectionId="gcp"
+                    fieldSlot="f"
                     type="number"
                     min="0"
                     step="1"
@@ -1295,13 +1298,15 @@ export function GcpSettingsModal({
                 </div>
                 <div>
                   <label
-                    htmlFor="gcp-orchestrator-max-instances"
+                    htmlFor="gcp-connection-field-g"
                     className="mb-1.5 block text-xs font-medium text-muted"
                   >
                     Max Instances
                   </label>
-                  <Input
-                    id="gcp-orchestrator-max-instances"
+                  <IntegrationConnectionInput
+                    id="gcp-connection-field-g"
+                    connectionId="gcp"
+                    fieldSlot="g"
                     type="number"
                     min="1"
                     step="1"
@@ -1571,6 +1576,7 @@ export function GcpSettingsModal({
         </div>
       ) : (
         <div className="space-y-5">
+          <IntegrationConnectionAutofillGuard connectionId="gcp" />
           {renderWizardSteps()}
           {renderActiveStep()}
         </div>

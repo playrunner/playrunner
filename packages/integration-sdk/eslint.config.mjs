@@ -48,6 +48,8 @@ export default [
             'IntegrationSdkProvider',
             'useIntegrationHost',
             'IntegrationConfigField',
+            'IntegrationConnectionAutofillGuard',
+            'IntegrationConnectionInput',
             'IntegrationSetupGuide',
             'IntegrationCopyableCode',
             'IntegrationSettingsModal',

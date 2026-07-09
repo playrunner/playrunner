@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  IntegrationConnectionInput,
   IntegrationCopyableCode,
   IntegrationConfigField,
   IntegrationSettingsModal,
@@ -33,13 +34,12 @@ function getDocsUrl(path = '') {
 }
 
 export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
-  const { auth, store, ui } = useIntegrationHost();
+  const { auth, store } = useIntegrationHost();
   const [jiraClientId, setJiraClientId] = useState('');
   const [jiraClientSecret, setJiraClientSecret] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
-  const Input = ui.Input;
 
   const callbackUrl = `${window.location.origin}/oauth/callback/jira`;
 
@@ -258,19 +258,31 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
       </div>
 
       <div className="space-y-4 border-t border-subtle pt-2">
-        <IntegrationConfigField label="Client ID">
-          <Input
-            placeholder="Enter Jira Client ID"
+        <IntegrationConfigField
+          label="Client ID"
+          htmlFor="jira-connection-field-a"
+        >
+          <IntegrationConnectionInput
+            id="jira-connection-field-a"
+            connectionId="jira"
+            fieldSlot="a"
+            placeholder="Paste value from Atlassian app"
             value={jiraClientId}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               setJiraClientId(event.target.value);
             }}
           />
         </IntegrationConfigField>
-        <IntegrationConfigField label="Client Secret">
-          <Input
-            type="password"
-            placeholder="Enter Jira Client Secret"
+        <IntegrationConfigField
+          label="Client Secret"
+          htmlFor="jira-connection-field-b"
+        >
+          <IntegrationConnectionInput
+            id="jira-connection-field-b"
+            connectionId="jira"
+            fieldSlot="b"
+            mode="secret"
+            placeholder="Paste value from Atlassian app"
             value={jiraClientSecret}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               setJiraClientSecret(event.target.value);
