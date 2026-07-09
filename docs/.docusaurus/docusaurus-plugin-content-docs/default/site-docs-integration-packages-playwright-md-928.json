@@ -23,5 +23,9 @@
   "previous": {
     "title": "Schedule",
     "permalink": "/playrunner/docs/integration-packages/schedule"
+  },
+  "next": {
+    "title": "Slack",
+    "permalink": "/playrunner/docs/integration-packages/slack"
   }
 }

@@ -55,8 +55,7 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
       | { projectId?: string; topicName?: string; type?: 'gcp_pubsub' }
       | undefined;
     const accessToken = request.reqBody.settings?.gcp?.accessToken as
-      | string
-      | undefined;
+      string | undefined;
 
     if (
       eventTransport?.type !== 'gcp_pubsub' ||

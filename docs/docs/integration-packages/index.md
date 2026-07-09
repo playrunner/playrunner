@@ -74,9 +74,17 @@ assets as a deployable unit.
     href="/docs/integration-packages/playwright"
     installCommand="npm install @playrunner/playwright @playrunner/github"
   />
+  <IntegrationDirectoryItem
+    name="Slack"
+    packageName="@playrunner/slack"
+    description="Send notifications and alerts to Slack channels."
+    icon="slack"
+    href="/docs/integration-packages/slack"
+    installCommand="npm install @playrunner/slack"
+  />
 </IntegrationDirectory>
 
-The current integrations are `@playrunner/environment` in `packages/environment`, `@playrunner/gcp` in `packages/gcp`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, and `@playrunner/schedule` in `packages/schedule`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
+The current integrations are `@playrunner/environment` in `packages/environment`, `@playrunner/gcp` in `packages/gcp`, `@playrunner/github` in `packages/github`, `@playrunner/jira` in `packages/jira`, `@playrunner/javascript` in `packages/javascript`, `@playrunner/playwright` in `packages/playwright`, `@playrunner/schedule` in `packages/schedule`, and `@playrunner/slack` in `packages/slack`. Shared contracts and reusable UI helpers live in `@playrunner/integration-sdk` in `packages/integration-sdk`.
 
 ## Install from npm
 
@@ -91,6 +99,7 @@ These packages will be published publicly on npm. The links below are placeholde
 | Jira        | `npm install @playrunner/jira`                          | [@playrunner/jira](https://www.npmjs.com/package/@playrunner/jira)               |
 | Playwright  | `npm install @playrunner/playwright @playrunner/github` | [@playrunner/playwright](https://www.npmjs.com/package/@playrunner/playwright)   |
 | Schedule    | `npm install @playrunner/schedule`                      | [@playrunner/schedule](https://www.npmjs.com/package/@playrunner/schedule)       |
+| Slack       | `npm install @playrunner/slack`                         | [@playrunner/slack](https://www.npmjs.com/package/@playrunner/slack)             |
 
 ## Package layout
 
@@ -139,10 +148,17 @@ packages/
 │   ├── src/frontend/PlaywrightConfigPanel.tsx
 │   ├── src/frontend/playwrightRunnerConfig.ts
 │   └── src/api/index.ts
-└── schedule/
+├── schedule/
+│   ├── package.json
+│   ├── src/frontend/index.tsx
+│   ├── src/frontend/ScheduleConfigPanel.tsx
+│   └── src/api/index.ts
+└── slack/
     ├── package.json
+    ├── assets/slack.svg
     ├── src/frontend/index.tsx
-    ├── src/frontend/ScheduleConfigPanel.tsx
+    ├── src/frontend/SlackConfigPanel.tsx
+    ├── src/frontend/SlackSettingsModal.tsx
     └── src/api/index.ts
 ```
 
@@ -290,6 +306,7 @@ npm install --prefix packages/javascript
 npm install --prefix packages/jira
 npm install --prefix packages/playwright
 npm install --prefix packages/schedule
+npm install --prefix packages/slack
 npm install --prefix apps/api
 npm install --prefix apps/frontend
 ```

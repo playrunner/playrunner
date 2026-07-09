@@ -177,6 +177,8 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
     [
       'run',
       '--rm',
+      '--add-host',
+      'host.docker.internal:host-gateway',
       '--name',
       LOCAL_ORCHESTRATOR_CONTAINER_NAME,
       '--label',

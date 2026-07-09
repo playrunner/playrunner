@@ -249,17 +249,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-687"
   },
-  "/playrunner/docs-14c": {
+  "/playrunner/docs-692": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docsaba-84d"
     }
   },
-  "/playrunner/docs-99b": {
+  "/playrunner/docs-10c": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-607-284"
   },
-  "/playrunner/docs-0a3": {
+  "/playrunner/docs-059": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/category/cloud-architecture-0c4": {
@@ -333,6 +333,10 @@
   "/playrunner/docs/integration-packages/schedule-b26": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-integration-packages-scheduled-57-562"
+  },
+  "/playrunner/docs/integration-packages/slack-91a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-integration-packages-slackaf-7-bad"
   },
   "/playrunner/docs/local-dev/-cb6": {
     "__comp": "__comp---theme-doc-item-178-a40",
