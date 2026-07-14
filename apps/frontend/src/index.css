@@ -9,6 +9,7 @@
 @source '../../../packages/jira/src';
 @source '../../../packages/playwright/src';
 @source '../../../packages/schedule/src';
+@source '../../../packages/slack/src';
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;

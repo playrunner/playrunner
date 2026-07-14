@@ -66,6 +66,10 @@ export default defineConfig(({ mode }) => {
           repoRoot,
           'packages/schedule/src/frontend/index.tsx',
         ),
+        '@playrunner/slack': path.resolve(
+          repoRoot,
+          'packages/slack/src/frontend/index.tsx',
+        ),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(
           webNodeModulesDir,
