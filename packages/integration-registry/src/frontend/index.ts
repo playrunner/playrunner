@@ -25,7 +25,8 @@ export const packageIntegrations: Integration[] = [
   playwrightIntegration,
   javascriptIntegration,
   environmentIntegration,
-  scheduleIntegration
+  scheduleIntegration,
+  slackIntegration,
 ];
 
 export const packageIntegrationRegistry: Record<string, Integration> =

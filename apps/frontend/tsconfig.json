@@ -35,6 +35,7 @@
       "@playrunner/schedule": [
         "../../packages/schedule/src/frontend/index.tsx"
       ],
+      "@playrunner/slack": ["../../packages/slack/src/frontend/index.tsx"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
     },

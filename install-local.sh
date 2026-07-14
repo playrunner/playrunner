@@ -11,6 +11,7 @@ LOCAL_PACKAGE_DIRS=(
   "packages/jira"
   "packages/playwright"
   "packages/schedule"
+  "packages/slack"
   "apps/api"
   "apps/frontend"
   "apps/runners/orchestrator"

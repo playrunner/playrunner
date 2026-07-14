@@ -5,6 +5,7 @@ import { javascriptApiContribution } from '../../../javascript/src/api';
 import { jiraApiContribution } from '../../../jira/src/api';
 import { playwrightApiContribution } from '../../../playwright/src/api';
 import { scheduleApiContribution } from '../../../schedule/src/api';
+import { slackApiContribution } from '../../../slack/src/api';
 
 export const packageApiContributions = [
   gcpApiContribution,
@@ -14,6 +15,7 @@ export const packageApiContributions = [
   javascriptApiContribution,
   playwrightApiContribution,
   scheduleApiContribution,
+  slackApiContribution,
 ];
 
 export function registerIntegrationApiRoutes(app: {

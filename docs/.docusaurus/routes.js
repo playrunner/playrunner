@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '14c'),
+    component: ComponentCreator('/playrunner/docs', '692'),
     routes: [
       {
         path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '99b'),
+        component: ComponentCreator('/playrunner/docs', '10c'),
         routes: [
           {
             path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '0a3'),
+            component: ComponentCreator('/playrunner/docs', '059'),
             routes: [
               {
                 path: '/playrunner/docs/category/cloud-architecture',
@@ -229,6 +229,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/schedule',
                 component: ComponentCreator('/playrunner/docs/integration-packages/schedule', 'b26'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/slack',
+                component: ComponentCreator('/playrunner/docs/integration-packages/slack', '91a'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

@@ -30,6 +30,7 @@
     "@playrunner/jira": "file:../../packages/jira",
     "@playrunner/playwright": "file:../../packages/playwright",
     "@playrunner/schedule": "file:../../packages/schedule",
+    "@playrunner/slack": "file:../../packages/slack",
     "@prisma/client": "^6.17.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",

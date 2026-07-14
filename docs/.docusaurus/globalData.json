@@ -96,6 +96,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/slack",
+              "path": "/playrunner/docs/integration-packages/slack",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "local-dev/connecting-integrations",
               "path": "/playrunner/docs/local-dev/connecting-integrations",
               "sidebar": "tutorialSidebar"

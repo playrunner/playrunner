@@ -21,12 +21,7 @@ function requiredEditorApiUrl(): never {
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
 type WorkflowNodeState =
-  | 'idle'
-  | 'pending'
-  | 'running'
-  | 'success'
-  | 'error'
-  | 'warning';
+  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
 
 type WorkflowEventPublisher = {
   executionId: string;
@@ -362,8 +357,7 @@ function createWorkflowEventPublisher(
       ? reqBody.executionAuthToken
       : '';
   const eventTransport = reqBody.eventTransport as
-    | GcpPubSubEventTransport
-    | undefined;
+    GcpPubSubEventTransport | undefined;
   const gcpAccessToken = getString(reqBody.settings?.gcp?.accessToken);
   const basePayload = {
     cloudProvider: reqBody.cloudProvider || 'LOCAL_RUNNER',
@@ -748,22 +742,109 @@ async function executeWorkflow(reqBody: any) {
             finalState = 'error';
           }
         } else if (type === 'slack') {
-          const hasSlackSettings = !!(settings && settings.slack);
+          const config = node.config || {};
+          const slackSettings = settings?.slack;
           await publishLog(
             `Processing node: ${node.label} (${node.id})`,
             'info',
           );
-          if (hasSlackSettings) {
+
+          if (!slackSettings?.accessToken && !slackSettings?.webhookUrl) {
             await publishLog(
-              'Slack credentials found. Simulating message send.',
-              'info',
+              'Slack credentials missing. Cannot send message.',
+              'error',
             );
+            finalState = 'error';
           } else {
-            await publishLog(
-              'Slack credentials missing. Send might fail.',
-              'warn',
-            );
-            finalState = 'warning';
+            try {
+              const replaceVars = (text: string) =>
+                renderNodeTemplate(text, {
+                  env: globalEnvVars,
+                  workflow: workflowContext,
+                });
+
+              const message = replaceVars(
+                config.message || 'Workflow completed.',
+              );
+
+              if (slackSettings.webhookUrl) {
+                await publishLog(
+                  'Sending Slack message via incoming webhook...',
+                  'info',
+                );
+
+                const webhookBody: Record<string, string> = { text: message };
+                if (config.username) {
+                  webhookBody.username = replaceVars(config.username);
+                }
+
+                const webhookRes = await fetch(slackSettings.webhookUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(webhookBody),
+                });
+
+                if (!webhookRes.ok) {
+                  const errText = await webhookRes.text();
+                  throw new Error(
+                    `Slack webhook returned ${webhookRes.status}: ${errText}`,
+                  );
+                }
+
+                await publishLog(
+                  'Slack message sent successfully via webhook.',
+                  'info',
+                );
+              } else {
+                await publishLog(
+                  'Sending Slack message via Bot API...',
+                  'info',
+                );
+
+                const channel = config.channel;
+                if (!channel) {
+                  throw new Error(
+                    'No Slack channel configured. Please select a channel in the node settings.',
+                  );
+                }
+
+                const postBody: Record<string, string> = {
+                  channel,
+                  text: message,
+                };
+                if (config.username) {
+                  postBody.username = replaceVars(config.username);
+                }
+
+                const postRes = await fetch(
+                  'https://slack.com/api/chat.postMessage',
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${slackSettings.accessToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(postBody),
+                  },
+                );
+
+                const postData = await postRes.json();
+
+                if (!postData.ok) {
+                  throw new Error(
+                    `Slack API error: ${postData.error || 'unknown'}`,
+                  );
+                }
+
+                await publishLog(
+                  `Slack message sent successfully to channel.`,
+                  'info',
+                );
+              }
+            } catch (err: any) {
+              await publishLog(`Slack action failed: ${err.message}`, 'error');
+              finalState = 'error';
+            }
           }
         } else if (type === 'github') {
           const hasGithubSettings = !!(settings && settings.github);
@@ -936,7 +1017,9 @@ async function executeWorkflow(reqBody: any) {
         const hasConditionals = outgoing.some(
           (c) => c.type === 'success' || c.type === 'failure',
         );
-        const isSuccess = finalState === 'success' || finalState === 'warning';
+        const isSuccess =
+          (finalState as string) === 'success' ||
+          (finalState as string) === 'warning';
         const postCompletionChildren: typeof outgoing = [];
 
         for (const conn of outgoing) {
