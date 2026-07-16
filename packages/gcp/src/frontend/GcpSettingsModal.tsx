@@ -93,7 +93,7 @@ const TERRAFORM_DIRECT_COMMANDS = [
   'terraform -chdir=infra/gcp plan',
   'terraform -chdir=infra/gcp apply',
 ].join('\n');
-const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const GCP_SETUP_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/setup');
 const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/oauth');
 const GCP_PROJECT_REGION_DOCS_URL = getDocsUrl(
