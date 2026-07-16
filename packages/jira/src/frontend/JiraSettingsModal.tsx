@@ -13,7 +13,7 @@ interface JiraSettingsModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const JIRA_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/jira');
 
 type DocsImportMeta = ImportMeta & {

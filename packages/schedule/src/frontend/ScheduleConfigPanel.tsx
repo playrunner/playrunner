@@ -105,7 +105,7 @@ type NextStepItem = {
   text: React.ReactNode;
 };
 
-const DEFAULT_DOCS_URL = "https://docs.playrunner.dev";
+const DEFAULT_DOCS_URL = "https://playrunner.dev";
 const GCP_SETUP_DOCS_URL = getDocsUrl("docs/cloud-architecture/gcp/setup");
 
 type DocsImportMeta = ImportMeta & {

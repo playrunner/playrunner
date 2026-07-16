@@ -1,4 +1,4 @@
-const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 
 export function getDocsUrl(path = '') {
   const baseUrl = (import.meta.env.VITE_DOCS_URL || DEFAULT_DOCS_URL)

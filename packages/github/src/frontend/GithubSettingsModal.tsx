@@ -19,7 +19,7 @@ interface GithubSettingsModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const GITHUB_SETUP_DOCS_URL = getDocsUrl('docs/tutorials/connect-github');
 
 type DocsImportMeta = ImportMeta & {
