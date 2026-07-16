@@ -591,6 +591,7 @@ export default function Editor() {
   const [workflowStartupNow, setWorkflowStartupNow] = useState(Date.now());
   const presenceStreamRef = useRef<EventSource | null>(null);
   const executionStreamRef = useRef<EventSource | null>(null);
+  const activeExecutionIdRef = useRef<string | null>(null);
   const hasOpenedCloudSettingsRef = useRef(false);
   const runnerStartupSequenceRef = useRef(0);
   const [isWorkflowLoaded, setIsWorkflowLoaded] = useState(
@@ -697,6 +698,7 @@ export default function Editor() {
   const closeExecutionStream = useCallback(() => {
     executionStreamRef.current?.close();
     executionStreamRef.current = null;
+    activeExecutionIdRef.current = null;
   }, []);
 
   const handleExecutionEvent = useCallback(
@@ -1287,6 +1289,7 @@ export default function Editor() {
       }
 
       closeExecutionStream();
+      activeExecutionIdRef.current = payload.testId;
       const eventSource = new EventSource(
         `/api/executions/${encodeURIComponent(payload.testId)}/stream?token=${encodeURIComponent(token)}`,
       );
@@ -1469,7 +1472,10 @@ export default function Editor() {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ nodeId }),
+      body: JSON.stringify({
+        executionId: activeExecutionIdRef.current,
+        nodeId,
+      }),
     }).catch(console.error);
 
     // Optimistically update UI

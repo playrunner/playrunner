@@ -7,24 +7,24 @@ hide_title: true
 ---
 
 import {
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="Jira"
-  packageName="@playrunner/jira"
-  description="Create and sync Jira tickets from Playrunner workflows with OAuth-backed project access."
-  icon="jira"
-  installCommand="npm install @playrunner/jira"
-  npmUrl="https://www.npmjs.com/package/@playrunner/jira"
-  badges={['Action node', 'OAuth', 'Project sync']}
-  facts={[
-    { label: 'Node type', value: 'Action' },
-    { label: 'Auth path', value: 'users/{uid}/integrations/jira' },
-    { label: 'Backend mount', value: '/api/jira' },
-  ]}
+name="Jira"
+packageName="@playrunner/jira"
+description="Create and sync Jira tickets from Playrunner workflows with OAuth-backed project access."
+icon="jira"
+installCommand="npm install @playrunner/jira"
+npmUrl="https://www.npmjs.com/package/@playrunner/jira"
+badges={['Action node', 'OAuth', 'Project sync']}
+facts={[
+{ label: 'Node type', value: 'Action' },
+{ label: 'Auth path', value: 'users/{uid}/integrations/jira' },
+{ label: 'Backend mount', value: '/api/jira' },
+]}
 />
 
 <IntegrationGrid>
@@ -38,6 +38,11 @@ import {
     exchange, token refresh, and project lookup.
   </IntegrationCard>
 
+  <IntegrationCard eyebrow="Orchestrator" title="Package-owned execution">
+    Exports `jiraOrchestratorContribution` with the bundled create and update
+    executors used by local and GCP workflow runs.
+  </IntegrationCard>
+
   <IntegrationCard eyebrow="SDK usage" title="Host services only">
     Jira uses SDK UI helpers and reads Playrunner host services through
     `useIntegrationHost`, keeping package code decoupled from app internals.
@@ -48,6 +53,20 @@ import {
     entrypoint.
   </IntegrationCard>
 </IntegrationGrid>
+
+:::important Build-time installation only
+
+The install command on this page is for building a Playrunner deployment. The
+Jira package and its orchestrator export must be dependencies of the apps and
+runner image that use them. A running workflow never downloads or installs the
+package.
+
+At runtime, a user can connect Jira, add a Jira node to a workflow, select an
+action, and configure its fields because that code is already bundled. Adding,
+removing, or upgrading the package requires rebuilding and redeploying the
+affected Playrunner apps and orchestrator image.
+
+:::
 
 ## Setup
 
@@ -74,6 +93,7 @@ import {
   JiraSettingsModal,
 } from "@playrunner/jira";
 import { jiraRouter } from "@playrunner/jira/api";
+import { jiraOrchestratorContribution } from "@playrunner/jira/orchestrator";
 ```
 
 ## Frontend
@@ -91,6 +111,66 @@ The router owns:
 - `POST /token`
 - `POST /refresh`
 - `GET /projects`
+
+## Orchestrator
+
+The `@playrunner/jira/orchestrator` subpath exports
+`jiraOrchestratorContribution`. The build-time integration registry imports
+that contribution, and the orchestrator build statically bundles the registry
+and Jira executor into `dist/index.js`. There is no runtime package loader or
+package installation step.
+
+See [Orchestrator contributions](../orchestrator/) for the shared contract,
+registration checklist, and rebuild commands.
+
+### Executor resolution
+
+Jira registers two executors for persisted workflow nodes whose `nodeType` is
+exactly `jira`:
+
+| Persisted `config.action` | Executor                          |
+| ------------------------- | --------------------------------- |
+| Missing, `null`, or `""`  | `create` (the registered default) |
+| `create`                  | `create` (exact action match)     |
+| `update`                  | `update` (exact action match)     |
+
+Any other non-empty action string requires an exact registered executor and
+fails workflow preflight. Whitespace-only and non-string action values are
+invalid. Resolution uses the persisted `nodeType` and never falls back to the
+node's display label.
+
+### Runtime behavior
+
+The host gives the Jira contribution an immutable execution context containing
+only the `settings.jira` credential object, the current node, environment and
+workflow template data, a log function, and an `AbortSignal`. It does not
+receive credentials for other providers, event-publishing credentials, or host
+state mutation helpers.
+
+For both actions, Jira renders template variables in `summary` and
+`description`. The update action also renders `issueKey`. The executors then:
+
+- use the scoped Jira `accessToken`;
+- send create requests to Jira's issue endpoint and update requests to the
+  selected issue key;
+- pass the host `AbortSignal` to `fetch`, so stopping the matching execution and
+  node cancels the in-flight provider request; and
+- return only a success outcome to the host, which remains responsible for node
+  state transitions and workflow events.
+
+### Failure safety
+
+Provider response bodies and access tokens are not included in execution
+errors. Expected messages include:
+
+| Failure                    | Logged message                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------- |
+| No Jira access token       | `Jira credentials missing. Cannot execute Jira action.`                             |
+| Project context missing    | `Jira Action failed: Missing cloudId in Jira node config. Please reselect project.` |
+| Update issue key missing   | `Jira Action failed: Issue key is required for update action.`                      |
+| Jira HTTP failure          | `Jira Action failed: Jira API returned <status>: request failed`                    |
+| Unexpected request failure | `Jira Action failed: Jira request failed.`                                          |
+| Host cancellation          | `Node executor was cancelled.`                                                      |
 
 ## Assets
 

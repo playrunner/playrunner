@@ -54,6 +54,17 @@ Playwright runner jobs before runtime provisioning can succeed. The repo ships
 [GCP Setup](./setup). For script details, see
 [Publishing to GCP](../../local-dev/docker-images#publishing-to-gcp).
 
+Dynamic Cloud Run service provisioning is not dynamic integration
+installation. The Orchestrator image statically bundles its trusted package
+executors during the build. Connecting credentials or adding and configuring an
+already-bundled node only changes runtime data; it never downloads package code.
+After adding, upgrading, or removing an executor, build, push, and redeploy the
+Orchestrator image:
+
+```bash
+./infra/gcp/scripts/push-runners.sh --target orchestrator --yes
+```
+
 When a user initiates a workflow from the web interface targeting GCP:
 
 1. **On-the-fly Provisioning**: The Node.js API Server automatically checks if the configured Orchestrator Cloud Run Service exists in the user's selected GCP project. If not, it uses the `@google-cloud/run` SDK to dynamically create and configure the service on the fly.

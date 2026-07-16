@@ -6,6 +6,7 @@ import type {
   PlaywrightExecutionRequest,
   PreparedPlaywrightRunner,
 } from './runtime/contracts';
+import { packageExecutorRuntime } from './runtime/package-executors';
 
 const app = express();
 app.use(express.json());
@@ -89,8 +90,18 @@ function resolvePlaywrightRuntime(
   return 'typescript';
 }
 
-const activeProcesses: Record<string, ReturnType<typeof spawn>> = {};
-const activeNodePublishers: Record<string, WorkflowEventPublisher> = {};
+type ActiveProcess = {
+  executionId: string;
+  nodeId: string;
+  process: ReturnType<typeof spawn>;
+  publisher: WorkflowEventPublisher;
+};
+
+const activeProcesses = new Map<string, ActiveProcess>();
+
+function activeExecutionKey(executionId: string, nodeId: string): string {
+  return JSON.stringify([executionId, nodeId]);
+}
 
 function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
@@ -100,6 +111,12 @@ function getRecord(value: unknown): Record<string, any> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, any>)
     : {};
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message.trim()
+    ? error.message
+    : 'Unknown error';
 }
 
 function getPathValue(source: Record<string, any>, path: string): unknown {
@@ -427,7 +444,7 @@ function createWorkflowEventPublisher(
   };
 }
 
-async function executeWorkflow(reqBody: any) {
+export async function executeWorkflow(reqBody: any) {
   const eventPublisher = createWorkflowEventPublisher(reqBody);
   const { publishEvent, publishLog, publishNodeState } = eventPublisher;
   const workflowContext = createWorkflowTemplateContext(
@@ -456,9 +473,11 @@ async function executeWorkflow(reqBody: any) {
     });
 
     if (nodes && Array.isArray(nodes)) {
+      packageExecutorRuntime.preflight(nodes);
+
       const globalEnvVars: Record<string, string> = {};
       const envNodes = nodes.filter(
-        (n) => (n.nodeType || n.label).toLowerCase() === 'environment',
+        (n) => packageExecutorRuntime.nodeType(n) === 'environment',
       );
       for (const envNode of envNodes) {
         if (envNode.config?.variables) {
@@ -510,16 +529,22 @@ async function executeWorkflow(reqBody: any) {
         activeNodeId: string,
         process: ReturnType<typeof spawn>,
       ) => {
-        activeProcesses[activeNodeId] = process;
-        activeNodePublishers[activeNodeId] = eventPublisher;
-        process.on('exit', () => {
-          delete activeProcesses[activeNodeId];
-          delete activeNodePublishers[activeNodeId];
-        });
-        process.on('error', () => {
-          delete activeProcesses[activeNodeId];
-          delete activeNodePublishers[activeNodeId];
-        });
+        const key = activeExecutionKey(testId, activeNodeId);
+        const activeProcess: ActiveProcess = {
+          executionId: testId,
+          nodeId: activeNodeId,
+          process,
+          publisher: eventPublisher,
+        };
+        activeProcesses.set(key, activeProcess);
+
+        const removeActiveProcess = () => {
+          if (activeProcesses.get(key) === activeProcess) {
+            activeProcesses.delete(key);
+          }
+        };
+        process.on('exit', removeActiveProcess);
+        process.on('error', removeActiveProcess);
       };
 
       const createPlaywrightExecutionRequest = (
@@ -592,8 +617,7 @@ async function executeWorkflow(reqBody: any) {
         Promise<PreparedPlaywrightRunner>
       > = {};
       const playwrightNodes = nodes.filter(
-        (node: any) =>
-          (node.nodeType || node.label).toLowerCase() === 'playwright',
+        (node: any) => packageExecutorRuntime.nodeType(node) === 'playwright',
       );
 
       if (playwrightNodes.length > 0) {
@@ -658,361 +682,154 @@ async function executeWorkflow(reqBody: any) {
 
         nodeIsRunning[nodeId] = true;
         activeNodeCount++;
-        const type = (node.nodeType || node.label).toLowerCase();
-
-        await publishNodeState(
-          node.id,
-          type === 'playwright' ? 'pending' : 'running',
-        );
-
+        const type = packageExecutorRuntime.nodeType(node);
         const outgoing = processedConnections.filter(
           (c) => c.sourceId === node.id,
         );
-        prepareWorkflowRunStatusForNode({
-          activeNodeCount,
-          outgoingCount: outgoing.length,
-          workflow: workflowContext,
-        });
-        const concurrentChildren = outgoing.filter(
-          (c) => (c.type || 'sequential') === 'concurrent',
-        );
-        runConnectionTargets(concurrentChildren);
-
         let finalState: 'success' | 'error' | 'warning' = 'success';
 
-        if (type === 'environment') {
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
+        try {
+          await publishNodeState(
+            node.id,
+            type === 'playwright' ? 'pending' : 'running',
           );
-        } else if (type === 'playwright') {
-          const { cpu, injectedEnv, memory, request, workers } =
-            createPlaywrightExecutionRequest(node);
+          prepareWorkflowRunStatusForNode({
+            activeNodeCount,
+            outgoingCount: outgoing.length,
+            workflow: workflowContext,
+          });
+          const concurrentChildren = outgoing.filter(
+            (c) => (c.type || 'sequential') === 'concurrent',
+          );
+          runConnectionTargets(concurrentChildren);
 
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
-          );
-          await publishLog(
-            `Waiting for prepared Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
-            'build',
-          );
-          if (injectedEnv) {
+          if (type === 'environment' || type === 'schedule') {
             await publishLog(
-              `Injecting Environment Variables: ${injectedEnv}`,
+              `Processing node: ${node.label} (${node.id})`,
               'info',
             );
-          }
+          } else if (type === 'playwright') {
+            const { cpu, injectedEnv, memory, request, workers } =
+              createPlaywrightExecutionRequest(node);
 
-          console.log(
-            `[Orchestrator] Sending payload to runner for ${node.id}:`,
-            JSON.stringify(
-              redactSensitivePayload(request.payloadData),
-              null,
-              2,
-            ),
-          );
-          if (!settings?.github?.accessToken) {
-            console.warn(
-              '[Orchestrator WARNING] No GitHub accessToken found in settings. settings.github keys:',
-              settings?.github ? Object.keys(settings.github) : 'null',
-            );
-          }
-
-          try {
-            const preparedRunner =
-              (await preparedPlaywrightRunners[node.id]) ||
-              (await orchestratorRuntime.playwrightExecution.prepare(request));
-            await preparedRunner.waitUntilReady();
             await publishLog(
-              `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
+              `Processing node: ${node.label} (${node.id})`,
               'info',
             );
-            await preparedRunner.start();
             await publishLog(
-              `Playwright Runner for ${node.id} acknowledged start signal.`,
-              'info',
+              `Waiting for prepared Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
+              'build',
             );
-            await preparedRunner.waitForCompletion();
-          } catch (err: any) {
-            await publishLog(
-              `Playwright Runner failed: ${err.message}`,
-              'error',
-            );
-            finalState = 'error';
-          }
-        } else if (type === 'slack') {
-          const config = node.config || {};
-          const slackSettings = settings?.slack;
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
-          );
-
-          if (!slackSettings?.accessToken && !slackSettings?.webhookUrl) {
-            await publishLog(
-              'Slack credentials missing. Cannot send message.',
-              'error',
-            );
-            finalState = 'error';
-          } else {
-            try {
-              const replaceVars = (text: string) =>
-                renderNodeTemplate(text, {
-                  env: globalEnvVars,
-                  workflow: workflowContext,
-                });
-
-              const message = replaceVars(
-                config.message || 'Workflow completed.',
+            if (injectedEnv) {
+              await publishLog(
+                `Injecting Environment Variables: ${injectedEnv}`,
+                'info',
               );
-
-              if (slackSettings.webhookUrl) {
-                await publishLog(
-                  'Sending Slack message via incoming webhook...',
-                  'info',
-                );
-
-                const webhookBody: Record<string, string> = { text: message };
-                if (config.username) {
-                  webhookBody.username = replaceVars(config.username);
-                }
-
-                const webhookRes = await fetch(slackSettings.webhookUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(webhookBody),
-                });
-
-                if (!webhookRes.ok) {
-                  const errText = await webhookRes.text();
-                  throw new Error(
-                    `Slack webhook returned ${webhookRes.status}: ${errText}`,
-                  );
-                }
-
-                await publishLog(
-                  'Slack message sent successfully via webhook.',
-                  'info',
-                );
-              } else {
-                await publishLog(
-                  'Sending Slack message via Bot API...',
-                  'info',
-                );
-
-                const channel = config.channel;
-                if (!channel) {
-                  throw new Error(
-                    'No Slack channel configured. Please select a channel in the node settings.',
-                  );
-                }
-
-                const postBody: Record<string, string> = {
-                  channel,
-                  text: message,
-                };
-                if (config.username) {
-                  postBody.username = replaceVars(config.username);
-                }
-
-                const postRes = await fetch(
-                  'https://slack.com/api/chat.postMessage',
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${slackSettings.accessToken}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(postBody),
-                  },
-                );
-
-                const postData = await postRes.json();
-
-                if (!postData.ok) {
-                  throw new Error(
-                    `Slack API error: ${postData.error || 'unknown'}`,
-                  );
-                }
-
-                await publishLog(
-                  `Slack message sent successfully to channel.`,
-                  'info',
-                );
-              }
-            } catch (err: any) {
-              await publishLog(`Slack action failed: ${err.message}`, 'error');
-              finalState = 'error';
             }
-          }
-        } else if (type === 'github') {
-          const hasGithubSettings = !!(settings && settings.github);
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
-          );
-          if (hasGithubSettings) {
+
+            console.log(
+              `[Orchestrator] Sending payload to runner for ${node.id}:`,
+              JSON.stringify(
+                redactSensitivePayload(request.payloadData),
+                null,
+                2,
+              ),
+            );
+            if (!settings?.github?.accessToken) {
+              console.warn(
+                '[Orchestrator WARNING] No GitHub accessToken found in settings. settings.github keys:',
+                settings?.github ? Object.keys(settings.github) : 'null',
+              );
+            }
+
+            try {
+              const preparedRunner =
+                (await preparedPlaywrightRunners[node.id]) ||
+                (await orchestratorRuntime.playwrightExecution.prepare(
+                  request,
+                ));
+              await preparedRunner.waitUntilReady();
+              await publishLog(
+                `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
+                'info',
+              );
+              await preparedRunner.start();
+              await publishLog(
+                `Playwright Runner for ${node.id} acknowledged start signal.`,
+                'info',
+              );
+              await preparedRunner.waitForCompletion();
+            } catch (error) {
+              throw new Error(
+                `Playwright Runner failed: ${getErrorMessage(error)}`,
+              );
+            }
+          } else if (type === 'github') {
+            const hasGithubSettings = !!(settings && settings.github);
             await publishLog(
-              'GitHub credentials loaded. Authenticating...',
+              `Processing node: ${node.label} (${node.id})`,
               'info',
             );
-          } else {
-            await publishLog('No GitHub credentials provided.', 'warn');
-            finalState = 'error';
-          }
-        } else if (type === 'jira') {
-          const config = node.config || {};
-          const jiraSettings = settings?.jira;
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
-          );
-
-          if (!jiraSettings?.accessToken) {
-            await publishLog(
-              'Jira credentials missing. Cannot execute Jira action.',
-              'error',
-            );
-            finalState = 'error';
-          } else {
-            try {
-              const action = config.action || 'create';
-              const cloudId = config.cloudId;
-
-              if (!cloudId) {
-                throw new Error(
-                  'Missing cloudId in Jira node config. Please reselect project.',
-                );
-              }
-
-              const replaceVars = (text: string) =>
-                renderNodeTemplate(text, {
-                  env: globalEnvVars,
-                  workflow: workflowContext,
-                });
-
-              const summary = replaceVars(config.summary || '');
-              const description = replaceVars(config.description || '');
-
-              if (action === 'create') {
-                await publishLog('Creating Jira issue...', 'info');
-
-                const fields: any = {
-                  project: { id: config.projectId },
-                  summary: summary || 'Untitled Issue',
-                  issuetype: { name: config.issueType },
-                };
-
-                if (description) {
-                  fields.description = {
-                    type: 'doc',
-                    version: 1,
-                    content: [
-                      {
-                        type: 'paragraph',
-                        content: [{ type: 'text', text: description }],
-                      },
-                    ],
-                  };
-                }
-
-                const body = { fields };
-
-                const res = await fetch(
-                  `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
-                  {
-                    method: 'POST',
-                    headers: {
-                      Authorization: `Bearer ${jiraSettings.accessToken}`,
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(body),
-                  },
-                );
-
-                if (!res.ok) {
-                  const errData = await res.text();
-                  throw new Error(
-                    `Jira API returned ${res.status}: ${errData}`,
-                  );
-                }
-
-                const data = await res.json();
-                await publishLog(
-                  `Successfully created Jira issue: ${data.key}`,
-                  'info',
-                );
-              } else if (action === 'update') {
-                await publishLog('Updating Jira issue...', 'info');
-                const issueKey = replaceVars(config.issueKey || '');
-                if (!issueKey)
-                  throw new Error('Issue key is required for update action.');
-
-                const fields: any = {};
-                if (summary) fields.summary = summary;
-                if (description) {
-                  fields.description = {
-                    type: 'doc',
-                    version: 1,
-                    content: [
-                      {
-                        type: 'paragraph',
-                        content: [{ type: 'text', text: description }],
-                      },
-                    ],
-                  };
-                }
-
-                const body = { fields };
-
-                const res = await fetch(
-                  `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
-                  {
-                    method: 'PUT',
-                    headers: {
-                      Authorization: `Bearer ${jiraSettings.accessToken}`,
-                      Accept: 'application/json',
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(body),
-                  },
-                );
-
-                if (!res.ok) {
-                  const errData = await res.text();
-                  throw new Error(
-                    `Jira API returned ${res.status}: ${errData}`,
-                  );
-                }
-
-                await publishLog(
-                  `Successfully updated Jira issue: ${issueKey}`,
-                  'info',
-                );
-              }
-            } catch (err: any) {
-              await publishLog(`Jira Action failed: ${err.message}`, 'error');
+            if (hasGithubSettings) {
+              await publishLog(
+                'GitHub credentials loaded. Authenticating...',
+                'info',
+              );
+            } else {
+              await publishLog('No GitHub credentials provided.', 'warn');
               finalState = 'error';
             }
+          } else {
+            await publishLog(
+              `Processing node: ${node.label} (${node.id})`,
+              'info',
+            );
+            const result = await packageExecutorRuntime.execute({
+              executionId: testId,
+              workflowId: workflowContext.definition.id,
+              node,
+              settings,
+              env: globalEnvVars,
+              workflow: workflowContext as unknown as Record<string, unknown>,
+              renderTemplate: (value) =>
+                renderNodeTemplate(value, {
+                  env: globalEnvVars,
+                  workflow: workflowContext,
+                }),
+              log: publishLog,
+            });
+            finalState = result.outcome;
+
+            if (result.output !== undefined) {
+              await publishEvent({
+                nodeId: node.id,
+                output: result.output,
+                timestamp: new Date().toISOString(),
+                type: 'node_output',
+              });
+            }
           }
-        } else {
-          await publishLog(
-            `Processing node: ${node.label} (${node.id})`,
-            'info',
-          );
+        } catch (error) {
+          finalState = 'error';
+          await publishLog(getErrorMessage(error), 'error');
+        } finally {
+          try {
+            await publishNodeState(node.id, finalState);
+            if (finalState === 'error') {
+              workflowFailed = true;
+              markWorkflowRunFailed(workflowContext, node);
+            }
+          } catch (finalizationError) {
+            console.error(
+              `Failed to finalize workflow node ${node.id}:`,
+              finalizationError,
+            );
+          } finally {
+            nodeIsRunning[nodeId] = false;
+            nodeHasRun[nodeId] = true;
+            activeNodeCount--;
+          }
         }
-
-        await publishNodeState(node.id, finalState);
-        if (finalState === 'error') {
-          workflowFailed = true;
-          markWorkflowRunFailed(workflowContext, node);
-        }
-
-        nodeIsRunning[nodeId] = false;
-        nodeHasRun[nodeId] = true;
-        activeNodeCount--;
 
         const hasConditionals = outgoing.some(
           (c) => c.type === 'success' || c.type === 'failure',
@@ -1115,8 +932,13 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/runtime', (req, res) => {
+  const executorDiagnostics = packageExecutorRuntime.diagnostics();
+
   res.status(200).json({
+    activePackageExecutorCount: executorDiagnostics.activeExecutions.length,
     eventTransport: 'pubsub',
+    orchestratorContributions: executorDiagnostics.contributions,
+    orchestratorExecutorTimeoutMs: executorDiagnostics.timeoutMs,
     pubsubEmulatorHost: process.env.PUBSUB_EMULATOR_HOST || null,
     runnerControl: 'pubsub',
     service: 'playrunner-orchestrator',
@@ -1127,20 +949,67 @@ app.get('/runtime', (req, res) => {
 });
 
 app.post('/stop', async (req, res) => {
-  const { nodeId } = req.body;
+  const nodeId = getString(req.body?.nodeId);
+  const requestedExecutionId =
+    getString(req.body?.executionId) || getString(req.body?.testId);
   if (!nodeId) return res.status(400).json({ error: 'nodeId required' });
 
-  if (activeProcesses[nodeId]) {
-    await activeNodePublishers[nodeId]?.publishLog(
+  const packageMatches = packageExecutorRuntime
+    .diagnostics()
+    .activeExecutions.filter(
+      (active) =>
+        active.nodeId === nodeId &&
+        (!requestedExecutionId || active.executionId === requestedExecutionId),
+    );
+  const processMatches = Array.from(activeProcesses.values()).filter(
+    (active) =>
+      active.nodeId === nodeId &&
+      (!requestedExecutionId || active.executionId === requestedExecutionId),
+  );
+  const matchingExecutionIds = new Set([
+    ...packageMatches.map((active) => active.executionId),
+    ...processMatches.map((active) => active.executionId),
+  ]);
+
+  if (!requestedExecutionId && matchingExecutionIds.size > 1) {
+    return res.status(409).json({
+      error:
+        'Multiple executions are running this node. executionId is required.',
+    });
+  }
+
+  const executionId =
+    requestedExecutionId || matchingExecutionIds.values().next().value;
+  if (!executionId) {
+    return res.status(404).json({ error: 'Node not running' });
+  }
+
+  const cancelledExecutors = packageExecutorRuntime.cancel({
+    executionId,
+    nodeId,
+  });
+  let stoppedProcesses = 0;
+  for (const active of processMatches) {
+    if (active.executionId !== executionId) {
+      continue;
+    }
+
+    await active.publisher.publishLog(
       `Stopping execution for node: ${nodeId}...`,
       'warn',
     );
-    await activeNodePublishers[nodeId]?.publishNodeState(nodeId, 'idle');
-    activeProcesses[nodeId].kill('SIGTERM');
-    res.status(200).json({ status: 'stopped' });
-  } else {
-    res.status(404).json({ error: 'Node not running' });
+    active.process.kill('SIGTERM');
+    stoppedProcesses++;
   }
+
+  if (cancelledExecutors === 0 && stoppedProcesses === 0) {
+    return res.status(404).json({ error: 'Node not running' });
+  }
+
+  return res.status(200).json({
+    executionId,
+    status: 'stopped',
+  });
 });
 
 async function start() {
@@ -1152,7 +1021,9 @@ async function start() {
   });
 }
 
-start().catch((error) => {
-  console.error('Failed to start orchestrator runtime:', error);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((error) => {
+    console.error('Failed to start orchestrator runtime:', error);
+    process.exit(1);
+  });
+}

@@ -32,8 +32,9 @@ export default {
       "gitEagerVcs": true
     }
   },
-  "url": "https://playrunner.github.io",
+  "url": "https://playrunner.dev",
   "baseUrl": "/playrunner/",
+  "trailingSlash": true,
   "organizationName": "playrunner",
   "projectName": "playrunner",
   "onBrokenLinks": "warn",

@@ -44,7 +44,10 @@ export default [
         'warn',
         {
           allowConstantExport: true,
-          allowExportNames: ['packageIntegrations', 'packageIntegrationRegistry'],
+          allowExportNames: [
+            'packageIntegrations',
+            'packageIntegrationRegistry',
+          ],
         },
       ],
       'react-hooks/exhaustive-deps': 'warn',
@@ -69,7 +72,7 @@ export default [
     },
   },
   {
-    files: ['src/api/**/*.ts'],
+    files: ['src/{api,orchestrator}/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

@@ -3,130 +3,130 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/playrunner/__docusaurus/debug',
-    component: ComponentCreator('/playrunner/__docusaurus/debug', 'e37'),
+    path: '/playrunner/__docusaurus/debug/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/', '7f9'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/config',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/config', '568'),
+    path: '/playrunner/__docusaurus/debug/config/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/config/', '14b'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/content',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/content', '231'),
+    path: '/playrunner/__docusaurus/debug/content/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/content/', '0b2'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/globalData',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData', '878'),
+    path: '/playrunner/__docusaurus/debug/globalData/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/globalData/', '5e9'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/metadata',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata', 'baa'),
+    path: '/playrunner/__docusaurus/debug/metadata/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/metadata/', '8ed'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/registry',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/registry', '6eb'),
+    path: '/playrunner/__docusaurus/debug/registry/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/registry/', 'f64'),
     exact: true
   },
   {
-    path: '/playrunner/__docusaurus/debug/routes',
-    component: ComponentCreator('/playrunner/__docusaurus/debug/routes', '585'),
+    path: '/playrunner/__docusaurus/debug/routes/',
+    component: ComponentCreator('/playrunner/__docusaurus/debug/routes/', 'f71'),
     exact: true
   },
   {
-    path: '/playrunner/blog',
-    component: ComponentCreator('/playrunner/blog', 'c4d'),
+    path: '/playrunner/blog/',
+    component: ComponentCreator('/playrunner/blog/', 'b3f'),
     exact: true
   },
   {
-    path: '/playrunner/blog/archive',
-    component: ComponentCreator('/playrunner/blog/archive', '239'),
+    path: '/playrunner/blog/archive/',
+    component: ComponentCreator('/playrunner/blog/archive/', '2b1'),
     exact: true
   },
   {
-    path: '/playrunner/blog/authors',
-    component: ComponentCreator('/playrunner/blog/authors', '405'),
+    path: '/playrunner/blog/authors/',
+    component: ComponentCreator('/playrunner/blog/authors/', '42f'),
     exact: true
   },
   {
-    path: '/playrunner/blog/authors/all-sebastien-lorber-articles',
-    component: ComponentCreator('/playrunner/blog/authors/all-sebastien-lorber-articles', 'c2f'),
+    path: '/playrunner/blog/authors/all-sebastien-lorber-articles/',
+    component: ComponentCreator('/playrunner/blog/authors/all-sebastien-lorber-articles/', '1e5'),
     exact: true
   },
   {
-    path: '/playrunner/blog/authors/yangshun',
-    component: ComponentCreator('/playrunner/blog/authors/yangshun', '14f'),
+    path: '/playrunner/blog/authors/yangshun/',
+    component: ComponentCreator('/playrunner/blog/authors/yangshun/', 'bf2'),
     exact: true
   },
   {
-    path: '/playrunner/blog/first-blog-post',
-    component: ComponentCreator('/playrunner/blog/first-blog-post', '7f2'),
+    path: '/playrunner/blog/first-blog-post/',
+    component: ComponentCreator('/playrunner/blog/first-blog-post/', '963'),
     exact: true
   },
   {
-    path: '/playrunner/blog/long-blog-post',
-    component: ComponentCreator('/playrunner/blog/long-blog-post', 'ba6'),
+    path: '/playrunner/blog/long-blog-post/',
+    component: ComponentCreator('/playrunner/blog/long-blog-post/', '52a'),
     exact: true
   },
   {
-    path: '/playrunner/blog/mdx-blog-post',
-    component: ComponentCreator('/playrunner/blog/mdx-blog-post', '28d'),
+    path: '/playrunner/blog/mdx-blog-post/',
+    component: ComponentCreator('/playrunner/blog/mdx-blog-post/', '369'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags',
-    component: ComponentCreator('/playrunner/blog/tags', 'b7c'),
+    path: '/playrunner/blog/tags/',
+    component: ComponentCreator('/playrunner/blog/tags/', 'fd9'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/docusaurus',
-    component: ComponentCreator('/playrunner/blog/tags/docusaurus', '7a3'),
+    path: '/playrunner/blog/tags/docusaurus/',
+    component: ComponentCreator('/playrunner/blog/tags/docusaurus/', 'ebb'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/facebook',
-    component: ComponentCreator('/playrunner/blog/tags/facebook', '023'),
+    path: '/playrunner/blog/tags/facebook/',
+    component: ComponentCreator('/playrunner/blog/tags/facebook/', '4fa'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/hello',
-    component: ComponentCreator('/playrunner/blog/tags/hello', 'b40'),
+    path: '/playrunner/blog/tags/hello/',
+    component: ComponentCreator('/playrunner/blog/tags/hello/', 'ea8'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/hola',
-    component: ComponentCreator('/playrunner/blog/tags/hola', 'ab8'),
+    path: '/playrunner/blog/tags/hola/',
+    component: ComponentCreator('/playrunner/blog/tags/hola/', 'a51'),
     exact: true
   },
   {
-    path: '/playrunner/blog/welcome',
-    component: ComponentCreator('/playrunner/blog/welcome', 'bd6'),
+    path: '/playrunner/blog/welcome/',
+    component: ComponentCreator('/playrunner/blog/welcome/', '1b1'),
     exact: true
   },
   {
-    path: '/playrunner/markdown-page',
-    component: ComponentCreator('/playrunner/markdown-page', '00b'),
+    path: '/playrunner/markdown-page/',
+    component: ComponentCreator('/playrunner/markdown-page/', 'bda'),
     exact: true
   },
   {
-    path: '/playrunner/docs',
-    component: ComponentCreator('/playrunner/docs', '692'),
+    path: '/playrunner/docs/',
+    component: ComponentCreator('/playrunner/docs/', 'b89'),
     routes: [
       {
-        path: '/playrunner/docs',
-        component: ComponentCreator('/playrunner/docs', '10c'),
+        path: '/playrunner/docs/',
+        component: ComponentCreator('/playrunner/docs/', 'c25'),
         routes: [
           {
-            path: '/playrunner/docs',
-            component: ComponentCreator('/playrunner/docs', '059'),
+            path: '/playrunner/docs/',
+            component: ComponentCreator('/playrunner/docs/', '9d9'),
             routes: [
               {
-                path: '/playrunner/docs/category/cloud-architecture',
-                component: ComponentCreator('/playrunner/docs/category/cloud-architecture', '0c4'),
+                path: '/playrunner/docs/category/cloud-architecture/',
+                component: ComponentCreator('/playrunner/docs/category/cloud-architecture/', 'c4c'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -137,8 +137,8 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/azure',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/azure', 'aaa'),
+                path: '/playrunner/docs/cloud-architecture/azure/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/azure/', 'edf'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -149,38 +149,38 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/gcp/oauth',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/oauth', '0a9'),
+                path: '/playrunner/docs/cloud-architecture/gcp/oauth/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/oauth/', '8a9'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/gcp/project-region',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/project-region', 'aa8'),
+                path: '/playrunner/docs/cloud-architecture/gcp/project-region/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/project-region/', '831'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/gcp/setup',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/setup', 'bd0'),
+                path: '/playrunner/docs/cloud-architecture/gcp/setup/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/setup/', 'cc8'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/gcp/terraform',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/terraform', '067'),
+                path: '/playrunner/docs/cloud-architecture/gcp/terraform/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/terraform/', '0b0'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/cloud-architecture/local',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/local', '440'),
+                path: '/playrunner/docs/cloud-architecture/local/',
+                component: ComponentCreator('/playrunner/docs/cloud-architecture/local/', 'a94'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/contributing',
-                component: ComponentCreator('/playrunner/docs/contributing', '85b'),
+                path: '/playrunner/docs/contributing/',
+                component: ComponentCreator('/playrunner/docs/contributing/', '4ea'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -191,50 +191,56 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/environment',
-                component: ComponentCreator('/playrunner/docs/integration-packages/environment', 'ca0'),
+                path: '/playrunner/docs/integration-packages/environment/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/environment/', '1c9'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/gcp',
-                component: ComponentCreator('/playrunner/docs/integration-packages/gcp', 'b3b'),
+                path: '/playrunner/docs/integration-packages/gcp/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/gcp/', '1f2'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/github',
-                component: ComponentCreator('/playrunner/docs/integration-packages/github', '647'),
+                path: '/playrunner/docs/integration-packages/github/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/github/', 'cbb'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/javascript',
-                component: ComponentCreator('/playrunner/docs/integration-packages/javascript', '436'),
+                path: '/playrunner/docs/integration-packages/javascript/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/javascript/', '82b'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/jira',
-                component: ComponentCreator('/playrunner/docs/integration-packages/jira', '588'),
+                path: '/playrunner/docs/integration-packages/jira/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/jira/', '8b2'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/playwright',
-                component: ComponentCreator('/playrunner/docs/integration-packages/playwright', '331'),
+                path: '/playrunner/docs/integration-packages/orchestrator/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/orchestrator/', '3e8'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/schedule',
-                component: ComponentCreator('/playrunner/docs/integration-packages/schedule', 'b26'),
+                path: '/playrunner/docs/integration-packages/playwright/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/playwright/', '8fd'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/integration-packages/slack',
-                component: ComponentCreator('/playrunner/docs/integration-packages/slack', '91a'),
+                path: '/playrunner/docs/integration-packages/schedule/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/schedule/', '2d0'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/slack/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/slack/', 'ea1'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -245,68 +251,68 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/connecting-integrations',
-                component: ComponentCreator('/playrunner/docs/local-dev/connecting-integrations', '515'),
+                path: '/playrunner/docs/local-dev/connecting-integrations/',
+                component: ComponentCreator('/playrunner/docs/local-dev/connecting-integrations/', '6b0'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/connection-nodes',
-                component: ComponentCreator('/playrunner/docs/local-dev/connection-nodes', '0b3'),
+                path: '/playrunner/docs/local-dev/connection-nodes/',
+                component: ComponentCreator('/playrunner/docs/local-dev/connection-nodes/', 'ddd'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/docker-images',
-                component: ComponentCreator('/playrunner/docs/local-dev/docker-images', '723'),
+                path: '/playrunner/docs/local-dev/docker-images/',
+                component: ComponentCreator('/playrunner/docs/local-dev/docker-images/', 'fca'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/environment-variables',
-                component: ComponentCreator('/playrunner/docs/local-dev/environment-variables', '0d6'),
+                path: '/playrunner/docs/local-dev/environment-variables/',
+                component: ComponentCreator('/playrunner/docs/local-dev/environment-variables/', '4b1'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/postgres-prisma-and-local-auth',
-                component: ComponentCreator('/playrunner/docs/local-dev/postgres-prisma-and-local-auth', '087'),
+                path: '/playrunner/docs/local-dev/postgres-prisma-and-local-auth/',
+                component: ComponentCreator('/playrunner/docs/local-dev/postgres-prisma-and-local-auth/', 'ae2'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/remote-debugging',
-                component: ComponentCreator('/playrunner/docs/local-dev/remote-debugging', '26f'),
+                path: '/playrunner/docs/local-dev/remote-debugging/',
+                component: ComponentCreator('/playrunner/docs/local-dev/remote-debugging/', 'e59'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/services-and-ports',
-                component: ComponentCreator('/playrunner/docs/local-dev/services-and-ports', 'caf'),
+                path: '/playrunner/docs/local-dev/services-and-ports/',
+                component: ComponentCreator('/playrunner/docs/local-dev/services-and-ports/', 'cc3'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/troubleshooting',
-                component: ComponentCreator('/playrunner/docs/local-dev/troubleshooting', 'c1f'),
+                path: '/playrunner/docs/local-dev/troubleshooting/',
+                component: ComponentCreator('/playrunner/docs/local-dev/troubleshooting/', 'e95'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/local-dev/workflow-execution',
-                component: ComponentCreator('/playrunner/docs/local-dev/workflow-execution', '095'),
+                path: '/playrunner/docs/local-dev/workflow-execution/',
+                component: ComponentCreator('/playrunner/docs/local-dev/workflow-execution/', '316'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/overview',
-                component: ComponentCreator('/playrunner/docs/overview', '925'),
+                path: '/playrunner/docs/overview/',
+                component: ComponentCreator('/playrunner/docs/overview/', '3d4'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/roadmap',
-                component: ComponentCreator('/playrunner/docs/roadmap', '32f'),
+                path: '/playrunner/docs/roadmap/',
+                component: ComponentCreator('/playrunner/docs/roadmap/', '991'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -317,32 +323,32 @@ export default [
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/tutorials/connect-github',
-                component: ComponentCreator('/playrunner/docs/tutorials/connect-github', '9df'),
+                path: '/playrunner/docs/tutorials/connect-github/',
+                component: ComponentCreator('/playrunner/docs/tutorials/connect-github/', 'df5'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/tutorials/create-your-first-workflow',
-                component: ComponentCreator('/playrunner/docs/tutorials/create-your-first-workflow', '0b7'),
+                path: '/playrunner/docs/tutorials/create-your-first-workflow/',
+                component: ComponentCreator('/playrunner/docs/tutorials/create-your-first-workflow/', '97e'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/tutorials/getting-started',
-                component: ComponentCreator('/playrunner/docs/tutorials/getting-started', 'bdf'),
+                path: '/playrunner/docs/tutorials/getting-started/',
+                component: ComponentCreator('/playrunner/docs/tutorials/getting-started/', 'd4b'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/tutorials/run-your-first-test',
-                component: ComponentCreator('/playrunner/docs/tutorials/run-your-first-test', '864'),
+                path: '/playrunner/docs/tutorials/run-your-first-test/',
+                component: ComponentCreator('/playrunner/docs/tutorials/run-your-first-test/', 'd27'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
               {
-                path: '/playrunner/docs/tutorials/understanding-reports',
-                component: ComponentCreator('/playrunner/docs/tutorials/understanding-reports', '499'),
+                path: '/playrunner/docs/tutorials/understanding-reports/',
+                component: ComponentCreator('/playrunner/docs/tutorials/understanding-reports/', '772'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               }

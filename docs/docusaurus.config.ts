@@ -4,7 +4,9 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
-const baseUrl = '/playrunner/';
+// GitHub Pages serves production from the custom-domain root. Keep the existing
+// project path for the local Docusaurus development server.
+const baseUrl = process.env.NODE_ENV === 'production' ? '/' : '/playrunner/';
 
 const config: Config = {
   title: 'Playrunner',
@@ -19,9 +21,9 @@ const config: Config = {
     v4: true,
   },
 
-  // Production URL (update if/when hosted)
-  url: 'https://playrunner.github.io',
+  url: 'https://playrunner.dev',
   baseUrl,
+  trailingSlash: true,
 
   // GitHub pages deployment config
   organizationName: 'playrunner',

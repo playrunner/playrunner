@@ -12,7 +12,7 @@ interface SlackSettingsModalProps {
   onClose: () => void;
 }
 
-const DEFAULT_DOCS_URL = 'https://docs.playrunner.dev';
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const SLACK_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/slack');
 
 type DocsImportMeta = ImportMeta & {

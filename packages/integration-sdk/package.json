@@ -27,6 +27,12 @@
       "import": "./src/api/index.ts",
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
+    },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
     }
   },
   "files": [

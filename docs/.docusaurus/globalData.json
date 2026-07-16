@@ -86,6 +86,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/orchestrator",
+              "path": "/playrunner/docs/integration-packages/orchestrator",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "integration-packages/playwright",
               "path": "/playrunner/docs/integration-packages/playwright",
               "sidebar": "tutorialSidebar"

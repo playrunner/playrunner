@@ -24,7 +24,7 @@ services:
         "emulators",
         "pubsub",
         "start",
-        "--host-port=0.0.0.0:${PUBSUB_EMULATOR_PORT:-8085}",
+        "--host-port=0.0.0.0:8085",
         "--project=${LOCAL_PUBSUB_PROJECT_ID:-playrunner-local}",
       ]
     ports:

@@ -18,6 +18,21 @@ The Orchestrator and Playwright runner are isolated in Docker for two reasons:
 
 The images are built locally (not pulled from a registry) so changes to the runner code are reflected immediately after a rebuild.
 
+## Build-Time Integration Boundary
+
+Marketplace integration code is never installed while a workflow is running.
+The Orchestrator build installs the dependencies declared in its lockfile and
+bundles the static package executor registry into `dist/index.js`. The current
+registry includes Jira and Slack; host-managed Environment, GitHub, Playwright,
+and Schedule nodes remain part of the Orchestrator host.
+
+Runtime configuration only selects an executor that is already in that image
+and passes it provider-scoped credentials, node configuration, templates,
+logging, cancellation, and other host capabilities. Adding, removing, or
+upgrading an executable integration requires updating the build inputs,
+rebuilding the Orchestrator image, and replacing or redeploying the running
+image.
+
 ---
 
 ## Building the Images
@@ -26,9 +41,27 @@ The images are built locally (not pulled from a registry) so changes to the runn
 
 ### Orchestrator
 
+Use the repo helper from the workspace root. It builds with the repository as
+the Docker context, then removes the existing local Orchestrator container so a
+new one will be created from the rebuilt image:
+
 ```bash
-docker build -t playrunner-orchestrator ./apps/runners/orchestrator
+./infra/scripts/rebuild-orchestrator.sh
 ```
+
+The equivalent image-only command is:
+
+```bash
+docker build \
+  --build-arg BASE_PATH=. \
+  -f apps/runners/orchestrator/Dockerfile \
+  -t playrunner-orchestrator \
+  .
+```
+
+Do not use `apps/runners/orchestrator` as the build context. The image needs the
+repository-root context so its local `file:` package dependencies and static
+integration registry are available during the build.
 
 **Base image:** `node:24-alpine`  
 **Extra packages installed:** `docker-cli` (so the container can run `docker` commands against the host socket)  
@@ -114,30 +147,44 @@ This is what allows the Orchestrator (running inside Docker) to spawn Playwright
 
 ## Rebuilding After Code Changes
 
-If you modify any source code under `apps/runners/orchestrator/` or `apps/runners/playwright/`, you must rebuild the affected image(s) before the changes take effect:
+If you modify Orchestrator source, an integration's orchestrator contribution,
+the integration registry, or Playwright runner source, rebuild the affected
+image before the change can take effect:
 
 ```bash
-# Rebuild orchestrator only
-docker build -t playrunner-orchestrator ./apps/runners/orchestrator
+# Rebuild the Orchestrator, including all statically registered package executors,
+# and remove the currently running local Orchestrator container
+./infra/scripts/rebuild-orchestrator.sh
 
 # Rebuild playwright runners from shared config
 ./start-local.sh
 ```
 
-Then restart the Orchestrator container: close and reopen the Editor tab, which triggers `POST /api/runners/start` and spawns a fresh container.
+After the Orchestrator helper finishes, reopen the Editor tab. That triggers
+`POST /api/runners/start` and starts a fresh container from the new image.
+
+Publishing a package or changing marketplace metadata alone does not change a
+running Orchestrator. The deployment must use an image rebuilt from the updated
+dependency, lockfile, and registry inputs.
 
 ---
 
 ## Publishing to GCP
 
 For the end-to-end infrastructure and GCP integration runbook, see
-[GCP Setup](../cloud-architecture/gcp/setup). This section documents the image
+[GCP Setup](../../cloud-architecture/gcp/setup/). This section documents the image
 publishing helper itself.
 
 Running workflows against the GCP execution path requires the Orchestrator and Playwright images to be available in a registry that Cloud Run can pull from. The repo ships a helper that builds and pushes them to Google Artifact Registry, redeploys the Orchestrator Cloud Run service, and clears stale Playwright Cloud Run Jobs so they pick up the new image:
 
 ```bash
 ./infra/gcp/scripts/push-runners.sh
+```
+
+When only the Orchestrator or its bundled integration executors changed, use:
+
+```bash
+./infra/gcp/scripts/push-runners.sh --target orchestrator --yes
 ```
 
 ### Prerequisites
@@ -204,6 +251,6 @@ All flags:
 ### What it does
 
 - **Docker auth:** configures Docker for the target Artifact Registry host with `gcloud auth configure-docker`.
-- **Orchestrator:** builds `apps/runners/orchestrator` as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --min-instances ... --max-instances ... --cpu-boost --[no-]cpu-throttling` to roll out the new image and service settings.
+- **Orchestrator:** builds the Orchestrator and its statically registered package executors from the repository context as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --min-instances ... --max-instances ... --cpu-boost --[no-]cpu-throttling` to roll out the new image and service settings.
 - **Playwright:** for both `typescript` and `python`, builds every tag in `config/playwright-runner-versions.json`. The tag flagged `publishAsLatest: true` is additionally pushed as `:latest`. Tags use `playwrightImageUriTemplate` with `{projectId}`, `{runtime}`, and `{version}` substituted.
 - **Job cleanup:** deletes any existing Cloud Run Jobs named `playrunner-*` in the configured region so the next workflow execution recreates them with the new image.

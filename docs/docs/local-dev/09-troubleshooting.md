@@ -18,7 +18,19 @@ title: Troubleshooting
 1. **The `playrunner-orchestrator` image hasn't been built.**
 
    ```bash
-   docker build -t playrunner-orchestrator ./apps/runners/orchestrator
+   ./infra/scripts/rebuild-orchestrator.sh
+   ```
+
+   The helper uses the repository root as the Docker build context so local
+   integration packages and the static executor registry can be bundled. The
+   equivalent image-only command is:
+
+   ```bash
+   docker build \
+     --build-arg BASE_PATH=. \
+     -f apps/runners/orchestrator/Dockerfile \
+     -t playrunner-orchestrator \
+     .
    ```
 
 2. **Port 3012 is already in use.**
@@ -37,7 +49,7 @@ title: Troubleshooting
    ```
 
    If it returns `404` or does not show `"runnerControl":"pubsub"`, reopen the
-   editor or call `/api/runners/start`; the API should stop the stale container
+   editor or call `/api/runners/start`. The API should stop the stale container
    bound to port `3012` and start a fresh `playrunner-orchestrator-local`
    container. You can also stop it manually:
 
@@ -46,11 +58,92 @@ title: Troubleshooting
    docker stop <container-id>
    ```
 
+   If the Pub/Sub fields are current but `orchestratorContributions` is missing
+   or incomplete, rebuild with `./infra/scripts/rebuild-orchestrator.sh`. That
+   helper removes the running container; reopen the Editor tab to start the new
+   image.
+
 4. **Docker socket permission issue.**
    On Linux, the API process may not have permission to access `/var/run/docker.sock`. Add your user to the `docker` group:
    ```bash
    sudo usermod -aG docker $USER
    ```
+
+---
+
+## Workflow start returns `500` with a local Pub/Sub fetch error
+
+**Symptom:** The browser console reports `POST /api/workflows/start 500`, and
+the response or Editor error contains:
+
+```text
+Failed to configure local Pub/Sub event transport: fetch failed
+```
+
+This error occurs before the workflow is sent to the Orchestrator. The API
+cannot create the execution topic/subscription through the host-facing Pub/Sub
+emulator endpoint, even if the Compose container appears to be running.
+
+The default port boundary is:
+
+- API on the host: `127.0.0.1:8084`
+- Docker Compose host mapping: `8084:8085`
+- Pub/Sub emulator inside its container: `0.0.0.0:8085`
+- Orchestrator and Playwright containers: `host.docker.internal:8084`
+
+Check the exact endpoint used by the host API:
+
+```bash
+curl --fail http://127.0.0.1:8084/v1/projects/playrunner-local/topics
+```
+
+For a healthy emulator, this returns HTTP `200`; a newly created emulator with
+no topics returns `{}`. If the request fails, recreate the Pub/Sub service so
+the current internal listener and port mapping are applied:
+
+```bash
+docker compose up -d --force-recreate pubsub
+curl --fail http://127.0.0.1:8084/v1/projects/playrunner-local/topics
+```
+
+If you changed `PUBSUB_EMULATOR_PORT` or `LOCAL_PUBSUB_PROJECT_ID` in
+`.env.local`, rerun `./start-local.sh` so those values are exported before
+Compose starts the service, and substitute them in the check. Restart the API
+after any `.env.local` change, then try the workflow again.
+
+---
+
+## Workflow reports an executor is not installed or registered
+
+**Symptom:** The workflow event stream reports an error beginning with:
+
+```text
+Orchestrator executor not installed/registered for node type ...
+```
+
+The Orchestrator never downloads marketplace code at runtime. It can only run
+package executors present in the static registry bundled into its image. Inspect
+the running image's registered contributions and actions:
+
+```bash
+curl http://localhost:3012/runtime
+```
+
+Check `orchestratorContributions` for the node's exact persisted `nodeType` and
+optional `config.action`. Resolution does not use the display label. If the
+source registry is correct but the contribution is missing from `/runtime`, the
+running image is stale:
+
+```bash
+./infra/scripts/rebuild-orchestrator.sh
+```
+
+Reopen the Editor tab to start a fresh local container, then retry the workflow.
+For a GCP Orchestrator, rebuild, push, and redeploy the Orchestrator-only image:
+
+```bash
+./infra/gcp/scripts/push-runners.sh --target orchestrator --yes
+```
 
 ---
 
@@ -186,9 +279,10 @@ docker logs -f <container-id>
 
 ## Rebuilding After Code Changes
 
-| Changed code location              | Action required                                                                                   |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `apps/api/src/**`                  | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)                            |
-| `apps/frontend/src/**`             | Vite HMR handles this automatically                                                               |
-| `apps/runners/orchestrator/src/**` | `docker build -t playrunner-orchestrator ./apps/runners/orchestrator`, then reopen the Editor tab |
-| `apps/runners/playwright/src/**`   | Rebuild the configured Playwright runner images, for example via `./start-local.sh`               |
+| Changed code location                                                                | Action required                                                                     |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `apps/api/src/**`                                                                    | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)              |
+| `apps/frontend/src/**`                                                               | Vite HMR handles this automatically                                                 |
+| `apps/runners/orchestrator/src/**`                                                   | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `packages/*/src/orchestrator/**` or `packages/integration-registry/src/orchestrator` | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `apps/runners/playwright/src/**`                                                     | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |

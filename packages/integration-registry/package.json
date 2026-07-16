@@ -23,6 +23,12 @@
       "import": "./src/api/index.ts",
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
+    },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
     }
   },
   "files": [
@@ -30,6 +36,8 @@
   ],
   "peerDependencies": {
     "@playrunner/integration-sdk": "^0.1.0",
+    "@playrunner/jira": "^0.1.0",
+    "@playrunner/slack": "^0.1.0",
     "express": "^5.0.0",
     "react": "^19.0.0"
   },

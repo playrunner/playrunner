@@ -38,8 +38,9 @@ graph TD
    topic/subscription workflow used by the GCP runner path.
 4. **Orchestrator**: Runs as the `playrunner-orchestrator-local` Docker
    container on port `3012`. It receives workflow execution requests, prepares
-   Playwright runners early, and starts them with Pub/Sub `runner_control`
-   messages when the DAG reaches their nodes.
+   Playwright runners early, starts them with Pub/Sub `runner_control` messages
+   when the DAG reaches their nodes, and executes statically registered package
+   contributions such as Jira and Slack.
 5. **Playwright Runner**: Runs as an ephemeral Docker container. It prepares
    dependencies, publishes `runner_status=ready`, waits for a Pub/Sub start
    signal, runs the test, uploads local output archives to the API, and publishes
@@ -56,6 +57,13 @@ graph TD
 5. If a stale container is still bound to port `3012` but does not expose the
    expected Pub/Sub runtime metadata, the API stops it and starts a fresh
    Orchestrator container from the current image.
+
+The Orchestrator image contains its trusted package executors at build time.
+Runtime users can connect credentials and add or configure nodes that are
+already bundled, but the local marketplace and workflow runner never install or
+hot-load package code. After changing the registered executor set or its source,
+rebuild the image with `./infra/scripts/rebuild-orchestrator.sh` and reopen the
+Editor so the API starts a fresh container.
 
 ## Workflow Execution Flow
 
