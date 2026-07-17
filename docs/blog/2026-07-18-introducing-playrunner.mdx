@@ -1,0 +1,76 @@
+---
+slug: introducing-playrunner
+title: 'Introducing Playrunner: Visual orchestration for Playwright teams'
+description: 'Playrunner brings Playwright workflows, runners, integrations, live feedback, and reports together so teams can ship with confidence.'
+authors: [playrunner]
+tags: [release, playwright, contributors]
+---
+
+Today, we're releasing Playrunner, an early source-available visual
+orchestration platform for teams running Playwright test automation.
+
+Playwright is excellent at executing browser tests. But as a test suite grows
+across a team, the work around those tests grows too: CI scripts, runner
+infrastructure, environment configuration, reports, alerts, retries, and issue
+workflows. Playrunner brings that orchestration layer into one place.
+
+{/* truncate */}
+
+## What Playrunner is for
+
+Playrunner lets teams connect triggers, integrations, environment
+configuration, and Playwright runners on a visual workflow canvas. A workflow
+can run locally in isolated Docker containers or use the GCP execution path for
+Cloud Run jobs.
+
+As a run progresses, Playrunner streams node state and logs back to the editor.
+When it finishes, the team can inspect the Playwright report and any captured
+artifacts, including screenshots, videos, and traces. Integrations such as
+GitHub, Jira, Slack, schedules, and environment nodes let test execution fit
+into the delivery workflow around it.
+
+## Helping teams ship with confidence
+
+Playrunner is designed to reduce the glue teams maintain around end-to-end
+testing.
+
+- **Make delivery workflows repeatable.** Capture the steps and dependencies
+  around Playwright tests once, then run the same workflow consistently.
+- **Get to failures faster.** Follow node status and live logs while a workflow
+  runs, then open the Playwright report for the evidence behind a result.
+- **Give the whole team visibility.** The workflow canvas makes the delivery
+  path easier to understand than orchestration spread across scripts and
+  service configuration.
+- **Connect testing to the rest of delivery.** Package-based integrations for
+  repositories, schedules, environments, notifications, and work tracking let
+  test results move into the tools a team already uses.
+- **Start locally and scale when needed.** Isolated local runners and a GCP
+  execution path give teams room to grow without changing the workflow model.
+
+The goal is straightforward: spend less time stitching testing infrastructure
+together, get useful feedback sooner, and make confident release decisions with
+clearer evidence.
+
+## Playrunner needs contributors
+
+Playrunner is still early, and that is an invitation. The project needs
+contributors across frontend and UX, runners, scheduling and retries,
+integrations, reporting, documentation, infrastructure, and practical
+AI-assisted testing workflows.
+
+Because the project is still taking shape, contributors can influence the
+architecture, product experience, integrations, and roadmap rather than only
+working around settled decisions.
+
+Start with the [contributing guide](https://playrunner.dev/docs/contributing),
+explore the [roadmap](https://playrunner.dev/docs/roadmap), or pick a
+[good first issue](https://github.com/playrunner/playrunner/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22).
+
+You can also [read the docs](https://playrunner.dev/docs/overview),
+[run Playrunner locally](https://playrunner.dev/docs/tutorials/getting-started),
+join the conversation in
+[GitHub Discussions](https://github.com/playrunner/playrunner/discussions), or
+meet the community on [Discord](https://discord.gg/23yz25kat).
+
+Playrunner is available now at
+[github.com/playrunner/playrunner](https://github.com/playrunner/playrunner).

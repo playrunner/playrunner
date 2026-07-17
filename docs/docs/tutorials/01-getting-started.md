@@ -91,14 +91,6 @@ The setup UI is intentionally short. In the form you:
 2. Choose the first local admin username and password for the login screen.
 3. Let the installer write the local database config into `apps/api/.env` and store the local login credentials in PostgreSQL.
 
-After setup, run the normal local stack:
-
-```bash
-./start-local.sh
-```
-
-That command starts the local Postgres container, runs Prisma bootstrap, and starts the product app.
-
 The installer writes the PostgreSQL and Prisma config into `apps/api`, including:
 
 - `.env` updates for `DATABASE_URL`

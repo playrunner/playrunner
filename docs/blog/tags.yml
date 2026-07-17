@@ -1,19 +1,14 @@
-facebook:
-  label: Facebook
-  permalink: /facebook
-  description: Facebook tag description
+release:
+  label: Release
+  permalink: /release
+  description: Playrunner release news
 
-hello:
-  label: Hello
-  permalink: /hello
-  description: Hello tag description
+playwright:
+  label: Playwright
+  permalink: /playwright
+  description: Playwright automation and orchestration
 
-docusaurus:
-  label: Docusaurus
-  permalink: /docusaurus
-  description: Docusaurus tag description
-
-hola:
-  label: Hola
-  permalink: /hola
-  description: Hola tag description
+contributors:
+  label: Contributors
+  permalink: /contributors
+  description: Ways to contribute to Playrunner
