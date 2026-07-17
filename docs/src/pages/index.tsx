@@ -217,10 +217,12 @@ function HomepageHeader() {
           role="img"
           aria-label="Playrunner logo"
         />
-        <p className={styles.eyebrow}>Open-source Playwright orchestration</p>
+        <p className={styles.eyebrow}>
+          Playwright orchestration
+        </p>
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
           <span style={{ color: 'var(--ifm-color-primary)' }}>Playrunner</span>{' '}
-          - help build the open-source orchestration layer for Playwright
+          - help build the orchestration layer for Playwright
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
           Playrunner helps teams run, debug, analyse, and improve Playwright
@@ -383,7 +385,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Join the Playrunner project"
-      description="Help build Playrunner, the open-source orchestration layer for Playwright test automation."
+      description="Help build Playrunner, the orchestration layer for Playwright test automation."
     >
       <HomepageHeader />
       <main>

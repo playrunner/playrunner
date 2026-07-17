@@ -10,7 +10,7 @@ const baseUrl = process.env.NODE_ENV === 'production' ? '/' : '/playrunner/';
 
 const config: Config = {
   title: 'Playrunner',
-  tagline: 'Open-source orchestration for Playwright test automation.',
+  tagline: 'Orchestration for Playwright test automation.',
   favicon: 'img/favicon.svg',
   customFields: {
     localDocsLandingPath: process.env.DOCS_LANDING_PATH || '/',
