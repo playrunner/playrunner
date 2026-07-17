@@ -257,10 +257,10 @@ function MissionSection(): ReactNode {
             Make test orchestration open, extensible, and developer-friendly.
           </Heading>
         </div>
-        <div >
+        <div>
           <p className={styles.leadText}>
-            Playwright is powerful, but teams still end up stitching together
-            CI scripts, dashboards, reports, alerts, flaky-test handling, and
+            Playwright is powerful, but teams still end up stitching together CI
+            scripts, dashboards, reports, alerts, flaky-test handling, and
             ticket workflows themselves. Playrunner exists to make that
             orchestration layer open, extensible, and developer-friendly.
           </p>
@@ -283,11 +283,10 @@ function ContributorInviteSection(): ReactNode {
         <div>
           <p className={styles.bodyText}>
             Playrunner is early, which means contributors can have real
-            influence over the architecture, developer experience,
-            integrations, and roadmap. Whether you want to work on frontend,
-            runners, integrations, infrastructure, documentation, or the
-            Playrunner AI Assistant, there is room to own a meaningful part of
-            the project.
+            influence over the architecture, developer experience, integrations,
+            and roadmap. Whether you want to work on frontend, runners,
+            integrations, infrastructure, documentation, or the Playrunner AI
+            Assistant, there is room to own a meaningful part of the project.
           </p>
         </div>
       </div>
@@ -390,7 +389,7 @@ export default function Home(): ReactNode {
       <main>
         <MissionSection />
         <ContributorInviteSection />
-    
+
         <HomepageFeatures />
         <WhyContributeSection />
         <GettingStartedSection />

@@ -55,11 +55,11 @@ facts={[
 import environmentIntegration, {
   EnvironmentConfigPanel,
   VariablesTable,
-} from "@playrunner/environment";
-import type { EnvVar, SavedEnvironment } from "@playrunner/environment";
+} from '@playrunner/environment';
+import type { EnvVar, SavedEnvironment } from '@playrunner/environment';
 import environmentApiContribution, {
   environmentRouter,
-} from "@playrunner/environment/api";
+} from '@playrunner/environment/api';
 ```
 
 ## Frontend

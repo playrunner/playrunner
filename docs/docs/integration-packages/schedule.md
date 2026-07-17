@@ -52,10 +52,10 @@ facts={[
 ## Exports
 
 ```ts
-import scheduleIntegration, { ScheduleConfigPanel } from "@playrunner/schedule";
+import scheduleIntegration, { ScheduleConfigPanel } from '@playrunner/schedule';
 import scheduleApiContribution, {
   scheduleRouter,
-} from "@playrunner/schedule/api";
+} from '@playrunner/schedule/api';
 ```
 
 The same contribution objects remain available as named exports. The default

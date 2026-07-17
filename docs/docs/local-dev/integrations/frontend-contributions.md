@@ -38,18 +38,18 @@ The entrypoint must default-export an object satisfying the `Integration`
 contract from `@playrunner/integration-sdk`:
 
 ```tsx
-import type { Integration } from "@playrunner/integration-sdk";
-import { ExampleConfigPanel } from "./ExampleConfigPanel";
-import { ExampleSettingsModal } from "./ExampleSettingsModal";
-import { exampleIconUrl } from "./icon";
+import type { Integration } from '@playrunner/integration-sdk';
+import { ExampleConfigPanel } from './ExampleConfigPanel';
+import { ExampleSettingsModal } from './ExampleSettingsModal';
+import { exampleIconUrl } from './icon';
 
 export const exampleIntegration: Integration = {
-  id: "example",
-  name: "Example",
-  category: "Developer Tools",
-  description: "Run an Example action",
+  id: 'example',
+  name: 'Example',
+  category: 'Developer Tools',
+  description: 'Run an Example action',
   icon: exampleIconUrl,
-  nodeType: "action",
+  nodeType: 'action',
   SettingsModal: ExampleSettingsModal,
   ConfigPanel: ExampleConfigPanel,
 };

@@ -165,7 +165,7 @@ Use these fallback checks before going deeper:
 
 Once the script output settles, open the URL printed by the script. With defaults:
 
-```
+```text
 http://127.0.0.1:3100
 ```
 

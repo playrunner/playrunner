@@ -101,9 +101,9 @@ Slack supports two authentication modes: **OAuth** (recommended) and **incoming 
 import slackIntegration, {
   SlackConfigPanel,
   SlackSettingsModal,
-} from "@playrunner/slack";
-import slackApiContribution, { slackRouter } from "@playrunner/slack/api";
-import slackOrchestratorContribution from "@playrunner/slack/orchestrator";
+} from '@playrunner/slack';
+import slackApiContribution, { slackRouter } from '@playrunner/slack/api';
+import slackOrchestratorContribution from '@playrunner/slack/orchestrator';
 ```
 
 The same objects remain available as named exports. The default exports are the

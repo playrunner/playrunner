@@ -61,7 +61,7 @@ There is also one supporting host service:
 
 ## Architecture at a Glance
 
-```
+```text
 Browser
   │
   ▼
@@ -86,7 +86,7 @@ Local Docker and GCP workflows use the same Pub/Sub messaging shape. Local runs 
 
 ## Repository Structure
 
-```
+```text
 playrunner/
 ├── apps/
 │   ├── api/                   # Express API server

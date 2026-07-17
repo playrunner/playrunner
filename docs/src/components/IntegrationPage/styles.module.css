@@ -5,7 +5,11 @@
   padding: 1.5rem;
   background:
     linear-gradient(135deg, var(--integration-hero-start), transparent 52%),
-    linear-gradient(180deg, var(--integration-surface), var(--integration-surface-strong));
+    linear-gradient(
+      180deg,
+      var(--integration-surface),
+      var(--integration-surface-strong)
+    );
   box-shadow: 0 18px 45px var(--integration-shadow);
 }
 
@@ -223,7 +227,11 @@
   padding: 1.5rem;
   background:
     linear-gradient(135deg, var(--integration-hero-start), transparent 56%),
-    linear-gradient(180deg, var(--integration-surface), var(--integration-surface-strong));
+    linear-gradient(
+      180deg,
+      var(--integration-surface),
+      var(--integration-surface-strong)
+    );
 }
 
 .directoryHero > p {

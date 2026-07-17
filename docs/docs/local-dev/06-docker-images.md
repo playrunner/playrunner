@@ -139,7 +139,7 @@ The `--rm` flag ensures the container is deleted after it exits. No Docker volum
 
 The Orchestrator container receives the host Docker socket mounted as a volume:
 
-```
+```bash
 -v /var/run/docker.sock:/var/run/docker.sock
 ```
 

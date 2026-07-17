@@ -39,18 +39,18 @@ absolute mount path, and an Express router. The SDK helper preserves that
 contract while leaving the router type generic:
 
 ```ts
-import { Router } from "express";
-import { createApiContribution } from "@playrunner/integration-sdk/api";
+import { Router } from 'express';
+import { createApiContribution } from '@playrunner/integration-sdk/api';
 
 const exampleRouter = Router();
 
-exampleRouter.get("/projects", async (_req, res) => {
+exampleRouter.get('/projects', async (_req, res) => {
   res.json({ projects: [] });
 });
 
 export const exampleApiContribution = createApiContribution({
-  id: "example",
-  mountPath: "/api/example",
+  id: 'example',
+  mountPath: '/api/example',
   router: exampleRouter,
 });
 

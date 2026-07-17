@@ -58,12 +58,12 @@ facts={[
 import gcpIntegration, {
   gcpCloudProvider,
   GcpSettingsModal,
-} from "@playrunner/gcp";
-import gcpApiContribution, { gcpRouter } from "@playrunner/gcp/api";
+} from '@playrunner/gcp';
+import gcpApiContribution, { gcpRouter } from '@playrunner/gcp/api';
 import {
   createGcpApiRuntimeContribution,
   createGcpPubSubEventStreamManager,
-} from "@playrunner/gcp/api-runtime";
+} from '@playrunner/gcp/api-runtime';
 ```
 
 ## Frontend

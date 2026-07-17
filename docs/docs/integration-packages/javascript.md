@@ -69,10 +69,10 @@ will fail preflight until an executor is implemented and bundled.
 ```ts
 import javascriptIntegration, {
   JavascriptConfigPanel,
-} from "@playrunner/javascript";
+} from '@playrunner/javascript';
 import javascriptApiContribution, {
   javascriptRouter,
-} from "@playrunner/javascript/api";
+} from '@playrunner/javascript/api';
 ```
 
 ## Frontend

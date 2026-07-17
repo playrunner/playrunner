@@ -63,10 +63,10 @@ surfaces, so no shared registry edit is required.
 ```ts
 import playwrightIntegration, {
   PlaywrightConfigPanel,
-} from "@playrunner/playwright";
+} from '@playrunner/playwright';
 import playwrightApiContribution, {
   playwrightRouter,
-} from "@playrunner/playwright/api";
+} from '@playrunner/playwright/api';
 ```
 
 The same contribution objects remain available as named exports. The default

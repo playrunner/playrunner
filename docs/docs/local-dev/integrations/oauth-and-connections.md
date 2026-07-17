@@ -64,7 +64,7 @@ const { auth, store } = useIntegrationHost();
 const userId = auth.currentUser?.uid;
 if (!userId) return;
 
-await store.saveIntegration(userId, "provider-id", {
+await store.saveIntegration(userId, 'provider-id', {
   clientId,
   clientSecret,
   accessToken,
@@ -77,7 +77,7 @@ await store.saveIntegration(userId, "provider-id", {
 The host persists this as one Prisma `Integration` row per `userId + provider`, with provider-specific values in the `data` JSON column. `saveIntegration` currently replaces that JSON object, so token refresh code should preserve existing provider-owned fields:
 
 ```ts
-const current = await store.getIntegration(userId, "provider-id");
+const current = await store.getIntegration(userId, 'provider-id');
 const {
   id,
   provider,
@@ -87,7 +87,7 @@ const {
   ...currentData
 } = current ?? {};
 
-await store.saveIntegration(userId, "provider-id", {
+await store.saveIntegration(userId, 'provider-id', {
   ...currentData,
   accessToken: refreshed.access_token,
   refreshToken: refreshed.refresh_token,

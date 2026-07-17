@@ -209,7 +209,7 @@ Each node transitions through these states, persisted as `node_state` events:
 
 Every workflow run is assigned a unique UUID `testId`. Outputs are stored and served under:
 
-```
+```text
 /outputs/{testId}/{nodeId}/playwright-report/index.html
 /outputs/{testId}/{nodeId}/test-results/...
 ```

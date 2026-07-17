@@ -286,35 +286,35 @@ used by the repo's consumers:
 import {
   createOrchestratorContribution,
   ORCHESTRATOR_CONTRACT_VERSION,
-} from "@playrunner/integration-sdk/orchestrator";
+} from '@playrunner/integration-sdk/orchestrator';
 
 export const exampleOrchestratorContribution = createOrchestratorContribution({
   contractVersion: ORCHESTRATOR_CONTRACT_VERSION,
-  id: "example",
+  id: 'example',
   executors: [
     {
-      nodeType: "example",
-      action: "send",
+      nodeType: 'example',
+      action: 'send',
       default: true,
       validate: ({ node, settings }) => {
         if (!settings.accessToken) {
-          throw new Error("Example credentials are missing.");
+          throw new Error('Example credentials are missing.');
         }
         if (!node.config.message) {
-          throw new Error("Example message is required.");
+          throw new Error('Example message is required.');
         }
       },
       execute: async ({ node, settings, renderTemplate, log, signal }) => {
         const message = renderTemplate(String(node.config.message));
 
-        await log("Sending example message...", "info");
+        await log('Sending example message...', 'info');
         await sendExampleMessage({
           accessToken: String(settings.accessToken),
           message,
           signal,
         });
 
-        return { outcome: "success" };
+        return { outcome: 'success' };
       },
     },
   ],

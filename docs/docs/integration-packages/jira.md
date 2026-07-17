@@ -92,9 +92,9 @@ callback URL shown in the dialog, then create the Atlassian OAuth integration:
 import jiraIntegration, {
   JiraConfigPanel,
   JiraSettingsModal,
-} from "@playrunner/jira";
-import jiraApiContribution, { jiraRouter } from "@playrunner/jira/api";
-import jiraOrchestratorContribution from "@playrunner/jira/orchestrator";
+} from '@playrunner/jira';
+import jiraApiContribution, { jiraRouter } from '@playrunner/jira/api';
+import jiraOrchestratorContribution from '@playrunner/jira/orchestrator';
 ```
 
 The same objects remain available as named exports. The default exports are the

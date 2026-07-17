@@ -19,6 +19,14 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 - Do not duplicate local-runner and cloud-runner protocol code. When local and GCP share behaviour such as Pub/Sub event transport, runner control/status signalling, node state transitions, or output-event publication, implement the shared protocol once and vary only the environment/configuration needed by each runtime.
 - Do not send runner messages through API event callbacks. Logs, node state, runner control/status, and output events must go through the runner's messaging transport: local development defaults to the Pub/Sub emulator, GCP uses GCP Pub/Sub, and future AWS/Azure runners should use their provider-native messaging.
 
+## Documentation and Code Snippets
+
+- Format every fenced executable code example with the repository Prettier baseline in `docs/.prettierrc.json`: `semi: true`, `singleQuote: true`, `trailingComma: 'all'`, `printWidth: 80`, and `tabWidth: 2`.
+- Keep every code example syntactically valid for its declared language. JSON examples must remain valid JSON and therefore use double-quoted property names and string values even though JavaScript and TypeScript examples use single quotes.
+- Add an appropriate language tag to every fenced code block, such as `ts`, `tsx`, `json`, `bash`, or `yaml`.
+- Do not use Markdown emphasis markers around language keywords or other source tokens inside code examples. Code fences must contain plain, executable source text.
+- Validate changed documentation and its snippets with the narrowest relevant Markdown, documentation-build, and Prettier checks before handing the work back.
+
 ## Package Development
 
 When building or extending packages under `packages/*`, follow the package shape already implemented by `packages/playwright`, `packages/gcp`, `packages/jira`, `packages/environment`, and `packages/github`.

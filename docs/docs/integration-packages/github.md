@@ -59,8 +59,8 @@ installation, and repository selection, see
 ## Exports
 
 ```ts
-import githubIntegration, { GithubSettingsModal } from "@playrunner/github";
-import githubApiContribution, { githubRouter } from "@playrunner/github/api";
+import githubIntegration, { GithubSettingsModal } from '@playrunner/github';
+import githubApiContribution, { githubRouter } from '@playrunner/github/api';
 ```
 
 ## Frontend

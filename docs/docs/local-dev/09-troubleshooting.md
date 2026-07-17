@@ -167,7 +167,7 @@ For a GCP Orchestrator, rebuild, push, and redeploy the Orchestrator-only image:
 2. **`DATABASE_URL` is missing in the API's environment.**
    Confirm `apps/api/.env` contains:
 
-   ```
+   ```dotenv
    DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:<POSTGRES_PORT>/playrunner?schema=public
    ```
 

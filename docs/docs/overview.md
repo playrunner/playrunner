@@ -22,7 +22,7 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 
 ## Architecture at a glance
 
-```
+```text
 Browser
   │
   ▼

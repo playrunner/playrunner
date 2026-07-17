@@ -1,50 +1,50 @@
-import React, { type ReactNode } from "react";
-import clsx from "clsx";
-import { ThemeClassNames } from "@docusaurus/theme-common";
-import type { Props } from "@theme/DocCard/Heading/Icon";
-import AwsLogo from "../../../../../../apps/frontend/public/images/integrations/aws.svg";
-import AzureLogo from "../../../../../../apps/frontend/public/images/integrations/azure.svg";
-import GcpLogo from "../../../../../../packages/gcp/assets/gcp.svg";
+import React, { type ReactNode } from 'react';
+import clsx from 'clsx';
+import { ThemeClassNames } from '@docusaurus/theme-common';
+import type { Props } from '@theme/DocCard/Heading/Icon';
+import AwsLogo from '../../../../../../apps/frontend/public/images/integrations/aws.svg';
+import AzureLogo from '../../../../../../apps/frontend/public/images/integrations/azure.svg';
+import GcpLogo from '../../../../../../packages/gcp/assets/gcp.svg';
 
-import styles from "./styles.module.css";
+import styles from './styles.module.css';
 
-type CloudIconKind = "aws" | "azure" | "gcp" | "local";
+type CloudIconKind = 'aws' | 'azure' | 'gcp' | 'local';
 
-function getItemText(item: Props["item"]): string {
+function getItemText(item: Props['item']): string {
   const parts: string[] = [];
 
-  if ("label" in item && typeof item.label === "string") {
+  if ('label' in item && typeof item.label === 'string') {
     parts.push(item.label);
   }
 
-  if ("href" in item && typeof item.href === "string") {
+  if ('href' in item && typeof item.href === 'string') {
     parts.push(item.href);
   }
 
-  if ("docId" in item && typeof item.docId === "string") {
+  if ('docId' in item && typeof item.docId === 'string') {
     parts.push(item.docId);
   }
 
-  return parts.join(" ").toLowerCase();
+  return parts.join(' ').toLowerCase();
 }
 
-function getCloudIconKind(item: Props["item"]): CloudIconKind | null {
+function getCloudIconKind(item: Props['item']): CloudIconKind | null {
   const key = getItemText(item);
 
-  if (key.includes("cloud-architecture/gcp") || key.includes(" gcp ")) {
-    return "gcp";
+  if (key.includes('cloud-architecture/gcp') || key.includes(' gcp ')) {
+    return 'gcp';
   }
 
-  if (key.includes("cloud-architecture/aws") || key.includes(" aws ")) {
-    return "aws";
+  if (key.includes('cloud-architecture/aws') || key.includes(' aws ')) {
+    return 'aws';
   }
 
-  if (key.includes("cloud-architecture/azure") || key.includes(" azure ")) {
-    return "azure";
+  if (key.includes('cloud-architecture/azure') || key.includes(' azure ')) {
+    return 'azure';
   }
 
-  if (key.includes("cloud-architecture/local") || key.includes(" local ")) {
-    return "local";
+  if (key.includes('cloud-architecture/local') || key.includes(' local ')) {
+    return 'local';
   }
 
   return null;
@@ -66,13 +66,13 @@ function LocalIcon(): ReactNode {
 
 function renderCloudIcon(kind: CloudIconKind): ReactNode {
   switch (kind) {
-    case "aws":
+    case 'aws':
       return <AwsLogo aria-hidden="true" />;
-    case "azure":
+    case 'azure':
       return <AzureLogo aria-hidden="true" />;
-    case "gcp":
+    case 'gcp':
       return <GcpLogo aria-hidden="true" />;
-    case "local":
+    case 'local':
       return <LocalIcon />;
     default:
       return null;

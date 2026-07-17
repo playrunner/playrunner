@@ -27,6 +27,20 @@ end-to-end test automation.
 2. Read the open issues and pick a small, well-scoped task.
 3. Open a pull request with the smallest useful change and a clear explanation.
 
+## Documentation examples
+
+Format documentation and every fenced code example with the repository
+Prettier rules in `docs/.prettierrc.json`. JavaScript, TypeScript, and TSX use
+single quotes; JSON remains valid JSON and therefore uses double quotes. Always
+add the appropriate language tag to a code fence and keep source tokens as plain
+code rather than Markdown emphasis.
+
+From `docs/`, validate documentation formatting with:
+
+```bash
+npm run format:check
+```
+
 ## Contributor License Agreement
 
 By submitting a contribution, you agree to the repository root

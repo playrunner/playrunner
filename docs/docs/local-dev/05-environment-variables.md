@@ -159,7 +159,7 @@ The runner also receives these additional environment variables:
 
 ## How Variables Flow Through the Stack
 
-```
+```text
 .env.local
   └─ PUBSUB_EMULATOR_HOST           → API local Pub/Sub ingest endpoint
   └─ LOCAL_PUBSUB_PROJECT_ID        → local emulator project ID

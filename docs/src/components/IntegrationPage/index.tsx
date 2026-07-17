@@ -155,11 +155,7 @@ export function IntegrationDirectoryHero({
   );
 }
 
-export function IntegrationDirectory({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function IntegrationDirectory({ children }: { children: ReactNode }) {
   return <div className={styles.directory}>{children}</div>;
 }
 
