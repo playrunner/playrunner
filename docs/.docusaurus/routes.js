@@ -114,67 +114,19 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', '33a'),
+    component: ComponentCreator('/playrunner/docs/', '248'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', '67c'),
+        component: ComponentCreator('/playrunner/docs/', '91a'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', '9ac'),
+            component: ComponentCreator('/playrunner/docs/', '4e7'),
             routes: [
               {
-                path: '/playrunner/docs/category/cloud-architecture/',
-                component: ComponentCreator('/playrunner/docs/category/cloud-architecture/', 'c4c'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/aws/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/aws/', 'd96'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/azure/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/azure/', 'edf'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/gcp/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/', 'a2c'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/gcp/oauth/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/oauth/', '8a9'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/gcp/project-region/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/project-region/', '831'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/gcp/setup/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/setup/', 'cc8'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/gcp/terraform/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/gcp/terraform/', '0b0'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
-              {
-                path: '/playrunner/docs/cloud-architecture/local/',
-                component: ComponentCreator('/playrunner/docs/cloud-architecture/local/', 'a94'),
+                path: '/playrunner/docs/category/runner-architecture/',
+                component: ComponentCreator('/playrunner/docs/category/runner-architecture/', '6ed'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -343,6 +295,54 @@ export default [
               {
                 path: '/playrunner/docs/roadmap/',
                 component: ComponentCreator('/playrunner/docs/roadmap/', '991'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/aws/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/aws/', '309'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/azure/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/azure/', 'fc9'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/gcp/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/gcp/', '47f'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/gcp/oauth/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/gcp/oauth/', '374'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/gcp/project-region/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/gcp/project-region/', '19e'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/gcp/setup/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/gcp/setup/', '35f'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/gcp/terraform/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/gcp/terraform/', '8ff'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/local/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/local/', '8ce'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

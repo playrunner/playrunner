@@ -1,0 +1,29 @@
+{
+  "id": "runner-architecture/gcp/setup",
+  "title": "GCP Setup",
+  "description": "Use this page as the top-level setup checklist. The detailed instructions are",
+  "source": "@site/docs/runner-architecture/gcp/setup.md",
+  "sourceDirName": "runner-architecture/gcp",
+  "slug": "/runner-architecture/gcp/setup",
+  "permalink": "/playrunner/docs/runner-architecture/gcp/setup",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/runner-architecture/gcp/setup.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "sidebar_position": 2,
+    "title": "GCP Setup",
+    "sidebar_label": "Setup"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/runner-architecture/gcp/"
+  },
+  "next": {
+    "title": "OAuth",
+    "permalink": "/playrunner/docs/runner-architecture/gcp/oauth"
+  }
+}

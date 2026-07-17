@@ -1,0 +1,8 @@
+{
+  "label": "AWS",
+  "position": 3,
+  "link": {
+    "type": "doc",
+    "id": "runner-architecture/aws/aws"
+  }
+}

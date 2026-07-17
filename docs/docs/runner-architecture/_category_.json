@@ -1,0 +1,9 @@
+{
+  "label": "Runner Architecture",
+  "position": 1.5,
+  "link": {
+    "type": "generated-index",
+    "title": "Runner Architecture",
+    "description": "Runner architecture for local execution, supported cloud providers, and planned providers."
+  }
+}

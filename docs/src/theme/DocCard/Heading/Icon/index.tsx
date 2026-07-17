@@ -31,19 +31,19 @@ function getItemText(item: Props['item']): string {
 function getCloudIconKind(item: Props['item']): CloudIconKind | null {
   const key = getItemText(item);
 
-  if (key.includes('cloud-architecture/gcp') || key.includes(' gcp ')) {
+  if (key.includes('runner-architecture/gcp') || key.includes(' gcp ')) {
     return 'gcp';
   }
 
-  if (key.includes('cloud-architecture/aws') || key.includes(' aws ')) {
+  if (key.includes('runner-architecture/aws') || key.includes(' aws ')) {
     return 'aws';
   }
 
-  if (key.includes('cloud-architecture/azure') || key.includes(' azure ')) {
+  if (key.includes('runner-architecture/azure') || key.includes(' azure ')) {
     return 'azure';
   }
 
-  if (key.includes('cloud-architecture/local') || key.includes(' local ')) {
+  if (key.includes('runner-architecture/local') || key.includes(' local ')) {
     return 'local';
   }
 

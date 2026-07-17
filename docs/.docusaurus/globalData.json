@@ -11,46 +11,6 @@
           "mainDocId": "overview",
           "docs": [
             {
-              "id": "cloud-architecture/aws/aws",
-              "path": "/playrunner/docs/cloud-architecture/aws/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/azure",
-              "path": "/playrunner/docs/cloud-architecture/azure",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/gcp/index",
-              "path": "/playrunner/docs/cloud-architecture/gcp/",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/gcp/oauth",
-              "path": "/playrunner/docs/cloud-architecture/gcp/oauth",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/gcp/project-region",
-              "path": "/playrunner/docs/cloud-architecture/gcp/project-region",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/gcp/setup",
-              "path": "/playrunner/docs/cloud-architecture/gcp/setup",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/gcp/terraform",
-              "path": "/playrunner/docs/cloud-architecture/gcp/terraform",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "cloud-architecture/local",
-              "path": "/playrunner/docs/cloud-architecture/local",
-              "sidebar": "tutorialSidebar"
-            },
-            {
               "id": "contributing",
               "path": "/playrunner/docs/contributing",
               "sidebar": "tutorialSidebar"
@@ -191,6 +151,46 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "runner-architecture/aws/aws",
+              "path": "/playrunner/docs/runner-architecture/aws/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/azure",
+              "path": "/playrunner/docs/runner-architecture/azure",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/gcp/index",
+              "path": "/playrunner/docs/runner-architecture/gcp/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/gcp/oauth",
+              "path": "/playrunner/docs/runner-architecture/gcp/oauth",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/gcp/project-region",
+              "path": "/playrunner/docs/runner-architecture/gcp/project-region",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/gcp/setup",
+              "path": "/playrunner/docs/runner-architecture/gcp/setup",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/gcp/terraform",
+              "path": "/playrunner/docs/runner-architecture/gcp/terraform",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "runner-architecture/local",
+              "path": "/playrunner/docs/runner-architecture/local",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "tutorials/connect-github",
               "path": "/playrunner/docs/tutorials/connect-github",
               "sidebar": "tutorialSidebar"
@@ -221,8 +221,8 @@
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "/category/cloud-architecture",
-              "path": "/playrunner/docs/category/cloud-architecture",
+              "id": "/category/runner-architecture",
+              "path": "/playrunner/docs/category/runner-architecture",
               "sidebar": "tutorialSidebar"
             }
           ],

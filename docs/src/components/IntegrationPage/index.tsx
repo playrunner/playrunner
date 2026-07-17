@@ -4,6 +4,7 @@ import GcpLogo from '../../../../packages/gcp/assets/gcp.svg';
 import GitHubLogo from '../../../../packages/github/assets/github.svg';
 import JiraLogo from '../../../../packages/jira/assets/jira.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
+import SlackLogo from '../../../../packages/slack/assets/slack.svg';
 import styles from './styles.module.css';
 
 type IconKind =
@@ -13,7 +14,8 @@ type IconKind =
   | 'javascript'
   | 'jira'
   | 'playwright'
-  | 'schedule';
+  | 'schedule'
+  | 'slack';
 
 type Fact = {
   label: string;
@@ -38,6 +40,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <JiraLogo aria-hidden="true" />;
     case 'playwright':
       return <PlaywrightLogo aria-hidden="true" />;
+    case 'slack':
+      return <SlackLogo aria-hidden="true" />;
     case 'environment':
       return (
         <svg

@@ -19,7 +19,7 @@
   "sidebar": "tutorialSidebar",
   "previous": {
     "title": "Azure",
-    "permalink": "/playrunner/docs/cloud-architecture/azure"
+    "permalink": "/playrunner/docs/runner-architecture/azure"
   },
   "next": {
     "title": "Tutorials",

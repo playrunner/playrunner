@@ -249,54 +249,22 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-915"
   },
-  "/playrunner/docs/-33a": {
+  "/playrunner/docs/-248": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docs-aba-62c"
     }
   },
-  "/playrunner/docs/-67c": {
+  "/playrunner/docs/-91a": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-c-17-30d"
   },
-  "/playrunner/docs/-9ac": {
+  "/playrunner/docs/-4e7": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
-  "/playrunner/docs/category/cloud-architecture/-c4c": {
+  "/playrunner/docs/category/runner-architecture/-6ed": {
     "__comp": "__comp---theme-doc-category-generated-index-page-14-e-640",
-    "__props": "__props---playrunner-docs-category-cloud-architecture-d-7-c-6f5"
-  },
-  "/playrunner/docs/cloud-architecture/aws/-d96": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-aws-052-975"
-  },
-  "/playrunner/docs/cloud-architecture/azure/-edf": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-azure-175-52d"
-  },
-  "/playrunner/docs/cloud-architecture/gcp/-a2c": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-ff-9-191"
-  },
-  "/playrunner/docs/cloud-architecture/gcp/oauth/-8a9": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-oauth-b-04-ee2"
-  },
-  "/playrunner/docs/cloud-architecture/gcp/project-region/-831": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-project-region-bf-3-cd4"
-  },
-  "/playrunner/docs/cloud-architecture/gcp/setup/-cc8": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-setup-e-3-c-b9c"
-  },
-  "/playrunner/docs/cloud-architecture/gcp/terraform/-0b0": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-gcp-terraform-a-0-f-30e"
-  },
-  "/playrunner/docs/cloud-architecture/local/-a94": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-cloud-architecture-local-1-cf-48f"
+    "__props": "__props---playrunner-docs-category-runner-architecture-9-e-0-259"
   },
   "/playrunner/docs/contributing/-4ea": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -409,6 +377,38 @@
   "/playrunner/docs/roadmap/-991": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-roadmap-0-df-a87"
+  },
+  "/playrunner/docs/runner-architecture/aws/-309": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-aws-f-90-a9e"
+  },
+  "/playrunner/docs/runner-architecture/azure/-fc9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-azure-874-29c"
+  },
+  "/playrunner/docs/runner-architecture/gcp/-47f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-gcp-938-7f3"
+  },
+  "/playrunner/docs/runner-architecture/gcp/oauth/-374": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-gcp-oauth-7-ad-9cd"
+  },
+  "/playrunner/docs/runner-architecture/gcp/project-region/-19e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-gcp-project-region-606-d6b"
+  },
+  "/playrunner/docs/runner-architecture/gcp/setup/-35f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-gcp-setup-cd-0-970"
+  },
+  "/playrunner/docs/runner-architecture/gcp/terraform/-8ff": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-gcp-terraform-d-90-3e8"
+  },
+  "/playrunner/docs/runner-architecture/local/-8ce": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-local-470-c9f"
   },
   "/playrunner/docs/tutorials/-d0b": {
     "__comp": "__comp---theme-doc-item-178-a40",

@@ -106,7 +106,7 @@ type NextStepItem = {
 };
 
 const DEFAULT_DOCS_URL = "https://playrunner.dev";
-const GCP_SETUP_DOCS_URL = getDocsUrl("docs/cloud-architecture/gcp/setup");
+const GCP_SETUP_DOCS_URL = getDocsUrl("docs/runner-architecture/gcp/setup");
 
 type DocsImportMeta = ImportMeta & {
   env?: {

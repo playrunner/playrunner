@@ -94,13 +94,13 @@ const TERRAFORM_DIRECT_COMMANDS = [
   'terraform -chdir=infra/gcp apply',
 ].join('\n');
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const GCP_SETUP_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/setup');
-const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/cloud-architecture/gcp/oauth');
+const GCP_SETUP_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/setup');
+const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/oauth');
 const GCP_PROJECT_REGION_DOCS_URL = getDocsUrl(
-  'docs/cloud-architecture/gcp/project-region',
+  'docs/runner-architecture/gcp/project-region',
 );
 const GCP_TERRAFORM_DOCS_URL = getDocsUrl(
-  'docs/cloud-architecture/gcp/terraform',
+  'docs/runner-architecture/gcp/terraform',
 );
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
   'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';

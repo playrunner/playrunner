@@ -1,0 +1,29 @@
+{
+  "id": "runner-architecture/gcp/project-region",
+  "title": "Project and Region Setup",
+  "description": "This step tells Playrunner which Google Cloud project and Cloud Run region to",
+  "source": "@site/docs/runner-architecture/gcp/project-region.md",
+  "sourceDirName": "runner-architecture/gcp",
+  "slug": "/runner-architecture/gcp/project-region",
+  "permalink": "/playrunner/docs/runner-architecture/gcp/project-region",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/runner-architecture/gcp/project-region.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "sidebar_position": 4,
+    "title": "Project and Region Setup",
+    "sidebar_label": "Project & Region"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "OAuth",
+    "permalink": "/playrunner/docs/runner-architecture/gcp/oauth"
+  },
+  "next": {
+    "title": "Terraform",
+    "permalink": "/playrunner/docs/runner-architecture/gcp/terraform"
+  }
+}

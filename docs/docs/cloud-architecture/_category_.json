@@ -1,9 +1,0 @@
-{
-  "label": "Cloud Architecture",
-  "position": 2,
-  "link": {
-    "type": "generated-index",
-    "title": "Cloud Architecture",
-    "description": "Cloud architecture notes for local development, supported cloud providers, and planned providers."
-  }
-}

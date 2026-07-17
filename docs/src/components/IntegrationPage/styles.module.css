@@ -98,6 +98,10 @@
   color: #ffffff;
 }
 
+.slackIcon {
+  background: #ffffff;
+}
+
 :global([data-theme='dark']) .githubIcon {
   background: #111827;
   color: #ffffff;
@@ -114,6 +118,10 @@
 :global([data-theme='dark']) .playwrightIcon {
   background: #111827;
   color: #ffffff;
+}
+
+:global([data-theme='dark']) .slackIcon {
+  background: #111827;
 }
 
 .environmentIcon svg,

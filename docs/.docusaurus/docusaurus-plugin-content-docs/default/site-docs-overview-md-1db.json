@@ -18,7 +18,7 @@
   },
   "sidebar": "tutorialSidebar",
   "next": {
-    "title": "Cloud Architecture",
-    "permalink": "/playrunner/docs/category/cloud-architecture"
+    "title": "Runner Architecture",
+    "permalink": "/playrunner/docs/category/runner-architecture"
   }
 }

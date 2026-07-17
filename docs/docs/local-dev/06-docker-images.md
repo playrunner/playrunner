@@ -176,7 +176,7 @@ add their provider to a common source registry.
 ## Publishing to GCP
 
 For the end-to-end infrastructure and GCP integration runbook, see
-[GCP Setup](../../cloud-architecture/gcp/setup/). This section documents the image
+[GCP Setup](../../runner-architecture/gcp/setup/). This section documents the image
 publishing helper itself.
 
 Running workflows against the GCP execution path requires the Orchestrator and Playwright images to be available in a registry that Cloud Run can pull from. The repo ships a helper that builds and pushes them to Google Artifact Registry, redeploys the Orchestrator Cloud Run service, and clears stale Playwright Cloud Run Jobs so they pick up the new image:
