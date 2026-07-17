@@ -23,7 +23,6 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
     "@monaco-editor/react": "^4.7.0",
     "@playrunner/environment": "file:../../packages/environment",
     "@playrunner/gcp": "file:../../packages/gcp",
