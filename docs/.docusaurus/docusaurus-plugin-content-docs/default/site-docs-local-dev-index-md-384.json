@@ -1,7 +1,7 @@
 {
   "id": "local-dev/index",
   "title": "Overview",
-  "description": "This documentation covers local development only.",
+  "description": "Develop Playrunner integration packages and work with the local application stack.",
   "source": "@site/docs/local-dev/index.md",
   "sourceDirName": "local-dev",
   "slug": "/local-dev/",
@@ -14,7 +14,8 @@
   "sidebarPosition": 1,
   "frontMatter": {
     "sidebar_position": 1,
-    "title": "Overview"
+    "title": "Overview",
+    "description": "Develop Playrunner integration packages and work with the local application stack."
   },
   "sidebar": "tutorialSidebar",
   "previous": {
@@ -22,7 +23,7 @@
     "permalink": "/playrunner/docs/tutorials/understanding-reports"
   },
   "next": {
-    "title": "Connecting Integrations",
-    "permalink": "/playrunner/docs/local-dev/connecting-integrations"
+    "title": "Overview",
+    "permalink": "/playrunner/docs/local-dev/integrations/"
   }
 }

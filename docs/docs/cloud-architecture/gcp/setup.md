@@ -9,10 +9,10 @@ sidebar_label: Setup
 Use this page as the top-level setup checklist. The detailed instructions are
 split into the three setup phases that happen in the app:
 
-1. [Google OAuth setup](./oauth) connects Playrunner to your Google account.
-2. [Project and Region setup](./project-region) saves the existing Google Cloud
-   project and Cloud Run region Playrunner should use.
-3. [Terraform setup](./terraform) creates the Google Cloud infrastructure
+1. [Google OAuth setup](./oauth.md) connects Playrunner to your Google account.
+2. [Project and Region setup](./project-region.md) saves the existing Google
+   Cloud project and Cloud Run region Playrunner should use.
+3. [Terraform setup](./terraform.md) creates the Google Cloud infrastructure
    inside that existing project.
 
 OAuth, Project and Region, and Terraform are separate on purpose. OAuth saves
@@ -29,9 +29,9 @@ through the setup script and writes `infra/gcp/terraform.tfvars`.
 ```
 
 2. Open **Integrations** and choose **Connect to GCP**.
-3. Complete [Google OAuth setup](./oauth).
-4. Complete [Project and Region setup](./project-region). Create the project in
-   GCP first if it does not already exist, then save the project ID and Cloud
+3. Complete [Google OAuth setup](./oauth.md).
+4. Complete [Project and Region setup](./project-region.md). Create the project
+   in GCP first if it does not already exist, then save the project ID and Cloud
    Run region in the dialog.
 5. From the repo root, generate `infra/gcp/terraform.tfvars`:
 
@@ -114,8 +114,8 @@ with the schedule enabled.
 
 ## More Detail
 
-- [Google OAuth setup](./oauth)
-- [Project and Region setup](./project-region)
-- [Terraform setup](./terraform)
-- [Publishing to GCP](../../local-dev/docker-images#publishing-to-gcp)
-- [Remote Runner Messaging](../../local-dev/remote-debugging)
+- [Google OAuth setup](./oauth.md)
+- [Project and Region setup](./project-region.md)
+- [Terraform setup](./terraform.md)
+- [Publishing to GCP](../../local-dev/06-docker-images.md#publishing-to-gcp)
+- [Remote Runner Messaging](../../local-dev/10-remote-debugging.md)

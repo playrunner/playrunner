@@ -7,7 +7,7 @@ title: Create Your First Workflow
 
 In this tutorial you'll build a simple two-node workflow in the Playrunner visual editor: an **Environment** config node feeds variables into a **Playwright** test run.
 
-**Prerequisites:** Complete [Getting Started](./getting-started) first.
+**Prerequisites:** Complete [Getting Started](./01-getting-started.md) first.
 
 ---
 
@@ -62,4 +62,4 @@ Click **Save** in the top toolbar. Your workflow is persisted to PostgreSQL thro
 
 ## Next steps
 
-➡️ [Connect GitHub](./connect-github)
+➡️ [Connect GitHub](./03-connect-github.md)

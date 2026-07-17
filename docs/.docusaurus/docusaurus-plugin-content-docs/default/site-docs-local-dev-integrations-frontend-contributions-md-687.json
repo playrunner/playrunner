@@ -1,0 +1,29 @@
+{
+  "id": "local-dev/integrations/frontend-contributions",
+  "title": "Frontend Contributions",
+  "description": "Contribute package-owned integration metadata, settings, and workflow node configuration UI.",
+  "source": "@site/docs/local-dev/integrations/frontend-contributions.md",
+  "sourceDirName": "local-dev/integrations",
+  "slug": "/local-dev/integrations/frontend-contributions",
+  "permalink": "/playrunner/docs/local-dev/integrations/frontend-contributions",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/integrations/frontend-contributions.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "sidebar_position": 3,
+    "title": "Frontend Contributions",
+    "description": "Contribute package-owned integration metadata, settings, and workflow node configuration UI."
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Package Architecture",
+    "permalink": "/playrunner/docs/local-dev/integrations/package-architecture"
+  },
+  "next": {
+    "title": "API Contributions",
+    "permalink": "/playrunner/docs/local-dev/integrations/api-contributions"
+  }
+}

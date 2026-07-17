@@ -1,0 +1,30 @@
+{
+  "id": "local-dev/integrations/index",
+  "title": "Integrations",
+  "description": "Build self-contained Playrunner integration packages for the frontend, API, and Orchestrator.",
+  "source": "@site/docs/local-dev/integrations/index.md",
+  "sourceDirName": "local-dev/integrations",
+  "slug": "/local-dev/integrations/",
+  "permalink": "/playrunner/docs/local-dev/integrations/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/integrations/index.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "sidebar_position": 1,
+    "sidebar_label": "Overview",
+    "title": "Integrations",
+    "description": "Build self-contained Playrunner integration packages for the frontend, API, and Orchestrator."
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/local-dev/"
+  },
+  "next": {
+    "title": "Package Architecture",
+    "permalink": "/playrunner/docs/local-dev/integrations/package-architecture"
+  }
+}

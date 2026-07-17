@@ -11,18 +11,18 @@
   "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/local-dev/connection-nodes.md",
   "tags": [],
   "version": "current",
-  "sidebarPosition": 4,
+  "sidebarPosition": 3,
   "frontMatter": {
-    "sidebar_position": 4,
+    "sidebar_position": 3,
     "title": "Connection Nodes"
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Services & Ports",
-    "permalink": "/playrunner/docs/local-dev/services-and-ports"
+    "title": "Build, Validation, and Deployment",
+    "permalink": "/playrunner/docs/local-dev/integrations/build-validation-deployment"
   },
   "next": {
-    "title": "Environment Variables",
-    "permalink": "/playrunner/docs/local-dev/environment-variables"
+    "title": "Services & Ports",
+    "permalink": "/playrunner/docs/local-dev/services-and-ports"
   }
 }

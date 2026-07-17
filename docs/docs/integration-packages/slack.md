@@ -149,8 +149,9 @@ generates a static import and bundles the Slack executor into `dist/index.js`.
 resulting contributions; it contains no Slack reference. There is no runtime
 package loader, discovery scan, or package installation step.
 
-See [Orchestrator contributions](../orchestrator/) for the shared contract,
-self-contained package checklist, and rebuild commands.
+See
+[Orchestrator contributions](../local-dev/integrations/orchestrator-contributions.md)
+for the shared contract, self-contained package checklist, and rebuild commands.
 
 ### Executor resolution
 
@@ -166,8 +167,8 @@ Resolution never falls back to the node's display label.
 During workflow execution (local, scheduled, or GCP), the bundled Slack
 executor:
 
-1. Receives only the scoped `settings.slack` credential object rather than all
-   provider credentials.
+1. Receives the credential value stored at `settings.slack` as
+   `context.settings`, rather than receiving all provider credentials.
 2. Renders supported template variables in the message and optional bot
    username. An empty message uses `Workflow completed.`.
 3. If a webhook URL is configured, sends a `POST` to that URL. Webhook mode has

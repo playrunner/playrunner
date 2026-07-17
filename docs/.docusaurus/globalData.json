@@ -86,11 +86,6 @@
               "sidebar": "tutorialSidebar"
             },
             {
-              "id": "integration-packages/orchestrator",
-              "path": "/playrunner/docs/integration-packages/orchestrator",
-              "sidebar": "tutorialSidebar"
-            },
-            {
               "id": "integration-packages/playwright",
               "path": "/playrunner/docs/integration-packages/playwright",
               "sidebar": "tutorialSidebar"
@@ -103,11 +98,6 @@
             {
               "id": "integration-packages/slack",
               "path": "/playrunner/docs/integration-packages/slack",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "local-dev/connecting-integrations",
-              "path": "/playrunner/docs/local-dev/connecting-integrations",
               "sidebar": "tutorialSidebar"
             },
             {
@@ -128,6 +118,41 @@
             {
               "id": "local-dev/index",
               "path": "/playrunner/docs/local-dev/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/api-contributions",
+              "path": "/playrunner/docs/local-dev/integrations/api-contributions",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/build-validation-deployment",
+              "path": "/playrunner/docs/local-dev/integrations/build-validation-deployment",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/frontend-contributions",
+              "path": "/playrunner/docs/local-dev/integrations/frontend-contributions",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/index",
+              "path": "/playrunner/docs/local-dev/integrations/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/oauth-and-connections",
+              "path": "/playrunner/docs/local-dev/connecting-integrations",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/orchestrator-contributions",
+              "path": "/playrunner/docs/integration-packages/orchestrator",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "local-dev/integrations/package-architecture",
+              "path": "/playrunner/docs/local-dev/integrations/package-architecture",
               "sidebar": "tutorialSidebar"
             },
             {

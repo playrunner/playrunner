@@ -4,5 +4,6 @@
   "link": {
     "type": "doc",
     "id": "local-dev/index"
-  }
+  },
+  "description": "Develop integrations, understand workflow execution, and run the Playrunner stack locally."
 }

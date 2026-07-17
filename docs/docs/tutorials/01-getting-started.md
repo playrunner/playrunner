@@ -179,4 +179,4 @@ While the local stack is running, the header `Docs` link opens the local Docusau
 
 Now that everything is running, continue with:
 
-➡️ [Create Your First Workflow](./create-your-first-workflow)
+➡️ [Create Your First Workflow](./02-create-your-first-workflow.md)

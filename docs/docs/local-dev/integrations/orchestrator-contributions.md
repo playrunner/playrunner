@@ -1,8 +1,9 @@
 ---
-sidebar_position: 1.5
+sidebar_position: 5
 sidebar_label: Orchestrator contributions
 title: Orchestrator Contributions
 description: Add trusted package-owned node executors to the Playrunner orchestrator at build time.
+slug: /integration-packages/orchestrator
 ---
 
 # Orchestrator Contributions
@@ -10,6 +11,12 @@ description: Add trusted package-owned node executors to the Playrunner orchestr
 > **Build-time only.** Executable integration code is selected, installed, and
 > bundled while the Orchestrator image is built. A running Playrunner instance
 > never downloads, installs, or hot-loads marketplace packages.
+
+This is one of the three optional package contribution surfaces. Start with
+[Package architecture](./package-architecture.md), then see
+[Frontend contributions](./frontend-contributions.md) and
+[API contributions](./api-contributions.md) for the matching build-time pattern
+in the other applications.
 
 An executable integration can own its provider-specific workflow behavior under
 `src/orchestrator/`. The Orchestrator host still owns workflow policy, lifecycle,
@@ -179,9 +186,10 @@ The build and the workflow run are separate:
 3. **Preflight:** The host asks the generic resolver for `nodeType: "jira"` and
    action `"create"`. It returns the Jira create executor already bundled in
    memory. An unsupported action fails here.
-4. **Execute:** The host passes the executor only `settings.jira`, the Jira node,
-   template data, a logger, and an `AbortSignal`. The Jira package renders the
-   fields and calls Jira's API.
+4. **Execute:** The host takes the value stored under `settings.jira` and exposes
+   it to the executor as `context.settings`, alongside the Jira node, template
+   data, a logger, and an `AbortSignal`. The Jira package renders the fields and
+   calls Jira's API.
 5. **Finish:** The Jira executor returns `success` or throws a safe error. The
    host publishes the final node state, records any workflow failure, cleans up,
    and continues through eligible connections.

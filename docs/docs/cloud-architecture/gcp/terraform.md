@@ -6,8 +6,8 @@ sidebar_label: Terraform
 
 # Terraform Setup
 
-Run this after [Google OAuth setup](./oauth) and
-[Project and Region setup](./project-region) are complete. Terraform expects
+Run this after [Google OAuth setup](./oauth.md) and
+[Project and Region setup](./project-region.md) are complete. Terraform expects
 the saved project ID to reference a Google Cloud project that already exists.
 
 ## 1. Generate `terraform.tfvars`

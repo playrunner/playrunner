@@ -249,17 +249,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-915"
   },
-  "/playrunner/docs/-b89": {
+  "/playrunner/docs/-33a": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docs-aba-62c"
     }
   },
-  "/playrunner/docs/-c25": {
+  "/playrunner/docs/-67c": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-c-17-30d"
   },
-  "/playrunner/docs/-9d9": {
+  "/playrunner/docs/-9ac": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/category/cloud-architecture/-c4c": {
@@ -326,9 +326,9 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-integration-packages-jira-d-3-a-da2"
   },
-  "/playrunner/docs/integration-packages/orchestrator/-3e8": {
+  "/playrunner/docs/integration-packages/orchestrator/-285": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-integration-packages-orchestrator-188-5c4"
+    "content": "content---playrunner-docs-integration-packages-orchestrator-b-1-a-a87"
   },
   "/playrunner/docs/integration-packages/playwright/-8fd": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -346,9 +346,9 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-local-dev-384-e30"
   },
-  "/playrunner/docs/local-dev/connecting-integrations/-6b0": {
+  "/playrunner/docs/local-dev/connecting-integrations/-89c": {
     "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---playrunner-docs-local-dev-connecting-integrations-987-901"
+    "content": "content---playrunner-docs-local-dev-connecting-integrations-980-7e6"
   },
   "/playrunner/docs/local-dev/connection-nodes/-ddd": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -361,6 +361,26 @@
   "/playrunner/docs/local-dev/environment-variables/-4b1": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-local-dev-environment-variables-9-ed-427"
+  },
+  "/playrunner/docs/local-dev/integrations/-03a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-integrations-813-73a"
+  },
+  "/playrunner/docs/local-dev/integrations/api-contributions/-5b4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-integrations-api-contributions-f-05-bf8"
+  },
+  "/playrunner/docs/local-dev/integrations/build-validation-deployment/-6b8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-integrations-build-validation-deployment-8-e-1-005"
+  },
+  "/playrunner/docs/local-dev/integrations/frontend-contributions/-cad": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-integrations-frontend-contributions-687-19a"
+  },
+  "/playrunner/docs/local-dev/integrations/package-architecture/-9f6": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-local-dev-integrations-package-architecture-66-b-3c0"
   },
   "/playrunner/docs/local-dev/postgres-prisma-and-local-auth/-ae2": {
     "__comp": "__comp---theme-doc-item-178-a40",

@@ -81,4 +81,4 @@ Playrunner automatically refreshes your GitHub access token in the background be
 
 ## Next steps
 
-➡️ [Run Your First Test](./run-your-first-test)
+➡️ [Run Your First Test](./04-run-your-first-test.md)

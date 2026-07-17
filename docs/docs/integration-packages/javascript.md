@@ -2,7 +2,7 @@
 sidebar_position: 3
 sidebar_label: JavaScript
 title: JavaScript Integration
-description: Run custom JavaScript inside Playrunner workflow nodes.
+description: Configure JavaScript workflow nodes; execution is not currently available.
 hide_title: true
 ---
 
@@ -15,15 +15,16 @@ IntegrationHero,
 <IntegrationHero
 name="JavaScript"
 packageName="@playrunner/javascript"
-description="Run custom JavaScript inside Playrunner workflows using the shared integration SDK UI contract."
+description="Configure JavaScript workflow nodes using the shared integration SDK UI contract. Executable JavaScript support is not currently wired into the Orchestrator."
 icon="javascript"
 installCommand="npm install @playrunner/javascript"
 npmUrl="https://www.npmjs.com/package/@playrunner/javascript"
-badges={['Action node', 'Code editor', 'No auth']}
+badges={['Action node', 'Code editor', 'Execution unavailable']}
 facts={[
 { label: 'Node type', value: 'Action' },
 { label: 'Integration id', value: 'code' },
 { label: 'Backend mount', value: '/api/javascript' },
+{ label: 'Execution', value: 'Not currently available' },
 ]}
 />
 
@@ -43,11 +44,25 @@ facts={[
     current JavaScript node has no backend endpoints.
   </IntegrationCard>
 
+  <IntegrationCard eyebrow="Orchestrator" title="Execution not yet wired">
+    The package has no Orchestrator contribution, and `code` is not an explicit
+    host-managed node type. A JavaScript node therefore cannot currently run.
+  </IntegrationCard>
+
   <IntegrationCard eyebrow="Icon" title="Lucide source">
     Uses the `Code2` icon from `lucide-react`, so it does not need a packaged
     image asset.
   </IntegrationCard>
 </IntegrationGrid>
+
+:::warning Current execution status
+
+`@playrunner/javascript` currently contributes configuration UI and an empty API
+router only. Its manifest does not declare an `./orchestrator` surface, and the
+Orchestrator has no host-managed `code` executor. A workflow containing this node
+will fail preflight until an executor is implemented and bundled.
+
+:::
 
 ## Exports
 
@@ -77,3 +92,9 @@ The API entrypoint default-exports `javascriptApiContribution`, containing the
 empty `javascriptRouter` and its `/api/javascript` mount path. The current
 JavaScript node has no backend endpoints, but JavaScript still exposes an API
 entrypoint so all integrations have the same frontend/API shape.
+
+## Orchestrator
+
+There is currently no JavaScript Orchestrator contribution or host-managed
+execution path. Installing the package makes the node configuration available
+at build time; it does not make JavaScript nodes executable.

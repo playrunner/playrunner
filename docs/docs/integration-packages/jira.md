@@ -131,8 +131,9 @@ generates a static import and bundles the Jira executor into `dist/index.js`.
 resulting contributions; it contains no Jira reference. There is no runtime
 package loader, discovery scan, or package installation step.
 
-See [Orchestrator contributions](../orchestrator/) for the shared contract,
-self-contained package checklist, and rebuild commands.
+See
+[Orchestrator contributions](../local-dev/integrations/orchestrator-contributions.md)
+for the shared contract, self-contained package checklist, and rebuild commands.
 
 ### Executor resolution
 
@@ -152,11 +153,11 @@ node's display label.
 
 ### Runtime behavior
 
-The host gives the Jira contribution an immutable execution context containing
-only the `settings.jira` credential object, the current node, environment and
-workflow template data, a log function, and an `AbortSignal`. It does not
-receive credentials for other providers, event-publishing credentials, or host
-state mutation helpers.
+The host selects the credential value stored at `settings.jira` and exposes that
+scoped object to the executor as `context.settings`. The immutable execution
+context also contains the current node, environment and workflow template data,
+a log function, and an `AbortSignal`. It does not receive credentials for other
+providers, event-publishing credentials, or host state mutation helpers.
 
 For both actions, Jira renders template variables in `summary` and
 `description`. The update action also renders `issueKey`. The executors then:

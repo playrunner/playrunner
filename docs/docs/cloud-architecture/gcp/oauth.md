@@ -64,4 +64,5 @@ required APIs for the selected project.
 
 ## 4. Continue to Terraform
 
-After saving the GCP settings, continue to [Terraform setup](./terraform).
+After saving the GCP settings, continue to
+[Terraform setup](./terraform.md).

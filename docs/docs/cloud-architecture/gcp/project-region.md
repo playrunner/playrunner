@@ -79,7 +79,7 @@ defaults, and generated image URI templates in the local `CloudCredential` row.
 The dialog then moves to **Terraform**, where you can generate
 `infra/gcp/terraform.tfvars`.
 
-Continue to [Terraform setup](./terraform).
+Continue to [Terraform setup](./terraform.md).
 
 ## Changing Project or Region Later
 

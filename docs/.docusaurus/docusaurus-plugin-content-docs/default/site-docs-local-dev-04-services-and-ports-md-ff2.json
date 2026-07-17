@@ -18,11 +18,11 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Connecting Integrations",
-    "permalink": "/playrunner/docs/local-dev/connecting-integrations"
-  },
-  "next": {
     "title": "Connection Nodes",
     "permalink": "/playrunner/docs/local-dev/connection-nodes"
+  },
+  "next": {
+    "title": "Environment Variables",
+    "permalink": "/playrunner/docs/local-dev/environment-variables"
   }
 }

@@ -1,14 +1,13 @@
 ---
 sidebar_position: 1
 title: Overview
+description: Develop Playrunner integration packages and work with the local application stack.
 ---
 
 # Development — Overview
 
-> **This documentation covers local development only.**  
-> It describes how to run the entire Playrunner stack on your own machine.
-
----
+Use this section to build self-contained integration packages, understand the
+workflow runtime, and run the complete Playrunner stack locally.
 
 ## Start Here
 
@@ -18,13 +17,31 @@ If you need to install dependencies, create the local `.env.local` and service `
 
 ➡️ [Getting Started](../tutorials/getting-started)
 
-The rest of the Development section assumes you have already completed that setup and just need reference material for specific parts of the stack. The repo-root startup flow also launches the local Docusaurus site so the product header can point at local docs during development.
+The local-stack pages assume you have completed that setup. Integration package
+authoring can be read independently, but validation requires the relevant app
+dependencies to be installed.
+
+## Choose a development area
+
+| Area                                             | Use it for                                                                                                    |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [Integrations](./integrations/)                  | Package architecture and frontend, API, Orchestrator, OAuth, build, validation, and deployment contributions. |
+| [Services & Ports](./services-and-ports)         | Running and diagnosing the local application stack.                                                           |
+| [Connection Nodes](./connection-nodes)           | Understanding graph connection and execution-order rules.                                                     |
+| [Workflow Execution Flow](./workflow-execution)  | Following a workflow from the editor through the API, Orchestrator, and runner.                               |
+| [Environment Variables](./environment-variables) | Configuring the local services.                                                                               |
+| [Troubleshooting](./troubleshooting)             | Resolving common local-development failures.                                                                  |
+
+The repo-root startup flow also launches the local Docusaurus site so the
+product header can point at local documentation during development.
 
 ---
 
-## What is Playrunner?
+## Local stack at a glance
 
-Playrunner is a workflow orchestration platform for running automated Playwright test pipelines. It consists of four main services that must all be running locally to have a fully functional development environment:
+Playrunner is a workflow orchestration platform for running automated
+Playwright test pipelines. Four application services must be available for a
+fully functional local environment:
 
 | Service               | Technology           | Port   | How it runs                                                 |
 | --------------------- | -------------------- | ------ | ----------------------------------------------------------- |

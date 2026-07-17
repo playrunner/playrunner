@@ -30,9 +30,9 @@ facts={[
 
 <IntegrationGrid>
   <IntegrationCard eyebrow="Frontend" title="Runner configuration panel">
-    Exports `playwrightIntegration` and `PlaywrightConfigPanel` for repository
-    selection, inline script editing, zip upload metadata, environment
-    injection, and runner resources.
+    Default-exports `playwrightIntegration` and also exports
+    `PlaywrightConfigPanel` for repository selection, inline script editing, zip
+    upload metadata, environment injection, and runner resources.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Dependency" title="GitHub-backed auth">
@@ -41,8 +41,8 @@ facts={[
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Execution" title="Workflow runner infrastructure">
-    Playwright execution is handled by workflow runner infrastructure rather
-    than package-local API endpoints.
+    Playwright does not currently declare an Orchestrator contribution.
+    Execution remains on the explicit host-managed Playwright runner path.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Assets" title="Package-owned icon">
@@ -53,23 +53,30 @@ facts={[
 
 <IntegrationCallout title="Install GitHub with Playwright">
 Playwright has a dependency on GitHub repository authentication. Install
-`@playrunner/github` alongside Playwright and keep the GitHub integration
-registered in the host app.
+`@playrunner/github` alongside Playwright as a direct production dependency of
+each app that consumes its surfaces. Both packages declare their own build
+surfaces, so no shared registry edit is required.
 </IntegrationCallout>
 
 ## Exports
 
 ```ts
-import {
-  playwrightIntegration,
+import playwrightIntegration, {
   PlaywrightConfigPanel,
 } from "@playrunner/playwright";
-import { playwrightRouter } from "@playrunner/playwright/api";
+import playwrightApiContribution, {
+  playwrightRouter,
+} from "@playrunner/playwright/api";
 ```
+
+The same contribution objects remain available as named exports. The default
+exports are the build-composition contract.
 
 ## Frontend
 
-The frontend entrypoint exports `playwrightIntegration`, which keeps the existing integration id as `playwright` so saved workflows continue to resolve their test runner nodes.
+The frontend entrypoint default-exports `playwrightIntegration`, which keeps the
+existing integration id as `playwright` so saved workflows continue to resolve
+their test runner nodes.
 
 Playwright owns the configuration UI, including repository selection, inline script editing, zip upload metadata, environment variable injection, and runner resource settings.
 
@@ -77,11 +84,29 @@ Playwright keeps its input panel enabled, so it can receive inbound workflow con
 
 ## GitHub Dependency
 
-Playwright repository authentication still uses GitHub. It imports `GithubSettingsModal` from `@playrunner/github` and declares `@playrunner/github` as a peer dependency. The host app must install both integrations and keep GitHub registered.
+Playwright repository authentication still uses GitHub. It imports
+`GithubSettingsModal` from `@playrunner/github` and declares
+`@playrunner/github` as a peer dependency. The consuming frontend must select
+both packages as direct production dependencies. The build composer discovers
+their package-owned metadata and generates static imports; neither package
+requires a central registration entry.
 
 ## API
 
-The API entrypoint exports an empty `playwrightRouter`, mounted by the host API at `/api/playwright`. The current Playwright node executes through workflow runner infrastructure rather than package-local API endpoints, but Playwright still exposes an API entrypoint so all integrations have the same frontend/API shape.
+The API entrypoint default-exports `playwrightApiContribution`, containing the
+empty `playwrightRouter` and its `/api/playwright` mount path. The package
+manifest declares the `playwright` ID plus its `.` frontend and `./api` surfaces,
+and both entrypoints default-export their contribution. Frontend and API builds
+discover those surfaces from installed direct production dependencies and
+generate static imports.
+
+## Orchestrator
+
+The Playwright package does not currently declare an `./orchestrator` surface.
+Its runner preparation and execution are explicit host-managed paths in
+`apps/runners/orchestrator`. Installing the package therefore contributes its
+frontend and API surfaces, while executable Playwright support still depends on
+the host runtime already bundled into the Orchestrator image.
 
 ## Assets
 

@@ -1,8 +1,9 @@
 {
-  "label": "Integrations",
+  "label": "Integration Reference",
   "position": 4,
   "link": {
     "type": "doc",
     "id": "integration-packages/index"
-  }
+  },
+  "description": "Available Playrunner integrations, provider setup, and supported package surfaces."
 }

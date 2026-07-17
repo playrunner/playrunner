@@ -123,6 +123,10 @@ const config: Config = {
           title: 'Development',
           items: [
             { label: 'Overview', to: '/docs/local-dev' },
+            {
+              label: 'Integrations',
+              to: '/docs/local-dev/integrations',
+            },
             { label: 'Getting Started', to: '/docs/tutorials/getting-started' },
             {
               label: 'Services & Ports',

@@ -73,11 +73,17 @@ auth, cloud credential persistence, and UI primitives. The GCP package declares
 its `.` frontend and `./api` surfaces under `playrunner.integration` and
 default-exports each contribution. Frontend and API builds discover those
 surfaces from installed direct production dependencies and generate static
-imports; there is no shared provider registry to update. The host still exposes
-the separate `./api-runtime` GCP runner contribution through the edition
-runtime.
+imports; there is no shared provider registry to update. The frontend edition
+module separately imports `gcpCloudProvider` for runner selection. The API host
+imports the package's `./api-runtime` surface directly at build time and applies
+that contribution during API startup; it is not part of the manifest-generated
+frontend/API composition.
 
 ## API Runtime
+
+The `./api-runtime` surface is bundled into the API artifact through an explicit
+host import. It is never installed or discovered while the API or a workflow is
+running.
 
 The API owns persistence, auth, and in-memory execution state. The GCP package
 owns GCP-specific behavior and receives those host dependencies through

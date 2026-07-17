@@ -1,7 +1,7 @@
 {
   "id": "integration-packages/index",
   "title": "Overview",
-  "description": "Build-time Playrunner integration packages, runtime configuration, SDK usage, and persistence.",
+  "description": "Available Playrunner integrations, their supported surfaces, and runtime configuration.",
   "source": "@site/docs/integration-packages/index.md",
   "sourceDirName": "integration-packages",
   "slug": "/integration-packages/",
@@ -15,7 +15,7 @@
   "frontMatter": {
     "sidebar_position": 1,
     "title": "Overview",
-    "description": "Build-time Playrunner integration packages, runtime configuration, SDK usage, and persistence.",
+    "description": "Available Playrunner integrations, their supported surfaces, and runtime configuration.",
     "hide_title": true
   },
   "sidebar": "tutorialSidebar",
@@ -24,7 +24,7 @@
     "permalink": "/playrunner/docs/roadmap"
   },
   "next": {
-    "title": "Orchestrator contributions",
-    "permalink": "/playrunner/docs/integration-packages/orchestrator"
+    "title": "Jira",
+    "permalink": "/playrunner/docs/integration-packages/jira"
   }
 }

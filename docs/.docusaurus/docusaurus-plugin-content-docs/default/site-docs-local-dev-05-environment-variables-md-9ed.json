@@ -18,8 +18,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Connection Nodes",
-    "permalink": "/playrunner/docs/local-dev/connection-nodes"
+    "title": "Services & Ports",
+    "permalink": "/playrunner/docs/local-dev/services-and-ports"
   },
   "next": {
     "title": "Docker Images",

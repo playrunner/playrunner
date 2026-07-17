@@ -54,7 +54,7 @@ facts={[
 
 For the end-user setup flow, including the GitHub App fields, callback URL, app
 installation, and repository selection, see
-[Connect GitHub](../tutorials/connect-github).
+[Connect GitHub](../tutorials/03-connect-github.md).
 
 ## Exports
 

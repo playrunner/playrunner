@@ -13,14 +13,17 @@ end-to-end test automation.
 
 - Frontend and UX: workflows, run status, traces, reports, and result views.
 - Runners: execution, scheduling, retries, output handling, and analysis.
-- Integrations: GitHub, Jira, Slack, CI/CD systems, and local developer workflows.
+- Integrations: package-owned frontend, API, and Orchestrator contributions for
+  GitHub, Jira, Slack, CI/CD systems, and other providers. Start with the
+  [integration development guide](./local-dev/integrations/index.md).
 - Documentation: setup paths, examples, architecture notes, and troubleshooting.
 - e2e testing: failure summaries and suggested fixes.
 - Playrunner AI Assistant: a grounded assistant that explains integrations, workflows, and site behavior from real project data.
 
 ## First steps
 
-1. Run the project locally with the [Getting Started tutorial](./tutorials/getting-started).
+1. Run the project locally with the
+   [Getting Started tutorial](./tutorials/01-getting-started.md).
 2. Read the open issues and pick a small, well-scoped task.
 3. Open a pull request with the smallest useful change and a clear explanation.
 

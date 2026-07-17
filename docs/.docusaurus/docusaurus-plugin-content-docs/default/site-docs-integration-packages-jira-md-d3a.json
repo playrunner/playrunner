@@ -21,8 +21,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Orchestrator contributions",
-    "permalink": "/playrunner/docs/integration-packages/orchestrator"
+    "title": "Overview",
+    "permalink": "/playrunner/docs/integration-packages/"
   },
   "next": {
     "title": "JavaScript",

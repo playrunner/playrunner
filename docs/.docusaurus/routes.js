@@ -114,15 +114,15 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', 'b89'),
+    component: ComponentCreator('/playrunner/docs/', '33a'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', 'c25'),
+        component: ComponentCreator('/playrunner/docs/', '67c'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', '9d9'),
+            component: ComponentCreator('/playrunner/docs/', '9ac'),
             routes: [
               {
                 path: '/playrunner/docs/category/cloud-architecture/',
@@ -222,7 +222,7 @@ export default [
               },
               {
                 path: '/playrunner/docs/integration-packages/orchestrator/',
-                component: ComponentCreator('/playrunner/docs/integration-packages/orchestrator/', '3e8'),
+                component: ComponentCreator('/playrunner/docs/integration-packages/orchestrator/', '285'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -252,7 +252,7 @@ export default [
               },
               {
                 path: '/playrunner/docs/local-dev/connecting-integrations/',
-                component: ComponentCreator('/playrunner/docs/local-dev/connecting-integrations/', '6b0'),
+                component: ComponentCreator('/playrunner/docs/local-dev/connecting-integrations/', '89c'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },
@@ -271,6 +271,36 @@ export default [
               {
                 path: '/playrunner/docs/local-dev/environment-variables/',
                 component: ComponentCreator('/playrunner/docs/local-dev/environment-variables/', '4b1'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/integrations/',
+                component: ComponentCreator('/playrunner/docs/local-dev/integrations/', '03a'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/integrations/api-contributions/',
+                component: ComponentCreator('/playrunner/docs/local-dev/integrations/api-contributions/', '5b4'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/integrations/build-validation-deployment/',
+                component: ComponentCreator('/playrunner/docs/local-dev/integrations/build-validation-deployment/', '6b8'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/integrations/frontend-contributions/',
+                component: ComponentCreator('/playrunner/docs/local-dev/integrations/frontend-contributions/', 'cad'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/local-dev/integrations/package-architecture/',
+                component: ComponentCreator('/playrunner/docs/local-dev/integrations/package-architecture/', '9f6'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

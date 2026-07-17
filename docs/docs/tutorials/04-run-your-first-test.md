@@ -7,7 +7,7 @@ title: Run Your First Test
 
 With a workflow saved and GitHub connected, you're ready to trigger a live test run and watch it execute in real time.
 
-**Prerequisites:** Complete [Connect GitHub](./connect-github) first.
+**Prerequisites:** Complete [Connect GitHub](./03-connect-github.md) first.
 
 ---
 
@@ -32,11 +32,11 @@ Click the **▶ Run** button in the editor toolbar. Playrunner will:
 
 Each node displays its status as the run progresses:
 
-| Node colour | Meaning |
-|---|---|
+| Node colour         | Meaning             |
+| ------------------- | ------------------- |
 | 🟡 Yellow / pulsing | Currently executing |
-| 🟢 Green | Passed |
-| 🔴 Red | Failed |
+| 🟢 Green            | Passed              |
+| 🔴 Red              | Failed              |
 
 Click any node while it's running (or after) to open the **log panel** and see the raw test output.
 
@@ -53,16 +53,17 @@ Once the run finishes:
 
 ## Troubleshooting a failed run
 
-| Symptom | Likely cause |
-|---|---|
+| Symptom                        | Likely cause                                           |
+| ------------------------------ | ------------------------------------------------------ |
 | Node stays yellow indefinitely | Orchestrator container not running — check `docker ps` |
-| `git clone` fails | GitHub token expired or repo access revoked |
-| Tests error immediately | Wrong Playwright version selected for your project |
+| `git clone` fails              | GitHub token expired or repo access revoked            |
+| Tests error immediately        | Wrong Playwright version selected for your project     |
 
-See the [Troubleshooting guide](../local-dev/troubleshooting) for more detail.
+See the [Troubleshooting guide](../local-dev/09-troubleshooting.md) for more
+detail.
 
 ---
 
 ## Next steps
 
-➡️ [Understanding Test Reports](./understanding-reports)
+➡️ [Understanding Test Reports](./05-understanding-reports.md)

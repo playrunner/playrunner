@@ -29,8 +29,8 @@ facts={[
 
 <IntegrationGrid>
   <IntegrationCard eyebrow="Frontend" title="Schedule configuration UI">
-    Exports `scheduleIntegration` and `ScheduleConfigPanel` for frequency,
-    interval, timezone, and cron summary state.
+    Default-exports `scheduleIntegration` and also exports `ScheduleConfigPanel`
+    for frequency, interval, timezone, and cron summary state.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Workflow model" title="Trigger node config">
@@ -52,21 +52,44 @@ facts={[
 ## Exports
 
 ```ts
-import { scheduleIntegration, ScheduleConfigPanel } from "@playrunner/schedule";
-import { scheduleRouter } from "@playrunner/schedule/api";
+import scheduleIntegration, { ScheduleConfigPanel } from "@playrunner/schedule";
+import scheduleApiContribution, {
+  scheduleRouter,
+} from "@playrunner/schedule/api";
 ```
+
+The same contribution objects remain available as named exports. The default
+exports are the build-composition contract.
 
 ## Frontend
 
-The frontend entrypoint exports `scheduleIntegration`, which keeps the existing integration id as `schedule` so saved workflows continue to resolve their trigger nodes.
+The frontend entrypoint default-exports `scheduleIntegration`, which keeps the
+existing integration id as `schedule` so saved workflows continue to resolve
+their trigger nodes.
 
 Schedule owns the configuration UI, including frequency, interval, timezone, and cron summary state.
 
-Schedule sets `showInputPanel: false`, so it does not accept inbound workflow connections. It can be added directly to the canvas, but it appears disabled in the node selector when the user is completing a connection target.
+Schedule sets `showInputPanel: false`, so it does not accept inbound workflow
+connections. It can be added directly to the canvas, but it appears disabled in
+the node selector when the user is completing a connection target.
+
+The package manifest declares the `schedule` ID plus its `.` frontend and
+`./api` surfaces, and both entrypoints default-export their contribution.
+Frontend and API builds discover those surfaces from installed direct production
+dependencies and generate static imports; no shared registry edit is required.
 
 ## API
 
-The API entrypoint exports an empty `scheduleRouter`, mounted by the host API at `/api/schedule`. The current Schedule node has no backend endpoints, but Schedule still exposes an API entrypoint so all integrations have the same frontend/API shape.
+The API entrypoint default-exports `scheduleApiContribution`, containing the
+empty `scheduleRouter` and its `/api/schedule` mount path. The current Schedule
+node has no package-local backend endpoints.
+
+## Orchestrator
+
+The Schedule package does not currently declare an `./orchestrator` surface.
+Schedule triggers remain on explicit host-managed scheduling and Orchestrator
+paths. The package-owned contribution model currently supplies Schedule's
+frontend and API surfaces only.
 
 ## Assets
 
