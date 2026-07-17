@@ -27,48 +27,13 @@ export default defineConfig(({ mode }) => {
       __PLAYWRIGHT_RUNNER_CONFIG__: JSON.stringify(playwrightRunnerConfig),
     },
     resolve: {
+      preserveSymlinks: true,
       alias: {
         '@': path.resolve(__dirname, '.'),
         '@edition-runtime': editionRuntimePath,
         '@playrunner/integration-sdk': path.resolve(
           repoRoot,
           'packages/integration-sdk/src/frontend/index.tsx',
-        ),
-        '@playrunner/integration-registry': path.resolve(
-          repoRoot,
-          'packages/integration-registry/src/frontend/index.ts',
-        ),
-        '@playrunner/environment': path.resolve(
-          repoRoot,
-          'packages/environment/src/frontend/index.tsx',
-        ),
-        '@playrunner/gcp': path.resolve(
-          repoRoot,
-          'packages/gcp/src/frontend/index.tsx',
-        ),
-        '@playrunner/github': path.resolve(
-          repoRoot,
-          'packages/github/src/frontend/index.tsx',
-        ),
-        '@playrunner/jira': path.resolve(
-          repoRoot,
-          'packages/jira/src/frontend/index.tsx',
-        ),
-        '@playrunner/javascript': path.resolve(
-          repoRoot,
-          'packages/javascript/src/frontend/index.tsx',
-        ),
-        '@playrunner/playwright': path.resolve(
-          repoRoot,
-          'packages/playwright/src/frontend/index.tsx',
-        ),
-        '@playrunner/schedule': path.resolve(
-          repoRoot,
-          'packages/schedule/src/frontend/index.tsx',
-        ),
-        '@playrunner/slack': path.resolve(
-          repoRoot,
-          'packages/slack/src/frontend/index.tsx',
         ),
         react: path.resolve(webNodeModulesDir, 'react'),
         'react/jsx-runtime': path.resolve(

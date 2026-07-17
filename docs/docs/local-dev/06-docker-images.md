@@ -22,9 +22,11 @@ The images are built locally (not pulled from a registry) so changes to the runn
 
 Marketplace integration code is never installed while a workflow is running.
 The Orchestrator build installs the dependencies declared in its lockfile and
-bundles the static package executor registry into `dist/index.js`. The current
-registry includes Jira and Slack; host-managed Environment, GitHub, Playwright,
-and Schedule nodes remain part of the Orchestrator host.
+scans its installed direct production dependencies for package-owned
+`playrunner.integration.orchestrator` metadata. It validates those declarations,
+generates static imports, and bundles the contributions into `dist/index.js`.
+Jira and Slack currently declare this surface; host-managed Environment,
+GitHub, Playwright, and Schedule nodes remain part of the Orchestrator host.
 
 Runtime configuration only selects an executor that is already in that image
 and passes it provider-scoped credentials, node configuration, templates,
@@ -61,7 +63,7 @@ docker build \
 
 Do not use `apps/runners/orchestrator` as the build context. The image needs the
 repository-root context so its local `file:` package dependencies and static
-integration registry are available during the build.
+integration-composition generator are available during the build.
 
 **Base image:** `node:24-alpine`  
 **Extra packages installed:** `docker-cli` (so the container can run `docker` commands against the host socket)  
@@ -147,12 +149,13 @@ This is what allows the Orchestrator (running inside Docker) to spawn Playwright
 
 ## Rebuilding After Code Changes
 
-If you modify Orchestrator source, an integration's orchestrator contribution,
-the integration registry, or Playwright runner source, rebuild the affected
-image before the change can take effect:
+If you modify Orchestrator source, an integration's manifest or Orchestrator
+contribution, the provider-agnostic integration resolver, the selected
+dependencies, or Playwright runner source, rebuild the affected image before
+the change can take effect:
 
 ```bash
-# Rebuild the Orchestrator, including all statically registered package executors,
+# Rebuild the Orchestrator, including all generated package contribution imports,
 # and remove the currently running local Orchestrator container
 ./infra/scripts/rebuild-orchestrator.sh
 
@@ -165,7 +168,8 @@ After the Orchestrator helper finishes, reopen the Editor tab. That triggers
 
 Publishing a package or changing marketplace metadata alone does not change a
 running Orchestrator. The deployment must use an image rebuilt from the updated
-dependency, lockfile, and registry inputs.
+dependency, lockfile, and package-owned manifest inputs. Package authors never
+add their provider to a common source registry.
 
 ---
 
@@ -251,6 +255,12 @@ All flags:
 ### What it does
 
 - **Docker auth:** configures Docker for the target Artifact Registry host with `gcloud auth configure-docker`.
-- **Orchestrator:** builds the Orchestrator and its statically registered package executors from the repository context as `linux/amd64`, tags it using `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it, and runs `gcloud run deploy <orchestratorServiceName> --image ... --min-instances ... --max-instances ... --cpu-boost --[no-]cpu-throttling` to roll out the new image and service settings.
+- **Orchestrator:** builds the Orchestrator and the package executors selected as
+  direct production dependencies from the repository context as `linux/amd64`.
+  The build generates their static imports, tags the image using
+  `orchestratorImageUriTemplate` (with `{projectId}` substituted), pushes it,
+  and runs `gcloud run deploy <orchestratorServiceName> --image ...
+--min-instances ... --max-instances ... --cpu-boost
+--[no-]cpu-throttling` to roll out the new image and service settings.
 - **Playwright:** for both `typescript` and `python`, builds every tag in `config/playwright-runner-versions.json`. The tag flagged `publishAsLatest: true` is additionally pushed as `:latest`. Tags use `playwrightImageUriTemplate` with `{projectId}`, `{runtime}`, and `{version}` substituted.
 - **Job cleanup:** deletes any existing Cloud Run Jobs named `playrunner-*` in the configured region so the next workflow execution recreates them with the new image.

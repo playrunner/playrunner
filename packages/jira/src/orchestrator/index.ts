@@ -184,3 +184,5 @@ export const jiraOrchestratorContribution = {
     },
   ],
 } satisfies OrchestratorIntegrationContribution;
+
+export default jiraOrchestratorContribution;

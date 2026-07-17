@@ -22,5 +22,7 @@ export const playwrightIntegration: Integration = {
   ConfigPanel: PlaywrightConfigPanel,
 };
 
+export default playwrightIntegration;
+
 export { PlaywrightConfigPanel } from "./PlaywrightConfigPanel";
 export { playwrightIconUrl } from "./icon";

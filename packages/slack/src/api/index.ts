@@ -8,6 +8,8 @@ export const slackApiContribution = {
   router: slackRouter,
 };
 
+export default slackApiContribution;
+
 slackRouter.post('/oauth-token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
 

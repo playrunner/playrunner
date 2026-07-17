@@ -1,5 +1,4 @@
 import {
-  packageOrchestratorRegistry,
   type OrchestratorRegistry,
   type OrchestratorContributionDiagnostic,
 } from '@playrunner/integration-registry/orchestrator';
@@ -9,6 +8,7 @@ import type {
   OrchestratorLogLevel,
   OrchestratorNode,
 } from '@playrunner/integration-sdk/orchestrator';
+import { packageOrchestratorRegistry } from './discovered-orchestrator-registry';
 
 const DEFAULT_EXECUTOR_TIMEOUT_MS = 5 * 60 * 1000;
 

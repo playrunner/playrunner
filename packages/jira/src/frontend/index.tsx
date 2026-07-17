@@ -18,6 +18,8 @@ export const jiraIntegration: Integration = {
   refreshStoredIntegration: refreshJiraTokenIfNeeded,
 };
 
+export default jiraIntegration;
+
 export { JiraConfigPanel } from './JiraConfigPanel';
 export { JiraSettingsModal } from './JiraSettingsModal';
 export { jiraIconUrl } from './icon';

@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "generate:integrations": "node ../../infra/scripts/generate-integration-composition.mjs . api src/integrations/generated-package-contributions.ts",
+    "validate:integrations": "NODE_OPTIONS=--preserve-symlinks tsx src/integrations/validate-package-registry.ts",
+    "build:integrations": "npm run generate:integrations && npm run validate:integrations",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -12,8 +15,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsx --watch --env-file=.env src/index.ts",
-    "start:cloud": "tsx src/index.ts"
+    "start": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx --watch --env-file=.env src/index.ts",
+    "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts"
   },
   "keywords": [],
   "author": "Concept AI PTY LTD",
@@ -25,7 +28,6 @@
     "@playrunner/environment": "file:../../packages/environment",
     "@playrunner/gcp": "file:../../packages/gcp",
     "@playrunner/github": "file:../../packages/github",
-    "@playrunner/integration-registry": "file:../../packages/integration-registry",
     "@playrunner/javascript": "file:../../packages/javascript",
     "@playrunner/jira": "file:../../packages/jira",
     "@playrunner/playwright": "file:../../packages/playwright",

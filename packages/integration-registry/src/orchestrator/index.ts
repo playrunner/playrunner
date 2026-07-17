@@ -3,8 +3,6 @@ import {
   type OrchestratorIntegrationContribution,
   type OrchestratorIntegrationExecutor,
 } from '@playrunner/integration-sdk/orchestrator';
-import { jiraOrchestratorContribution } from '@playrunner/jira/orchestrator';
-import { slackOrchestratorContribution } from '@playrunner/slack/orchestrator';
 
 export interface OrchestratorExecutorDiagnostic {
   nodeType: string;
@@ -236,22 +234,16 @@ export function createOrchestratorRegistry(
   });
 }
 
-export const packageOrchestratorContributions = [
-  jiraOrchestratorContribution,
-  slackOrchestratorContribution,
-] satisfies readonly OrchestratorIntegrationContribution[];
-
-export const packageOrchestratorRegistry = createOrchestratorRegistry(
-  packageOrchestratorContributions,
-);
-
 export function resolveOrchestratorExecutor(
+  registry: OrchestratorRegistry,
   nodeType: string,
   action?: string,
 ): ResolvedOrchestratorExecutor | undefined {
-  return packageOrchestratorRegistry.resolve(nodeType, action);
+  return registry.resolve(nodeType, action);
 }
 
-export function getOrchestratorDiagnostics(): readonly OrchestratorContributionDiagnostic[] {
-  return packageOrchestratorRegistry.diagnostics;
+export function getOrchestratorDiagnostics(
+  registry: OrchestratorRegistry,
+): readonly OrchestratorContributionDiagnostic[] {
+  return registry.diagnostics;
 }

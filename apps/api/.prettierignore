@@ -4,3 +4,4 @@ build
 coverage
 package-lock.json
 public/outputs
+src/integrations/generated-package-contributions.ts

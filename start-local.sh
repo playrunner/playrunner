@@ -10,13 +10,6 @@ API_DIR="${BASE_DIR}/apps/api"
 FRONTEND_DIR="${BASE_DIR}/apps/frontend"
 DOCS_DIR="${BASE_DIR}/docs"
 INTEGRATION_SDK_DIR="${BASE_DIR}/packages/integration-sdk"
-ENVIRONMENT_PACKAGE_DIR="${BASE_DIR}/packages/environment"
-GITHUB_PACKAGE_DIR="${BASE_DIR}/packages/github"
-JAVASCRIPT_PACKAGE_DIR="${BASE_DIR}/packages/javascript"
-JIRA_PACKAGE_DIR="${BASE_DIR}/packages/jira"
-PLAYWRIGHT_PACKAGE_DIR="${BASE_DIR}/packages/playwright"
-SCHEDULE_PACKAGE_DIR="${BASE_DIR}/packages/schedule"
-SLACK_PACKAGE_DIR="${BASE_DIR}/packages/slack"
 ROOT_ENV_FILE="${BASE_DIR}/.env.local"
 ROOT_ENV_EXAMPLE_FILE="${BASE_DIR}/.env.local.example"
 LEGACY_ROOT_ENV_FILE="${BASE_DIR}/.env"
@@ -174,15 +167,36 @@ ensure_dependency_dir() {
     exit 1
 }
 
+list_local_integration_package_dirs() {
+    node - "${BASE_DIR}" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const baseDirectory = process.argv[2];
+const packagesDirectory = path.join(baseDirectory, 'packages');
+const integrationDirectories = fs
+  .readdirSync(packagesDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(packagesDirectory, entry.name))
+  .filter((directory) => {
+    const manifestPath = path.join(directory, 'package.json');
+    if (!fs.existsSync(manifestPath)) return false;
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    return Boolean(manifest.playrunner?.integration);
+  })
+  .sort();
+
+for (const directory of integrationDirectories) {
+  console.log(directory);
+}
+NODE
+}
+
 ensure_local_dependencies() {
     ensure_dependency_dir "${INTEGRATION_SDK_DIR}"
-    ensure_dependency_dir "${ENVIRONMENT_PACKAGE_DIR}"
-    ensure_dependency_dir "${GITHUB_PACKAGE_DIR}"
-    ensure_dependency_dir "${JAVASCRIPT_PACKAGE_DIR}"
-    ensure_dependency_dir "${JIRA_PACKAGE_DIR}"
-    ensure_dependency_dir "${PLAYWRIGHT_PACKAGE_DIR}"
-    ensure_dependency_dir "${SCHEDULE_PACKAGE_DIR}"
-    ensure_dependency_dir "${SLACK_PACKAGE_DIR}"
+    while IFS= read -r integration_package_dir; do
+        ensure_dependency_dir "${integration_package_dir}"
+    done < <(list_local_integration_package_dirs)
     ensure_dependency_dir "${API_DIR}"
     ensure_dependency_dir "${FRONTEND_DIR}"
     ensure_dependency_dir "${DOCS_DIR}"

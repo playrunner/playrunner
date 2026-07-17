@@ -9,6 +9,14 @@
     "registry": "https://npm.pkg.github.com",
     "access": "restricted"
   },
+  "playrunner": {
+    "integration": {
+      "id": "jira",
+      "frontend": ".",
+      "api": "./api",
+      "orchestrator": "./orchestrator"
+    }
+  },
   "exports": {
     ".": {
       "types": "./src/frontend/index.tsx",

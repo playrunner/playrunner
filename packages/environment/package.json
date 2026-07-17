@@ -9,6 +9,13 @@
     "registry": "https://npm.pkg.github.com",
     "access": "restricted"
   },
+  "playrunner": {
+    "integration": {
+      "id": "environment",
+      "frontend": ".",
+      "api": "./api"
+    }
+  },
   "exports": {
     ".": {
       "types": "./src/frontend/index.tsx",

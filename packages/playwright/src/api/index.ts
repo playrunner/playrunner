@@ -7,3 +7,5 @@ export const playwrightApiContribution = {
   mountPath: "/api/playwright",
   router: playwrightRouter,
 };
+
+export default playwrightApiContribution;

@@ -126,3 +126,5 @@ export const slackOrchestratorContribution = {
     },
   ],
 } satisfies OrchestratorIntegrationContribution;
+
+export default slackOrchestratorContribution;

@@ -22,8 +22,9 @@ title: Troubleshooting
    ```
 
    The helper uses the repository root as the Docker build context so local
-   integration packages and the static executor registry can be bundled. The
-   equivalent image-only command is:
+   integration packages and the build-time composition generator are available.
+   The generator reads package-owned metadata and emits the static imports that
+   are bundled into the image. The equivalent image-only command is:
 
    ```bash
    docker build \
@@ -122,8 +123,9 @@ Orchestrator executor not installed/registered for node type ...
 ```
 
 The Orchestrator never downloads marketplace code at runtime. It can only run
-package executors present in the static registry bundled into its image. Inspect
-the running image's registered contributions and actions:
+package executors selected as direct production dependencies and statically
+composed into its image at build time. Inspect the running image's bundled
+contributions and actions:
 
 ```bash
 curl http://localhost:3012/runtime
@@ -131,8 +133,10 @@ curl http://localhost:3012/runtime
 
 Check `orchestratorContributions` for the node's exact persisted `nodeType` and
 optional `config.action`. Resolution does not use the display label. If the
-source registry is correct but the contribution is missing from `/runtime`, the
-running image is stale:
+package declares `playrunner.integration.orchestrator`, default-exports the
+contribution from that exact exported subpath, and is a direct Orchestrator
+dependency, but the contribution is missing from `/runtime`, the running image
+is stale:
 
 ```bash
 ./infra/scripts/rebuild-orchestrator.sh
@@ -279,10 +283,10 @@ docker logs -f <container-id>
 
 ## Rebuilding After Code Changes
 
-| Changed code location                                                                | Action required                                                                     |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| `apps/api/src/**`                                                                    | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)              |
-| `apps/frontend/src/**`                                                               | Vite HMR handles this automatically                                                 |
-| `apps/runners/orchestrator/src/**`                                                   | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
-| `packages/*/src/orchestrator/**` or `packages/integration-registry/src/orchestrator` | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
-| `apps/runners/playwright/src/**`                                                     | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |
+| Changed code location                                                                                            | Action required                                                                     |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `apps/api/src/**`                                                                                                | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)              |
+| `apps/frontend/src/**`                                                                                           | Vite HMR handles this automatically                                                 |
+| `apps/runners/orchestrator/src/**`                                                                               | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `packages/*/package.json`, `packages/*/src/orchestrator/**`, or `packages/integration-registry/src/orchestrator` | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `apps/runners/playwright/src/**`                                                                                 | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |

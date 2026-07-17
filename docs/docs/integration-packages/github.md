@@ -7,24 +7,24 @@ hide_title: true
 ---
 
 import {
-  IntegrationCard,
-  IntegrationGrid,
-  IntegrationHero,
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
 } from '@site/src/components/IntegrationPage';
 
 <IntegrationHero
-  name="GitHub"
-  packageName="@playrunner/github"
-  description="Connect GitHub repositories and install app credentials for Playrunner workflows that need repository access."
-  icon="github"
-  installCommand="npm install @playrunner/github"
-  npmUrl="https://www.npmjs.com/package/@playrunner/github"
-  badges={['OAuth', 'API routes', 'Repository access']}
-  facts={[
-    { label: 'Node type', value: 'Trigger' },
-    { label: 'Auth path', value: 'users/{uid}/integrations/github' },
-    { label: 'Backend mount', value: '/api/github' },
-  ]}
+name="GitHub"
+packageName="@playrunner/github"
+description="Connect GitHub repositories and install app credentials for Playrunner workflows that need repository access."
+icon="github"
+installCommand="npm install @playrunner/github"
+npmUrl="https://www.npmjs.com/package/@playrunner/github"
+badges={['OAuth', 'API routes', 'Repository access']}
+facts={[
+{ label: 'Node type', value: 'Trigger' },
+{ label: 'Auth path', value: 'users/{uid}/integrations/github' },
+{ label: 'Backend mount', value: '/api/github' },
+]}
 />
 
 <IntegrationGrid>
@@ -41,7 +41,7 @@ import {
 
   <IntegrationCard eyebrow="Used by Playwright" title="Repository auth">
     Playwright reuses `GithubSettingsModal` for repository authentication, so
-    GitHub must stay installed and registered when Playwright is installed.
+    GitHub must remain a selected direct dependency when Playwright is installed.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Assets" title="Package-owned icon">
@@ -59,17 +59,23 @@ installation, and repository selection, see
 ## Exports
 
 ```ts
-import { githubIntegration, GithubSettingsModal } from "@playrunner/github";
-import { githubRouter } from "@playrunner/github/api";
+import githubIntegration, { GithubSettingsModal } from "@playrunner/github";
+import githubApiContribution, { githubRouter } from "@playrunner/github/api";
 ```
 
 ## Frontend
 
-The integration uses `@playrunner/integration-sdk` for host-provided auth, persistence, and UI primitives. The host app registers GitHub in `apps/frontend/src/integrations/registry.ts`.
+The integration uses `@playrunner/integration-sdk` for host-provided auth,
+persistence, and UI primitives. Its own package manifest declares the `.`
+frontend and `./api` surfaces, and each entrypoint default-exports its
+contribution. Frontend and API builds discover those surfaces from installed
+direct production dependencies and generate static imports; no shared registry
+edit is required.
 
 ## API
 
-The API entrypoint exports `githubRouter`, mounted by the host API at `/api/github`.
+The API entrypoint default-exports `githubApiContribution`, containing
+`githubRouter` and its `/api/github` mount path.
 
 The router owns:
 

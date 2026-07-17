@@ -3,23 +3,16 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "jsx": "react-jsx",
     "strict": true,
     "skipLibCheck": true,
     "isolatedModules": true,
     "declaration": false,
     "noEmit": true,
     "paths": {
-      "@playrunner/github": ["../github/src/frontend/index.tsx"],
-      "@playrunner/integration-sdk": [
-        "../integration-sdk/src/frontend/index.tsx"
-      ],
       "@playrunner/integration-sdk/orchestrator": [
         "../integration-sdk/src/orchestrator/index.ts"
-      ],
-      "@playrunner/jira/orchestrator": ["../jira/src/orchestrator/index.ts"],
-      "@playrunner/slack/orchestrator": ["../slack/src/orchestrator/index.ts"]
+      ]
     }
   },
-  "include": ["src"]
+  "include": ["src/orchestrator"]
 }

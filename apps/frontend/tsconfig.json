@@ -7,6 +7,7 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "preserveSymlinks": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "allowJs": true,
@@ -17,25 +18,6 @@
       "@playrunner/integration-sdk": [
         "../../packages/integration-sdk/src/frontend/index.tsx"
       ],
-      "@playrunner/integration-registry": [
-        "../../packages/integration-registry/src/frontend/index.ts"
-      ],
-      "@playrunner/environment": [
-        "../../packages/environment/src/frontend/index.tsx"
-      ],
-      "@playrunner/gcp": ["../../packages/gcp/src/frontend/index.tsx"],
-      "@playrunner/github": ["../../packages/github/src/frontend/index.tsx"],
-      "@playrunner/jira": ["../../packages/jira/src/frontend/index.tsx"],
-      "@playrunner/javascript": [
-        "../../packages/javascript/src/frontend/index.tsx"
-      ],
-      "@playrunner/playwright": [
-        "../../packages/playwright/src/frontend/index.tsx"
-      ],
-      "@playrunner/schedule": [
-        "../../packages/schedule/src/frontend/index.tsx"
-      ],
-      "@playrunner/slack": ["../../packages/slack/src/frontend/index.tsx"],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
     },

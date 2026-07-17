@@ -7,3 +7,5 @@ export const javascriptApiContribution = {
   mountPath: '/api/javascript',
   router: javascriptRouter,
 };
+
+export default javascriptApiContribution;

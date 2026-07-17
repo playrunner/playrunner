@@ -1,15 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 
-@source '../../../packages/environment/src';
-@source '../../../packages/gcp/src';
-@source '../../../packages/github/src';
-@source '../../../packages/integration-sdk/src';
-@source '../../../packages/javascript/src';
-@source '../../../packages/jira/src';
-@source '../../../packages/playwright/src';
-@source '../../../packages/schedule/src';
-@source '../../../packages/slack/src';
+@source '../node_modules/@playrunner/*/src';
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;

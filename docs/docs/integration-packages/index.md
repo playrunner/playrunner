@@ -99,13 +99,22 @@ workflow, connect it to other nodes, select an action, and edit its fields.
 Those operations only change stored settings and workflow data; they do not
 download or activate new code.
 
-Executable packages are statically imported by
-`@playrunner/integration-registry/orchestrator` and bundled into the
-Orchestrator artifact. Adding, upgrading, or removing an executable integration
-therefore requires a new Orchestrator build and deployment. There is no runtime
-package discovery, installation, or hot-loading. See
-[Orchestrator contributions](./orchestrator) for the contract, registration,
-and deployment flow.
+Each package declares its ID and available surfaces under
+`playrunner.integration` in its own `package.json`, and default-exports the
+contribution from every declared entrypoint. Each consuming app's build scans
+only its installed direct production dependencies, validates this metadata, and
+generates deterministic static imports. Frontend, API, and Orchestrator builds
+therefore include only the package surfaces selected as dependencies of that
+artifact.
+
+A package author changes only the package; there is no common provider registry
+or handwritten host allowlist to edit. The deployment operator or build
+pipeline still selects a package version as a direct app dependency and updates
+the lockfile. Adding, upgrading, or removing a surface requires rebuilding and
+replacing every affected artifact. There is no runtime package discovery,
+installation, dynamic import, or hot-loading. See
+[Orchestrator contributions](./orchestrator) for the execution contract and
+deployment flow.
 
 The install commands shown on the integration cards are build/development
 commands for the operator assembling an artifact. They are not commands that a
@@ -122,8 +131,6 @@ packages/
 │   └── src/orchestrator/index.ts
 ├── integration-registry/
 │   ├── package.json
-│   ├── src/frontend/index.ts
-│   ├── src/api/index.ts
 │   └── src/orchestrator/index.ts
 ├── environment/
 │   ├── package.json
@@ -180,13 +187,40 @@ packages/
     └── src/orchestrator/index.ts
 ```
 
-Each package has the same basic shape:
+Each integration package has the same basic shape:
 
-- `package.json` declares the package name, exports, peer dependencies, and publish settings.
-- `src/frontend/index.tsx` exports the `Integration` metadata plus any settings modal or config panel components.
-- `src/api/index.ts` exports an Express router for backend endpoints owned by the integration.
-- `src/orchestrator/index.ts` optionally exports trusted workflow executors through `@playrunner/<integration-id>/orchestrator`.
+- `package.json` declares the package name, `playrunner.integration` metadata,
+  exports, peer dependencies, and publish settings.
+- `src/frontend/index.tsx` default-exports the `Integration` contribution and
+  may retain named metadata, settings modal, or config panel exports.
+- `src/api/index.ts` default-exports the API contribution containing its stable
+  ID, mount path, and Express router.
+- `src/orchestrator/index.ts` optionally default-exports trusted workflow
+  executors through `@playrunner/<integration-id>/orchestrator`.
 - `assets/` stores package-owned image assets when the integration needs SVGs or other media.
+
+For example:
+
+```json
+{
+  "playrunner": {
+    "integration": {
+      "id": "example",
+      "frontend": ".",
+      "api": "./api",
+      "orchestrator": "./orchestrator"
+    }
+  }
+}
+```
+
+Omit a surface the package does not implement. The entrypoint value must be
+`.` or an exact exported subpath beginning with `./`.
+
+`@playrunner/integration-registry/orchestrator` is not a package list. It is a
+provider-agnostic library for validating contribution contracts and resolving
+persisted node/action keys after the Orchestrator build has generated its
+composition.
 
 ## SDK responsibilities
 
@@ -346,10 +380,11 @@ npm start --prefix apps/api
 
 Package executor source is different: it is bundled into the Orchestrator
 artifact and then copied into its image. Changes under
-`packages/integration-sdk/src/orchestrator`,
-`packages/integration-registry/src/orchestrator`, or an integration's
-`src/orchestrator` directory are not visible to an already-running image.
-Rebuild it after changing executable package code:
+`packages/integration-sdk/src/orchestrator`, the provider-agnostic resolver in
+`packages/integration-registry/src/orchestrator`, an integration's
+`src/orchestrator` directory, or the selected Orchestrator dependencies are not
+visible to an already-running image. Rebuild it after changing executable
+package code:
 
 ```bash
 ./infra/scripts/rebuild-orchestrator.sh
@@ -366,20 +401,30 @@ npm install --prefix apps/api
 ## Adding an integration
 
 1. Create `packages/<integration-id>/package.json` with a scoped package name such as `@playrunner/<integration-id>`.
-2. Put frontend exports in `src/frontend/index.tsx`.
-3. Put backend route exports in `src/api/index.ts`.
-4. Put service images under `assets/` when the integration needs packaged image assets.
-5. Use SDK components for settings dialogs, setup instructions, copyable callback URLs, and config fields.
-6. Use `useIntegrationHost().store` for integration credentials and account-level settings.
-7. Keep node-specific configuration in workflow node `config`.
-8. If the package executes workflow nodes, add `src/orchestrator/index.ts`, export `./orchestrator`, and use the versioned SDK contract.
-9. Add the package as a `file:` dependency in every app that consumes it while developing locally. Executable packages must be production dependencies of `apps/runners/orchestrator`.
-10. Update the affected lockfiles.
-11. Register the frontend integration in `packages/integration-registry/src/frontend/index.ts`.
-12. Register the backend contribution in `packages/integration-registry/src/api/index.ts`.
-13. Register executable contributions through static imports in `packages/integration-registry/src/orchestrator/index.ts`.
-14. Run the package checks, Orchestrator tests, and production bundle build described in [Orchestrator contributions](./orchestrator#validation).
-15. Rebuild the Orchestrator image. Push and redeploy it for a GCP deployment.
+2. Declare a stable `playrunner.integration.id` and each implemented surface in
+   that package's own manifest.
+3. Put the frontend contribution in `src/frontend/index.tsx`, export the
+   declared package subpath, and make the contribution the default export.
+4. Put the backend contribution in `src/api/index.ts`, export the declared API
+   subpath, and make the contribution the default export.
+5. Put service images under `assets/` when the integration needs packaged image assets.
+6. Use SDK components for settings dialogs, setup instructions, copyable callback URLs, and config fields.
+7. Use `useIntegrationHost().store` for integration credentials and account-level settings.
+8. Keep node-specific configuration in workflow node `config`.
+9. If the package executes workflow nodes, add `src/orchestrator/index.ts`,
+   export and declare `./orchestrator`, default-export the contribution, and use
+   the versioned SDK contract.
+10. Run the package-local checks and publish the package. Package authors do not
+    edit a common registry or host provider list.
+11. In the deployment build configuration, add the package as a direct
+    production dependency of each app that consumes one of its declared
+    surfaces and update the affected lockfiles. Executable packages must be
+    dependencies of `apps/runners/orchestrator`.
+12. Build the affected apps. Their build scripts discover the installed
+    package-owned metadata and generate static imports automatically.
+13. Run the Orchestrator tests and production bundle checks described in
+    [Orchestrator contributions](./orchestrator#validation).
+14. Rebuild the Orchestrator image. Push and redeploy it for a GCP deployment.
 
 ## Publishing packages
 

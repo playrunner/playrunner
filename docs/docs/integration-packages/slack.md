@@ -56,10 +56,12 @@ facts={[
 
 :::important Build-time installation only
 
-The install command on this page is for building a Playrunner deployment. The
-Slack package and its orchestrator export must be dependencies of the apps and
-runner image that use them. A running workflow never downloads or installs the
-package.
+The install command on this page is for building a Playrunner deployment. Slack
+declares its frontend, API, and Orchestrator surfaces in its own package
+manifest. The package must be a direct production dependency of each app that
+uses one of those surfaces. The app build discovers that package-owned metadata
+and generates static imports. A running workflow never downloads, installs, or
+discovers the package.
 
 At runtime, a user can connect Slack, add a Slack node to a workflow, and
 configure its channel and message because that code is already bundled. Adding,
@@ -96,22 +98,31 @@ Slack supports two authentication modes: **OAuth** (recommended) and **incoming 
 ## Exports
 
 ```ts
-import {
-  slackIntegration,
+import slackIntegration, {
   SlackConfigPanel,
   SlackSettingsModal,
 } from "@playrunner/slack";
-import { slackRouter } from "@playrunner/slack/api";
-import { slackOrchestratorContribution } from "@playrunner/slack/orchestrator";
+import slackApiContribution, { slackRouter } from "@playrunner/slack/api";
+import slackOrchestratorContribution from "@playrunner/slack/orchestrator";
 ```
+
+The same objects remain available as named exports. The default exports are the
+build-composition contract.
 
 ## Frontend
 
-The frontend entrypoint exports `slackIntegration`, which includes the integration metadata, SVG icon URL, settings modal, and node config panel. Slack uses SDK UI helpers and reads Playrunner host services through `useIntegrationHost`.
+The frontend entrypoint default-exports `slackIntegration`, which includes the
+integration metadata, SVG icon URL, settings modal, and node config panel. Slack
+uses SDK UI helpers and reads Playrunner host services through
+`useIntegrationHost`. The frontend build finds the declared `.` surface while
+scanning its installed direct production dependencies; no shared registry edit
+is required.
 
 ## API
 
-The API entrypoint exports `slackRouter`, mounted by the host API at `/api/slack`.
+The API entrypoint default-exports `slackApiContribution`, which contains the
+stable ID, `/api/slack` mount path, and `slackRouter`. The API build discovers
+and registers it from Slack's package metadata.
 
 The router owns:
 
@@ -130,14 +141,16 @@ When a Slack action node is added to the workflow canvas, the config panel offer
 
 ## Orchestrator
 
-The `@playrunner/slack/orchestrator` subpath exports
-`slackOrchestratorContribution`. The build-time integration registry imports
-that contribution, and the orchestrator build statically bundles the registry
-and Slack executor into `dist/index.js`. There is no runtime package loader or
-package installation step.
+The `@playrunner/slack/orchestrator` subpath default-exports
+`slackOrchestratorContribution`. Slack's own manifest declares that entrypoint.
+When Slack is an installed direct production dependency, the Orchestrator build
+generates a static import and bundles the Slack executor into `dist/index.js`.
+`@playrunner/integration-registry/orchestrator` only validates and resolves the
+resulting contributions; it contains no Slack reference. There is no runtime
+package loader, discovery scan, or package installation step.
 
 See [Orchestrator contributions](../orchestrator/) for the shared contract,
-registration checklist, and rebuild commands.
+self-contained package checklist, and rebuild commands.
 
 ### Executor resolution
 

@@ -16,4 +16,6 @@ export const scheduleIntegration: Integration = {
   ConfigPanel: ScheduleConfigPanel,
 };
 
+export default scheduleIntegration;
+
 export { ScheduleConfigPanel } from './ScheduleConfigPanel';

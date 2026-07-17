@@ -19,16 +19,19 @@ A workflow is a directed acyclic graph (DAG) of nodes. When triggered, the syste
 4. Each Playwright node gets a runner prepared in the background, then receives a start signal only when the DAG reaches that node
 
 Before traversal starts, every persisted node is preflighted against either a
-host-managed type or the package executor registry bundled into the
-Orchestrator image. A missing `nodeType`, unsupported action, or unregistered
+host-managed type or the package executors statically composed into the
+Orchestrator image. A missing `nodeType`, unsupported action, or unavailable
 executor fails the workflow explicitly; unknown nodes no longer log and succeed
 silently.
 
 ## Build-Time and Runtime Responsibilities
 
-Executable marketplace integrations are installed and registered at image build
-time, never during workflow execution. The running Orchestrator can only execute
-the package contributions already bundled into its static registry. Adding or
+Executable marketplace integrations are selected and installed at image build
+time, never during workflow execution. Each selected package declares its own
+Orchestrator surface and default export. The build scans installed direct
+production dependencies and generates deterministic static imports; no package
+author edits a shared provider registry. The running Orchestrator can only
+execute the package contributions already bundled into its artifact. Adding or
 upgrading an executor requires rebuilding and replacing the Orchestrator image.
 
 At runtime, users can connect provider credentials, add a bundled node to the
@@ -56,7 +59,10 @@ The API immediately generates a UUID `testId`, appends it to the body, and forwa
 
 The Orchestrator responds `200 { status: 'started' }` immediately (async execution begins in the background) and:
 
-1. **Preflights every node** using its persisted `nodeType` and optional `config.action`. Host-managed nodes are accepted directly; all other nodes must resolve to an executor in the bundled registry.
+1. **Preflights every node** using its persisted `nodeType` and optional
+   `config.action`. Host-managed nodes are accepted directly; all other nodes
+   must resolve through the provider-agnostic resolver to an executor in the
+   generated build composition.
 2. **Extracts global environment variables** from all `Environment` nodes in the graph
 3. **Resolves implicit connections**: if a node has a `parentId` and no explicit connection exists to it from that parent, a sequential connection is added automatically
 4. **Schedules Playwright runner preparation**: scans the full workflow for Playwright nodes and starts each runner in preparation mode in the background so dependency installation can overlap with earlier nodes
@@ -137,9 +143,9 @@ Checks if GitHub credentials exist in `settings`. Logs and sets node state accor
 
 #### Other package-owned types
 
-The Orchestrator resolves the exact persisted `nodeType` and optional action in
-its static registry. It does not fall back to the display label. If no executor
-is installed and registered, workflow preflight reports:
+The Orchestrator resolves the exact persisted `nodeType` and optional action
+from the generated build composition. It does not fall back to the display
+label. If no executor was selected and bundled, workflow preflight reports:
 
 ```text
 Orchestrator executor not installed/registered for node type "<nodeType>" ... Rebuild and redeploy the orchestrator with a package that registers this executor.

@@ -56,10 +56,12 @@ facts={[
 
 :::important Build-time installation only
 
-The install command on this page is for building a Playrunner deployment. The
-Jira package and its orchestrator export must be dependencies of the apps and
-runner image that use them. A running workflow never downloads or installs the
-package.
+The install command on this page is for building a Playrunner deployment. Jira
+declares its frontend, API, and Orchestrator surfaces in its own package
+manifest. The package must be a direct production dependency of each app that
+uses one of those surfaces. The app build discovers that package-owned metadata
+and generates static imports. A running workflow never downloads, installs, or
+discovers the package.
 
 At runtime, a user can connect Jira, add a Jira node to a workflow, select an
 action, and configure its fields because that code is already bundled. Adding,
@@ -87,24 +89,31 @@ callback URL shown in the dialog, then create the Atlassian OAuth integration:
 ## Exports
 
 ```ts
-import {
-  jiraIntegration,
+import jiraIntegration, {
   JiraConfigPanel,
   JiraSettingsModal,
 } from "@playrunner/jira";
-import { jiraRouter } from "@playrunner/jira/api";
-import { jiraOrchestratorContribution } from "@playrunner/jira/orchestrator";
+import jiraApiContribution, { jiraRouter } from "@playrunner/jira/api";
+import jiraOrchestratorContribution from "@playrunner/jira/orchestrator";
 ```
+
+The same objects remain available as named exports. The default exports are the
+build-composition contract.
 
 ## Frontend
 
-The frontend entrypoint exports `jiraIntegration`, which includes the integration metadata, SVG icon URL, settings modal, and node config panel. Jira uses SDK UI helpers and reads Playrunner host services through `useIntegrationHost`.
-
-The host app registers Jira in `apps/frontend/src/integrations/registry.ts`.
+The frontend entrypoint default-exports `jiraIntegration`, which includes the
+integration metadata, SVG icon URL, settings modal, and node config panel. Jira
+uses SDK UI helpers and reads Playrunner host services through
+`useIntegrationHost`. The frontend build finds the declared `.` surface while
+scanning its installed direct production dependencies; no shared registry edit
+is required.
 
 ## API
 
-The API entrypoint exports `jiraRouter`, mounted by the host API at `/api/jira`.
+The API entrypoint default-exports `jiraApiContribution`, which contains the
+stable ID, `/api/jira` mount path, and `jiraRouter`. The API build discovers and
+registers it from Jira's package metadata.
 
 The router owns:
 
@@ -114,14 +123,16 @@ The router owns:
 
 ## Orchestrator
 
-The `@playrunner/jira/orchestrator` subpath exports
-`jiraOrchestratorContribution`. The build-time integration registry imports
-that contribution, and the orchestrator build statically bundles the registry
-and Jira executor into `dist/index.js`. There is no runtime package loader or
-package installation step.
+The `@playrunner/jira/orchestrator` subpath default-exports
+`jiraOrchestratorContribution`. Jira's own manifest declares that entrypoint.
+When Jira is an installed direct production dependency, the Orchestrator build
+generates a static import and bundles the Jira executor into `dist/index.js`.
+`@playrunner/integration-registry/orchestrator` only validates and resolves the
+resulting contributions; it contains no Jira reference. There is no runtime
+package loader, discovery scan, or package installation step.
 
 See [Orchestrator contributions](../orchestrator/) for the shared contract,
-registration checklist, and rebuild commands.
+self-contained package checklist, and rebuild commands.
 
 ### Executor resolution
 

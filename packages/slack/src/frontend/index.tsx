@@ -16,6 +16,8 @@ export const slackIntegration: Integration = {
   ConfigPanel: SlackConfigPanel,
 };
 
+export default slackIntegration;
+
 export { SlackConfigPanel } from './SlackConfigPanel';
 export { SlackSettingsModal } from './SlackSettingsModal';
 export { slackIconUrl } from './icon';

@@ -14,6 +14,8 @@ export const gcpIntegration: Integration = {
   SettingsModal: (props) => <GcpSettingsModal {...props} cloudId="gcp" />,
 };
 
+export default gcpIntegration;
+
 export const gcpCloudProvider = {
   credentialId: 'gcp',
   icon: gcpIconUrl,

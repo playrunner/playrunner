@@ -36,8 +36,8 @@ facts={[
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Backend" title="OAuth proxy routes">
-    Exports `gcpApiContribution`, mounted by the package registry at `/api/gcp`,
-    for Google OAuth token exchange and refresh calls.
+    Default-exports `gcpApiContribution`, discovered by the API build and
+    mounted at `/api/gcp`, for Google OAuth token exchange and refresh calls.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Runtime" title="Runner contribution">
@@ -55,12 +55,11 @@ facts={[
 ## Exports
 
 ```ts
-import {
+import gcpIntegration, {
   gcpCloudProvider,
-  gcpIntegration,
   GcpSettingsModal,
 } from "@playrunner/gcp";
-import { gcpApiContribution, gcpRouter } from "@playrunner/gcp/api";
+import gcpApiContribution, { gcpRouter } from "@playrunner/gcp/api";
 import {
   createGcpApiRuntimeContribution,
   createGcpPubSubEventStreamManager,
@@ -70,9 +69,13 @@ import {
 ## Frontend
 
 The frontend entrypoint uses `@playrunner/integration-sdk` for host-provided
-auth, cloud credential persistence, and UI primitives. The host app registers
-the integration through `@playrunner/integration-registry` and exposes the GCP
-runner through the edition runtime.
+auth, cloud credential persistence, and UI primitives. The GCP package declares
+its `.` frontend and `./api` surfaces under `playrunner.integration` and
+default-exports each contribution. Frontend and API builds discover those
+surfaces from installed direct production dependencies and generate static
+imports; there is no shared provider registry to update. The host still exposes
+the separate `./api-runtime` GCP runner contribution through the edition
+runtime.
 
 ## API Runtime
 

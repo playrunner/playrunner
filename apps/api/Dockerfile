@@ -11,6 +11,7 @@ COPY . .
 
 WORKDIR /app/${BASE_PATH}/apps/api
 RUN npm ci
+RUN npm run build:integrations
 RUN npx prisma generate
 
 ENV NODE_ENV=production

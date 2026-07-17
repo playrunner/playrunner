@@ -154,10 +154,12 @@ When the editor mounts, `/api/runners/start` checks both `/health` and
 report the expected local Pub/Sub metadata, the API stops that container and
 starts a fresh `playrunner-orchestrator-local` container from the current image.
 
-Jira, Slack, and future package-owned node executors are installed, registered,
-and bundled into this image at build time. Workflow execution never downloads or
-installs marketplace package code. At runtime, users can connect credentials,
-add an already-bundled node to a workflow, and configure its fields and action.
+Jira and Slack currently declare package-owned Orchestrator surfaces. When
+those packages are installed as direct production dependencies, the image build
+reads their package-owned metadata, generates static imports, and bundles the
+executors. Workflow execution never scans for, downloads, or installs
+marketplace package code. At runtime, users can connect credentials, add an
+already-bundled node to a workflow, and configure its fields and action.
 Changing the available executor set requires rebuilding the image and replacing
 the running container.
 

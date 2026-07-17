@@ -8,6 +8,8 @@ export const gcpApiContribution = {
   router: gcpRouter,
 };
 
+export default gcpApiContribution;
+
 gcpRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
 

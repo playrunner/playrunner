@@ -17,6 +17,8 @@ export const environmentIntegration: Integration = {
   ConfigPanel: EnvironmentConfigPanel,
 };
 
+export default environmentIntegration;
+
 export { EnvironmentConfigPanel } from './EnvironmentConfigPanel';
 export { VariablesTable } from './VariablesTable';
 export type { EnvVar, SavedEnvironment } from './types';

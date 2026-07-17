@@ -7,3 +7,5 @@ export const scheduleApiContribution = {
   mountPath: '/api/schedule',
   router: scheduleRouter,
 };
+
+export default scheduleApiContribution;

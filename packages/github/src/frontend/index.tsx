@@ -16,6 +16,8 @@ export const githubIntegration: Integration = {
   refreshStoredIntegration: refreshGithubTokenIfNeeded,
 };
 
+export default githubIntegration;
+
 export { GithubIcon } from './GithubIcon';
 export { GithubSettingsModal } from './GithubSettingsModal';
 export { githubIconUrl } from './icon';

@@ -8,7 +8,13 @@ import prettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'coverage', 'vite.config.ts'],
+    ignores: [
+      'dist',
+      'node_modules',
+      'coverage',
+      'vite.config.ts',
+      'src/integrations/generated-package-contributions.ts',
+    ],
   },
   {
     settings: {

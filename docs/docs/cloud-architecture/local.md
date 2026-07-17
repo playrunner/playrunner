@@ -39,8 +39,8 @@ graph TD
 4. **Orchestrator**: Runs as the `playrunner-orchestrator-local` Docker
    container on port `3012`. It receives workflow execution requests, prepares
    Playwright runners early, starts them with Pub/Sub `runner_control` messages
-   when the DAG reaches their nodes, and executes statically registered package
-   contributions such as Jira and Slack.
+   when the DAG reaches their nodes, and executes package contributions such as
+   Jira and Slack that were statically composed into the image at build time.
 5. **Playwright Runner**: Runs as an ephemeral Docker container. It prepares
    dependencies, publishes `runner_status=ready`, waits for a Pub/Sub start
    signal, runs the test, uploads local output archives to the API, and publishes
@@ -59,9 +59,12 @@ graph TD
    Orchestrator container from the current image.
 
 The Orchestrator image contains its trusted package executors at build time.
-Runtime users can connect credentials and add or configure nodes that are
-already bundled, but the local marketplace and workflow runner never install or
-hot-load package code. After changing the registered executor set or its source,
+Each package declares its own Orchestrator surface and default export. The build
+scans installed direct production dependencies and generates static imports;
+there is no common provider list for a package author to update. Runtime users
+can connect credentials and add or configure nodes that are already bundled,
+but the local marketplace and workflow runner never discover, install, or
+hot-load package code. After changing the selected executor set or its source,
 rebuild the image with `./infra/scripts/rebuild-orchestrator.sh` and reopen the
 Editor so the API starts a fresh container.
 

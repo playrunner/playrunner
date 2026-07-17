@@ -3,26 +3,47 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-LOCAL_PACKAGE_DIRS=(
-  "packages/integration-sdk"
-  "packages/environment"
-  "packages/github"
-  "packages/javascript"
-  "packages/jira"
-  "packages/playwright"
-  "packages/schedule"
-  "packages/slack"
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm is required but was not found in PATH."
+  exit 1
+fi
+
+LOCAL_PACKAGE_DIRS=("packages/integration-sdk")
+
+while IFS= read -r package_dir; do
+  LOCAL_PACKAGE_DIRS+=("${package_dir}")
+done < <(
+  node - "${ROOT_DIR}" <<'NODE'
+const fs = require('fs');
+const path = require('path');
+
+const rootDirectory = process.argv[2];
+const packagesDirectory = path.join(rootDirectory, 'packages');
+const integrationDirectories = fs
+  .readdirSync(packagesDirectory, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => path.join(packagesDirectory, entry.name))
+  .filter((directory) => {
+    const manifestPath = path.join(directory, 'package.json');
+    if (!fs.existsSync(manifestPath)) return false;
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    return Boolean(manifest.playrunner?.integration);
+  })
+  .sort();
+
+for (const directory of integrationDirectories) {
+  console.log(path.relative(rootDirectory, directory));
+}
+NODE
+)
+
+LOCAL_PACKAGE_DIRS+=(
   "apps/api"
   "apps/frontend"
   "apps/runners/orchestrator"
   "apps/runners/playwright"
   "docs"
 )
-
-if ! command -v npm >/dev/null 2>&1; then
-  echo "npm is required but was not found in PATH."
-  exit 1
-fi
 
 echo "Installing local development dependencies..."
 

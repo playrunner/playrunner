@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
-import {
-  createOrchestratorRegistry,
-  packageOrchestratorRegistry,
-} from '@playrunner/integration-registry/orchestrator';
+import { createOrchestratorRegistry } from '@playrunner/integration-registry/orchestrator';
 import type {
   NodeExecutionContext,
   OrchestratorIntegrationContribution,
 } from '@playrunner/integration-sdk/orchestrator';
 import { PackageExecutorRuntime } from './package-executors';
+import {
+  createDiscoveredOrchestratorRegistry,
+  packageOrchestratorRegistry,
+} from './discovered-orchestrator-registry';
 
 const originalFetch = globalThis.fetch;
 
@@ -82,6 +83,22 @@ describe('package orchestrator integration', { concurrency: false }, () => {
             { contractVersion: 1, id: 'provider', executors: [{}] },
           ]),
         /nodeType must be a non-empty string/,
+      );
+    });
+
+    test('rejects package manifest and contribution id mismatches', () => {
+      assert.throws(
+        () =>
+          createDiscoveredOrchestratorRegistry([
+            {
+              packageName: '@playrunner/provider',
+              integrationId: 'manifest-provider',
+              contribution: contribution('exported-provider', [
+                successExecutor,
+              ]),
+            },
+          ]),
+        /declares id "manifest-provider".*contribution has id "exported-provider"/,
       );
     });
 

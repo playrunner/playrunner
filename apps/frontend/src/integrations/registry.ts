@@ -1,6 +1,49 @@
 import type { Integration } from './types';
-import { packageIntegrationRegistry } from '@playrunner/integration-registry';
+import { discoveredIntegrationContributions } from './generated-package-contributions';
 import { editionIntegrations } from '@edition-runtime';
+
+function createPackageIntegrationRegistry(
+  entries: readonly {
+    packageName: string;
+    integrationId: string;
+    contribution: unknown;
+  }[],
+): Record<string, Integration> {
+  const registry: Record<string, Integration> = Object.create(null);
+
+  for (const entry of entries) {
+    if (
+      typeof entry.contribution !== 'object' ||
+      entry.contribution === null ||
+      Array.isArray(entry.contribution)
+    ) {
+      throw new Error(
+        `Integration package "${entry.packageName}" did not default-export an integration object.`,
+      );
+    }
+
+    const integration = entry.contribution as Partial<Integration>;
+    if (integration.id !== entry.integrationId) {
+      throw new Error(
+        `Integration package "${entry.packageName}" declares id "${entry.integrationId}" but its frontend contribution has id "${String(integration.id)}".`,
+      );
+    }
+
+    if (Object.hasOwn(registry, entry.integrationId)) {
+      throw new Error(
+        `Duplicate frontend integration id "${entry.integrationId}".`,
+      );
+    }
+
+    registry[entry.integrationId] = integration as Integration;
+  }
+
+  return registry;
+}
+
+const packageIntegrationRegistry = createPackageIntegrationRegistry(
+  discoveredIntegrationContributions,
+);
 
 function createPremiumIntegrationStub(
   id: string,

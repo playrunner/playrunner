@@ -7,3 +7,5 @@ export const environmentApiContribution = {
   mountPath: '/api/environment',
   router: environmentRouter,
 };
+
+export default environmentApiContribution;

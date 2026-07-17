@@ -15,4 +15,6 @@ export const javascriptIntegration: Integration = {
   ConfigPanel: JavascriptConfigPanel,
 };
 
+export default javascriptIntegration;
+
 export { JavascriptConfigPanel } from './JavascriptConfigPanel';
