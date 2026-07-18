@@ -42,7 +42,7 @@
       "plugin": "plugin---playrunner-docusaurus-debug-b-38-f53"
     }
   },
-  "/playrunner/blog/-b3f": {
+  "/playrunner/blog/-93a": {
     "__comp": "__comp---theme-blog-list-pagea-6-a-7ba",
     "__context": {
       "plugin": "plugin---playrunner-blog-369-ab3"
@@ -50,16 +50,7 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "items": [
       {
-        "content": "content---playrunner-blog-804-8be"
-      },
-      {
-        "content": "content---playrunner-blog-f-4-f-2d5"
-      },
-      {
-        "content": "content---playrunner-blog-15-d-052"
-      },
-      {
-        "content": "content---playrunner-blog-1-f-4-be4"
+        "content": "content---playrunner-blog-900-e01"
       }
     ],
     "__props": "__props---playrunner-blog-1-f-1-b1e"
@@ -82,51 +73,7 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "__props": "__props---playrunner-blog-authors-c-13-dbd"
   },
-  "/playrunner/blog/authors/all-sebastien-lorber-articles/-1e5": {
-    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
-    "__context": {
-      "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authors-ace-775"
-      },
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "items": [
-      {
-        "content": "content---playrunner-blog-804-8be"
-      },
-      {
-        "content": "content---playrunner-blog-f-4-f-2d5"
-      },
-      {
-        "content": "content---playrunner-blog-1-f-4-be4"
-      }
-    ],
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "__props": "__props---playrunner-blog-authors-all-sebastien-lorber-articles-be-1-eac"
-  },
-  "/playrunner/blog/authors/yangshun/-bf2": {
-    "__comp": "__comp---theme-blog-pages-blog-authors-posts-page-33-f-bd5",
-    "__context": {
-      "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authors-ace-775"
-      },
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "items": [
-      {
-        "content": "content---playrunner-blog-804-8be"
-      },
-      {
-        "content": "content---playrunner-blog-15-d-052"
-      },
-      {
-        "content": "content---playrunner-blog-1-f-4-be4"
-      }
-    ],
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "__props": "__props---playrunner-blog-authors-yangshun-501-07a"
-  },
-  "/playrunner/blog/first-blog-post/-963": {
+  "/playrunner/blog/introducing-playrunner/-a1a": {
     "__comp": "__comp---theme-blog-post-pageccc-cab",
     "__context": {
       "data": {
@@ -135,29 +82,7 @@
       "plugin": "plugin---playrunner-blog-369-ab3"
     },
     "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "content": "content---playrunner-blog-first-blog-post-fef-b92"
-  },
-  "/playrunner/blog/long-blog-post/-52a": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
-    "__context": {
-      "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authors-ace-775"
-      },
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "content": "content---playrunner-blog-long-blog-post-d-66-207"
-  },
-  "/playrunner/blog/mdx-blog-post/-369": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
-    "__context": {
-      "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authors-ace-775"
-      },
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "content": "content---playrunner-blog-mdx-blog-post-593-e76"
+    "content": "content---playrunner-blog-introducing-playrunner-27-c-d9c"
   },
   "/playrunner/blog/tags/-fd9": {
     "__comp": "__comp---theme-blog-tags-list-page-01-a-d0b",
@@ -167,7 +92,7 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "__props": "__props---playrunner-blog-tags-341-b2c"
   },
-  "/playrunner/blog/tags/docusaurus/-ebb": {
+  "/playrunner/blog/tags/contributors/-d2b": {
     "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
     "__context": {
       "plugin": "plugin---playrunner-blog-369-ab3"
@@ -175,21 +100,12 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "items": [
       {
-        "content": "content---playrunner-blog-804-8be"
-      },
-      {
-        "content": "content---playrunner-blog-f-4-f-2d5"
-      },
-      {
-        "content": "content---playrunner-blog-15-d-052"
-      },
-      {
-        "content": "content---playrunner-blog-1-f-4-be4"
+        "content": "content---playrunner-blog-900-e01"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-docusaurus-123-ec1"
+    "__props": "__props---playrunner-blog-tags-contributors-1-a-5-cb3"
   },
-  "/playrunner/blog/tags/facebook/-4fa": {
+  "/playrunner/blog/tags/playwright/-712": {
     "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
     "__context": {
       "plugin": "plugin---playrunner-blog-369-ab3"
@@ -197,12 +113,12 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "items": [
       {
-        "content": "content---playrunner-blog-804-8be"
+        "content": "content---playrunner-blog-900-e01"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-facebook-bae-4f7"
+    "__props": "__props---playrunner-blog-tags-playwright-c-2-c-28f"
   },
-  "/playrunner/blog/tags/hello/-ea8": {
+  "/playrunner/blog/tags/release/-190": {
     "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
     "__context": {
       "plugin": "plugin---playrunner-blog-369-ab3"
@@ -210,37 +126,10 @@
     "sidebar": "sidebar---playrunner-blog-814-f1a",
     "items": [
       {
-        "content": "content---playrunner-blog-804-8be"
-      },
-      {
-        "content": "content---playrunner-blog-15-d-052"
+        "content": "content---playrunner-blog-900-e01"
       }
     ],
-    "__props": "__props---playrunner-blog-tags-hello-0-a-1-282"
-  },
-  "/playrunner/blog/tags/hola/-a51": {
-    "__comp": "__comp---theme-blog-tags-posts-page-687-b6c",
-    "__context": {
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "items": [
-      {
-        "content": "content---playrunner-blog-1-f-4-be4"
-      }
-    ],
-    "__props": "__props---playrunner-blog-tags-hola-d-93-f45"
-  },
-  "/playrunner/blog/welcome/-1b1": {
-    "__comp": "__comp---theme-blog-post-pageccc-cab",
-    "__context": {
-      "data": {
-        "blogMetadata": "blogMetadata---playrunner-blog-authors-ace-775"
-      },
-      "plugin": "plugin---playrunner-blog-369-ab3"
-    },
-    "sidebar": "sidebar---playrunner-blog-814-f1a",
-    "content": "content---playrunner-blog-welcome-718-c6b"
+    "__props": "__props---playrunner-blog-tags-release-c-51-55a"
   },
   "/playrunner/markdown-page/-bda": {
     "__comp": "__comp---theme-mdx-page-1-f-3-b90",

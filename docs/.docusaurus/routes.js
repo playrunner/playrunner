@@ -39,7 +39,7 @@ export default [
   },
   {
     path: '/playrunner/blog/',
-    component: ComponentCreator('/playrunner/blog/', 'b3f'),
+    component: ComponentCreator('/playrunner/blog/', '93a'),
     exact: true
   },
   {
@@ -53,28 +53,8 @@ export default [
     exact: true
   },
   {
-    path: '/playrunner/blog/authors/all-sebastien-lorber-articles/',
-    component: ComponentCreator('/playrunner/blog/authors/all-sebastien-lorber-articles/', '1e5'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/authors/yangshun/',
-    component: ComponentCreator('/playrunner/blog/authors/yangshun/', 'bf2'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/first-blog-post/',
-    component: ComponentCreator('/playrunner/blog/first-blog-post/', '963'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/long-blog-post/',
-    component: ComponentCreator('/playrunner/blog/long-blog-post/', '52a'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/mdx-blog-post/',
-    component: ComponentCreator('/playrunner/blog/mdx-blog-post/', '369'),
+    path: '/playrunner/blog/introducing-playrunner/',
+    component: ComponentCreator('/playrunner/blog/introducing-playrunner/', 'a1a'),
     exact: true
   },
   {
@@ -83,28 +63,18 @@ export default [
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/docusaurus/',
-    component: ComponentCreator('/playrunner/blog/tags/docusaurus/', 'ebb'),
+    path: '/playrunner/blog/tags/contributors/',
+    component: ComponentCreator('/playrunner/blog/tags/contributors/', 'd2b'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/facebook/',
-    component: ComponentCreator('/playrunner/blog/tags/facebook/', '4fa'),
+    path: '/playrunner/blog/tags/playwright/',
+    component: ComponentCreator('/playrunner/blog/tags/playwright/', '712'),
     exact: true
   },
   {
-    path: '/playrunner/blog/tags/hello/',
-    component: ComponentCreator('/playrunner/blog/tags/hello/', 'ea8'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/tags/hola/',
-    component: ComponentCreator('/playrunner/blog/tags/hola/', 'a51'),
-    exact: true
-  },
-  {
-    path: '/playrunner/blog/welcome/',
-    component: ComponentCreator('/playrunner/blog/welcome/', '1b1'),
+    path: '/playrunner/blog/tags/release/',
+    component: ComponentCreator('/playrunner/blog/tags/release/', '190'),
     exact: true
   },
   {

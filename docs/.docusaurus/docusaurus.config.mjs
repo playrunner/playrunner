@@ -5,7 +5,7 @@
  */
 export default {
   "title": "Playrunner",
-  "tagline": "Open-source orchestration for Playwright test automation.",
+  "tagline": "Orchestration for Playwright test automation.",
   "favicon": "img/favicon.svg",
   "customFields": {
     "localDocsLandingPath": "/"

@@ -1,0 +1,57 @@
+{
+  "permalink": "/playrunner/blog/introducing-playrunner",
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/blog/2026-07-18-introducing-playrunner.mdx",
+  "source": "@site/blog/2026-07-18-introducing-playrunner.mdx",
+  "title": "Introducing Playrunner: Visual orchestration for Playwright teams",
+  "description": "Playrunner brings Playwright workflows, runners, integrations, live feedback, and reports together so teams can ship with confidence.",
+  "date": "2026-07-18T00:00:00.000Z",
+  "tags": [
+    {
+      "inline": false,
+      "label": "Release",
+      "permalink": "/playrunner/blog/tags/release",
+      "description": "Playrunner release news"
+    },
+    {
+      "inline": false,
+      "label": "Playwright",
+      "permalink": "/playrunner/blog/tags/playwright",
+      "description": "Playwright automation and orchestration"
+    },
+    {
+      "inline": false,
+      "label": "Contributors",
+      "permalink": "/playrunner/blog/tags/contributors",
+      "description": "Ways to contribute to Playrunner"
+    }
+  ],
+  "readingTime": 2.31,
+  "hasTruncateMarker": true,
+  "authors": [
+    {
+      "name": "Playrunner",
+      "title": "Playrunner contributors",
+      "url": "https://github.com/playrunner",
+      "socials": {
+        "github": "https://github.com/playrunner"
+      },
+      "imageURL": "https://github.com/playrunner.png",
+      "key": "playrunner",
+      "page": null
+    }
+  ],
+  "frontMatter": {
+    "slug": "introducing-playrunner",
+    "title": "Introducing Playrunner: Visual orchestration for Playwright teams",
+    "description": "Playrunner brings Playwright workflows, runners, integrations, live feedback, and reports together so teams can ship with confidence.",
+    "authors": [
+      "playrunner"
+    ],
+    "tags": [
+      "release",
+      "playwright",
+      "contributors"
+    ]
+  },
+  "unlisted": false
+}
