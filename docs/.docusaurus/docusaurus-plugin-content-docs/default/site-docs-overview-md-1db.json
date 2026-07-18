@@ -18,7 +18,7 @@
   },
   "sidebar": "tutorialSidebar",
   "next": {
-    "title": "Runner Architecture",
-    "permalink": "/playrunner/docs/category/runner-architecture"
+    "title": "Overview",
+    "permalink": "/playrunner/docs/runner-architecture/"
   }
 }

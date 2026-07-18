@@ -138,22 +138,18 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-915"
   },
-  "/playrunner/docs/-248": {
+  "/playrunner/docs/-9e2": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docs-aba-62c"
     }
   },
-  "/playrunner/docs/-91a": {
+  "/playrunner/docs/-de1": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-c-17-30d"
   },
-  "/playrunner/docs/-4e7": {
+  "/playrunner/docs/-f7d": {
     "__comp": "__comp---theme-doc-roota-94-67a"
-  },
-  "/playrunner/docs/category/runner-architecture/-6ed": {
-    "__comp": "__comp---theme-doc-category-generated-index-page-14-e-640",
-    "__props": "__props---playrunner-docs-category-runner-architecture-9-e-0-259"
   },
   "/playrunner/docs/contributing/-4ea": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -266,6 +262,10 @@
   "/playrunner/docs/roadmap/-991": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-roadmap-0-df-a87"
+  },
+  "/playrunner/docs/runner-architecture/-a68": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-runner-architecture-c-1-e-ef4"
   },
   "/playrunner/docs/runner-architecture/aws/-309": {
     "__comp": "__comp---theme-doc-item-178-a40",

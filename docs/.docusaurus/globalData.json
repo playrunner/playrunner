@@ -186,6 +186,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "runner-architecture/index",
+              "path": "/playrunner/docs/runner-architecture/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "runner-architecture/local",
               "path": "/playrunner/docs/runner-architecture/local",
               "sidebar": "tutorialSidebar"
@@ -218,11 +223,6 @@
             {
               "id": "tutorials/understanding-reports",
               "path": "/playrunner/docs/tutorials/understanding-reports",
-              "sidebar": "tutorialSidebar"
-            },
-            {
-              "id": "/category/runner-architecture",
-              "path": "/playrunner/docs/category/runner-architecture",
               "sidebar": "tutorialSidebar"
             }
           ],

@@ -84,22 +84,16 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', '248'),
+    component: ComponentCreator('/playrunner/docs/', '9e2'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', '91a'),
+        component: ComponentCreator('/playrunner/docs/', 'de1'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', '4e7'),
+            component: ComponentCreator('/playrunner/docs/', 'f7d'),
             routes: [
-              {
-                path: '/playrunner/docs/category/runner-architecture/',
-                component: ComponentCreator('/playrunner/docs/category/runner-architecture/', '6ed'),
-                exact: true,
-                sidebar: "tutorialSidebar"
-              },
               {
                 path: '/playrunner/docs/contributing/',
                 component: ComponentCreator('/playrunner/docs/contributing/', '4ea'),
@@ -265,6 +259,12 @@ export default [
               {
                 path: '/playrunner/docs/roadmap/',
                 component: ComponentCreator('/playrunner/docs/roadmap/', '991'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/runner-architecture/',
+                component: ComponentCreator('/playrunner/docs/runner-architecture/', 'a68'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

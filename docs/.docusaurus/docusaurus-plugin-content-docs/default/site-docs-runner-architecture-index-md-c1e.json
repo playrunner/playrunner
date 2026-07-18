@@ -1,0 +1,27 @@
+{
+  "id": "runner-architecture/index",
+  "title": "Runner Architecture",
+  "description": "Every Playrunner runner uses the same execution model. A provider implementation",
+  "source": "@site/docs/runner-architecture/index.md",
+  "sourceDirName": "runner-architecture",
+  "slug": "/runner-architecture/",
+  "permalink": "/playrunner/docs/runner-architecture/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/playrunner/playrunner/tree/main/docs/docs/runner-architecture/index.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "title": "Runner Architecture",
+    "sidebar_label": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/playrunner/docs/overview"
+  },
+  "next": {
+    "title": "Local",
+    "permalink": "/playrunner/docs/runner-architecture/local"
+  }
+}
