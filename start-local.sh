@@ -646,7 +646,7 @@ else
     concurrently \
       --names "WEB,API,DOCS" \
       --prefix-colors "blue,green,magenta" \
-      "cd '${BASE_DIR}/apps/frontend' && npm run dev -- --port '${WEB_PORT}'" \
+      "node '${BASE_DIR}/infra/scripts/wait-for-http.mjs' '${VITE_API_URL}/health' 60 && cd '${BASE_DIR}/apps/frontend' && npm run dev -- --port '${WEB_PORT}'" \
       "cd '${BASE_DIR}/apps/api' && npm start" \
       "cd '${DOCS_DIR}' && npm run start -- --host 127.0.0.1 --port '${DOCS_PORT}' --no-open"
 fi
