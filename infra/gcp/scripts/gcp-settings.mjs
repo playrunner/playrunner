@@ -74,15 +74,21 @@ if (!process.env.DATABASE_URL) {
 
 const requireFromApi = createRequire(path.join(apiDir, "package.json"));
 let PrismaClient;
+let PrismaPg;
+let unregisterTypeScript;
 try {
-  ({ PrismaClient } = requireFromApi("@prisma/client"));
+  unregisterTypeScript = requireFromApi("tsx/cjs/api").register();
+  ({ PrismaPg } = requireFromApi("@prisma/adapter-pg"));
+  ({ PrismaClient } = requireFromApi("./src/generated/prisma/client.cts"));
 } catch (error) {
   fail(
-    `Failed to load @prisma/client from ${path.relative(repoRoot, apiDir)}. Run "npm install" in apps/api first. (${error.message})`,
+    `Failed to load the generated Prisma client from ${path.relative(repoRoot, apiDir)}. Run "npm install" and "npm run prisma:generate" in apps/api first. (${error.message})`,
   );
 }
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 try {
   const credential = await loadCredential();
@@ -91,6 +97,7 @@ try {
   fail(error instanceof Error ? error.message : String(error));
 } finally {
   await prisma.$disconnect().catch(() => {});
+  unregisterTypeScript?.();
 }
 
 async function loadCredential() {

@@ -20,7 +20,6 @@ import {
   Code2,
   MoreHorizontal,
   X,
-  Sparkles,
   Power,
   Settings,
   AlertTriangle,
@@ -3109,12 +3108,6 @@ export default function Editor() {
                         }}
                       >
                         <Trash2 className="w-5 h-5" />
-                      </button>
-                      <button
-                        className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"
-                        title="AI Tools"
-                      >
-                        <Sparkles className="w-5 h-5" />
                       </button>
                       <button
                         className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"

@@ -1,4 +1,4 @@
-import { Prisma, type WorkflowSchedule } from '@prisma/client';
+import { Prisma, type WorkflowSchedule } from '../generated/prisma/client.cts';
 import type { Request } from 'express';
 import { getPublicApiBaseUrl } from '../config';
 import { prisma } from '../lib/prisma';

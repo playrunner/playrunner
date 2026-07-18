@@ -1,5 +1,9 @@
 import crypto from 'crypto';
-import type { Prisma, WorkflowEvent, WorkflowExecution } from '@prisma/client';
+import type {
+  Prisma,
+  WorkflowEvent,
+  WorkflowExecution,
+} from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
 
 export const EXECUTION_TOKEN_HEADER = 'x-execution-token';

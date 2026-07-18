@@ -4,4 +4,5 @@ build
 coverage
 package-lock.json
 public/outputs
+src/generated/prisma
 src/integrations/generated-package-contributions.ts

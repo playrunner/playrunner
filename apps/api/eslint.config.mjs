@@ -8,6 +8,7 @@ export default [
     ignores: [
       'dist',
       'node_modules',
+      'src/generated/prisma',
       'src/integrations/generated-package-contributions.ts',
     ],
   },

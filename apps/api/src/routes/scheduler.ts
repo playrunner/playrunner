@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.cts';
 import { Request, Router } from 'express';
 import { getPublicApiBaseUrl } from '../config';
 import { prisma } from '../lib/prisma';

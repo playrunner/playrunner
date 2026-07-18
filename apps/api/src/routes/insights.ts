@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../generated/prisma/client.cts';
 import { Request, Response, Router } from 'express';
 import { prisma } from '../lib/prisma';
 

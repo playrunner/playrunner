@@ -254,19 +254,20 @@ function hasCompleteLocalAuthConfig(config) {
 
 async function withPrismaClient(databaseUrl, callback) {
   const requireFromApi = createRequire(path.join(apiDir, 'package.json'));
-  const { PrismaClient } = requireFromApi('@prisma/client');
+  const unregisterTypeScript = requireFromApi('tsx/cjs/api').register();
+  const { PrismaPg } = requireFromApi('@prisma/adapter-pg');
+  const { PrismaClient } = requireFromApi(
+    './src/generated/prisma/client.cts',
+  );
   const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
+    adapter: new PrismaPg({ connectionString: databaseUrl }),
   });
 
   try {
     return await callback(prisma);
   } finally {
     await prisma.$disconnect();
+    unregisterTypeScript();
   }
 }
 
@@ -396,7 +397,7 @@ bootstrap_api_prisma() {
     echo "🗃️  Pushing Prisma schema to PostgreSQL..."
     (
         cd "${API_DIR}"
-        npx prisma db push --skip-generate
+        npx prisma db push
     )
 }
 
@@ -409,7 +410,8 @@ prepare_setup_database_schema() {
     echo "🗃️  Applying Prisma schema to setup PostgreSQL database..."
     (
         cd "${API_DIR}"
-        PRISMA_HIDE_UPDATE_MESSAGE=true DATABASE_URL="${VITE_DEFAULT_DATABASE_URL}" npx prisma db push --skip-generate
+        npm run prisma:generate
+        PRISMA_HIDE_UPDATE_MESSAGE=true DATABASE_URL="${VITE_DEFAULT_DATABASE_URL}" npx prisma db push
     )
 }
 

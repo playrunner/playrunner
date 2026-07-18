@@ -186,19 +186,20 @@ function hasCompleteLocalAuthConfig(config) {
 
 async function withApiPrismaClient(databaseUrl, callback) {
   const requireFromApi = createApiRequire();
-  const { PrismaClient } = requireFromApi("@prisma/client");
+  const unregisterTypeScript = requireFromApi("tsx/cjs/api").register();
+  const { PrismaPg } = requireFromApi("@prisma/adapter-pg");
+  const { PrismaClient } = requireFromApi(
+    "./src/generated/prisma/client.cts",
+  );
   const prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl,
-      },
-    },
+    adapter: new PrismaPg({ connectionString: databaseUrl }),
   });
 
   try {
     return await callback(prisma);
   } finally {
     await prisma.$disconnect();
+    unregisterTypeScript();
   }
 }
 

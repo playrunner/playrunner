@@ -11,6 +11,7 @@ setup/installer/.setup-state.json
 apps/setup/.vite
 apps/frontend/src/integrations/generated-package-contributions.ts
 apps/api/src/integrations/generated-package-contributions.ts
+apps/api/src/generated/prisma/
 apps/runners/orchestrator/src/generated/package-contributions.ts
 
 # Terraform
