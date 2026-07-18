@@ -127,9 +127,9 @@ The `@playrunner/jira/orchestrator` subpath default-exports
 `jiraOrchestratorContribution`. Jira's own manifest declares that entrypoint.
 When Jira is an installed direct production dependency, the Orchestrator build
 generates a static import and bundles the Jira executor into `dist/index.js`.
-`@playrunner/integration-registry/orchestrator` only validates and resolves the
-resulting contributions; it contains no Jira reference. There is no runtime
-package loader, discovery scan, or package installation step.
+The Orchestrator's host-owned registry only validates and resolves the resulting
+contributions; it contains no Jira reference. There is no runtime package
+loader, discovery scan, or package installation step.
 
 See
 [Orchestrator contributions](../local-dev/integrations/orchestrator-contributions.md)

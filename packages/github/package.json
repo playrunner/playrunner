@@ -2,12 +2,26 @@
   "name": "@playrunner/github",
   "version": "0.1.0",
   "description": "GitHub integration package for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "github",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/github"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/github/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "playrunner": {
     "integration": {
@@ -38,6 +52,8 @@
     "./assets/github.svg": "./assets/github.svg"
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "assets",
     "src"
   ],

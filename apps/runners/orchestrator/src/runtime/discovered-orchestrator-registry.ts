@@ -1,7 +1,7 @@
 import {
   createOrchestratorRegistry,
   OrchestratorRegistryError,
-} from '@playrunner/integration-registry/orchestrator';
+} from './orchestrator-registry';
 import { discoveredIntegrationContributions } from '../generated/package-contributions';
 
 export function createDiscoveredOrchestratorRegistry(

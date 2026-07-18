@@ -2,12 +2,26 @@
   "name": "@playrunner/slack",
   "version": "0.1.0",
   "description": "Slack integration package for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "slack",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/slack"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/slack/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "playrunner": {
     "integration": {
@@ -45,6 +59,8 @@
     "./assets/slack.svg": "./assets/slack.svg"
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "assets",
     "src"
   ],

@@ -283,10 +283,10 @@ docker logs -f <container-id>
 
 ## Rebuilding After Code Changes
 
-| Changed code location                                                                                            | Action required                                                                     |
-| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `apps/api/src/**`                                                                                                | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)              |
-| `apps/frontend/src/**`                                                                                           | Vite HMR handles this automatically                                                 |
-| `apps/runners/orchestrator/src/**`                                                                               | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
-| `packages/*/package.json`, `packages/*/src/orchestrator/**`, or `packages/integration-registry/src/orchestrator` | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
-| `apps/runners/playwright/src/**`                                                                                 | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |
+| Changed code location                                         | Action required                                                                     |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `apps/api/src/**`                                             | Restart the API (`Ctrl+C` then re-run `start-local.sh` or `npm start`)              |
+| `apps/frontend/src/**`                                        | Vite HMR handles this automatically                                                 |
+| `apps/runners/orchestrator/src/**`                            | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `packages/*/package.json` or `packages/*/src/orchestrator/**` | Run `./infra/scripts/rebuild-orchestrator.sh`, then reopen the Editor tab           |
+| `apps/runners/playwright/src/**`                              | Rebuild the configured Playwright runner images, for example via `./start-local.sh` |

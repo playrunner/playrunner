@@ -145,9 +145,9 @@ The `@playrunner/slack/orchestrator` subpath default-exports
 `slackOrchestratorContribution`. Slack's own manifest declares that entrypoint.
 When Slack is an installed direct production dependency, the Orchestrator build
 generates a static import and bundles the Slack executor into `dist/index.js`.
-`@playrunner/integration-registry/orchestrator` only validates and resolves the
-resulting contributions; it contains no Slack reference. There is no runtime
-package loader, discovery scan, or package installation step.
+The Orchestrator's host-owned registry only validates and resolves the resulting
+contributions; it contains no Slack reference. There is no runtime package
+loader, discovery scan, or package installation step.
 
 See
 [Orchestrator contributions](../local-dev/integrations/orchestrator-contributions.md)

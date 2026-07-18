@@ -62,8 +62,8 @@ each surface must use the same ID as the manifest.
 ## Package ownership and artifact selection
 
 Package authors change only their package's manifest, exports, source, assets,
-and tests. They do not register the provider in
-`@playrunner/integration-registry` or edit a handwritten host allowlist.
+and tests. They do not register the provider in a shared registry or edit a
+handwritten host allowlist.
 
 The deployment or distribution build still decides which trusted package
 versions are included. It adds the package to the `dependencies` or

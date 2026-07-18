@@ -54,10 +54,10 @@ The shortest way to understand the split is:
 | `infra/scripts/generate-integration-composition.mjs` | The build composer: reads installed direct production dependencies and generates static imports for their declared surface.  |
 | `apps/runners/orchestrator`                          | The workflow engine: validates and resolves the generated contributions, then owns scheduling, lifecycle, and transport.     |
 
-`@playrunner/integration-registry/orchestrator` is a provider-agnostic helper
-used by the host layer. It validates contribution contracts and resolves exact
-node/action keys. It does not import Jira, Slack, or any other provider, and it
-does not maintain an allowlist.
+`apps/runners/orchestrator/src/runtime/orchestrator-registry.ts` is the
+provider-agnostic host implementation. It validates contribution contracts and
+resolves exact node/action keys. It does not import Jira, Slack, or any other
+provider, and it does not maintain an allowlist.
 
 At runtime, a package-owned node follows this path:
 
@@ -129,9 +129,8 @@ surface, it validates the package metadata and export, rejects duplicate IDs,
 sorts the packages deterministically, and writes a generated TypeScript module
 containing normal static imports.
 
-The Orchestrator passes those generated contributions to
-`@playrunner/integration-registry/orchestrator`. That library has two generic
-jobs:
+The Orchestrator passes those generated contributions to its host-owned runtime
+registry. That code has two generic jobs:
 
 1. At startup, validate contribution IDs, contract versions, executor keys, and
    default actions so ambiguous or incompatible contributions fail early.
@@ -387,9 +386,8 @@ The operator or build pipeline then selects that package for an artifact:
    metadata and generates the static import automatically.
 3. Rebuild and replace the local image, or push and redeploy the image for GCP.
 
-Neither the package author nor the operator adds a provider reference to
-`@playrunner/integration-registry`. Do not add runtime package-install or
-discovery logic.
+Neither the package author nor the operator adds a provider reference to a
+shared registry. Do not add runtime package-install or discovery logic.
 
 ## Validation
 

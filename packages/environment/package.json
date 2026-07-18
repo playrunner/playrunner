@@ -1,13 +1,27 @@
 {
   "name": "@playrunner/environment",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Environment integration package for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "environment",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/environment"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/environment/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "playrunner": {
     "integration": {
@@ -43,6 +57,8 @@
     }
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "src"
   ],
   "scripts": {

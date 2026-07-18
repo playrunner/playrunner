@@ -2,12 +2,26 @@
   "name": "@playrunner/javascript",
   "version": "0.1.0",
   "description": "JavaScript code integration package for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "javascript",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/javascript"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/javascript/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "playrunner": {
     "integration": {
@@ -37,6 +51,8 @@
     }
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "src"
   ],
   "scripts": {

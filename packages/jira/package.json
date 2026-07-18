@@ -2,12 +2,26 @@
   "name": "@playrunner/jira",
   "version": "0.1.0",
   "description": "Jira integration package for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "jira",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/jira"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/jira/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "playrunner": {
     "integration": {
@@ -45,6 +59,8 @@
     "./assets/jira.svg": "./assets/jira.svg"
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "assets",
     "src"
   ],

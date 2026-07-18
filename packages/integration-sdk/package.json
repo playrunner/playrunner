@@ -1,13 +1,27 @@
 {
   "name": "@playrunner/integration-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared contracts and UI helpers for Playrunner integration packages.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "keywords": [
+    "playrunner",
+    "integration-sdk",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/integration-sdk"
+  },
+  "homepage": "https://playrunner.dev/docs/local-dev/integrations/package-architecture/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com",
-    "access": "restricted"
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "exports": {
     ".": {
@@ -36,6 +50,8 @@
     }
   },
   "files": [
+    "LICENSE",
+    "README.md",
     "src"
   ],
   "scripts": {
@@ -46,13 +62,9 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "express": "^5.0.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
-    "express": {
-      "optional": true
-    },
     "react": {
       "optional": true
     }

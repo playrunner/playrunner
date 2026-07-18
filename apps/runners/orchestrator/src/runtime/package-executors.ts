@@ -1,7 +1,7 @@
 import {
   type OrchestratorRegistry,
   type OrchestratorContributionDiagnostic,
-} from '@playrunner/integration-registry/orchestrator';
+} from './orchestrator-registry';
 import type {
   NodeExecutionContext,
   NodeExecutionResult,

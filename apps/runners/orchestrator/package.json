@@ -24,10 +24,9 @@
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
-    "@playrunner/integration-registry": "file:../../../packages/integration-registry",
-    "@playrunner/integration-sdk": "file:../../../packages/integration-sdk",
-    "@playrunner/jira": "file:../../../packages/jira",
-    "@playrunner/slack": "file:../../../packages/slack",
+    "@playrunner/integration-sdk": "^0.1.0",
+    "@playrunner/jira": "^0.1.0",
+    "@playrunner/slack": "^0.1.0",
     "axios": "^1.16.0",
     "express": "^5.2.1"
   },

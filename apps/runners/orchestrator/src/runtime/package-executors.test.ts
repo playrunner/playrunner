@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { afterEach, describe, test } from 'node:test';
-import { createOrchestratorRegistry } from '@playrunner/integration-registry/orchestrator';
+import { createOrchestratorRegistry } from './orchestrator-registry';
 import type {
   NodeExecutionContext,
   OrchestratorIntegrationContribution,
