@@ -23,11 +23,11 @@ graph TD
     B -->|Provision and invoke| C(Orchestrator)
     C -->|Prepare and monitor| D[Playwright Runner]
     C -->|runner_control, logs, node state, terminal events| E(Messaging Transport)
-    D -->|runner_status, logs, node state, output events| E
+    D -->|runner_status, logs,<br/>node state,<br/>output events| E
     E -->|Execution event subscription| B
-    E -->|Runner control subscription| D
+    E -->|Runner control<br/>subscription| D
     E -->|Runner status subscription| C
-    D -->|Store test outputs| F[(Output Storage)]
+    D -->|Store test<br/>outputs| F[(Output Storage)]
     B -->|Persist accepted events| G[(PostgreSQL)]
     G -->|Execution-scoped SSE| A
 ```
