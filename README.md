@@ -1,8 +1,8 @@
 # playrunner
 
-[Documentation](https://playrunner.dev/docs/overview/) ·
-[Discord](https://discord.gg/23yz25kat) ·
-[npm packages](https://www.npmjs.com/org/playrunner)
+[![Documentation](https://img.shields.io/badge/Docs-playrunner.dev-0F766E?style=for-the-badge&logo=docusaurus&logoColor=white)](https://playrunner.dev/docs/overview/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/23yz25kat)
+[![npm packages](https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/org/playrunner)
 
 ## Quick start
 
