@@ -90,13 +90,15 @@ const config: Config = {
         { to: '/blog', label: 'Blog', position: 'left' },
         {
           href: 'https://www.npmjs.com/org/playrunner',
-          label: 'npm',
           position: 'right',
+          className: 'header-npm-link',
+          'aria-label': 'View Playrunner packages on npm',
         },
         {
           href: 'https://github.com/playrunner/playrunner',
-          label: 'GitHub',
           position: 'right',
+          className: 'header-github-link',
+          'aria-label': 'View Playrunner on GitHub',
         },
         {
           href: 'https://discord.gg/23yz25kat',
