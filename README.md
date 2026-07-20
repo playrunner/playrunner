@@ -1,5 +1,9 @@
 # playrunner
 
+[Documentation](https://playrunner.dev/docs/overview/) ·
+[Discord](https://discord.gg/23yz25kat) ·
+[npm packages](https://www.npmjs.com/org/playrunner)
+
 ## Quick start
 
 ### Prerequisites

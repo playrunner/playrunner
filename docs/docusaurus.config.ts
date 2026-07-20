@@ -89,6 +89,11 @@ const config: Config = {
         },
         { to: '/blog', label: 'Blog', position: 'left' },
         {
+          href: 'https://www.npmjs.com/org/playrunner',
+          label: 'npm',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/playrunner/playrunner',
           label: 'GitHub',
           position: 'right',
@@ -143,8 +148,13 @@ const config: Config = {
           ],
         },
         {
-          title: 'More',
+          title: 'Resources',
           items: [
+            { label: 'Documentation', to: '/docs/overview' },
+            {
+              label: 'npm packages',
+              href: 'https://www.npmjs.com/org/playrunner',
+            },
             {
               label: 'GitHub',
               href: 'https://github.com/playrunner/playrunner',
