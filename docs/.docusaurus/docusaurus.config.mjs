@@ -121,9 +121,16 @@ export default {
           "position": "left"
         },
         {
+          "href": "https://www.npmjs.com/org/playrunner",
+          "position": "right",
+          "className": "header-npm-link",
+          "aria-label": "View Playrunner packages on npm"
+        },
+        {
           "href": "https://github.com/playrunner/playrunner",
-          "label": "GitHub",
-          "position": "right"
+          "position": "right",
+          "className": "header-github-link",
+          "aria-label": "View Playrunner on GitHub"
         },
         {
           "href": "https://discord.gg/23yz25kat",
@@ -197,8 +204,16 @@ export default {
           ]
         },
         {
-          "title": "More",
+          "title": "Resources",
           "items": [
+            {
+              "label": "Documentation",
+              "to": "/docs/overview"
+            },
+            {
+              "label": "npm packages",
+              "href": "https://www.npmjs.com/org/playrunner"
+            },
             {
               "label": "GitHub",
               "href": "https://github.com/playrunner/playrunner"
