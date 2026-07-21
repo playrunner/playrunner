@@ -44,6 +44,18 @@ npm --prefix apps/runners/orchestrator test
 npm --prefix apps/runners/orchestrator run build
 ```
 
+When the package declares an E2E contribution, run its tagged scenarios from
+the repository root:
+
+```bash
+npm run test:e2e -- --grep @<integration-id>
+```
+
+The root command forwards arguments to Playwright. Keep the `--` separator
+before `--grep`; without it, npm consumes the option and Playwright interprets
+the tag as a test-file pattern. See [Testing](../../testing/index.md) for setup,
+reports, and debugging.
+
 Run only the consumer blocks relevant to the surfaces you changed. Finish with:
 
 ```bash

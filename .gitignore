@@ -10,6 +10,10 @@ apps/api/public/outputs/*
 setup/installer/.setup-state.json
 apps/setup/.vite
 apps/frontend/src/integrations/generated-package-contributions.ts
+apps/frontend/e2e/generated/package-e2e-contributions.ts
+apps/frontend/e2e/.auth/
+playwright-report/
+apps/frontend/test-results/
 apps/api/src/integrations/generated-package-contributions.ts
 apps/api/src/generated/prisma/
 apps/runners/orchestrator/src/generated/package-contributions.ts

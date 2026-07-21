@@ -14,6 +14,7 @@ export default [
       'coverage',
       'vite.config.ts',
       'src/integrations/generated-package-contributions.ts',
+      'e2e/generated/package-e2e-contributions.ts',
     ],
   },
   {
@@ -72,6 +73,19 @@ export default [
       ],
       'react/prop-types': 'off',
       'react/no-unescaped-entities': 'off',
+    },
+  },
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-empty-pattern': 'off',
+      'react-hooks/rules-of-hooks': 'off',
     },
   },
   prettier,

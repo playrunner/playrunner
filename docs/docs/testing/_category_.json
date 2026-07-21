@@ -1,0 +1,9 @@
+{
+  "label": "Testing",
+  "position": 3.5,
+  "link": {
+    "type": "doc",
+    "id": "testing/index"
+  },
+  "description": "Run Playrunner tests and add package-owned Playwright end-to-end coverage."
+}

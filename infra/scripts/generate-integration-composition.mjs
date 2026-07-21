@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const SURFACES = new Set(["frontend", "api", "orchestrator"]);
+const SURFACES = new Set(["frontend", "api", "orchestrator", "e2e"]);
 const INTEGRATION_ID_PATTERN = /^[a-z][a-z0-9._-]{0,127}$/;
 
 export class IntegrationCompositionError extends Error {
@@ -282,7 +282,7 @@ export async function generateIntegrationComposition({
 }) {
   if (!SURFACES.has(surface)) {
     throw new IntegrationCompositionError(
-      `Invalid integration surface ${JSON.stringify(surface)}. Expected frontend, api, or orchestrator.`,
+      `Invalid integration surface ${JSON.stringify(surface)}. Expected frontend, api, orchestrator, or e2e.`,
     );
   }
 
@@ -390,7 +390,7 @@ async function runCli() {
     process.argv.slice(2);
   if (!appDirectory || !surface || !outputPath || extraArguments.length) {
     throw new IntegrationCompositionError(
-      "Usage: node infra/scripts/generate-integration-composition.mjs <app-directory> <frontend|api|orchestrator> <output-path>",
+      "Usage: node infra/scripts/generate-integration-composition.mjs <app-directory> <frontend|api|orchestrator|e2e> <output-path>",
     );
   }
 

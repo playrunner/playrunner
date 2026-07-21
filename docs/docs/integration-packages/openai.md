@@ -104,10 +104,37 @@ import openaiIntegration, {
 } from '@playrunner/openai';
 import openaiApiContribution, { openaiRouter } from '@playrunner/openai/api';
 import openaiOrchestratorContribution from '@playrunner/openai/orchestrator';
+import openaiE2EContribution, {
+  createOpenAIE2EData,
+  OpenAIE2EPom,
+} from '@playrunner/openai/e2e';
 ```
 
 The default exports are the build-composition contract. Named exports remain
 available for package consumers that need an individual component or router.
+
+The `./e2e` entrypoint is test-only. Its default contribution is discovered by
+the core Playwright harness; its named exports are available when extending or
+unit-testing the package's browser coverage.
+
+## End-to-end test
+
+The OpenAI package is the reference implementation for package-owned E2E
+coverage. `OpenAIE2EPom` encapsulates the settings dialog, the data factory
+creates a unique fake API key, and the contributed scenario verifies connect,
+reload persistence, and disconnect behavior against the deterministic core
+harness.
+
+Run only this package's scenario from the repository root:
+
+```bash
+npm run test:e2e -- --grep @openai
+```
+
+No real OpenAI request is made and no provider credential is required. See
+[Testing](../testing/index.md) for harness setup and reports, or
+[Package E2E Contributions](../testing/package-e2e.md) to use this pattern in
+another integration.
 
 ## Frontend
 

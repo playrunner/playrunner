@@ -123,6 +123,7 @@ export default function Integrations() {
             return (
               <div
                 key={integration.id}
+                data-testid={`integration-card-${integration.id}`}
                 className="bg-surface border border-subtle rounded-xl p-5 hover:border-strong transition-colors group flex flex-col items-start text-left"
               >
                 <div className="flex items-center justify-between w-full mb-4 gap-3">
@@ -204,6 +205,7 @@ export default function Integrations() {
                   {integration.SettingsModal && !isDisabled && (
                     <button
                       onClick={() => setActiveModal(integration.id)}
+                      aria-label={`Configure ${integration.name}`}
                       className="p-1 rounded-md text-muted hover:text-[var(--foreground)] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
                     >
                       <Settings className="w-4 h-4" />

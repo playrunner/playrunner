@@ -5,3 +5,5 @@ coverage
 public
 package-lock.json
 src/integrations/generated-package-contributions.ts
+e2e/generated/package-e2e-contributions.ts
+test-results

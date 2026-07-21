@@ -47,6 +47,12 @@
       "import": "./src/orchestrator/index.ts",
       "require": "./src/orchestrator/index.ts",
       "default": "./src/orchestrator/index.ts"
+    },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
     }
   },
   "files": [
@@ -62,14 +68,19 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@playwright/test": "^1.61.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@playwright/test": "1.61.0",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",

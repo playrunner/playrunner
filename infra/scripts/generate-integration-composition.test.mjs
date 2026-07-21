@@ -47,6 +47,7 @@ async function installPackage(
       ".": "./src/frontend.js",
       "./api": "./src/api.js",
       "./orchestrator": "./src/orchestrator.js",
+      "./e2e": "./src/e2e.js",
     },
     name = packageName,
     playrunner,
@@ -189,6 +190,7 @@ describe("generateIntegrationComposition", () => {
         frontend: ".",
         api: "./api",
         orchestrator: "./orchestrator",
+        e2e: "./e2e",
       },
     });
 
@@ -196,6 +198,7 @@ describe("generateIntegrationComposition", () => {
       frontend: "@playrunner/xyz",
       api: "@playrunner/xyz/api",
       orchestrator: "@playrunner/xyz/orchestrator",
+      e2e: "@playrunner/xyz/e2e",
     };
 
     for (const [surface, expectedSpecifier] of Object.entries(
@@ -386,7 +389,7 @@ describe("generateIntegrationComposition", () => {
       }),
       (error) =>
         error instanceof IntegrationCompositionError &&
-        /Expected frontend, api, or orchestrator/.test(error.message),
+        /Expected frontend, api, orchestrator, or e2e/.test(error.message),
     );
   });
 });

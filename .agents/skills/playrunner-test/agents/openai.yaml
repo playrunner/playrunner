@@ -1,0 +1,4 @@
+interface:
+  display_name: "Playrunner Test"
+  short_description: "Build package-owned Playrunner E2E tests"
+  default_prompt: "Use $playrunner-test to add or maintain package-owned Playwright E2E coverage."

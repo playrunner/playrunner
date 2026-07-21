@@ -29,6 +29,8 @@ export function Modal({
   bodyClassName,
   zIndex = 60,
 }: ModalProps) {
+  const titleId = React.useId();
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -49,6 +51,9 @@ export function Modal({
         onClick={onClose}
       />
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className={cn(
           'relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] select-text',
           maxWidth,
@@ -65,7 +70,10 @@ export function Modal({
                 </div>
               )}
               <div className="py-0.5">
-                <h2 className="text-xs font-semibold text-[var(--foreground)] leading-none">
+                <h2
+                  id={titleId}
+                  className="text-xs font-semibold text-[var(--foreground)] leading-none"
+                >
                   {title}
                 </h2>
                 {subtitle ? (
