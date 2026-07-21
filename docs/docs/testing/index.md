@@ -7,17 +7,23 @@ description: Run Playrunner's deterministic browser tests and inspect their resu
 # Testing
 
 Playrunner's package E2E harness runs package-owned scenarios against the real
-frontend in Chromium. Each integration package contributes its test data, page
-object model (POM), and scenarios through an `./e2e` export. The core harness
-discovers those contributions and supplies the shared browser and host
-fixtures.
+frontend and API in Chromium. Each integration package contributes its test
+data, page object model (POM), and scenarios through an `./e2e` export. The core
+harness discovers those contributions and supplies the browser, authentication,
+API, database, host POM, cleanup, and reporting lifecycle.
 
-The current harness is deterministic: it starts the real Vite frontend and
-simulates the browser-facing integration persistence API in memory. It does not
-require PostgreSQL, a running Playrunner API, or real provider credentials, and
-it does not make requests to OpenAI.
+Every run uses the dedicated `playrunner_e2e` PostgreSQL schema. The launcher
+applies the Prisma schema, clears stale test state, seeds local authentication,
+and starts the normal API entrypoint on port `3999`. Vite starts on port `4173`
+and proxies browser requests to that API.
 
 ## Run the tests
+
+Complete local setup first. The test launcher reads `DATABASE_URL` from
+`apps/api/.env`, so PostgreSQL must be running and reachable. You can override
+the source database URL with `PLAYRUNNER_E2E_DATABASE_URL`; the launcher still
+sets its schema to `playrunner_e2e` and never resets the normal application
+schema.
 
 Install the repository dependencies, then install Playwright's Chromium browser
 once on a new development machine:
@@ -26,22 +32,56 @@ once on a new development machine:
 npm exec --prefix apps/frontend -- playwright install chromium
 ```
 
-From the repository root, run every package E2E scenario:
+From the repository root, run every deterministic mock-provider scenario:
 
 ```bash
-npm run test:e2e
+npm run test:e2e:mock
 ```
+
+`npm run test:e2e` is an equivalent default invocation because the harness
+selects mock mode when `PLAYRUNNER_E2E_MODE` is unset.
 
 Filter by a package's Playwright tag while developing. The extra `--` is
 required so npm forwards `--grep` to Playwright:
 
 ```bash
-npm run test:e2e -- --grep @openai
+npm run test:e2e:mock -- --grep @github
+npm run test:e2e -- --grep @github
 ```
 
-The OpenAI scenario connects an API key, confirms the connected state survives
-a browser reload, disconnects it, and confirms the disconnected state also
-survives a reload.
+The tag is plain shell text. For example, use `@github`, not a Markdown or
+plugin link. The available package tags are `@environment`, `@gcp`, `@github`,
+`@huggingface`, `@code`, `@jira`, `@openai`, `@playwright`, `@schedule`, and
+`@slack`.
+
+## Mock and live provider modes
+
+Both modes run the real Playrunner frontend, local authentication, API,
+credential encryption, and PostgreSQL persistence:
+
+| Mode   | Third-party provider boundary                                      | Intended use                    |
+| ------ | ------------------------------------------------------------------ | ------------------------------- |
+| `mock` | Uses fake data or a deterministic fake provider when one is needed | Pull requests and local changes |
+| `live` | Uses protected credentials and the real provider                   | Manual or protected CI checks   |
+
+Run protected live-provider scenarios with:
+
+```bash
+npm run test:e2e:live
+npm run test:e2e:live -- --grep @github
+```
+
+Each scenario declares `mode: 'mock'` or `mode: 'live'`. The harness skips
+scenarios belonging to the other mode. No package currently contributes a live
+scenario, so `npm run test:e2e:live` currently reports the discovered mock
+scenarios as skipped. Adding live scenarios also requires package-specific
+secret gating; credentials must never be committed or included in reports,
+traces, screenshots, or videos.
+
+The OpenAI mock scenario connects a fake API key through the real API, confirms
+the encrypted connection state survives a browser reload, disconnects it, and
+confirms the disconnected state also survives a reload. It does not make a
+request to OpenAI.
 
 ## Reports and debugging
 
@@ -58,12 +98,17 @@ Playwright retains traces, screenshots, and videos for failed attempts under
 Useful troubleshooting checks:
 
 - **No tests found:** include the forwarding separator in
-  `npm run test:e2e -- --grep @openai`. Playwright treats its remaining command
-  arguments as test-file regular expressions, so `@openai` must reach `--grep`.
+  `npm run test:e2e:mock -- --grep @github`. Playwright treats its remaining
+  command arguments as test-file regular expressions, so the tag must reach
+  `--grep`.
 - **Chromium executable is missing:** run the browser installation command
   above.
-- **Port 4173 is already in use:** stop the existing frontend dev server before
-  rerunning the suite.
+- **Database preparation fails:** confirm PostgreSQL is running and
+  `apps/api/.env` contains a working `DATABASE_URL`, or set
+  `PLAYRUNNER_E2E_DATABASE_URL`.
+- **Port 3999 or 4173 is already in use:** stop the existing process before
+  rerunning the suite. The harness deliberately refuses to reuse another API or
+  frontend process.
 - **No HTML report found:** run a test with the current configuration first,
   then invoke `npx playwright show-report` from the repository root.
 
@@ -81,7 +126,9 @@ apps/frontend/e2e/package-contributions.spec.ts
                     │
                     ├── real Vite frontend
                     ├── shared Playrunner host POM
-                    └── isolated in-memory API fixture
+                    └── real API + isolated PostgreSQL schema
+                                      │
+                                      └── mock or live provider boundary
 ```
 
 The core discovers contributions from package metadata and exports, not from

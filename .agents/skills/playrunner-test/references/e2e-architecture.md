@@ -6,7 +6,7 @@
 2. Package metadata and shared contract
 3. POM, data, and scenario rules
 4. Core harness and discovery
-5. Authentication and API fixtures
+5. Authentication, database, and provider fixtures
 6. Selectors and accessibility
 7. Test levels and provider boundaries
 8. CI and isolation
@@ -29,7 +29,8 @@ Integration package
                      ▼
 Core frontend E2E harness
   ├── starts the frontend
-  ├── provides authenticated state and Playrunner API fixtures
+  ├── starts the real Playrunner API and dedicated database schema
+  ├── provides authenticated state and provider-boundary fakes
   ├── supplies the host POM
   ├── discovers installed package E2E contributions
   ├── registers package scenarios as Playwright tests
@@ -40,7 +41,7 @@ The core owns:
 
 - Browser and web-server lifecycle.
 - Authentication state.
-- Generic Playrunner API/database drivers.
+- Real Playrunner API/database lifecycle and per-test cleanup.
 - Projects, integrations, editor, and other host POMs.
 - Build-time discovery and runtime contribution validation.
 - Playwright configuration, projects, retries, and reporters.
@@ -143,8 +144,9 @@ on records created by another scenario. Prefer serializable data.
 
 ### Scenarios
 
-Each scenario needs an id, title, optional tags, and an async `run` function.
-One scenario should prove one coherent user journey and clean up its state.
+Each scenario needs an id, title, `mode: 'mock' | 'live'`, optional tags, and an
+async `run` function. One scenario should prove one coherent user journey and
+clean up its state.
 
 The first deterministic scenario for a connection-oriented package should
 normally verify:
@@ -174,12 +176,15 @@ apps/frontend/
     contribution-registry.ts
     core/
       PlayrunnerHostPom.ts
-      IntegrationStoreDriver.ts
     generated/
       package-e2e-contributions.ts
     specs/
       package-contributions.spec.ts
 ```
+
+The API-side launcher lives at `apps/api/src/e2e/start.ts`. It prepares the
+dedicated database schema, seeds local authentication, and starts the ordinary
+API entrypoint on the E2E port.
 
 Extend `infra/scripts/generate-integration-composition.mjs` with the `e2e`
 surface. The generator must:
@@ -204,13 +209,14 @@ The generic spec loops over discovered contributions and scenarios, creates a
 run id from Playwright `testInfo`, creates data and a POM, and calls the package
 scenario with `{ data, expect, host, page, pom }`.
 
-## 5. Authentication and API fixtures
+## 5. Authentication, database, and provider fixtures
 
-For deterministic frontend/package scenarios, use an isolated browser context,
-inject local-auth state before app code runs, and intercept the Playrunner API
-from the core fixture.
+For every frontend/package scenario, run the real Playrunner API against the
+dedicated `playrunner_e2e` PostgreSQL schema. Log in through the real local-auth
+endpoint, inject the returned session before app code runs, and clear records
+through authenticated API calls before and after each test.
 
-The integration-store driver should implement the browser-visible contract:
+The browser must exercise the real routes, including:
 
 - `GET /api/auth/session`
 - `GET /api/store/integrations`
@@ -219,15 +225,11 @@ The integration-store driver should implement the browser-visible contract:
 - `DELETE /api/store/integrations/:id`
 - Required cloud-credential reads for the integrations page.
 
-Keep records in a new driver instance per test. Return public connection data
-with `credentialStatus.configured`; never echo secrets into UI responses.
-Reject unhandled API requests so missing fixture behaviour fails loudly.
+The API launcher derives a dedicated schema from `DATABASE_URL`, applies the
+Prisma schema, clears stale test state, and seeds local auth. It must never
+reset or migrate the developer's default application schema.
 
-This fast deterministic mode tests the real Vite-composed core and package UI,
-but simulates the Playrunner API. Add a database-backed mode separately when a
-scenario must prove the real API persistence boundary.
-
-If adding database-backed E2E:
+For database-backed E2E:
 
 - Use a dedicated PostgreSQL database or unique schema.
 - Seed known local-auth data.
@@ -237,8 +239,13 @@ If adding database-backed E2E:
 - If a control endpoint is unavoidable, require explicit E2E mode, a per-run
   secret, local binding, and startup refusal in production mode.
 
-Use Playwright storage state or per-worker auth for broader suites. Never commit
-auth state because it can contain impersonation credentials.
+Use Playwright storage state or per-worker auth for broader suites. Never
+commit auth state because it can contain impersonation credentials.
+
+Mock mode still traverses the real browser, API, encryption, and database
+boundaries. Only third-party OAuth, token, webhook, or provider API traffic may
+be faked. Live mode uses protected provider credentials, is tagged `@live`, and
+must be selected explicitly with `PLAYRUNNER_E2E_MODE=live`.
 
 ## 6. Selectors and accessibility
 
@@ -270,14 +277,14 @@ Run on every pull request:
 - Required accessible labels exist.
 - No package-load console errors.
 
-### Level 2: deterministic scenarios
+### Level 2: deterministic mock-provider scenarios
 
 Run on every pull request:
 
 - Required and invalid field validation.
 - Save, reload, persistence, disconnect, and error states.
 - Node configuration persistence.
-- Package API behaviour through deterministic fixtures.
+- Package API behaviour through the real API and deterministic provider fakes.
 - Successful and failed fake-upstream responses.
 - Local workflow execution where deterministic.
 
@@ -322,7 +329,8 @@ nightly or manual jobs. Support package filtering through tags such as
 - [ ] Add the SDK E2E TypeScript path where local source paths are used.
 - [ ] Add POM, data factory, scenarios, and default contribution.
 - [ ] Use the host POM for core navigation.
-- [ ] Use unique fake data and no real credentials.
+- [ ] Declare each scenario's mock or live provider mode.
+- [ ] Use unique fake data and no real credentials in mock mode.
 - [ ] Add accessible selectors to production UI only where needed.
 - [ ] Generate and inspect the contribution registry.
 - [ ] Run generator tests.
@@ -333,7 +341,7 @@ nightly or manual jobs. Support package filtering through tags such as
 
 The OpenAI package is the canonical first example: it exports a package POM,
 run-id-based fake API-key data, and a deterministic scenario covering connect,
-reload, and disconnect through the host's in-memory integration-store fixture.
+reload, and disconnect through the real API and dedicated E2E database schema.
 
 ## 10. Risks and definition of done
 

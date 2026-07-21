@@ -74,7 +74,7 @@ export default [
     },
   },
   {
-    files: ['src/api/**/*.ts', 'src/api-runtime/**/*.ts'],
+    files: ['src/api/**/*.ts', 'src/api-runtime/**/*.ts', 'src/e2e/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

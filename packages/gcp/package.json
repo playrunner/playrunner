@@ -27,7 +27,8 @@
     "integration": {
       "id": "gcp",
       "frontend": ".",
-      "api": "./api"
+      "api": "./api",
+      "e2e": "./e2e"
     }
   },
   "exports": {
@@ -55,6 +56,12 @@
       "require": "./src/api-runtime/index.ts",
       "default": "./src/api-runtime/index.ts"
     },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
+    },
     "./assets/gcp.svg": "./assets/gcp.svg"
   },
   "files": [
@@ -77,11 +84,15 @@
     "google-auth-library": "^10.6.2"
   },
   "peerDependencies": {
+    "@playwright/test": "^1.61.0",
     "@playrunner/integration-sdk": "^0.1.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "@playrunner/integration-sdk": {
       "optional": true
     },
@@ -94,6 +105,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.61.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",

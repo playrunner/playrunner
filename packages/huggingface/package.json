@@ -28,7 +28,8 @@
     "integration": {
       "id": "huggingface",
       "frontend": ".",
-      "orchestrator": "./orchestrator"
+      "orchestrator": "./orchestrator",
+      "e2e": "./e2e"
     }
   },
   "exports": {
@@ -49,6 +50,12 @@
       "import": "./src/orchestrator/index.ts",
       "require": "./src/orchestrator/index.ts",
       "default": "./src/orchestrator/index.ts"
+    },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
     },
     "./assets/huggingface.svg": "./assets/huggingface.svg"
   },
@@ -72,11 +79,15 @@
     "@huggingface/inference": "^4.13.23"
   },
   "peerDependencies": {
+    "@playwright/test": "^1.61.0",
     "@playrunner/integration-sdk": "^0.1.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "@playrunner/integration-sdk": {
       "optional": true
     },
@@ -89,6 +100,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.61.0",
     "@types/node": "^25.6.2",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",

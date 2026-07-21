@@ -41,6 +41,7 @@ export function validateE2EContributions(
         !scenario ||
         typeof scenario.id !== 'string' ||
         !scenario.id ||
+        (scenario.mode !== 'mock' && scenario.mode !== 'live') ||
         typeof scenario.title !== 'string' ||
         !scenario.title ||
         typeof scenario.run !== 'function'

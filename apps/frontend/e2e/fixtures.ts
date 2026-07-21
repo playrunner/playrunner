@@ -1,29 +1,66 @@
-import { test as base, expect } from '@playwright/test';
-import { IntegrationStoreDriver } from './core/IntegrationStoreDriver';
+import { test as base, expect, type APIRequestContext } from '@playwright/test';
 import { PlayrunnerHostPom } from './core/PlayrunnerHostPom';
-
-const authSession = {
-  token: 'playrunner-e2e-token',
-  user: {
-    uid: 'e2e-user',
-    username: 'e2e@playrunner.dev',
-    name: 'Playrunner E2E',
-  },
-};
 
 type PlayrunnerFixtures = {
   host: PlayrunnerHostPom;
-  integrationStore: IntegrationStoreDriver;
-  mockPlayrunnerApi: void;
+  realPlayrunnerApi: void;
 };
 
-export const test = base.extend<PlayrunnerFixtures>({
-  integrationStore: async ({}, use) => {
-    await use(new IntegrationStoreDriver());
-  },
+async function clearIntegrationConnections(
+  request: APIRequestContext,
+  token: string,
+) {
+  const headers = { Authorization: `Bearer ${token}` };
+  const response = await request.get(
+    'http://127.0.0.1:3999/api/store/integrations',
+    { headers },
+  );
+  if (!response.ok()) {
+    throw new Error(`Failed to list E2E integrations: ${response.status()}`);
+  }
+  const payload = (await response.json()) as {
+    integrations?: Record<string, unknown>;
+  };
 
-  mockPlayrunnerApi: [
-    async ({ context, integrationStore }, use) => {
+  await Promise.all(
+    Object.keys(payload.integrations ?? {}).map(async (provider) => {
+      const deleteResponse = await request.delete(
+        `http://127.0.0.1:3999/api/store/integrations/${encodeURIComponent(provider)}`,
+        { headers },
+      );
+      if (!deleteResponse.ok()) {
+        throw new Error(
+          `Failed to clear E2E integration "${provider}": ${deleteResponse.status()}`,
+        );
+      }
+    }),
+  );
+}
+
+export const test = base.extend<PlayrunnerFixtures>({
+  realPlayrunnerApi: [
+    async ({ context, request }, use) => {
+      const response = await request.post(
+        'http://127.0.0.1:3999/api/auth/login',
+        {
+          data: {
+            password: 'playrunner-e2e-password',
+            username: 'e2e@playrunner.dev',
+          },
+        },
+      );
+      if (!response.ok()) {
+        throw new Error(
+          `Failed to authenticate with the E2E API: ${response.status()} ${await response.text()}`,
+        );
+      }
+      const authSession = (await response.json()) as {
+        token: string;
+        user: { name?: string; uid: string; username: string };
+      };
+
+      await clearIntegrationConnections(request, authSession.token);
+
       await context.addInitScript((session) => {
         window.localStorage.setItem(
           'playrunner.localAuthSession',
@@ -31,13 +68,10 @@ export const test = base.extend<PlayrunnerFixtures>({
         );
         window.localStorage.setItem('hasCompletedOnboarding', 'true');
       }, authSession);
-      await context.route('**/api/**', (route) =>
-        integrationStore.handle(route),
-      );
 
       await use();
 
-      await context.unrouteAll({ behavior: 'wait' });
+      await clearIntegrationConnections(request, authSession.token);
     },
     { auto: true },
   ],

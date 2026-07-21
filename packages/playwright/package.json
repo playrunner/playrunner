@@ -27,7 +27,8 @@
     "integration": {
       "id": "playwright",
       "frontend": ".",
-      "api": "./api"
+      "api": "./api",
+      "e2e": "./e2e"
     }
   },
   "exports": {
@@ -49,6 +50,12 @@
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
     },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
+    },
     "./assets/playwright.svg": "./assets/playwright.svg"
   },
   "files": [
@@ -69,12 +76,16 @@
   },
   "peerDependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@playwright/test": "^1.61.0",
     "@playrunner/github": "^0.1.0",
     "@playrunner/integration-sdk": "^0.1.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
     "@monaco-editor/react": {
+      "optional": true
+    },
+    "@playwright/test": {
       "optional": true
     },
     "@playrunner/github": {
@@ -90,6 +101,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@monaco-editor/react": "^4.7.0",
+    "@playwright/test": "1.61.0",
     "@types/express": "^5.0.6",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",

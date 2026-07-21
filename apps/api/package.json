@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test": "node --import tsx --test src/**/*.test.ts",
+    "dev:e2e": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx src/e2e/start.ts",
     "start": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx --watch --env-file=.env src/index.ts",
     "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts"
   },

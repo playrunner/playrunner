@@ -1,6 +1,6 @@
 ---
 name: playrunner-test
-description: Build and maintain Playrunner package-owned Playwright end-to-end coverage, including the core frontend E2E harness, shared integration E2E contracts, package POMs, deterministic datasets, scenario contributions, generated discovery, API fixtures, selectors, and CI verification. Use when adding E2E coverage to packages/*, changing apps/frontend/e2e, extending the e2e integration surface, debugging package browser tests, or reviewing Playrunner test architecture.
+description: Build and maintain Playrunner package-owned Playwright end-to-end coverage, including the core frontend E2E harness, real API/database lifecycle, mock and live provider modes, shared integration E2E contracts, package POMs, deterministic datasets, scenario contributions, generated discovery, selectors, and CI verification. Use when adding E2E coverage to packages/*, changing apps/frontend/e2e, extending the e2e integration surface, debugging package browser tests, or reviewing Playrunner test architecture.
 ---
 
 # Playrunner Test
@@ -8,8 +8,8 @@ description: Build and maintain Playrunner package-owned Playwright end-to-end c
 ## Overview
 
 Keep package-specific test knowledge in the package and keep browser, host,
-authentication, API simulation, discovery, and reporting infrastructure in the
-core frontend harness.
+authentication, real Playrunner API/database lifecycle, provider fakes,
+discovery, and reporting infrastructure in the core frontend harness.
 
 Read [references/e2e-architecture.md](references/e2e-architecture.md) completely
 before adding a package contribution or changing the harness contract.
@@ -27,8 +27,8 @@ before adding a package contribution or changing the harness contract.
    navigation, browser creation, server startup, or reporting in the package.
 6. Prefer accessible roles, names, and labels. Add a namespaced test id only
    where a stable semantic locator is unavailable.
-7. Use deterministic host API fixtures for pull-request tests. Never require a
-   real provider secret for default E2E execution.
+7. Run the real Playrunner API against the dedicated E2E database schema.
+   Replace only outbound provider boundaries in default mock mode.
 8. Generate the E2E contribution registry before Playwright test discovery.
 9. Run the package, SDK, generator, frontend, and browser checks listed below.
 
@@ -43,9 +43,12 @@ before adding a package contribution or changing the harness contract.
   records left by another test.
 - Never store real API keys, tokens, OAuth state, auth storage, traces, videos,
   reports, or test results in Git.
-- Mock browser-to-Playrunner APIs in the core fixture. For API-server outbound
-  provider traffic, use an injectable client or fake upstream server because
-  `page.route` cannot intercept server-side HTTP.
+- Never mock browser-to-Playrunner APIs in package E2E. Run the real API and
+  dedicated PostgreSQL schema. For API-server outbound provider traffic, use
+  an injectable client or fake upstream server because `page.route` cannot
+  intercept server-side HTTP.
+- Every scenario declares `mode: 'mock' | 'live'`. Default runs select `mock`;
+  live scenarios must be explicitly selected and secret-gated.
 - Keep live-provider tests optional, tagged `@live`, secret-gated, and outside
   the normal pull-request gate.
 - Do not add package ids or imports to handwritten shared registries.
@@ -81,7 +84,8 @@ npm run lint --prefix packages/<id>
 npm run generate:e2e-integrations --prefix apps/frontend
 npm run typecheck --prefix apps/frontend
 npm run lint --prefix apps/frontend
-npm run test:e2e -- --grep @<id>
+npm run test:e2e:mock -- --grep @<id>
+npm run test:e2e:live -- --grep @<id>
 git diff --check
 ```
 

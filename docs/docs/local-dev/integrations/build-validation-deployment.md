@@ -48,7 +48,7 @@ When the package declares an E2E contribution, run its tagged scenarios from
 the repository root:
 
 ```bash
-npm run test:e2e -- --grep @<integration-id>
+npm run test:e2e:mock -- --grep @<integration-id>
 ```
 
 The root command forwards arguments to Playwright. Keep the `--` separator

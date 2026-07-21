@@ -68,6 +68,58 @@ npm run start -- --port 3004
 
 Then open `http://127.0.0.1:3004/playrunner/`.
 
+## Package end-to-end tests
+
+Package E2E tests run the real Vite frontend and Playrunner API against the
+dedicated `playrunner_e2e` PostgreSQL schema. Complete local setup first so
+`apps/api/.env` contains a working `DATABASE_URL`, and keep PostgreSQL running.
+The harness starts its own API and frontend processes on ports `3999` and
+`4173`; it does not reuse the normal development servers.
+
+Install Chromium once on a new development machine:
+
+```bash
+npm exec --prefix apps/frontend -- playwright install chromium
+```
+
+Run all deterministic mock-provider scenarios:
+
+```bash
+npm run test:e2e:mock
+```
+
+Run one package by its Playwright tag:
+
+```bash
+npm run test:e2e:mock -- --grep @github
+npm run test:e2e -- --grep @github
+```
+
+`npm run test:e2e` defaults to mock-provider mode. Mock mode still uses
+the real Playrunner frontend, authentication, API, credential encryption, and
+database; only outbound third-party provider boundaries may be faked.
+
+Live-provider scenarios are opt-in and run with:
+
+```bash
+npm run test:e2e:live
+npm run test:e2e:live -- --grep @github
+```
+
+Live scenarios require package-specific protected credentials. Packages with
+no live scenario are reported as skipped. To use another PostgreSQL server,
+set `PLAYRUNNER_E2E_DATABASE_URL`; the harness still isolates its tables in the
+`playrunner_e2e` schema.
+
+Open the latest HTML report from the repository root:
+
+```bash
+npx playwright show-report
+```
+
+See the [Testing guide](docs/docs/testing/index.md) for architecture,
+troubleshooting, and package-authoring instructions.
+
 ## License
 
 Playrunner is source-available under the [Playrunner Sustainable Use

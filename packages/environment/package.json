@@ -27,7 +27,8 @@
     "integration": {
       "id": "environment",
       "frontend": ".",
-      "api": "./api"
+      "api": "./api",
+      "e2e": "./e2e"
     }
   },
   "exports": {
@@ -48,6 +49,12 @@
       "import": "./src/api/index.ts",
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
+    },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
     },
     "./types": {
       "types": "./src/frontend/types.ts",
@@ -72,11 +79,15 @@
     "express": "^5.2.1"
   },
   "peerDependencies": {
+    "@playwright/test": "^1.61.0",
     "@playrunner/integration-sdk": "^0.1.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
     "@playrunner/integration-sdk": {
       "optional": true
     },
@@ -89,6 +100,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.61.0",
     "@types/express": "^5.0.6",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",

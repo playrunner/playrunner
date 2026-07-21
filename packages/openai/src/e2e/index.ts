@@ -9,6 +9,7 @@ export const openaiE2EContribution = definePlayrunnerE2EContribution({
   scenarios: [
     {
       id: 'manage-api-key',
+      mode: 'mock',
       title: 'connects, reloads, and disconnects an OpenAI API key',
       tags: ['@openai', '@integration'],
       async run({ data, expect, pom }) {

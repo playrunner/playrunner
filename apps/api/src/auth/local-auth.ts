@@ -66,6 +66,36 @@ function hashPassword(password: string) {
   return `scrypt$${salt}$${derivedKey}`;
 }
 
+export async function configureLocalAuth(params: {
+  jwtSecret?: string;
+  password: string;
+  username: string;
+}) {
+  const username = params.username.trim();
+  if (!username) throw new Error('Local auth username is required.');
+  if (params.password.trim().length < 8) {
+    throw new Error('Local auth password must be at least 8 characters.');
+  }
+
+  await Promise.all([
+    upsertLocalAuthSecret(
+      LOCAL_AUTH_SECRET_KEYS.username,
+      username,
+      'Local setup admin username.',
+    ),
+    upsertLocalAuthSecret(
+      LOCAL_AUTH_SECRET_KEYS.passwordHash,
+      hashPassword(params.password),
+      'Local setup admin password hash.',
+    ),
+    upsertLocalAuthSecret(
+      LOCAL_AUTH_SECRET_KEYS.jwtSecret,
+      params.jwtSecret ?? crypto.randomBytes(32).toString('base64url'),
+      'Local setup JWT signing secret.',
+    ),
+  ]);
+}
+
 async function upsertLocalAuthSecret(
   secretKey: string,
   value: string,

@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test';
 
+export type PlayrunnerE2EMode = 'live' | 'mock';
+
 export interface PlayrunnerE2EDataContext {
+  mode: PlayrunnerE2EMode;
   runId: string;
   testId: string;
   workerIndex: number;
@@ -26,6 +29,7 @@ export interface PlayrunnerE2EScenarioContext<TPom, TData> {
 
 export interface PlayrunnerE2EScenario<TPom, TData> {
   id: string;
+  mode: PlayrunnerE2EMode;
   title: string;
   tags?: readonly string[];
   run(context: PlayrunnerE2EScenarioContext<TPom, TData>): Promise<void>;

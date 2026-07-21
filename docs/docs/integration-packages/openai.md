@@ -128,7 +128,7 @@ harness.
 Run only this package's scenario from the repository root:
 
 ```bash
-npm run test:e2e -- --grep @openai
+npm run test:e2e:mock -- --grep @openai
 ```
 
 No real OpenAI request is made and no provider credential is required. See

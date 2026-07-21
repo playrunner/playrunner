@@ -12,7 +12,8 @@
     "paths": {
       "@playrunner/integration-sdk": [
         "../integration-sdk/src/frontend/index.tsx"
-      ]
+      ],
+      "@playrunner/integration-sdk/e2e": ["../integration-sdk/src/e2e/index.ts"]
     }
   },
   "include": ["src"]

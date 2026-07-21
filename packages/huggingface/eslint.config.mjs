@@ -52,7 +52,7 @@ export default [
     },
   },
   {
-    files: ['src/orchestrator/**/*.ts'],
+    files: ['src/e2e/**/*.ts', 'src/orchestrator/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

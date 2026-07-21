@@ -11,6 +11,8 @@
     "build:oss": "ENABLE_PREMIUM=false npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
     "build:premium": "ENABLE_PREMIUM=true npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
     "test:e2e": "npm run e2e --prefix apps/frontend --",
+    "test:e2e:mock": "PLAYRUNNER_E2E_MODE=mock npm run e2e --prefix apps/frontend --",
+    "test:e2e:live": "PLAYRUNNER_E2E_MODE=live npm run e2e --prefix apps/frontend --",
     "test:integration-composition": "node --test infra/scripts/generate-integration-composition.test.mjs"
   }
 }

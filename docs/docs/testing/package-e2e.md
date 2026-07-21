@@ -8,12 +8,13 @@ description: Add package-owned data, page objects, and Playwright scenarios to t
 
 An integration package owns the browser behavior specific to its provider. The
 core frontend owns only the reusable environment: application startup, package
-discovery, browser lifecycle, host navigation, API simulation, and reporting.
+discovery, browser lifecycle, host navigation, real API/database lifecycle,
+authentication, cleanup, provider-mode selection, and reporting.
 
-| Owner               | Responsibility                                                        |
-| ------------------- | --------------------------------------------------------------------- |
-| Integration package | Provider test data, selectors, POM actions, assertions, and scenarios |
-| Core E2E harness    | Discovery, Vite startup, Playwright fixtures, host POM, and API state |
+| Owner               | Responsibility                                                               |
+| ------------------- | ---------------------------------------------------------------------------- |
+| Integration package | Provider test data, selectors, POM actions, assertions, and scenarios        |
+| Core E2E harness    | Discovery, Vite/API startup, database isolation, auth, host POM, and cleanup |
 
 ## Package layout
 
@@ -127,10 +128,12 @@ const exampleE2EContribution = definePlayrunnerE2EContribution({
   scenarios: [
     {
       id: 'connect',
+      mode: 'mock',
       title: 'connects an Example API key',
       tags: ['@example', '@integration'],
       async run({ data, expect, pom }) {
         await pom.open();
+        await pom.apiKeyInput.click();
         await pom.apiKeyInput.fill(data.apiKey);
         await expect(pom.dialog).toBeVisible();
       },
@@ -155,13 +158,28 @@ Keep package scenarios independent and safe to run in parallel:
 - begin from a known browser state and avoid ordering dependencies;
 - test user-visible behavior rather than private component implementation;
 - never put real API keys or secrets in datasets, traces, or screenshots;
-- simulate browser-facing Playrunner APIs in the shared fixture; and
-- use a server-side fake upstream only when a scenario must exercise the real
-  Playrunner API boundary.
+- always use the real browser-facing Playrunner API and dedicated E2E database;
+- fake only the outbound provider boundary in mock mode; and
+- use an injectable provider client or server-side fake upstream because
+  `page.route` cannot intercept HTTP initiated by the API or Orchestrator.
 
-The default deterministic suite proves frontend package composition and user
-flows. It is not a provider contract test and does not prove that a live
-third-party credential works.
+The default deterministic suite proves frontend package composition, local
+authentication, API behavior, encrypted persistence, and user flows. It is not
+a live provider contract test and does not prove that a third-party credential
+works.
+
+## Choose the provider mode
+
+Every scenario declares exactly one provider mode:
+
+- `mode: 'mock'` is the default pull-request path. It uses fake package data and
+  deterministic provider responses while retaining the real Playrunner stack.
+- `mode: 'live'` is optional, secret-gated, and selected explicitly. It calls
+  the real provider from protected CI or a manual developer run.
+
+Keep live-provider credentials out of package datasets and browser fields when
+failure artifacts could capture them. Live scenarios must use dedicated test
+tenants, least-privilege access, safe operations, and remote cleanup.
 
 ## Verify a package
 
@@ -174,7 +192,10 @@ npm --prefix packages/example run lint
 npm --prefix packages/example run typecheck
 
 npm run test:integration-composition
-npm run test:e2e -- --grep @example
+npm run test:e2e:mock -- --grep @example
+
+# Only when the package contributes a protected live scenario:
+npm run test:e2e:live -- --grep @example
 
 npm --prefix apps/frontend run lint
 npm --prefix apps/frontend run typecheck

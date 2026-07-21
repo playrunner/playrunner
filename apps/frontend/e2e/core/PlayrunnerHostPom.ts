@@ -16,15 +16,22 @@ export class PlayrunnerHostPom implements PlayrunnerE2EHost {
   }
 
   async openIntegration({ id, name }: { id: string; name: string }) {
+    const connectionResponse = this.page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === 'GET' &&
+        url.pathname === `/api/store/integrations/${id}`
+      );
+    });
     await this.gotoIntegrations();
+    const response = await connectionResponse;
+    const payload = (await response.json()) as { integration?: unknown };
     const card = this.integrationCard(id);
-    const connectButton = card.getByRole('button', { name: 'Connect' });
+    const button = payload.integration
+      ? card.getByRole('button', { name: `Configure ${name}` })
+      : card.getByRole('button', { name: 'Connect' });
 
-    if (await connectButton.isVisible()) {
-      await connectButton.click();
-    } else {
-      await card.getByRole('button', { name: `Configure ${name}` }).click();
-    }
+    await button.click();
 
     await this.page
       .getByRole('dialog', { name: `Connect to ${name}` })
