@@ -27,7 +27,7 @@
     "@playrunner/integration-sdk": "^0.1.0",
     "@playrunner/jira": "^0.1.0",
     "@playrunner/slack": "^0.1.0",
-    "axios": "^1.16.0",
+    "axios": "^1.18.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
