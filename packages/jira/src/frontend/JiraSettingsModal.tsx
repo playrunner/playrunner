@@ -6,6 +6,7 @@ import {
   IntegrationSettingsModal,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
+import { BookOpen, ExternalLink } from 'lucide-react';
 import { jiraIconUrl } from './icon';
 
 interface JiraSettingsModalProps {
@@ -232,21 +233,29 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
       onPrimaryAction={handleAuthenticateJira}
     >
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
-        <p className="text-sm font-medium text-[var(--foreground)]">
-          Jira OAuth setup
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-muted">
-          Use the setup guide to create the Atlassian OAuth integration, assign
-          Jira scopes, and find the client ID and secret.
-        </p>
-        <a
-          href={JIRA_SETUP_DOCS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
-        >
-          Open Jira setup guide
-        </a>
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
+            <BookOpen className="h-4 w-4 text-muted" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Jira OAuth setup
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Use the setup guide to create the Atlassian OAuth integration,
+              assign Jira scopes, and find the client ID and secret.
+            </p>
+            <a
+              href={JIRA_SETUP_DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+            >
+              Open Jira setup guide
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">

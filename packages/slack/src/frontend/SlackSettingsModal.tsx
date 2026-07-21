@@ -5,6 +5,7 @@ import {
   IntegrationSettingsModal,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
+import { BookOpen, ExternalLink } from 'lucide-react';
 import { slackIconUrl } from './icon';
 
 interface SlackSettingsModalProps {
@@ -57,10 +58,7 @@ export function SlackSettingsModal({
       if (!isOpen || !auth.currentUser) return;
 
       try {
-        const data = await store.getIntegration(
-          auth.currentUser.uid,
-          'slack',
-        );
+        const data = await store.getIntegration(auth.currentUser.uid, 'slack');
 
         if (!data || !isMounted) return;
 
@@ -209,9 +207,7 @@ export function SlackSettingsModal({
       window.addEventListener('message', messageListener);
 
       const redirectUri = encodeURIComponent(callbackUrl);
-      const scopes = encodeURIComponent(
-        'chat:write,channels:read,groups:read',
-      );
+      const scopes = encodeURIComponent('chat:write,channels:read,groups:read');
       const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${redirectUri}&response_type=code`;
       const width = 500;
       const height = 700;
@@ -286,22 +282,30 @@ export function SlackSettingsModal({
       onPrimaryAction={onPrimaryAction}
     >
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
-        <p className="text-sm font-medium text-[var(--foreground)]">
-          Slack setup
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-muted">
-          Create a Slack App with OAuth and Bot Token scopes, then enter the
-          credentials below. Alternatively, use an incoming webhook for
-          simple notifications.
-        </p>
-        <a
-          href={SLACK_SETUP_DOCS_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
-        >
-          Open Slack setup guide
-        </a>
+        <div className="flex items-start gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--background)]">
+            <BookOpen className="h-4 w-4 text-muted" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Slack setup
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Create a Slack App with OAuth and Bot Token scopes, then enter the
+              credentials below. Alternatively, use an incoming webhook for
+              simple notifications.
+            </p>
+            <a
+              href={SLACK_SETUP_DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
+            >
+              Open Slack setup guide
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-2 border-b border-subtle pb-2">

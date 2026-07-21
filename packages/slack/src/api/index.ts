@@ -46,10 +46,7 @@ slackRouter.post('/oauth-token', async (req, res) => {
         bot_user_id: data.bot_user_id,
       });
     } catch {
-      console.error(
-        'Token exchange failed. Slack returned non-JSON:',
-        text,
-      );
+      console.error('Token exchange failed. Slack returned non-JSON:', text);
       return res
         .status(500)
         .json({ error: 'Failed to exchange token', details: text });

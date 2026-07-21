@@ -32,7 +32,10 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
   useEffect(() => {
     async function fetchChannels() {
-      if (!integrationData?.accessToken || integrationData?.authMode === 'webhook')
+      if (
+        !integrationData?.accessToken ||
+        integrationData?.authMode === 'webhook'
+      )
         return;
 
       setIsLoadingChannels(true);

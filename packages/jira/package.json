@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/jira",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Jira integration package for Playrunner.",
   "keywords": [
     "playrunner",
@@ -76,10 +76,14 @@
   },
   "peerDependencies": {
     "@playrunner/integration-sdk": "^0.1.0",
+    "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
     "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "lucide-react": {
       "optional": true
     },
     "react": {
@@ -96,6 +100,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.6.0",
+    "lucide-react": "^0.546.0",
     "prettier": "3.8.4",
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.61.1"

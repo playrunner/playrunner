@@ -22,6 +22,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
 - In integration connection/settings dialogs, use `IntegrationConnectionInput` from `@playrunner/integration-sdk` instead of raw `Input` for manual fields, and include `IntegrationConnectionAutofillGuard` in custom modals so browsers and password-manager extensions do not autofill connection credentials.
+- Render every connection-dialog instructions or setup-guide callout with the canonical GCP/GitHub pattern: a `BookOpen` icon in the left inset icon container, title and supporting copy on the right, and an underlined guide link ending with an `ExternalLink` icon. Preserve the canonical sizing, spacing, theme-token classes, new-tab behavior, and `noopener noreferrer` relationship documented in `references/design-system.md`.
 - Render fixed-color or multicolor integration logos from their package-owned SVG URL. For monochrome logos that change with the theme, follow GitHub's package-owned React SVG component pattern with `fill="currentColor"`, and reuse the same component everywhere the integration icon appears; do not use a CSS mask.
 - Use `bg-background`, `bg-surface`, `bg-surface-hover`, `text-[var(--foreground)]`, `text-muted`, `border-[var(--border)]`, and `border-subtle` instead of hard-coded colors.
 - Use `rounded-xl` and `shadow-sm` for standard product cards and inset panels.

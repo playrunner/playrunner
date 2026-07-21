@@ -53,6 +53,7 @@
 
 - Treat setup as a product workflow, not a launch splash page.
 - Use the same forms, cards, muted copy, and status badges as the Design System page.
+- Match all integration connection-dialog instruction and setup-guide callouts to GCP and GitHub. Use an outer `rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left` surface with an `items-start gap-3` row. Place `BookOpen` at `h-4 w-4 text-muted` inside a `h-8 w-8 shrink-0 rounded-lg` inset container using the standard border and background tokens. Render the title as `text-sm font-medium`, the description as `mt-1 text-xs leading-relaxed text-muted`, and the guide anchor as `mt-3 inline-flex items-center gap-1.5 text-xs font-medium` with the standard underline and hover treatment. End the label with `ExternalLink` at `h-3.5 w-3.5`, and set `target="_blank"` plus `rel="noopener noreferrer"`.
 - If a setup screen currently uses a bespoke hero, gradient, or white-on-dark panel, replace it with normal surface cards unless there is a strong repo-local reason not to.
 
 ## Anti-Patterns
