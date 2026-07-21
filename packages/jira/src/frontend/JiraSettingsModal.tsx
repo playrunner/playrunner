@@ -55,14 +55,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
 
         if (!data || !isMounted) return;
 
-        if (data.clientId) {
-          setJiraClientId(data.clientId);
-          setJiraClientSecret(data.clientSecret || '');
-        }
-
-        if (data.clientId && data.accessToken) {
-          setAuthSuccess(true);
-        }
+        setAuthSuccess(Boolean(data.credentialStatus?.configured));
       } catch (error) {
         console.error('Failed to fetch Jira credentials', error);
       }
@@ -94,16 +87,6 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
   const handleAuthenticateJira = async () => {
     try {
       setIsAuthenticating(true);
-
-      const currentUser = auth.currentUser;
-
-      if (currentUser) {
-        await store.saveIntegration(currentUser.uid, 'jira', {
-          clientId: jiraClientId,
-          clientSecret: jiraClientSecret,
-          updatedAt: new Date().toISOString(),
-        });
-      }
 
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
@@ -139,23 +122,11 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
 
           const tokenData = await tokenRes.json();
 
-          if (!tokenRes.ok || !tokenData.access_token) {
+          if (!tokenRes.ok || !tokenData.connected) {
             throw new Error(
               `Failed to retrieve access token: ${JSON.stringify(tokenData)}`,
             );
           }
-
-          await store.saveIntegration(auth.currentUser.uid, 'jira', {
-            clientId: jiraClientId,
-            clientSecret: jiraClientSecret,
-            code: event.data.params.code,
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            expiresAt: tokenData.expires_in
-              ? Date.now() + tokenData.expires_in * 1000
-              : undefined,
-            updatedAt: new Date().toISOString(),
-          });
 
           setIsAuthenticating(false);
           setAuthSuccess(true);

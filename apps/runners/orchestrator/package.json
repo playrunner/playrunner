@@ -25,11 +25,11 @@
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
     "@huggingface/inference": "^4.13.23",
-    "@playrunner/huggingface": "0.1.1",
-    "@playrunner/integration-sdk": "^0.1.0",
-    "@playrunner/jira": "^0.1.1",
-    "@playrunner/openai": "0.1.2",
-    "@playrunner/slack": "^0.1.1",
+    "@playrunner/huggingface": "file:../../../packages/huggingface",
+    "@playrunner/integration-sdk": "file:../../../packages/integration-sdk",
+    "@playrunner/jira": "file:../../../packages/jira",
+    "@playrunner/openai": "file:../../../packages/openai",
+    "@playrunner/slack": "file:../../../packages/slack",
     "axios": "^1.18.0",
     "express": "^5.2.1"
   },

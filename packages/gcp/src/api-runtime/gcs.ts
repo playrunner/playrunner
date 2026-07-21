@@ -93,19 +93,11 @@ export async function refreshGcpAccessTokenIfNeeded(
         res.status +
         ' hasAccessToken: ' +
         !!tokenData.access_token +
-        (tokenData.error
-          ? ' error: ' +
-            tokenData.error +
-            ' ' +
-            (tokenData.error_description || '')
-          : ''),
+        (tokenData.error ? ' errorCode: ' + tokenData.error : ''),
     );
 
     if (tokenData.access_token) {
-      console.log(
-        '[GCS] Token refreshed successfully, new token length: ' +
-          tokenData.access_token.length,
-      );
+      console.log('[GCS] Token refreshed successfully.');
       return tokenData.access_token;
     }
   } catch (e) {
@@ -115,14 +107,7 @@ export async function refreshGcpAccessTokenIfNeeded(
 }
 
 export function getStorage(accessToken: string, projectId: string): Storage {
-  console.log(
-    '[GCS] getStorage: using OAuth user token (length=' +
-      (accessToken?.length || 0) +
-      ' prefix=' +
-      (accessToken ? accessToken.substring(0, 10) + '...' : 'none') +
-      ' projectId=' +
-      projectId,
-  );
+  console.log('[GCS] getStorage: using saved OAuth credentials.');
 
   const oauth2Client = new OAuth2Client();
   oauth2Client.setCredentials({ access_token: accessToken });

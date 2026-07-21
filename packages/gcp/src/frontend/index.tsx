@@ -26,4 +26,3 @@ export const gcpCloudProvider = {
 
 export { GcpSettingsModal } from './GcpSettingsModal';
 export { gcpIconUrl } from './icon';
-export { refreshGcpCloudCredentialIfNeeded } from './tokenRefresh';

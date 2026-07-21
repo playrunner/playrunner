@@ -22,22 +22,15 @@ interface GcpSettingsModalProps {
 }
 
 type GcpCredentialData = {
-  accessToken?: string;
-  clientId?: string;
-  clientSecret?: string;
   cloudRunLocation?: string;
-  code?: string;
-  expiresAt?: number;
   orchestratorCpuIdle?: boolean;
   orchestratorImageUriTemplate?: string;
   orchestratorMaxInstanceCount?: number;
   orchestratorMinInstanceCount?: number;
   orchestratorServiceName?: string;
   playwrightImageUriTemplate?: string;
-  refreshToken?: string;
   schedulerServiceAccountEmail?: string;
   selectedProject?: string;
-  updatedAt?: string;
 };
 
 type GcpProject = {
@@ -311,19 +304,12 @@ export function GcpSettingsModal({
   }, []);
 
   const loadCredentialState = React.useCallback((data: any) => {
+    data = data?.config ?? {};
     const next: GcpCredentialData = {
-      accessToken:
-        typeof data?.accessToken === 'string' ? data.accessToken : undefined,
-      clientId: typeof data?.clientId === 'string' ? data.clientId : undefined,
-      clientSecret:
-        typeof data?.clientSecret === 'string' ? data.clientSecret : undefined,
       cloudRunLocation:
         typeof data?.cloudRunLocation === 'string'
           ? data.cloudRunLocation
           : undefined,
-      code: typeof data?.code === 'string' ? data.code : undefined,
-      expiresAt:
-        typeof data?.expiresAt === 'number' ? data.expiresAt : undefined,
       orchestratorImageUriTemplate:
         typeof data?.orchestratorImageUriTemplate === 'string'
           ? data.orchestratorImageUriTemplate
@@ -349,8 +335,6 @@ export function GcpSettingsModal({
         typeof data?.playwrightImageUriTemplate === 'string'
           ? data.playwrightImageUriTemplate
           : undefined,
-      refreshToken:
-        typeof data?.refreshToken === 'string' ? data.refreshToken : undefined,
       schedulerServiceAccountEmail:
         typeof data?.schedulerServiceAccountEmail === 'string'
           ? data.schedulerServiceAccountEmail
@@ -359,8 +343,6 @@ export function GcpSettingsModal({
         typeof data?.selectedProject === 'string'
           ? data.selectedProject
           : undefined,
-      updatedAt:
-        typeof data?.updatedAt === 'string' ? data.updatedAt : undefined,
     };
 
     credentialRef.current = next;
@@ -368,8 +350,6 @@ export function GcpSettingsModal({
     const svcName =
       next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
 
-    setGcpClientId(next.clientId || '');
-    setGcpClientSecret(next.clientSecret || '');
     setCloudRunLocation(regionVal);
     setOrchestratorServiceName(svcName);
     setOrchestratorMinInstanceCount(
@@ -422,7 +402,6 @@ export function GcpSettingsModal({
             ? patch.orchestratorMinInstanceCount
             : (credentialRef.current.orchestratorMinInstanceCount ??
               DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT),
-        updatedAt: new Date().toISOString(),
       };
 
       credentialRef.current = next;
@@ -432,157 +411,46 @@ export function GcpSettingsModal({
         );
       }
 
-      await store.saveCloudCredential(auth.currentUser.uid, 'gcp', next);
+      await store.saveCloudCredential(auth.currentUser.uid, 'gcp', {
+        provider: 'gcp',
+        config: next,
+      });
       return next;
     },
     [auth.currentUser, store],
   );
 
-  const fetchGcpProjects = React.useCallback(
-    async (cred: {
-      accessToken: string;
-      refreshToken?: string;
-      clientId?: string;
-      clientSecret?: string;
-      expiresAt?: number;
-    }) => {
-      setIsLoadingProjects(true);
-      setProjectFetchError('');
-      try {
-        let currentToken = cred.accessToken;
-        let refreshed = false;
-
-        const performRefresh = async () => {
-          if (
-            !cred.refreshToken ||
-            !cred.clientId ||
-            !cred.clientSecret ||
-            !auth.currentUser
-          )
-            return false;
-
-          try {
-            const userToken = await auth.currentUser.getIdToken();
-            const refreshRes = await fetch('/api/gcp/refresh', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${userToken}`,
-              },
-              body: JSON.stringify({
-                refresh_token: cred.refreshToken,
-                client_id: cred.clientId,
-                client_secret: cred.clientSecret,
-              }),
-            });
-
-            if (refreshRes.ok) {
-              const refreshData = await refreshRes.json();
-              if (refreshData.access_token) {
-                const next = await persistCredentialPatch({
-                  accessToken: refreshData.access_token,
-                  expiresAt: refreshData.expires_in
-                    ? Date.now() + refreshData.expires_in * 1000
-                    : undefined,
-                });
-
-                currentToken = next.accessToken || refreshData.access_token;
-                return true;
-              }
-            }
-          } catch (e) {
-            console.error('Failed to refresh token', e);
-          }
-          return false;
-        };
-
-        const fetchProjectsWithToken = async (accessToken: string) => {
-          const loadedProjects: GcpProject[] = [];
-          let pageToken = '';
-
-          do {
-            const url = new URL(
-              'https://cloudresourcemanager.googleapis.com/v1/projects',
-            );
-            if (pageToken) {
-              url.searchParams.set('pageToken', pageToken);
-            }
-
-            const res = await fetch(url.toString(), {
-              headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            const data = await res.json().catch(() => ({}));
-
-            if (!res.ok) {
-              return { data, ok: false, status: res.status } as const;
-            }
-
-            if (Array.isArray(data.projects)) {
-              loadedProjects.push(
-                ...data.projects
-                  .filter(
-                    (project: { projectId?: unknown }) =>
-                      typeof project.projectId === 'string' &&
-                      project.projectId.trim(),
-                  )
-                  .map((project: { name?: unknown; projectId: string }) => ({
-                    name: typeof project.name === 'string' ? project.name : '',
-                    projectId: project.projectId,
-                  })),
-              );
-            }
-
-            pageToken =
-              typeof data.nextPageToken === 'string' ? data.nextPageToken : '';
-          } while (pageToken);
-
-          const uniqueProjects = Array.from(
-            new Map(
-              loadedProjects.map((project) => [project.projectId, project]),
-            ).values(),
-          ).sort((a, b) => a.projectId.localeCompare(b.projectId));
-
-          return { ok: true, projects: uniqueProjects } as const;
-        };
-
-        const isExpired = cred.expiresAt
-          ? Date.now() > cred.expiresAt - 5 * 60 * 1000
-          : false;
-        if (isExpired) {
-          refreshed = await performRefresh();
+  const fetchGcpProjects = React.useCallback(async () => {
+    setIsLoadingProjects(true);
+    setProjectFetchError('');
+    try {
+      if (!auth.currentUser) return;
+      const userToken = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/gcp/projects', {
+        headers: { Authorization: `Bearer ${userToken}` },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const loadedProjects = Array.isArray(data.projects)
+          ? data.projects
+          : [];
+        setProjects(loadedProjects);
+        if (!loadedProjects.length) {
+          setProjectFetchError(PROJECT_LOOKUP_EMPTY_MESSAGE);
         }
-
-        let projectResult = await fetchProjectsWithToken(currentToken);
-
-        if (!projectResult.ok && projectResult.status === 401 && !refreshed) {
-          const success = await performRefresh();
-          if (success) {
-            projectResult = await fetchProjectsWithToken(currentToken);
-          }
-        }
-
-        if (projectResult.ok) {
-          setProjects(projectResult.projects);
-          if (!projectResult.projects.length) {
-            setProjectFetchError(PROJECT_LOOKUP_EMPTY_MESSAGE);
-          }
-        } else {
-          setProjectFetchError(
-            getProjectLookupErrorMessage(projectResult.data),
-          );
-          console.error('Failed to fetch projects:', projectResult.data);
-        }
-      } catch (err) {
-        setProjectFetchError(
-          'Failed to fetch projects from Google Cloud. Enter the project ID manually to continue setup.',
-        );
-        console.error('Error fetching projects', err);
-      } finally {
-        setIsLoadingProjects(false);
+      } else {
+        setProjectFetchError(getProjectLookupErrorMessage(data));
+        console.error('Failed to fetch projects:', data);
       }
-    },
-    [auth.currentUser, persistCredentialPatch],
-  );
+    } catch (err) {
+      setProjectFetchError(
+        'Failed to fetch projects from Google Cloud. Enter the project ID manually to continue setup.',
+      );
+      console.error('Error fetching projects', err);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, [auth.currentUser]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -599,16 +467,10 @@ export function GcpSettingsModal({
             );
             if (data && isMounted) {
               loadCredentialState(data);
-              if (data.clientId && data.accessToken) {
+              if (data.credentialStatus?.configured) {
                 setAuthError('');
                 setAuthSuccess(true);
-                fetchGcpProjects({
-                  accessToken: data.accessToken,
-                  refreshToken: data.refreshToken,
-                  clientId: data.clientId,
-                  clientSecret: data.clientSecret,
-                  expiresAt: data.expiresAt,
-                });
+                fetchGcpProjects();
               }
             }
           }
@@ -646,13 +508,6 @@ export function GcpSettingsModal({
       setIsAuthenticating(true);
       setAuthError('');
 
-      if (auth.currentUser) {
-        await persistCredentialPatch({
-          clientId: gcpClientId,
-          clientSecret: gcpClientSecret,
-        });
-      }
-
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'oauth_callback' && event.data?.success) {
@@ -677,30 +532,14 @@ export function GcpSettingsModal({
 
               const tokenData = await tokenRes.json();
 
-              if (!tokenRes.ok || !tokenData.access_token) {
+              if (!tokenRes.ok || !tokenData.connected) {
                 throw new Error(
                   `Failed to retrieve access token: ${JSON.stringify(tokenData)}`,
                 );
               }
 
-              const next = await persistCredentialPatch({
-                clientId: gcpClientId,
-                clientSecret: gcpClientSecret,
-                code: event.data.params.code,
-                accessToken: tokenData.access_token,
-                refreshToken: tokenData.refresh_token,
-                expiresAt: tokenData.expires_in
-                  ? Date.now() + tokenData.expires_in * 1000
-                  : undefined,
-              });
               didConnect = true;
-              void fetchGcpProjects({
-                accessToken: next.accessToken || tokenData.access_token,
-                refreshToken: next.refreshToken,
-                clientId: next.clientId,
-                clientSecret: next.clientSecret,
-                expiresAt: next.expiresAt,
-              });
+              void fetchGcpProjects();
               if (popupRef.current)
                 popupRef.current.postMessage(
                   { type: 'oauth_close' },
@@ -938,22 +777,7 @@ export function GcpSettingsModal({
 
   const loadProjectsFromSavedCredential = React.useCallback(() => {
     if (!authSuccess || isLoadingProjects) return;
-
-    const credential = credentialRef.current;
-    if (!credential.accessToken) {
-      setProjectFetchError(
-        'Project lookup needs a saved Google OAuth token. Reconnect OAuth, then try again.',
-      );
-      return;
-    }
-
-    void fetchGcpProjects({
-      accessToken: credential.accessToken,
-      refreshToken: credential.refreshToken,
-      clientId: credential.clientId,
-      clientSecret: credential.clientSecret,
-      expiresAt: credential.expiresAt,
-    });
+    void fetchGcpProjects();
   }, [authSuccess, fetchGcpProjects, isLoadingProjects]);
 
   const isProjectRegionComplete = Boolean(

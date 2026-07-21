@@ -62,8 +62,7 @@ The local schema currently includes:
 
 - `Project`
 - `Workflow`
-- `Integration`
-- `CloudCredential`
+- `Connection`
 - `Environment`
 - `Secret`
 
@@ -86,4 +85,8 @@ GET/PUT/DELETE      /api/store/environments/:id
 PUT                 /api/store/secrets/:secretKey
 ```
 
-GitHub, Jira, and GCP token refresh still happen in the web `DbAPI` layer, but refreshed tokens are now persisted back through those Prisma-backed routes.
+Integration and cloud credentials share the `Connection` model and are
+distinguished by `kind`. Public store reads return non-secret `config` and a
+`credentialStatus`; package API routes and workflow execution resolve decrypted
+secrets on the server. OAuth refresh also runs on the server and writes updated
+tokens back as encrypted secrets.

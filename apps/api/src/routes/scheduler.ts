@@ -6,6 +6,7 @@ import { getPublicApiBaseUrl } from '../config';
 import { prisma } from '../lib/prisma';
 import { apiRuntime } from '../runtime';
 import { state } from '../state';
+import { getPublicConnection } from '../services/connections';
 
 export const schedulerRouter = Router();
 
@@ -83,40 +84,6 @@ function createExecutionRequest(req: Request, userId: string): Request {
   } as Request;
 }
 
-async function loadIntegrationSettings(userId: string) {
-  const [integrations, cloudCredential] = await Promise.all([
-    prisma.integration.findMany({ where: { userId } }),
-    prisma.cloudCredential.findUnique({
-      where: {
-        userId_provider: {
-          userId,
-          provider: 'gcp',
-        },
-      },
-    }),
-  ]);
-  const settings: Record<string, any> = {};
-
-  for (const integration of integrations) {
-    settings[integration.provider] =
-      integration.data &&
-      typeof integration.data === 'object' &&
-      !Array.isArray(integration.data)
-        ? integration.data
-        : {};
-  }
-
-  if (
-    cloudCredential?.data &&
-    typeof cloudCredential.data === 'object' &&
-    !Array.isArray(cloudCredential.data)
-  ) {
-    settings.gcp = cloudCredential.data;
-  }
-
-  return settings;
-}
-
 async function verifySchedulerIdentity({
   expectedEmail,
   req,
@@ -152,20 +119,8 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
     return;
   }
 
-  const credential = await prisma.cloudCredential.findUnique({
-    where: {
-      userId_provider: {
-        userId: schedule.userId,
-        provider: 'gcp',
-      },
-    },
-  });
-  const credentialData =
-    credential?.data &&
-    typeof credential.data === 'object' &&
-    !Array.isArray(credential.data)
-      ? (credential.data as Record<string, any>)
-      : null;
+  const credential = await getPublicConnection(schedule.userId, 'cloud', 'gcp');
+  const credentialData = credential?.config;
   const schedulerServiceAccountEmail =
     typeof credentialData?.schedulerServiceAccountEmail === 'string'
       ? credentialData.schedulerServiceAccountEmail.trim()
@@ -298,7 +253,6 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
     data: { executionId: testId },
   });
 
-  const settings = await loadIntegrationSettings(schedule.userId);
   let result;
 
   try {
@@ -313,7 +267,6 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
           scheduleId: schedule.id,
           scheduleNodeId: schedule.scheduleNodeId,
         },
-        settings,
         workflowId: schedule.workflowId,
         workflow: {
           definition: {

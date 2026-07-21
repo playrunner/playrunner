@@ -58,7 +58,7 @@ export function HuggingFaceSettingsModal({
           'huggingface',
         );
         if (active) {
-          setIsConnected(Boolean(data?.accessToken));
+          setIsConnected(Boolean(data?.credentialStatus?.configured));
         }
       } catch (error) {
         console.error('Failed to load Hugging Face connection', error);

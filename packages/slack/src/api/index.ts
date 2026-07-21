@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
+
+function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
+  return (req as { integrationCredentials?: IntegrationCredentialStore })
+    .integrationCredentials;
+}
 
 export const slackRouter = Router();
 
@@ -39,17 +45,30 @@ slackRouter.post('/oauth-token', async (req, res) => {
         return res.status(400).json({ error: data.error });
       }
 
-      return res.json({
-        access_token: data.access_token,
-        token_type: data.token_type,
-        team: data.team,
-        bot_user_id: data.bot_user_id,
+      const store = credentialStore(req);
+      if (!store) {
+        return res
+          .status(500)
+          .json({ error: 'Credential storage is unavailable.' });
+      }
+      await store.save('integration', 'slack', {
+        provider: 'slack',
+        config: {
+          authMode: 'oauth',
+          teamId: data.team?.id,
+          teamName: data.team?.name,
+          botUserId: data.bot_user_id,
+        },
+        secrets: {
+          clientId: client_id,
+          clientSecret: client_secret,
+          accessToken: data.access_token,
+        },
       });
+      return res.json({ connected: true });
     } catch {
-      console.error('Token exchange failed. Slack returned non-JSON:', text);
-      return res
-        .status(500)
-        .json({ error: 'Failed to exchange token', details: text });
+      console.error('Token exchange failed. Slack returned non-JSON.');
+      return res.status(500).json({ error: 'Failed to exchange token' });
     }
   } catch (err) {
     console.error('Slack token exchange error:', err);
@@ -58,10 +77,14 @@ slackRouter.post('/oauth-token', async (req, res) => {
 });
 
 slackRouter.get('/channels', async (req, res) => {
-  const token = req.headers['x-slack-auth'];
+  const connection = await credentialStore(req)?.resolve(
+    'integration',
+    'slack',
+  );
+  const token = connection?.secrets.accessToken;
 
-  if (!token || typeof token !== 'string') {
-    return res.status(401).json({ error: 'Missing x-slack-auth header' });
+  if (typeof token !== 'string' || !token) {
+    return res.status(401).json({ error: 'Slack is not connected.' });
   }
 
   try {

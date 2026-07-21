@@ -156,6 +156,30 @@ Local `file:` dependencies resolve through the frontend app's installed
 `node_modules`; Vite preserves symlinks for those package imports. There is no
 provider-specific Vite or TypeScript alias to add.
 
+Every locally edited package that contributes to the rendered feature must use
+a `file:` dependency. For example, local GitHub repository selection requires
+both entries below because the modal belongs to GitHub while the selector
+belongs to Playwright:
+
+```json
+{
+  "dependencies": {
+    "@playrunner/github": "file:../../packages/github",
+    "@playrunner/playwright": "file:../../packages/playwright"
+  }
+}
+```
+
+After installing, verify the selected modules before debugging runtime state:
+
+```bash
+npm --prefix apps/frontend ls @playrunner/github @playrunner/playwright --depth=0
+```
+
+Both entries should point into `../../packages`. If either resolves to an npm
+tarball, the frontend can show old package behavior even though the workspace
+source and another consuming app are current.
+
 Adding a frontend package or changing its metadata still requires updating the
 frontend artifact's selected dependency and rebuilding the frontend. Connecting
 credentials or editing a workflow node after deployment only configures the

@@ -38,7 +38,11 @@ export default function Projects() {
                 DbAPI.getCloudCredential(user.uid, provider.credentialId!),
               ),
             );
-            if (connected.some(Boolean)) {
+            if (
+              connected.some(
+                (connection) => connection?.credentialStatus?.configured,
+              )
+            ) {
               localStorage.setItem('hasCompletedOnboarding', 'true');
               setShowOnboarding(false);
             } else {

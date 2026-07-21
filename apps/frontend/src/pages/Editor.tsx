@@ -1189,10 +1189,10 @@ export default function Editor() {
                 user.uid,
                 p.credentialId!,
               );
-              if (p.id === cloudProvider && data?.selectedProject) {
-                setCloudProjectId(data.selectedProject);
+              if (p.id === cloudProvider && data?.config?.selectedProject) {
+                setCloudProjectId(data.config.selectedProject);
               }
-              return data?.clientId ? p.id : null;
+              return data?.credentialStatus?.configured ? p.id : null;
             } catch {
               return null;
             }
@@ -1213,7 +1213,6 @@ export default function Editor() {
       nodesToRun: NodeData[],
       connectionsToRun: Connection[],
       currentCloudProvider: string,
-      settings: Record<string, any>,
     ) => {
       const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
       if (!token) {
@@ -1239,7 +1238,6 @@ export default function Editor() {
         body: JSON.stringify({
           nodes: nodesToRun,
           connections: connectionsToRun,
-          settings,
           workflowId: activeWorkflowId,
           workflow: {
             definition: {
@@ -1322,13 +1320,11 @@ export default function Editor() {
       nodesToRun: NodeData[],
       connectionsToRun: Connection[],
       currentCloudProvider: string,
-      settings: Record<string, any>,
     ) => {
       startWorkflowExecution(
         nodesToRun,
         connectionsToRun,
         currentCloudProvider,
-        settings,
       ).catch((err) => {
         console.error('Failed to start workflow API:', err);
         if (currentCloudProvider !== 'LOCAL_RUNNER') {
@@ -1363,43 +1359,11 @@ export default function Editor() {
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
     beginWorkflowStartupStatus(currentCloudProvider);
 
-    let settings: Record<string, any> = {};
-    if (auth.currentUser) {
-      try {
-        console.log('Fetching integrations for userId:', auth.currentUser.uid);
-        settings = await DbAPI.getAllIntegrations(auth.currentUser.uid);
-        console.log('Fetched integrations:', settings);
-      } catch (err) {
-        console.error('Failed to fetch integration settings:', err);
-      }
-
-      if (currentCloudProvider !== 'LOCAL_RUNNER') {
-        try {
-          const cloudCreds = await DbAPI.getCloudCredential(
-            auth.currentUser.uid,
-            currentCloudProvider.toLowerCase(),
-          );
-          if (cloudCreds?.accessToken) {
-            settings[currentCloudProvider.toLowerCase()] = cloudCreds;
-            console.log(`Fetched ${currentCloudProvider} cloud credentials`);
-          }
-        } catch (err) {
-          console.error(
-            `Failed to fetch ${currentCloudProvider} cloud credentials:`,
-            err,
-          );
-        }
-      }
-    } else {
+    if (!auth.currentUser) {
       console.warn('auth.currentUser is null when handlePlay is called!');
     }
 
-    runWorkflow(
-      getNodesWithParents(),
-      connections,
-      currentCloudProvider,
-      settings,
-    );
+    runWorkflow(getNodesWithParents(), connections, currentCloudProvider);
   }, [
     beginWorkflowStartupStatus,
     cloudProvider,
@@ -1418,34 +1382,7 @@ export default function Editor() {
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
     beginWorkflowStartupStatus(currentCloudProvider);
 
-    let settings: Record<string, any> = {};
-    if (auth.currentUser) {
-      try {
-        console.log('Fetching integrations for userId:', auth.currentUser.uid);
-        settings = await DbAPI.getAllIntegrations(auth.currentUser.uid);
-        console.log('Fetched integrations:', settings);
-      } catch (err) {
-        console.error('Failed to fetch integration settings:', err);
-      }
-
-      if (currentCloudProvider !== 'LOCAL_RUNNER') {
-        try {
-          const cloudCreds = await DbAPI.getCloudCredential(
-            auth.currentUser.uid,
-            currentCloudProvider.toLowerCase(),
-          );
-          if (cloudCreds?.accessToken) {
-            settings[currentCloudProvider.toLowerCase()] = cloudCreds;
-            console.log(`Fetched ${currentCloudProvider} cloud credentials`);
-          }
-        } catch (err) {
-          console.error(
-            `Failed to fetch ${currentCloudProvider} cloud credentials:`,
-            err,
-          );
-        }
-      }
-    } else {
+    if (!auth.currentUser) {
       console.warn('auth.currentUser is null when handlePlayNode is called!');
     }
 
@@ -1460,7 +1397,7 @@ export default function Editor() {
         return n;
       });
 
-    runWorkflow(nodesToRun, [], currentCloudProvider, settings);
+    runWorkflow(nodesToRun, [], currentCloudProvider);
   };
 
   const handleStopNode = async (nodeId: string) => {

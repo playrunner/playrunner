@@ -22,18 +22,18 @@ model Project {
 }
 
 model Workflow {
-  id           String    @id
-  userId       String
-  projectId    String?
-  title        String?
-  nodes        Json?
-  connections  Json?
+  id            String             @id
+  userId        String
+  projectId     String?
+  title         String?
+  nodes         Json?
+  connections   Json?
   cloudProvider String?
-  concurrency  Int?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  project      Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  schedules    WorkflowSchedule[]
+  concurrency   Int?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  project       Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  schedules     WorkflowSchedule[]
 
   @@index([userId])
   @@index([projectId])
@@ -75,17 +75,17 @@ model WorkflowScheduleTrigger {
 }
 
 model WorkflowExecution {
-  id             String          @id
-  userId         String
-  workflowId     String?
-  cloudProvider  String
-  status         String          @default("running")
+  id              String          @id
+  userId          String
+  workflowId      String?
+  cloudProvider   String
+  status          String          @default("running")
   ingestTokenHash String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  startedAt      DateTime        @default(now())
-  completedAt    DateTime?
-  events         WorkflowEvent[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+  events          WorkflowEvent[]
 
   @@index([userId])
   @@index([workflowId])
@@ -111,27 +111,18 @@ model WorkflowEvent {
   @@index([workflowId])
 }
 
-model Integration {
-  id        String   @id @default(cuid())
-  userId    String
-  provider  String
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Connection {
+  id                String   @id @default(cuid())
+  userId            String
+  kind              String
+  provider          String
+  config            Json     @default("{}")
+  encryptedSecrets  String?
+  encryptionVersion Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  @@unique([userId, provider])
-  @@index([userId])
-}
-
-model CloudCredential {
-  id        String   @id @default(cuid())
-  userId    String
-  provider  String
-  data      Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, provider])
+  @@unique([userId, kind, provider])
   @@index([userId])
 }
 

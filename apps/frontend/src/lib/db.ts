@@ -1,6 +1,4 @@
 import { auth } from './auth';
-import { getIntegration as getRegisteredIntegration } from '../integrations/registry';
-import { refreshGcpCloudCredentialIfNeeded } from '@playrunner/gcp';
 
 async function getAuthenticatedUser() {
   if (auth.currentUser) {
@@ -114,43 +112,10 @@ async function saveIntegrationRecord(integrationId: string, data: any) {
   });
 }
 
-async function deleteIntegrationRecord(integrationId: string) {
-  await apiRequest(`/api/store/integrations/${integrationId}`, {
-    method: 'DELETE',
-  });
-}
-
 async function saveCloudCredentialRecord(providerId: string, data: any) {
   await apiRequest(`/api/store/cloud-credentials/${providerId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
-  });
-}
-
-async function refreshStoredIntegrationIfNeeded(
-  integrationId: string,
-  integrationData: any,
-) {
-  const refreshStoredIntegration =
-    getRegisteredIntegration(integrationId)?.refreshStoredIntegration;
-
-  if (!refreshStoredIntegration || !integrationData) {
-    return integrationData;
-  }
-
-  return await refreshStoredIntegration({
-    integrationData,
-    getApiHeaders,
-    saveIntegration: (data) => saveIntegrationRecord(integrationId, data),
-    deleteIntegration: () => deleteIntegrationRecord(integrationId),
-  });
-}
-
-async function refreshGcpTokenIfNeeded(_userId: string, credentialData: any) {
-  return await refreshGcpCloudCredentialIfNeeded({
-    credentialData,
-    getApiHeaders,
-    saveCloudCredential: (data) => saveCloudCredentialRecord('gcp', data),
   });
 }
 
@@ -260,11 +225,7 @@ export const DbAPI = {
     const payload = await apiRequest<{ integration: any | null }>(
       `/api/store/integrations/${integrationId}`,
     );
-    let data = payload.integration;
-
-    data = await refreshStoredIntegrationIfNeeded(integrationId, data);
-
-    return data;
+    return payload.integration;
   },
 
   async saveIntegration(_userId: string, integrationId: string, data: any) {
@@ -275,22 +236,7 @@ export const DbAPI = {
     const payload = await apiRequest<{ integrations: Record<string, any> }>(
       '/api/store/integrations',
     );
-    const results = payload.integrations;
-
-    for (const integrationId of Object.keys(results)) {
-      const refreshedIntegration = await refreshStoredIntegrationIfNeeded(
-        integrationId,
-        results[integrationId],
-      );
-
-      if (refreshedIntegration) {
-        results[integrationId] = refreshedIntegration;
-      } else {
-        delete results[integrationId];
-      }
-    }
-
-    return results;
+    return payload.integrations;
   },
 
   subscribeToIntegration(
@@ -298,9 +244,11 @@ export const DbAPI = {
     integrationId: string,
     callback: (exists: boolean, data?: any) => void,
   ) {
-    return createPollingSubscription(async () => {
-      return await DbAPI.getIntegration(userId, integrationId);
-    }, callback);
+    return createPollingSubscription(
+      async () => await DbAPI.getIntegration(userId, integrationId),
+      (_exists, data) =>
+        callback(Boolean(data?.credentialStatus?.configured), data),
+    );
   },
 
   async deleteIntegration(_userId: string, integrationId: string) {
@@ -309,17 +257,11 @@ export const DbAPI = {
     });
   },
 
-  async getCloudCredential(userId: string, providerId: string) {
+  async getCloudCredential(_userId: string, providerId: string) {
     const payload = await apiRequest<{ cloudCredential: any | null }>(
       `/api/store/cloud-credentials/${providerId}`,
     );
-    let data = payload.cloudCredential;
-
-    if (providerId === 'gcp' && data) {
-      data = await refreshGcpTokenIfNeeded(userId, data);
-    }
-
-    return data;
+    return payload.cloudCredential;
   },
 
   async saveCloudCredential(_userId: string, providerId: string, data: any) {
@@ -331,9 +273,11 @@ export const DbAPI = {
     providerId: string,
     callback: (exists: boolean, data?: any) => void,
   ) {
-    return createPollingSubscription(async () => {
-      return await DbAPI.getCloudCredential(userId, providerId);
-    }, callback);
+    return createPollingSubscription(
+      async () => await DbAPI.getCloudCredential(userId, providerId),
+      (_exists, data) =>
+        callback(Boolean(data?.credentialStatus?.configured), data),
+    );
   },
 
   async deleteCloudCredential(_userId: string, providerId: string) {

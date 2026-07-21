@@ -62,18 +62,12 @@ export function SlackSettingsModal({
 
         if (!data || !isMounted) return;
 
-        if (data.authMode === 'webhook' && data.webhookUrl) {
+        if (data.config?.authMode === 'webhook') {
           setAuthMode('webhook');
-          setWebhookUrl(data.webhookUrl);
-          setAuthSuccess(true);
-        } else if (data.clientId) {
+          setAuthSuccess(Boolean(data.credentialStatus?.configured));
+        } else if (data.config?.authMode === 'oauth') {
           setAuthMode('oauth');
-          setClientId(data.clientId);
-          setClientSecret(data.clientSecret || '');
-
-          if (data.accessToken) {
-            setAuthSuccess(true);
-          }
+          setAuthSuccess(Boolean(data.credentialStatus?.configured));
         }
       } catch (error) {
         console.error('Failed to fetch Slack credentials', error);
@@ -112,9 +106,9 @@ export function SlackSettingsModal({
       setIsAuthenticating(true);
 
       await store.saveIntegration(auth.currentUser.uid, 'slack', {
-        authMode: 'webhook',
-        webhookUrl: webhookUrl.trim(),
-        updatedAt: new Date().toISOString(),
+        provider: 'slack',
+        config: { authMode: 'webhook' },
+        secrets: { webhookUrl: webhookUrl.trim() },
       });
 
       setAuthSuccess(true);
@@ -128,17 +122,6 @@ export function SlackSettingsModal({
   const handleAuthenticateOAuth = async () => {
     try {
       setIsAuthenticating(true);
-
-      const currentUser = auth.currentUser;
-
-      if (currentUser) {
-        await store.saveIntegration(currentUser.uid, 'slack', {
-          authMode: 'oauth',
-          clientId,
-          clientSecret,
-          updatedAt: new Date().toISOString(),
-        });
-      }
 
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
@@ -174,22 +157,11 @@ export function SlackSettingsModal({
 
           const tokenData = await tokenRes.json();
 
-          if (!tokenRes.ok || !tokenData.access_token) {
+          if (!tokenRes.ok || !tokenData.connected) {
             throw new Error(
               `Failed to retrieve access token: ${JSON.stringify(tokenData)}`,
             );
           }
-
-          await store.saveIntegration(auth.currentUser.uid, 'slack', {
-            authMode: 'oauth',
-            clientId,
-            clientSecret,
-            accessToken: tokenData.access_token,
-            teamId: tokenData.team?.id,
-            teamName: tokenData.team?.name,
-            botUserId: tokenData.bot_user_id,
-            updatedAt: new Date().toISOString(),
-          });
 
           setIsAuthenticating(false);
           setAuthSuccess(true);

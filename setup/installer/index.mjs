@@ -293,6 +293,19 @@ async function installPostgresFiles(config) {
   const envLines = await readApiEnvTemplateLines();
 
   upsertEnvVariable(envLines, "DATABASE_URL", config.databaseUrl);
+  if (!getEnvVariable(envLines, "PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS")) {
+    const key = crypto.randomBytes(32).toString("base64");
+    upsertEnvVariable(
+      envLines,
+      "PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS",
+      JSON.stringify({ 1: key }),
+    );
+    upsertEnvVariable(
+      envLines,
+      "PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION",
+      "1",
+    );
+  }
 
   while (envLines.length > 0 && envLines[envLines.length - 1] === "") {
     envLines.pop();

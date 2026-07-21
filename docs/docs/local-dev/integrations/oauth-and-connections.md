@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: OAuth and Connection Development
-description: Implement package-owned OAuth, credential persistence, callback handling, and API routes.
+description: Implement package-owned OAuth, encrypted credential persistence, callback handling, and API routes.
 slug: /local-dev/connecting-integrations
 ---
 
@@ -25,9 +25,14 @@ Create a configuration modal (e.g., `ProviderSettingsModal.tsx`) that:
 - Allows the user to input their `Client ID` and `Client Secret`.
 - Opens a popup window pointing to the provider's OAuth URL with the appropriate `scope`, `redirect_uri`, and `response_type=code`.
 - Listens for an `oauth_callback` message from the popup via `window.addEventListener('message', ...)`.
-- Takes the authorization code and exchanges it for access/refresh tokens using the backend proxy endpoint.
-- Persists the credentials using `useIntegrationHost().store.saveIntegration`.
-- Implements token refresh logic if the access token is expired before making API calls.
+- Sends the authorization code and initial credential fields to the authenticated
+  package API endpoint. The endpoint exchanges and persists the tokens.
+- Reads only the public connection returned by
+  `useIntegrationHost().store.getIntegration`. Use
+  `credentialStatus.configured` for connected state; secret values are never
+  returned to the browser.
+- Leaves saved secret inputs blank when the modal is reopened. Blank inputs do
+  not mean that the connection is missing.
 
 ### 2. The Callback Route
 
@@ -41,13 +46,19 @@ The provider will redirect back to the application. This is handled automaticall
 You must create backend endpoints to handle token exchange and refresh. The backend acts as a proxy to prevent CORS issues and cleanly parse provider responses:
 
 - **Token Exchange Endpoint:** `POST /api/[provider]/token`
-  - Receives `code`, `client_id`, `client_secret`, and `redirect_uri` from the frontend.
-  - Makes a request to the provider's token URL (e.g., `grant_type=authorization_code`).
-  - Returns the `access_token` and `refresh_token` to the frontend.
+  - Receives the authorization code and the fields required for the initial
+    exchange from the frontend.
+  - Makes a request to the provider's token URL (e.g.,
+    `grant_type=authorization_code`).
+  - Saves provider metadata in `config` and credentials in `secrets` through the
+    request-scoped credential store.
+  - Returns a success status, not access or refresh tokens.
 - **Token Refresh Endpoint:** `POST /api/[provider]/refresh`
-  - Receives `refresh_token`, `client_id`, and `client_secret`.
-  - Makes a request to the provider's token URL (e.g., `grant_type=refresh_token`).
-  - Returns the new tokens to the frontend.
+  - Resolves the existing encrypted credentials through the request-scoped
+    credential store.
+  - Makes a request to the provider's token URL (e.g.,
+    `grant_type=refresh_token`).
+  - Updates the encrypted token fields and returns a success status.
 - **API contribution:** Default-export the package API contribution containing
   its stable integration ID, mount path, and Express router. The API host mounts
   it from the generated build-time composition.
@@ -55,45 +66,74 @@ You must create backend endpoints to handle token exchange and refresh. The back
   middleware. Do not expose client secrets or provider tokens to unrelated
   integrations.
 
-### 4. Database Storage
+### 4. Connection envelopes
 
-Store integration credentials through the SDK store injected by the host app. Package code should not import `DbAPI`, Prisma, or host app modules directly.
+Every provider uses the same envelope. Provider-specific names are expected
+inside `config` and `secrets`; the consistent part is where each type of value is
+stored.
 
 ```ts
-const { auth, store } = useIntegrationHost();
-const userId = auth.currentUser?.uid;
-if (!userId) return;
+// GCP connection
+{
+  provider: 'gcp',
+  config: {
+    selectedProject: 'my-project',
+    cloudRunLocation: 'australia-southeast1',
+  },
+  secrets: {
+    clientId: '...',
+    clientSecret: '...',
+    accessToken: '...',
+    refreshToken: '...',
+  },
+}
+```
 
-await store.saveIntegration(userId, 'provider-id', {
-  clientId,
-  clientSecret,
-  accessToken,
-  refreshToken,
-  expiresAt: Date.now() + tokenData.expires_in * 1000,
-  updatedAt: new Date().toISOString(),
+Use `config` for values that are safe to return to the browser, such as project,
+region, app slug, or account-level defaults. Use `secrets` for API keys, client
+credentials, OAuth tokens, passwords, and webhook URLs. The API rejects known
+secret field names nested under `config`.
+
+Package API contributions access resolved credentials through the SDK instead
+of importing Prisma or host modules:
+
+```ts
+import { getIntegrationCredentialStore } from '@playrunner/integration-sdk/api';
+
+const store = getIntegrationCredentialStore(req);
+if (!store) throw new Error('Credential storage is unavailable.');
+
+await store.save('integration', 'provider-id', {
+  provider: 'provider-id',
+  config: { accountName },
+  secrets: {
+    clientId,
+    clientSecret,
+    accessToken,
+    refreshToken,
+    expiresAt,
+  },
 });
 ```
 
-The host persists this as one Prisma `Integration` row per `userId + provider`, with provider-specific values in the `data` JSON column. `saveIntegration` currently replaces that JSON object, so token refresh code should preserve existing provider-owned fields:
+`save` replaces only the envelope sections that are supplied. A config-only save
+preserves the existing encrypted secrets. Use `updateSecrets` for refresh-token
+updates that must merge with the current secret object.
 
-```ts
-const current = await store.getIntegration(userId, 'provider-id');
-const {
-  id,
-  provider,
-  userId: _storedUserId,
-  createdAt,
-  updatedAt,
-  ...currentData
-} = current ?? {};
+### 5. Persistence and resolution
 
-await store.saveIntegration(userId, 'provider-id', {
-  ...currentData,
-  accessToken: refreshed.access_token,
-  refreshToken: refreshed.refresh_token,
-  expiresAt: Date.now() + refreshed.expires_in * 1000,
-  updatedAt: new Date().toISOString(),
-});
-```
+The host stores one Prisma `Connection` row per `userId + kind + provider`.
+`config` remains JSON, while `secrets` is encrypted with AES-256-GCM and stored
+as `encryptedSecrets` with an `encryptionVersion`. The authenticated public
+store routes return `config` and `credentialStatus.configured`; they never
+return decrypted secrets.
 
-Save `clientId`, `clientSecret`, `accessToken`, `refreshToken`, and an `expiresAt` timestamp for OAuth integrations. Keep node-specific choices, such as selected projects or repositories, on the workflow node config unless they are account-level defaults.
+Only trusted server paths resolve secrets. Package API endpoints use the
+request-scoped credential store, and workflow execution resolves the required
+provider connections before sending package-scoped settings to a runner. Do not
+put credentials in workflow node config, browser state, node output, or error
+messages.
+
+Deleting an integration or cloud credential deletes its `Connection` row.
+Provider-specific node choices, such as a repository and branch, still belong
+on workflow node config unless they are account-level connection defaults.

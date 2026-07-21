@@ -23,5 +23,9 @@
   "previous": {
     "title": "Slack",
     "permalink": "/playrunner/docs/integration-packages/slack"
+  },
+  "next": {
+    "title": "Hugging Face",
+    "permalink": "/playrunner/docs/integration-packages/huggingface"
   }
 }

@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
-import Editor from "@monaco-editor/react";
+import React, { useEffect, useRef, useState } from 'react';
+import Editor from '@monaco-editor/react';
 import {
   type IntegrationConfigPanelProps,
   useIntegrationHost,
-} from "@playrunner/integration-sdk";
-import { cn } from "./cn";
-import { playwrightRunnerConfig } from "./playwrightRunnerConfig";
+} from '@playrunner/integration-sdk';
+import { cn } from './cn';
+import { playwrightRunnerConfig } from './playwrightRunnerConfig';
 
 const DEFAULT_PLAYWRIGHT_VERSION = playwrightRunnerConfig.defaultTag;
 const PLAYWRIGHT_VERSION_OPTIONS = playwrightRunnerConfig.versions;
@@ -14,14 +14,14 @@ const DEFAULT_MEMORY = 4;
 
 function inferPlaywrightRuntime(
   config: Record<string, any>,
-): "typescript" | "python" {
-  if (config.action === "upload" || config.action === "run") {
-    return "typescript";
+): 'typescript' | 'python' {
+  if (config.action === 'upload' || config.action === 'run') {
+    return 'typescript';
   }
-  if (config.testLanguage === "python") {
-    return "python";
+  if (config.testLanguage === 'python') {
+    return 'python';
   }
-  return "typescript";
+  return 'typescript';
 }
 
 export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
@@ -32,7 +32,7 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   integrationData,
   onConnectOAuth,
 }) => {
-  const { ui } = useIntegrationHost();
+  const { auth, ui } = useIntegrationHost();
   const Input = ui.Input;
   const Select = ui.Select;
   const [repositories, setRepositories] = useState<
@@ -41,8 +41,10 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
-  const [activeTab, setActiveTab] = useState<"config" | "env" | "resources">(
-    "config",
+  const [repositoryError, setRepositoryError] = useState('');
+  const [branchError, setBranchError] = useState('');
+  const [activeTab, setActiveTab] = useState<'config' | 'env' | 'resources'>(
+    'config',
   );
   const latestConfigRef = useRef(config);
 
@@ -54,7 +56,7 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     const updates: Record<string, any> = {};
     let shouldUpdate = false;
 
-    if (config.action === "run" && !config.testScript) {
+    if (config.action === 'run' && !config.testScript) {
       updates.testScript = `import { test, expect } from '@playwright/test';
 
 test.describe('navigation', () => {
@@ -108,76 +110,87 @@ test.describe('navigation', () => {
 
   useEffect(() => {
     async function fetchRepos() {
-      if (!integrationData?.accessToken) return;
+      if (!integrationData?.credentialStatus?.configured) {
+        setRepositories([]);
+        return;
+      }
       setIsLoadingRepos(true);
+      setRepositoryError('');
       try {
-        const res = await fetch("https://api.github.com/user/installations", {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Sign in again to load repositories.');
+
+        const res = await fetch('/api/github/repositories', {
           headers: {
-            Authorization: `Bearer ${integrationData.accessToken}`,
-            Accept: "application/vnd.github.v3+json",
+            Authorization: `Bearer ${token}`,
           },
         });
         const data = await res.json();
-        if (data.installations && data.installations.length > 0) {
-          let allRepos: any[] = [];
-          for (const inst of data.installations) {
-            const repoRes = await fetch(
-              `https://api.github.com/user/installations/${inst.id}/repositories`,
-              {
-                headers: {
-                  Authorization: `Bearer ${integrationData.accessToken}`,
-                  Accept: "application/vnd.github.v3+json",
-                },
-              },
-            );
-            const repoData = await repoRes.json();
-            if (repoData.repositories) {
-              allRepos = [...allRepos, ...repoData.repositories];
-            }
-          }
-          setRepositories(allRepos);
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load repositories.');
         }
+        setRepositories(
+          Array.isArray(data.repositories) ? data.repositories : [],
+        );
       } catch (err) {
-        console.error("Failed to fetch repositories:", err);
+        console.error('Failed to fetch repositories:', err);
+        setRepositories([]);
+        setRepositoryError(
+          err instanceof Error ? err.message : 'Failed to load repositories.',
+        );
       } finally {
         setIsLoadingRepos(false);
       }
     }
-    fetchRepos();
-  }, [integrationData?.accessToken]);
+    void fetchRepos();
+  }, [auth, integrationData?.credentialStatus?.configured]);
 
   useEffect(() => {
     async function fetchBranches() {
-      if (!integrationData?.accessToken || !config.repository) return;
+      if (
+        !integrationData?.credentialStatus?.configured ||
+        !config.repository
+      ) {
+        setBranches([]);
+        return;
+      }
       setIsLoadingBranches(true);
+      setBranchError('');
       try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) throw new Error('Sign in again to load branches.');
+
         const res = await fetch(
-          `https://api.github.com/repos/${config.repository}/branches`,
+          `/api/github/branches?repository=${encodeURIComponent(config.repository)}`,
           {
             headers: {
-              Authorization: `Bearer ${integrationData.accessToken}`,
-              Accept: "application/vnd.github.v3+json",
+              Authorization: `Bearer ${token}`,
             },
           },
         );
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setBranches(data);
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load branches.');
         }
+        setBranches(Array.isArray(data.branches) ? data.branches : []);
       } catch (err) {
-        console.error("Failed to fetch branches:", err);
+        console.error('Failed to fetch branches:', err);
+        setBranches([]);
+        setBranchError(
+          err instanceof Error ? err.message : 'Failed to load branches.',
+        );
       } finally {
         setIsLoadingBranches(false);
       }
     }
-    fetchBranches();
-  }, [integrationData?.accessToken, config.repository]);
+    void fetchBranches();
+  }, [auth, integrationData?.credentialStatus?.configured, config.repository]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const data = e.dataTransfer.getData("text/plain");
-    if (data && data.startsWith("process.env.")) {
-      const varName = data.replace("process.env.", "");
+    const data = e.dataTransfer.getData('text/plain');
+    if (data && data.startsWith('process.env.')) {
+      const varName = data.replace('process.env.', '');
       const existingVars = config.envVars || [];
       if (!existingVars.includes(varName)) {
         onChange(nodeId, { ...config, envVars: [...existingVars, varName] });
@@ -193,34 +206,34 @@ test.describe('navigation', () => {
     <>
       <div className="flex items-center gap-2 mt-6 mb-4 overflow-x-auto pb-1 scrollbar-hide">
         <button
-          onClick={() => setActiveTab("config")}
+          onClick={() => setActiveTab('config')}
           className={cn(
-            "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none",
-            activeTab === "config"
-              ? "bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]"
-              : "bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]",
+            'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
+            activeTab === 'config'
+              ? 'bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]'
+              : 'bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]',
           )}
         >
           Configuration
         </button>
         <button
-          onClick={() => setActiveTab("env")}
+          onClick={() => setActiveTab('env')}
           className={cn(
-            "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none",
-            activeTab === "env"
-              ? "bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]"
-              : "bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]",
+            'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
+            activeTab === 'env'
+              ? 'bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]'
+              : 'bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]',
           )}
         >
           Environment
         </button>
         <button
-          onClick={() => setActiveTab("resources")}
+          onClick={() => setActiveTab('resources')}
           className={cn(
-            "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none",
-            activeTab === "resources"
-              ? "bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]"
-              : "bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]",
+            'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
+            activeTab === 'resources'
+              ? 'bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]'
+              : 'bg-[var(--control-bg)] text-muted border border-transparent hover:text-[var(--foreground)]',
           )}
         >
           Resources
@@ -249,7 +262,7 @@ test.describe('navigation', () => {
             <p>
               <span className="text-[var(--foreground)] font-medium">
                 Language Support:
-              </span>{" "}
+              </span>{' '}
               We currently support <strong>Python and TypeScript</strong> for
               cloned repositories, and <strong>TypeScript only</strong> for Zip
               uploads.
@@ -257,20 +270,20 @@ test.describe('navigation', () => {
             <p>
               <span className="text-[var(--foreground)] font-medium">
                 Azure Playwright Testing:
-              </span>{" "}
-              For TypeScript, if a{" "}
+              </span>{' '}
+              For TypeScript, if a{' '}
               <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 playwright.service.config.ts
-              </code>{" "}
+              </code>{' '}
               is detected alongside your standard config, it will be
-              automatically executed. For Python, standard{" "}
+              automatically executed. For Python, standard{' '}
               <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 pytest.ini
-              </code>{" "}
-              and{" "}
+              </code>{' '}
+              and{' '}
               <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 conftest.py
-              </code>{" "}
+              </code>{' '}
               configurations are supported.
             </p>
           </div>
@@ -299,19 +312,19 @@ test.describe('navigation', () => {
       )}
 
       <div>
-        {activeTab === "config" && (
+        {activeTab === 'config' && (
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted">Action</label>
               <Select
-                value={config.action || "clone"}
+                value={config.action || 'clone'}
                 onChange={(e) => {
                   const nextAction = e.target.value;
                   const updates: Record<string, any> = {
                     ...config,
                     action: nextAction,
                   };
-                  if (nextAction === "run" && !config.testScript) {
+                  if (nextAction === 'run' && !config.testScript) {
                     updates.testScript = `import { test, expect } from '@playwright/test';
 
 test.describe('navigation', () => {
@@ -335,7 +348,7 @@ test.describe('navigation', () => {
               </Select>
             </div>
 
-            {(config.action === "clone" || !config.action) && (
+            {(config.action === 'clone' || !config.action) && (
               <>
                 <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between border-b border-subtle pb-2">
@@ -360,10 +373,10 @@ test.describe('navigation', () => {
                             });
                             onConnectOAuth?.(e.target.value);
                           }
-                          e.target.value = "";
+                          e.target.value = '';
                         }}
                         className="text-xs bg-[var(--control-bg)] hover:bg-[var(--surface-hover)] border border-[var(--border)] px-2 py-1 rounded-md text-[var(--foreground)] transition-colors font-medium appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)]"
-                        style={{ paddingRight: "1rem" }}
+                        style={{ paddingRight: '1rem' }}
                       >
                         <option value="" disabled>
                           Connect Provider...
@@ -379,14 +392,14 @@ test.describe('navigation', () => {
                     <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          "w-2 h-2 rounded-full",
-                          isConnected ? "bg-green-400" : "bg-red-400",
+                          'w-2 h-2 rounded-full',
+                          isConnected ? 'bg-green-400' : 'bg-red-400',
                         )}
                       ></div>
                       <span className="text-sm text-[var(--foreground)]">
                         {isConnected
-                          ? `Connected (${config.authProvider ? config.authProvider.charAt(0).toUpperCase() + config.authProvider.slice(1) : "GitHub"})`
-                          : "Not Connected"}
+                          ? `Connected (${config.authProvider ? config.authProvider.charAt(0).toUpperCase() + config.authProvider.slice(1) : 'GitHub'})`
+                          : 'Not Connected'}
                       </span>
                     </div>
                   </div>
@@ -401,7 +414,7 @@ test.describe('navigation', () => {
                     Repository
                   </label>
                   <Select
-                    value={config.repository || ""}
+                    value={config.repository || ''}
                     onChange={(e) =>
                       onChange(nodeId, {
                         ...config,
@@ -412,8 +425,8 @@ test.describe('navigation', () => {
                   >
                     <option value="">
                       {isLoadingRepos
-                        ? "Loading repositories..."
-                        : "Select Repository"}
+                        ? 'Loading repositories...'
+                        : 'Select Repository'}
                     </option>
                     {repositories.map((repo) => (
                       <option key={repo.id} value={repo.full_name}>
@@ -421,6 +434,11 @@ test.describe('navigation', () => {
                       </option>
                     ))}
                   </Select>
+                  {repositoryError && (
+                    <p className="text-[10px] text-red-400">
+                      {repositoryError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -428,7 +446,7 @@ test.describe('navigation', () => {
                     Branch
                   </label>
                   <Select
-                    value={config.branch || ""}
+                    value={config.branch || ''}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, branch: e.target.value })
                     }
@@ -436,8 +454,8 @@ test.describe('navigation', () => {
                   >
                     <option value="">
                       {isLoadingBranches
-                        ? "Loading branches..."
-                        : "Select Branch"}
+                        ? 'Loading branches...'
+                        : 'Select Branch'}
                     </option>
                     {branches.map((branch) => (
                       <option key={branch.name} value={branch.name}>
@@ -445,6 +463,9 @@ test.describe('navigation', () => {
                       </option>
                     ))}
                   </Select>
+                  {branchError && (
+                    <p className="text-[10px] text-red-400">{branchError}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -452,7 +473,7 @@ test.describe('navigation', () => {
                     Runtime
                   </label>
                   <Select
-                    value={config.testLanguage || "typescript"}
+                    value={config.testLanguage || 'typescript'}
                     onChange={(e) =>
                       onChange(nodeId, {
                         ...config,
@@ -474,7 +495,7 @@ test.describe('navigation', () => {
                     Folder
                   </label>
                   <Input
-                    value={config.folder || "/"}
+                    value={config.folder || '/'}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, folder: e.target.value })
                     }
@@ -488,24 +509,24 @@ test.describe('navigation', () => {
               </>
             )}
 
-            {config.action === "run" && (
+            {config.action === 'run' && (
               <div className="flex flex-col gap-1.5 shrink-0">
                 <div className="rounded-xl border border-subtle bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
                   <Editor
                     height="100%"
                     defaultLanguage="javascript"
                     theme="vs-dark"
-                    value={config.testScript || ""}
+                    value={config.testScript || ''}
                     onChange={(value) =>
-                      onChange(nodeId, { ...config, testScript: value || "" })
+                      onChange(nodeId, { ...config, testScript: value || '' })
                     }
                     options={{
                       minimap: { enabled: false },
                       fontSize: 13,
-                      fontFamily: "var(--font-mono)",
-                      lineNumbers: "on",
+                      fontFamily: 'var(--font-mono)',
+                      lineNumbers: 'on',
                       scrollBeyondLastLine: false,
-                      wordWrap: "on",
+                      wordWrap: 'on',
                       padding: { top: 16, bottom: 16 },
                       tabSize: 2,
                       dragAndDrop: true,
@@ -524,7 +545,7 @@ test.describe('navigation', () => {
               </div>
             )}
 
-            {config.action === "upload" && (
+            {config.action === 'upload' && (
               <>
                 <div className="relative border-2 border-dashed border-subtle rounded-xl p-8 flex flex-col items-center justify-center gap-3 bg-surface/50 hover:bg-surface transition-colors cursor-pointer group">
                   <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-[var(--foreground)] group-hover:scale-110 transition-transform">
@@ -611,14 +632,14 @@ test.describe('navigation', () => {
                       <li>
                         <span className="text-red-400 font-medium">
                           Do not include:
-                        </span>{" "}
+                        </span>{' '}
                         test-data, test-results, archives, reports, or auth
                         files.
                       </li>
                       <li>
                         <span className="text-red-400 font-medium">
                           Do not include .env files.
-                        </span>{" "}
+                        </span>{' '}
                         Variables must be set via an connected Environment node.
                       </li>
                     </ul>
@@ -630,19 +651,19 @@ test.describe('navigation', () => {
                     </p>
                     <div>root.zip/</div>
                     <div>
-                      ├── playwright.config.ts{" "}
+                      ├── playwright.config.ts{' '}
                       <span className="text-green-400/80">(required)</span>
                     </div>
                     <div>
-                      ├── playwright.service.config.ts{" "}
+                      ├── playwright.service.config.ts{' '}
                       <span className="text-muted/80">(optional)</span>
                     </div>
                     <div>
-                      ├── package.json{" "}
+                      ├── package.json{' '}
                       <span className="text-green-400/80">(required)</span>
                     </div>
                     <div>
-                      ├── package-lock.json{" "}
+                      ├── package-lock.json{' '}
                       <span className="text-green-400/80">(required)</span>
                     </div>
                     <div>├── tests/</div>
@@ -656,7 +677,7 @@ test.describe('navigation', () => {
           </div>
         )}
 
-        {activeTab === "env" && (
+        {activeTab === 'env' && (
           <div className="space-y-6">
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
@@ -748,7 +769,7 @@ test.describe('navigation', () => {
           </div>
         )}
 
-        {activeTab === "resources" && (
+        {activeTab === 'resources' && (
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">

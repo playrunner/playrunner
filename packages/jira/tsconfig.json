@@ -13,6 +13,9 @@
       "@playrunner/integration-sdk": [
         "../integration-sdk/src/frontend/index.tsx"
       ],
+      "@playrunner/integration-sdk/api": [
+        "../integration-sdk/src/api/index.ts"
+      ],
       "@playrunner/integration-sdk/orchestrator": [
         "../integration-sdk/src/orchestrator/index.ts"
       ]

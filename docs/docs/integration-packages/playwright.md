@@ -80,6 +80,11 @@ their test runner nodes.
 
 Playwright owns the configuration UI, including repository selection, inline script editing, zip upload metadata, environment variable injection, and runner resource settings.
 
+When GitHub is connected, the panel uses the authenticated
+`GET /api/github/repositories` and `GET /api/github/branches` routes. It uses
+`credentialStatus.configured` to decide when discovery can start; it does not
+read an access token from integration data.
+
 Playwright keeps its input panel enabled, so it can receive inbound workflow context from nodes such as Environment even though its selector category is `Trigger`.
 
 ## GitHub Dependency
@@ -91,6 +96,11 @@ both packages as direct production dependencies. The build composer discovers
 their package-owned metadata and generates static imports; neither package
 requires a central registration entry.
 
+During workspace development, both dependencies must resolve locally. Pointing
+only `@playrunner/github` at `packages/github` leaves the published Playwright
+configuration panel in the frontend bundle, so changes to repository discovery
+will not appear.
+
 ## API
 
 The API entrypoint default-exports `playwrightApiContribution`, containing the
@@ -99,6 +109,9 @@ manifest declares the `playwright` ID plus its `.` frontend and `./api` surfaces
 and both entrypoints default-export their contribution. Frontend and API builds
 discover those surfaces from installed direct production dependencies and
 generate static imports.
+
+GitHub repository and branch discovery belongs to the GitHub package API at
+`/api/github`; the Playwright API router remains empty.
 
 ## Orchestrator
 

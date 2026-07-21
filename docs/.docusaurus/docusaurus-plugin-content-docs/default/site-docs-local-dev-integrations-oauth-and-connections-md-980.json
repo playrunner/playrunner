@@ -1,7 +1,7 @@
 {
   "id": "local-dev/integrations/oauth-and-connections",
   "title": "OAuth and Connection Development",
-  "description": "Implement package-owned OAuth, credential persistence, callback handling, and API routes.",
+  "description": "Implement package-owned OAuth, encrypted credential persistence, callback handling, and API routes.",
   "source": "@site/docs/local-dev/integrations/oauth-and-connections.md",
   "sourceDirName": "local-dev/integrations",
   "slug": "/local-dev/connecting-integrations",
@@ -15,7 +15,7 @@
   "frontMatter": {
     "sidebar_position": 6,
     "title": "OAuth and Connection Development",
-    "description": "Implement package-owned OAuth, credential persistence, callback handling, and API routes.",
+    "description": "Implement package-owned OAuth, encrypted credential persistence, callback handling, and API routes.",
     "slug": "/local-dev/connecting-integrations"
   },
   "sidebar": "tutorialSidebar",

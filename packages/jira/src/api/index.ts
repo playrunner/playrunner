@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
+
+function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
+  return (req as { integrationCredentials?: IntegrationCredentialStore })
+    .integrationCredentials;
+}
 
 export const jiraRouter = Router();
 
@@ -6,9 +12,54 @@ export const jiraApiContribution = {
   id: 'jira',
   mountPath: '/api/jira',
   router: jiraRouter,
+  prepareCredentials: refreshJiraCredentials,
 };
 
 export default jiraApiContribution;
+
+async function refreshJiraCredentials(
+  store: IntegrationCredentialStore,
+  _kind?: 'cloud' | 'integration',
+  force = false,
+) {
+  const connection = await store.resolve('integration', 'jira');
+  if (!connection) return;
+  const expiresAt = connection.secrets.expiresAt;
+  if (
+    !force &&
+    (typeof expiresAt !== 'number' || Date.now() < expiresAt - 5 * 60 * 1000)
+  )
+    return;
+  const { clientId, clientSecret, refreshToken } = connection.secrets;
+  const hasRefreshCredentials = [clientId, clientSecret, refreshToken].every(
+    (value) => typeof value === 'string' && value,
+  );
+  if (!hasRefreshCredentials) {
+    if (force)
+      throw new Error('Saved Jira refresh credentials are incomplete.');
+    return;
+  }
+  const response = await fetch('https://auth.atlassian.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+  const data = (await response.json()) as Record<string, any>;
+  if (!response.ok || typeof data.access_token !== 'string')
+    throw new Error('Jira authorization has expired. Reconnect Jira.');
+  await store.updateSecrets('integration', 'jira', {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token || refreshToken,
+    expiresAt: data.expires_in
+      ? Date.now() + data.expires_in * 1000
+      : undefined,
+  });
+}
 
 jiraRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
@@ -35,16 +86,33 @@ jiraRouter.post('/token', async (req, res) => {
       const data = JSON.parse(text);
 
       if (!jRes.ok) {
-        console.error('Jira Token exchange failed:', data);
+        console.error('Jira token exchange failed with status:', jRes.status);
         return res.status(jRes.status).json(data);
       }
 
-      return res.json(data);
+      const store = credentialStore(req);
+      if (!data.access_token || !store) {
+        return res
+          .status(500)
+          .json({ error: 'Credential storage is unavailable.' });
+      }
+      await store.save('integration', 'jira', {
+        provider: 'jira',
+        config: {},
+        secrets: {
+          clientId: client_id,
+          clientSecret: client_secret,
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          expiresAt: data.expires_in
+            ? Date.now() + data.expires_in * 1000
+            : undefined,
+        },
+      });
+      return res.json({ connected: true });
     } catch {
-      console.error('Token exchange failed. Jira returned non-JSON:', text);
-      return res
-        .status(500)
-        .json({ error: 'Failed to exchange token', details: text });
+      console.error('Token exchange failed. Jira returned non-JSON.');
+      return res.status(500).json({ error: 'Failed to exchange token' });
     }
   } catch (err) {
     console.error('Token exchange error:', err);
@@ -53,40 +121,14 @@ jiraRouter.post('/token', async (req, res) => {
 });
 
 jiraRouter.post('/refresh', async (req, res) => {
-  const { refresh_token, client_id, client_secret } = req.body;
-
   try {
-    const jRes = await fetch('https://auth.atlassian.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        grant_type: 'refresh_token',
-        client_id,
-        client_secret,
-        refresh_token,
-      }),
-    });
-
-    const text = await jRes.text();
-
-    try {
-      const data = JSON.parse(text);
-
-      if (!jRes.ok) {
-        console.error('Jira Token refresh failed:', data);
-        return res.status(jRes.status).json(data);
-      }
-
-      return res.json(data);
-    } catch {
-      console.error('Token refresh failed. Jira returned non-JSON:', text);
+    const store = credentialStore(req);
+    if (!store)
       return res
         .status(500)
-        .json({ error: 'Failed to refresh token', details: text });
-    }
+        .json({ error: 'Credential storage is unavailable.' });
+    await refreshJiraCredentials(store, 'integration', true);
+    return res.json({ connected: true });
   } catch (err) {
     console.error('Token refresh error:', err);
     return res.status(500).json({ error: 'Failed to refresh token' });
@@ -94,10 +136,13 @@ jiraRouter.post('/refresh', async (req, res) => {
 });
 
 jiraRouter.get('/projects', async (req, res) => {
-  const token = req.headers['x-jira-auth'];
+  const store = credentialStore(req);
+  if (store) await refreshJiraCredentials(store);
+  const connection = await store?.resolve('integration', 'jira');
+  const token = connection?.secrets.accessToken;
 
-  if (!token) {
-    return res.status(401).json({ error: 'Missing x-jira-auth header' });
+  if (typeof token !== 'string' || !token) {
+    return res.status(401).json({ error: 'Jira is not connected.' });
   }
 
   try {

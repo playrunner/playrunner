@@ -33,8 +33,8 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   useEffect(() => {
     async function fetchChannels() {
       if (
-        !integrationData?.accessToken ||
-        integrationData?.authMode === 'webhook'
+        !integrationData?.credentialStatus?.configured ||
+        integrationData?.config?.authMode === 'webhook'
       )
         return;
 
@@ -46,7 +46,6 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
         const res = await fetch('/api/slack/channels', {
           headers: {
-            'x-slack-auth': integrationData.accessToken,
             Authorization: `Bearer ${token}`,
           },
         });
@@ -63,9 +62,13 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     }
 
     void fetchChannels();
-  }, [auth, integrationData?.accessToken, integrationData?.authMode]);
+  }, [
+    auth,
+    integrationData?.credentialStatus?.configured,
+    integrationData?.config?.authMode,
+  ]);
 
-  const isWebhookMode = integrationData?.authMode === 'webhook';
+  const isWebhookMode = integrationData?.config?.authMode === 'webhook';
 
   return (
     <div className="space-y-4">

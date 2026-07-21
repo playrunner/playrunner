@@ -51,7 +51,7 @@ redeploys the API and orchestrator Cloud Run services, and deletes stale
 Playwright Cloud Run Jobs so they pick up the new image.
 
 GCP settings (project, region, service settings, and generated image URI
-templates) are read from the CloudCredential row that the Integrations modal
+templates) are read from the GCP connection config that the Integrations modal
 writes to Postgres. CLI flags override the stored values.
 
 Options:

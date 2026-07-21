@@ -1,10 +1,32 @@
 import type { Express, Router } from 'express';
 import { discoveredIntegrationContributions } from './generated-package-contributions';
 
+interface IntegrationCredentialStore {
+  resolve(kind: 'cloud' | 'integration', provider: string): Promise<unknown>;
+  save(
+    kind: 'cloud' | 'integration',
+    provider: string,
+    envelope: {
+      provider?: string;
+      config?: Record<string, unknown>;
+      secrets?: Record<string, unknown>;
+    },
+  ): Promise<unknown>;
+  updateSecrets(
+    kind: 'cloud' | 'integration',
+    provider: string,
+    patch: Record<string, unknown>,
+  ): Promise<unknown>;
+}
+
 interface IntegrationApiContribution {
   id: string;
   mountPath: string;
   router: Router;
+  prepareCredentials?: (
+    store: IntegrationCredentialStore,
+    kind: 'cloud' | 'integration',
+  ) => Promise<void>;
 }
 
 function readApiContribution(entry: {
@@ -71,4 +93,15 @@ export function registerIntegrationApiRoutes(app: Express): void {
   for (const contribution of packageApiContributions) {
     app.use(contribution.mountPath, contribution.router);
   }
+}
+
+export async function preparePackageCredentials(
+  provider: string,
+  store: IntegrationCredentialStore,
+  kind: 'cloud' | 'integration',
+) {
+  const contribution = packageApiContributions.find(
+    (candidate) => candidate.id === provider,
+  );
+  await contribution?.prepareCredentials?.(store, kind);
 }

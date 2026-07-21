@@ -101,10 +101,10 @@ try {
 }
 
 async function loadCredential() {
-  const where = { provider: "gcp" };
+  const where = { kind: "cloud", provider: "gcp" };
   if (flags["user-id"]) where.userId = flags["user-id"];
 
-  const records = await prisma.cloudCredential.findMany({ where });
+  const records = await prisma.connection.findMany({ where });
   if (records.length === 0) {
     throw new Error(
       "No GCP cloud credential found. Connect GCP in the Integrations modal first.",
@@ -116,7 +116,7 @@ async function loadCredential() {
       `Multiple GCP credentials found for users [${ids}]. Pass --user-id <id> to disambiguate.`,
     );
   }
-  return records[0].data || {};
+  return records[0].config || {};
 }
 
 function emit(cmd, data) {

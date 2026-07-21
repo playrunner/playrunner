@@ -1,16 +1,20 @@
 export interface OpenAIIntegrationData {
-  apiKey: string;
-  updatedAt: string;
+  provider: 'openai';
+  config: Record<string, never>;
+  secrets: { apiKey: string };
 }
 
 export function createOpenAIIntegrationData(
   apiKey: string,
-  updatedAt = new Date().toISOString(),
 ): OpenAIIntegrationData {
   const normalizedKey = apiKey.trim();
   if (!normalizedKey) {
     throw new Error('OpenAI API key is required.');
   }
 
-  return { apiKey: normalizedKey, updatedAt };
+  return {
+    provider: 'openai',
+    config: {},
+    secrets: { apiKey: normalizedKey },
+  };
 }

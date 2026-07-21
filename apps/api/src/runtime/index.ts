@@ -25,6 +25,61 @@ import { LocalDockerRunnerProvisioner } from './runner-provisioning';
 import { LocalWorkflowExecutionBackend } from './workflow-execution';
 import { executionEvents } from '../services/execution-events';
 import { state } from '../state';
+import {
+  createIntegrationCredentialStore,
+  resolveConnection,
+} from '../services/connections';
+import { preparePackageCredentials } from '../integrations/package-registry';
+
+const HOST_NODE_TYPES = new Set([
+  'environment',
+  'javascript',
+  'playwright',
+  'schedule',
+]);
+
+async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
+  const userId = request.req.authUser?.providerUserId;
+  if (!userId) {
+    throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  }
+  const nodes = Array.isArray(request.body.nodes) ? request.body.nodes : [];
+  const providers = new Set<string>();
+  for (const node of nodes) {
+    const nodeType =
+      node && typeof node === 'object' && typeof node.nodeType === 'string'
+        ? node.nodeType.trim()
+        : '';
+    if (nodeType && !HOST_NODE_TYPES.has(nodeType)) providers.add(nodeType);
+    if (nodeType === 'playwright') providers.add('github');
+  }
+
+  const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
+  const settings: Record<string, Record<string, unknown>> = {};
+  const credentialStore = createIntegrationCredentialStore(userId);
+  await Promise.all(
+    [...providers].map(async (provider) => {
+      await preparePackageCredentials(provider, credentialStore, 'integration');
+      const connection = await resolveConnection(
+        userId,
+        'integration',
+        provider,
+      );
+      if (connection) {
+        settings[provider] = { ...connection.config, ...connection.secrets };
+      }
+    }),
+  );
+  if (cloudProvider !== 'LOCAL_RUNNER') {
+    const provider = String(cloudProvider).toLowerCase();
+    await preparePackageCredentials(provider, credentialStore, 'cloud');
+    const connection = await resolveConnection(userId, 'cloud', provider);
+    if (connection) {
+      settings[provider] = { ...connection.config, ...connection.secrets };
+    }
+  }
+  return settings;
+}
 
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
@@ -50,6 +105,9 @@ class WorkflowExecutionRegistry {
   async execute(
     request: WorkflowExecutionRequest,
   ): Promise<WorkflowExecutionResult> {
+    // The browser is never authoritative for credentials. Rebuild the settings
+    // payload from encrypted server-side connections for every execution path.
+    request.body.settings = await resolveWorkflowSettings(request);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),

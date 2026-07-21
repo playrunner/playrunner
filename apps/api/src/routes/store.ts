@@ -7,6 +7,12 @@ import {
   deleteWorkflowSchedules,
   reconcileWorkflowSchedules,
 } from '../services/schedules';
+import {
+  deleteConnection,
+  getPublicConnection,
+  listPublicConnections,
+  saveConnection,
+} from '../services/connections';
 
 export const storeRouter = Router();
 
@@ -119,44 +125,6 @@ function serializeWorkflow(workflow: {
     concurrency: workflow.concurrency,
     createdAt: workflow.createdAt,
     updatedAt: workflow.updatedAt,
-  };
-}
-
-function serializeIntegration(integration: {
-  userId: string;
-  provider: string;
-  data: Prisma.JsonValue;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return {
-    ...(typeof integration.data === 'object' && integration.data
-      ? integration.data
-      : {}),
-    id: integration.provider,
-    provider: integration.provider,
-    userId: integration.userId,
-    createdAt: integration.createdAt,
-    updatedAt: integration.updatedAt,
-  };
-}
-
-function serializeCloudCredential(cloudCredential: {
-  userId: string;
-  provider: string;
-  data: Prisma.JsonValue;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
-  return {
-    ...(typeof cloudCredential.data === 'object' && cloudCredential.data
-      ? cloudCredential.data
-      : {}),
-    id: cloudCredential.provider,
-    provider: cloudCredential.provider,
-    userId: cloudCredential.userId,
-    createdAt: cloudCredential.createdAt,
-    updatedAt: cloudCredential.updatedAt,
   };
 }
 
@@ -457,14 +425,12 @@ storeRouter.get(
   '/integrations',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const integrations = await prisma.integration.findMany({
-      where: { userId },
-    });
+    const integrations = await listPublicConnections(userId, 'integration');
 
     res.json({
       integrations: integrations.reduce<Record<string, unknown>>(
         (accumulator, integration) => {
-          accumulator[integration.provider] = serializeIntegration(integration);
+          accumulator[integration.provider] = integration;
           return accumulator;
         },
         {},
@@ -477,17 +443,14 @@ storeRouter.get(
   '/integrations/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const integration = await prisma.integration.findUnique({
-      where: {
-        userId_provider: {
-          userId,
-          provider: req.params.provider,
-        },
-      },
-    });
+    const integration = await getPublicConnection(
+      userId,
+      'integration',
+      req.params.provider,
+    );
 
     res.json({
-      integration: integration ? serializeIntegration(integration) : null,
+      integration,
     });
   }),
 );
@@ -496,24 +459,14 @@ storeRouter.put(
   '/integrations/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const integration = await prisma.integration.upsert({
-      where: {
-        userId_provider: {
-          userId,
-          provider: req.params.provider,
-        },
-      },
-      update: {
-        data: toJsonValue(req.body ?? {}) ?? {},
-      },
-      create: {
-        userId,
-        provider: req.params.provider,
-        data: toJsonValue(req.body ?? {}) ?? {},
-      },
-    });
+    const integration = await saveConnection(
+      userId,
+      'integration',
+      req.params.provider,
+      req.body,
+    );
 
-    res.json({ integration: serializeIntegration(integration) });
+    res.json({ integration });
   }),
 );
 
@@ -521,12 +474,7 @@ storeRouter.delete(
   '/integrations/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    await prisma.integration.deleteMany({
-      where: {
-        userId,
-        provider: req.params.provider,
-      },
-    });
+    await deleteConnection(userId, 'integration', req.params.provider);
     res.status(204).end();
   }),
 );
@@ -535,19 +483,14 @@ storeRouter.get(
   '/cloud-credentials/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const cloudCredential = await prisma.cloudCredential.findUnique({
-      where: {
-        userId_provider: {
-          userId,
-          provider: req.params.provider,
-        },
-      },
-    });
+    const cloudCredential = await getPublicConnection(
+      userId,
+      'cloud',
+      req.params.provider,
+    );
 
     res.json({
-      cloudCredential: cloudCredential
-        ? serializeCloudCredential(cloudCredential)
-        : null,
+      cloudCredential,
     });
   }),
 );
@@ -556,24 +499,14 @@ storeRouter.put(
   '/cloud-credentials/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const cloudCredential = await prisma.cloudCredential.upsert({
-      where: {
-        userId_provider: {
-          userId,
-          provider: req.params.provider,
-        },
-      },
-      update: {
-        data: toJsonValue(req.body ?? {}) ?? {},
-      },
-      create: {
-        userId,
-        provider: req.params.provider,
-        data: toJsonValue(req.body ?? {}) ?? {},
-      },
-    });
+    const cloudCredential = await saveConnection(
+      userId,
+      'cloud',
+      req.params.provider,
+      req.body,
+    );
 
-    res.json({ cloudCredential: serializeCloudCredential(cloudCredential) });
+    res.json({ cloudCredential });
   }),
 );
 
@@ -581,12 +514,7 @@ storeRouter.delete(
   '/cloud-credentials/:provider',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    await prisma.cloudCredential.deleteMany({
-      where: {
-        userId,
-        provider: req.params.provider,
-      },
-    });
+    await deleteConnection(userId, 'cloud', req.params.provider);
     res.status(204).end();
   }),
 );

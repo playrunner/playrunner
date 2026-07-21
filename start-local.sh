@@ -382,11 +382,77 @@ NODE
     echo "🔌 Frontend API proxy: ${VITE_API_URL}"
 }
 
+ensure_api_credential_encryption_key() {
+    node - "${API_DIR}/.env" <<'NODE'
+const crypto = require('crypto');
+const fs = require('fs');
+
+const envPath = process.argv[2];
+const contents = fs.readFileSync(envPath, 'utf8');
+const lines = contents.split(/\r?\n/);
+
+function readValue(key) {
+  const line = lines.find((entry) => entry.startsWith(`${key}=`));
+  if (!line) return '';
+  const raw = line.slice(key.length + 1).trim();
+  if (
+    (raw.startsWith("'") && raw.endsWith("'")) ||
+    (raw.startsWith('"') && raw.endsWith('"'))
+  ) {
+    return raw.slice(1, -1);
+  }
+  return raw;
+}
+
+function upsert(key, value) {
+  const index = lines.findIndex((entry) => entry.startsWith(`${key}=`));
+  const rendered = `${key}=${value}`;
+  if (index === -1) lines.push(rendered);
+  else lines[index] = rendered;
+}
+
+let encodedKeyring = readValue('PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS');
+let activeVersion = readValue(
+  'PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION',
+);
+
+if (!encodedKeyring) {
+  encodedKeyring = JSON.stringify({
+    1: crypto.randomBytes(32).toString('base64'),
+  });
+  activeVersion = '1';
+  upsert(
+    'PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS',
+    `'${encodedKeyring}'`,
+  );
+  upsert('PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION', activeVersion);
+  console.log('🔐 Generated local credential encryption key.');
+} else if (!activeVersion) {
+  const versions = Object.keys(JSON.parse(encodedKeyring))
+    .map(Number)
+    .filter(Number.isInteger)
+    .sort((a, b) => b - a);
+  if (!versions.length) {
+    throw new Error('Credential encryption keyring has no valid versions.');
+  }
+  upsert(
+    'PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION',
+    String(versions[0]),
+  );
+}
+
+while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+fs.writeFileSync(envPath, `${lines.join('\n')}\n`, 'utf8');
+NODE
+}
+
 bootstrap_api_prisma() {
     if [ ! -f "${API_DIR}/.env" ]; then
         echo "Missing ${API_DIR}/.env. Re-run ./start-local.sh to reopen setup."
         exit 1
     fi
+
+    ensure_api_credential_encryption_key
 
     echo "🗃️  Generating Prisma client..."
     (

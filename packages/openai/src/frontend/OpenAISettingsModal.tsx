@@ -53,7 +53,7 @@ export function OpenAISettingsModal({
       try {
         const data = await store.getIntegration(auth.currentUser.uid, 'openai');
         if (active) {
-          setIsConnected(Boolean(data?.apiKey));
+          setIsConnected(Boolean(data?.credentialStatus?.configured));
         }
       } catch (error) {
         console.error('Failed to load OpenAI connection', error);

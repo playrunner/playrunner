@@ -24,9 +24,6 @@ export interface Integration {
   authProviders?: { id: string; label: string }[];
   getAuthPath?: (uid: string) => string;
   ConfigPanel?: React.FC<IntegrationConfigPanelProps>;
-  refreshStoredIntegration?: (
-    context: IntegrationRefreshContext,
-  ) => Promise<any | null>;
 }
 
 export interface IntegrationConfigPanelProps {
@@ -41,13 +38,6 @@ export interface IntegrationConfigPanelProps {
   workflowCloudProvider?: string;
 }
 
-export interface IntegrationRefreshContext {
-  integrationData: any;
-  getApiHeaders: () => Promise<Record<string, string>>;
-  saveIntegration: (data: any) => Promise<void>;
-  deleteIntegration: () => Promise<void>;
-}
-
 export interface IntegrationAuthUser {
   uid: string;
   getIdToken: () => Promise<string>;
@@ -60,19 +50,48 @@ export interface IntegrationAuthClient {
   ) => () => void;
 }
 
+export interface ConnectionEnvelope<
+  TProvider extends string = string,
+  TConfig extends Record<string, unknown> = Record<string, unknown>,
+  TSecrets extends Record<string, unknown> = Record<string, unknown>,
+> {
+  provider: TProvider;
+  config: TConfig;
+  secrets: TSecrets;
+}
+
+export interface PublicConnection<
+  TProvider extends string = string,
+  TConfig extends Record<string, unknown> = Record<string, unknown>,
+> {
+  id: string;
+  provider: TProvider;
+  kind: 'cloud' | 'integration';
+  config: TConfig;
+  credentialStatus: { configured: boolean };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IntegrationStore {
-  getIntegration: (userId: string, integrationId: string) => Promise<any>;
+  getIntegration: (
+    userId: string,
+    integrationId: string,
+  ) => Promise<PublicConnection | null>;
   saveIntegration: (
     userId: string,
     integrationId: string,
-    data: any,
+    data: Partial<ConnectionEnvelope>,
   ) => Promise<void>;
   deleteIntegration: (userId: string, integrationId: string) => Promise<void>;
-  getCloudCredential?: (userId: string, providerId: string) => Promise<any>;
+  getCloudCredential?: (
+    userId: string,
+    providerId: string,
+  ) => Promise<PublicConnection | null>;
   saveCloudCredential?: (
     userId: string,
     providerId: string,
-    data: any,
+    data: Partial<ConnectionEnvelope>,
   ) => Promise<void>;
   deleteCloudCredential?: (userId: string, providerId: string) => Promise<void>;
   getEnvironments?: (userId: string) => Promise<any[]>;

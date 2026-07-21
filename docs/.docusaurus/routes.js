@@ -84,15 +84,15 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', 'ad1'),
+    component: ComponentCreator('/playrunner/docs/', 'c42'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', '627'),
+        component: ComponentCreator('/playrunner/docs/', '999'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', '987'),
+            component: ComponentCreator('/playrunner/docs/', 'a56'),
             routes: [
               {
                 path: '/playrunner/docs/contributing/',
@@ -121,6 +121,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/github/',
                 component: ComponentCreator('/playrunner/docs/integration-packages/github/', 'cbb'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/huggingface/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/huggingface/', 'c1f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

@@ -195,6 +195,36 @@ The setup wizard default database URL and the Docker Postgres bind will both fol
 
 ---
 
+## GitHub is connected but no repositories appear
+
+**Symptom:** The Playwright node shows **Connected (GitHub)**, but the repository
+dropdown contains only **Select Repository**.
+
+**Checks:**
+
+1. Look below the repository dropdown for the API or GitHub error. Repository
+   discovery uses `GET /api/github/repositories`; it does not read a token from
+   browser integration data.
+2. Confirm the saved GitHub App installation still has repository access in
+   GitHub. Disconnecting and reconnecting cannot expose repositories that were
+   not granted to the installation.
+3. In local development, verify both packages resolve to workspace paths:
+
+   ```bash
+   npm --prefix apps/frontend ls @playrunner/github @playrunner/playwright --depth=0
+   ```
+
+4. If Playwright resolves to the npm registry, set it to
+   `file:../../packages/playwright`, run `npm install` in `apps/frontend`, fully
+   restart `./start-local.sh`, and hard-refresh the browser. A reconnect updates
+   the credential row but does not replace the frontend bundle.
+
+The API resolves the encrypted token and saved installation ID, calls GitHub,
+and returns only repository metadata. Do not restore browser-visible
+`accessToken` fields as a workaround.
+
+---
+
 ## Playwright tests fail with "git clone failed"
 
 **Symptom:** The log panel shows a clone error.

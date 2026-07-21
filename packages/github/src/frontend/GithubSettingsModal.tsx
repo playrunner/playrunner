@@ -51,6 +51,7 @@ export function GithubSettingsModal({
   const [githubAppSlug, setGithubAppSlug] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
 
@@ -72,18 +73,19 @@ export function GithubSettingsModal({
             'github',
           );
           if (data && isMounted) {
-            if (data.clientId && data.accessToken) {
-              setGithubAppName(data.appName || data.appSlug || '');
-              setGithubClientId(data.clientId);
-              setGithubClientSecret(data.clientSecret || '');
-              if (data.appSlug) setGithubAppSlug(data.appSlug);
-              setAuthSuccess(true);
-            } else if (data.clientId) {
-              setGithubAppName(data.appName || data.appSlug || '');
-              setGithubClientId(data.clientId);
-              setGithubClientSecret(data.clientSecret || '');
-              if (data.appSlug) setGithubAppSlug(data.appSlug);
-            }
+            const appName =
+              typeof data.config?.appName === 'string'
+                ? data.config.appName
+                : typeof data.config?.appSlug === 'string'
+                  ? data.config.appSlug
+                  : '';
+            const appSlug =
+              typeof data.config?.appSlug === 'string'
+                ? data.config.appSlug
+                : null;
+            setGithubAppName(appName);
+            setGithubAppSlug(appSlug);
+            setAuthSuccess(Boolean(data.credentialStatus?.configured));
           }
         } catch (error) {
           console.error('Failed to fetch Github credentials', error);
@@ -95,6 +97,7 @@ export function GithubSettingsModal({
       fetchCredentials();
     } else {
       setAuthSuccess(false);
+      setAuthError('');
       setIsAuthenticating(false);
       setGithubAppName('');
       setGithubClientId('');
@@ -110,28 +113,26 @@ export function GithubSettingsModal({
   const handleAuthenticateGithub = async () => {
     try {
       setIsAuthenticating(true);
-
-      const currentUser = auth.currentUser;
-
-      if (currentUser) {
-        await store.saveIntegration(currentUser.uid, 'github', {
-          appName: githubAppName,
-          clientId: githubClientId,
-          clientSecret: githubClientSecret,
-          updatedAt: new Date().toISOString(),
-        });
-      }
+      setAuthError('');
 
       let isProcessing = false;
+      let installationId: string | undefined;
+      const oauthState = crypto.randomUUID();
       const messageListener = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         if (event.data?.type === 'oauth_callback' && event.data?.success) {
           if (isProcessing) return;
           isProcessing = true;
 
+          let didConnect = false;
           if (auth.currentUser) {
             if (event.data?.params?.code) {
               try {
+                if (event.data.params.state !== oauthState) {
+                  throw new Error(
+                    'GitHub returned an invalid OAuth state. Try connecting again.',
+                  );
+                }
                 // Exchange the code for an access token
                 const token = await auth.currentUser.getIdToken();
                 const tokenRes = await fetch('/api/github/token', {
@@ -144,47 +145,22 @@ export function GithubSettingsModal({
                     code: event.data.params.code,
                     client_id: githubClientId,
                     client_secret: githubClientSecret,
+                    app_name: githubAppName,
+                    installation_id:
+                      event.data.params.installation_id || installationId,
                   }),
                 });
 
                 const tokenData = await tokenRes.json();
 
-                if (!tokenData.access_token) {
+                if (!tokenRes.ok || !tokenData.connected) {
                   throw new Error(
                     `Failed to retrieve access token: ${JSON.stringify(tokenData)}`,
                   );
                 }
 
-                const integrationData: any = {
-                  appName: githubAppName,
-                  clientId: githubClientId,
-                  clientSecret: githubClientSecret,
-                  code: event.data.params.code,
-                  accessToken: tokenData.access_token,
-                  refreshToken: tokenData.refresh_token,
-                  expiresAt: tokenData.expires_in
-                    ? Date.now() + tokenData.expires_in * 1000
-                    : undefined,
-                  refreshTokenExpiresAt: tokenData.refresh_token_expires_in
-                    ? Date.now() + tokenData.refresh_token_expires_in * 1000
-                    : undefined,
-                  appSlug: githubAppName,
-                  updatedAt: new Date().toISOString(),
-                };
-
-                // Store installation_id if it was provided
-                if (event.data.params.installation_id) {
-                  integrationData.installationId =
-                    event.data.params.installation_id;
-                }
-
-                await store.saveIntegration(
-                  auth.currentUser.uid,
-                  'github',
-                  integrationData,
-                );
-
                 setGithubAppSlug(githubAppName);
+                didConnect = true;
                 if (popupRef.current)
                   popupRef.current.postMessage(
                     { type: 'oauth_close' },
@@ -192,24 +168,10 @@ export function GithubSettingsModal({
                   );
               } catch (err) {
                 console.error('Failed to save auth code:', err);
-                if (popupRef.current)
-                  popupRef.current.postMessage(
-                    { type: 'oauth_close' },
-                    window.location.origin,
-                  );
-              }
-            } else if (event.data?.params?.installation_id) {
-              if (event.data?.params?.setup_action === 'update') {
-                // Just an update to the installation (e.g. adding repositories)
-                if (popupRef.current)
-                  popupRef.current.postMessage(
-                    { type: 'oauth_close' },
-                    window.location.origin,
-                  );
-              } else {
-                // If there is an installation ID but no code, they probably forgot to check "Request user authorization (OAuth) during installation"
-                alert(
-                  "Installation successful, but no OAuth code found. Please ensure you checked 'Request user authorization (OAuth) during installation' in your GitHub App settings.",
+                setAuthError(
+                  err instanceof Error
+                    ? err.message
+                    : 'Failed to save the GitHub connection.',
                 );
                 if (popupRef.current)
                   popupRef.current.postMessage(
@@ -217,25 +179,51 @@ export function GithubSettingsModal({
                     window.location.origin,
                   );
               }
+            } else if (event.data?.params?.installation_id) {
+              installationId = event.data.params.installation_id;
+              const authorizeUrl = new URL(
+                'https://github.com/login/oauth/authorize',
+              );
+              authorizeUrl.searchParams.set('client_id', githubClientId);
+              authorizeUrl.searchParams.set('redirect_uri', callbackUrl);
+              authorizeUrl.searchParams.set('state', oauthState);
+              popupRef.current?.postMessage(
+                {
+                  type: 'oauth_install_redirect',
+                  url: authorizeUrl.toString(),
+                },
+                window.location.origin,
+              );
+              isProcessing = false;
+              return;
+            } else {
+              setAuthError(
+                'GitHub returned no OAuth code. Check the GitHub App callback and OAuth settings, then try again.',
+              );
             }
+          } else {
+            setAuthError('You must be signed in to connect GitHub.');
           }
 
           setIsAuthenticating(false);
-          setAuthSuccess(true);
+          setAuthSuccess(didConnect);
           window.removeEventListener('message', messageListener);
         }
       };
 
       window.addEventListener('message', messageListener);
 
-      const authUrl = `https://github.com/apps/${githubAppName}/installations/new`;
+      const installationUrl = new URL(
+        `https://github.com/apps/${githubAppName}/installations/new`,
+      );
+      installationUrl.searchParams.set('state', oauthState);
 
       const width = 800;
       const height = 700;
       const left = window.screen.width / 2 - width / 2;
       const top = window.screen.height / 2 - height / 2;
       popupRef.current = window.open(
-        authUrl,
+        installationUrl.toString(),
         'GithubOAuth',
         `toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=${width}, height=${height}, top=${top}, left=${left}`,
       );
@@ -249,6 +237,11 @@ export function GithubSettingsModal({
       }, 500);
     } catch (error) {
       console.error('Failed to save credentials', error);
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to authenticate with GitHub.',
+      );
       setIsAuthenticating(false);
     }
   };
@@ -364,6 +357,15 @@ export function GithubSettingsModal({
       ) : (
         <div className="flex flex-col gap-6">
           <IntegrationConnectionAutofillGuard connectionId="github" />
+
+          {authError ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500"
+            >
+              {authError}
+            </div>
+          ) : null}
 
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
             <div className="flex items-start gap-3">

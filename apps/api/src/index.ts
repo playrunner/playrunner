@@ -15,6 +15,7 @@ import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
 import { storeRouter } from './routes/store';
+import { createIntegrationCredentialStore } from './services/connections';
 
 const app = express();
 app.use(cors());
@@ -42,6 +43,11 @@ app.use('/api/auth', authRouter);
 app.use('/api/scheduler', schedulerRouter);
 
 app.use('/api', requireAuth);
+app.use('/api', (req, _res, next) => {
+  const userId = req.authUser!.providerUserId;
+  req.integrationCredentials = createIntegrationCredentialStore(userId);
+  next();
+});
 registerIntegrationApiRoutes(app);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);

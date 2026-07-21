@@ -68,10 +68,19 @@ local packages and app dependencies:
 The installer discovers local packages carrying `playrunner.integration`
 metadata; there is no hardcoded provider install list.
 
+`install-local.sh` installs what each consuming app selects in its own
+`package.json`; it does not automatically replace every published
+`@playrunner/*` dependency with a workspace package. When testing changes across
+package boundaries, use `file:` dependencies for every changed package in every
+affected consumer and confirm the resulting `node_modules` entries are
+symlinks.
+
 Frontend development, builds, and typechecking generate the frontend
 composition automatically. Restart the Vite process after changing the package
-selection or export map. Local API startup runs `build:integrations`; restart
-the API so a changed route selection is loaded.
+selection, dependency target, or export map, then hard-refresh the browser.
+Local API startup runs `build:integrations`; restart the API so a changed route
+selection or package API implementation is loaded. Reconnecting an OAuth
+provider changes saved credentials only; it does not reload either artifact.
 
 Orchestrator code is bundled into a Docker image. Rebuild the local image and
 remove the existing container with:

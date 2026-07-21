@@ -26,7 +26,7 @@ Run Terraform directly after reviewing the generated values.
 Options:
   --yes, -y                  Overwrite an existing terraform.tfvars
   --force                    Overwrite an existing terraform.tfvars
-  --user-id <id>             Use a specific saved CloudCredential row
+  --user-id <id>             Use a specific saved GCP connection
   -h, --help                 Show this help
 
 Examples:

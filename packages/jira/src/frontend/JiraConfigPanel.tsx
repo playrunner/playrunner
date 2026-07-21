@@ -26,7 +26,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
   useEffect(() => {
     async function fetchProjects() {
-      if (!integrationData?.accessToken) return;
+      if (!integrationData?.credentialStatus?.configured) return;
 
       setIsLoadingProjects(true);
 
@@ -36,7 +36,6 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
         const res = await fetch('/api/jira/projects', {
           headers: {
-            'x-jira-auth': integrationData.accessToken,
             Authorization: `Bearer ${token}`,
           },
         });
@@ -57,7 +56,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     }
 
     void fetchProjects();
-  }, [auth, integrationData?.accessToken, nodeId, onChange]);
+  }, [auth, integrationData?.credentialStatus?.configured, nodeId, onChange]);
 
   const selectedProject = projects.find((project) => {
     return project.id === config.projectId;

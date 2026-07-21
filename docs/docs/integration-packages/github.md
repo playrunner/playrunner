@@ -22,7 +22,7 @@ npmUrl="https://www.npmjs.com/package/@playrunner/github"
 badges={['OAuth', 'API routes', 'Repository access']}
 facts={[
 { label: 'Node type', value: 'Trigger' },
-{ label: 'Auth path', value: 'users/{uid}/integrations/github' },
+{ label: 'Connection', value: 'integration / github' },
 { label: 'Backend mount', value: '/api/github' },
 ]}
 />
@@ -36,7 +36,7 @@ facts={[
 
   <IntegrationCard eyebrow="Backend" title="OAuth proxy routes">
     Exports `githubRouter`, mounted by the host API at `/api/github`, for token
-    exchange and refresh calls.
+    exchange, refresh, repository discovery, and branch discovery.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Used by Playwright" title="Repository auth">
@@ -86,6 +86,20 @@ The router owns:
 
 - `POST /token`
 - `POST /refresh`
+- `GET /repositories`
+- `GET /branches?repository=owner/name`
+
+The token endpoint completes the GitHub App installation and user OAuth flow,
+then saves app metadata and encrypted credentials through the host's
+request-scoped connection store. The refresh endpoint resolves and updates
+those secrets on the server. Neither route returns tokens to the browser.
+
+The repository endpoint uses the installation ID saved in connection `config`
+and the decrypted user access token from connection `secrets`. It returns only
+repository IDs and full names. The branch endpoint accepts the selected
+`owner/name` repository and returns branch names. These routes keep GitHub
+credentials out of browser integration data while still supporting the
+Playwright selectors.
 
 ## Assets
 

@@ -4,6 +4,11 @@ import { getPublicApiBaseUrl } from '../config';
 import { prisma } from '../lib/prisma';
 import { apiRuntime } from '../runtime';
 import type { SchedulerProvisionRequest } from '../runtime/contracts';
+import {
+  createIntegrationCredentialStore,
+  resolveConnection,
+} from './connections';
+import { preparePackageCredentials } from '../integrations/package-registry';
 
 type ScheduleFrequency = 'day' | 'hour' | 'minute' | 'month' | 'week';
 
@@ -267,22 +272,19 @@ function buildTriggerUrl(req: Request, scheduleId: string): string {
 }
 
 async function getGcpCredential(userId: string): Promise<Record<string, any>> {
-  const credential = await prisma.cloudCredential.findUnique({
-    where: {
-      userId_provider: {
-        userId,
-        provider: 'gcp',
-      },
-    },
-  });
-
-  if (!credential || typeof credential.data !== 'object' || !credential.data) {
+  await preparePackageCredentials(
+    'gcp',
+    createIntegrationCredentialStore(userId),
+    'cloud',
+  );
+  const credential = await resolveConnection(userId, 'cloud', 'gcp');
+  if (!credential) {
     throw new ScheduleValidationError(
       'GCP credentials required. Connect GCP from the GCP Runner menu or Integrations.',
     );
   }
 
-  return credential.data as Record<string, any>;
+  return { ...credential.config, ...credential.secrets };
 }
 
 async function buildProvisionRequest({

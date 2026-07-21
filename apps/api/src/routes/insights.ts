@@ -371,13 +371,13 @@ insightsRouter.get(
         },
         orderBy: { id: 'desc' },
       }),
-      prisma.integration.findMany({
-        where: { userId },
+      prisma.connection.findMany({
+        where: { userId, kind: 'integration' },
         select: { provider: true, createdAt: true, updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),
-      prisma.cloudCredential.findMany({
-        where: { userId },
+      prisma.connection.findMany({
+        where: { userId, kind: 'cloud' },
         select: { provider: true, createdAt: true, updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),

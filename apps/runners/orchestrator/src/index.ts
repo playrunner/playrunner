@@ -599,7 +599,7 @@ export async function executeWorkflow(reqBody: any) {
             cloudProvider,
           },
           github: settings?.github,
-          settings: reqBody.settings,
+          settings: settings?.gcp ? { gcp: settings.gcp } : {},
         };
 
         return {
