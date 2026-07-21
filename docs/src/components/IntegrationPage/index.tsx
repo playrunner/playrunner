@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
 import GcpLogo from '../../../../packages/gcp/assets/gcp.svg';
 import GitHubLogo from '../../../../packages/github/assets/github.svg';
+import HuggingFaceLogo from '../../../../packages/huggingface/assets/huggingface.svg';
 import JiraLogo from '../../../../packages/jira/assets/jira.svg';
 import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
@@ -12,6 +13,7 @@ type IconKind =
   | 'environment'
   | 'gcp'
   | 'github'
+  | 'huggingface'
   | 'javascript'
   | 'jira'
   | 'openai'
@@ -38,6 +40,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <GitHubLogo aria-hidden="true" />;
     case 'gcp':
       return <GcpLogo aria-hidden="true" />;
+    case 'huggingface':
+      return <HuggingFaceLogo aria-hidden="true" />;
     case 'jira':
       return <JiraLogo aria-hidden="true" />;
     case 'openai':

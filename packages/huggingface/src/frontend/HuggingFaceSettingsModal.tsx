@@ -6,16 +6,18 @@ import {
   IntegrationSettingsModal,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
-import { createOpenAIIntegrationData } from '../connection';
-import { OpenAIIcon } from './OpenAIIcon';
+import { createHuggingFaceIntegrationData } from '../connection';
+import { huggingFaceIconUrl } from './icon';
 
-interface OpenAISettingsModalProps {
+interface HuggingFaceSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const OPENAI_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/openai');
+const HUGGING_FACE_SETUP_DOCS_URL = getDocsUrl(
+  'docs/integration-packages/huggingface',
+);
 
 type DocsImportMeta = ImportMeta & {
   env?: {
@@ -34,12 +36,12 @@ function getDocsUrl(path = '') {
   return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
 }
 
-export function OpenAISettingsModal({
+export function HuggingFaceSettingsModal({
   isOpen,
   onClose,
-}: OpenAISettingsModalProps) {
+}: HuggingFaceSettingsModalProps) {
   const { auth, store } = useIntegrationHost();
-  const [apiKey, setApiKey] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
@@ -50,19 +52,22 @@ export function OpenAISettingsModal({
       if (!isOpen || !auth.currentUser) return;
 
       try {
-        const data = await store.getIntegration(auth.currentUser.uid, 'openai');
+        const data = await store.getIntegration(
+          auth.currentUser.uid,
+          'huggingface',
+        );
         if (active) {
-          setIsConnected(Boolean(data?.apiKey));
+          setIsConnected(Boolean(data?.accessToken));
         }
       } catch (error) {
-        console.error('Failed to load OpenAI connection', error);
+        console.error('Failed to load Hugging Face connection', error);
       }
     };
 
     if (isOpen) {
       void loadConnection();
     } else {
-      setApiKey('');
+      setAccessToken('');
       setIsSaving(false);
       setIsConnected(false);
     }
@@ -74,20 +79,20 @@ export function OpenAISettingsModal({
 
   const saveConnection = async () => {
     const currentUser = auth.currentUser;
-    const normalizedKey = apiKey.trim();
-    if (!currentUser || !normalizedKey) return;
+    const normalizedToken = accessToken.trim();
+    if (!currentUser || !normalizedToken) return;
 
     try {
       setIsSaving(true);
       await store.saveIntegration(
         currentUser.uid,
-        'openai',
-        createOpenAIIntegrationData(normalizedKey),
+        'huggingface',
+        createHuggingFaceIntegrationData(normalizedToken),
       );
-      setApiKey('');
+      setAccessToken('');
       setIsConnected(true);
     } catch (error) {
-      console.error('Failed to save OpenAI connection', error);
+      console.error('Failed to save Hugging Face connection', error);
     } finally {
       setIsSaving(false);
     }
@@ -97,11 +102,11 @@ export function OpenAISettingsModal({
     if (!auth.currentUser) return;
 
     try {
-      await store.deleteIntegration(auth.currentUser.uid, 'openai');
-      setApiKey('');
+      await store.deleteIntegration(auth.currentUser.uid, 'huggingface');
+      setAccessToken('');
       setIsConnected(false);
     } catch (error) {
-      console.error('Failed to disconnect OpenAI', error);
+      console.error('Failed to disconnect Hugging Face', error);
     }
   };
 
@@ -109,57 +114,63 @@ export function OpenAISettingsModal({
     <IntegrationSettingsModal
       isOpen={isOpen}
       onClose={onClose}
-      title="Connect to OpenAI"
-      icon={<OpenAIIcon className="w-5 h-5 text-[var(--foreground)]" />}
+      title="Connect to Hugging Face"
+      icon={
+        <img
+          src={huggingFaceIconUrl}
+          alt="Hugging Face"
+          className="w-5 h-5 object-contain"
+        />
+      }
       isConnected={isConnected}
-      connectedTitle="OpenAI Connected Successfully"
-      connectedDescription="Your API key is stored with your Playrunner integration settings and is ready for workflow runs."
+      connectedTitle="Hugging Face Connected Successfully"
+      connectedDescription="Your access token is stored with your Playrunner integration settings and is ready for workflow runs."
       onChangeCredentials={() => {
-        setApiKey('');
+        setAccessToken('');
         setIsConnected(false);
       }}
       onDisconnect={disconnect}
-      primaryActionLabel="Save API key"
+      primaryActionLabel="Save access token"
       primaryActionPendingLabel="Saving..."
       primaryActionPending={isSaving}
-      primaryActionDisabled={!apiKey.trim() || isSaving}
+      primaryActionDisabled={!accessToken.trim() || isSaving}
       onPrimaryAction={saveConnection}
     >
-      <IntegrationConnectionAutofillGuard connectionId="openai" />
+      <IntegrationConnectionAutofillGuard connectionId="huggingface" />
 
       <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4 text-left">
         <p className="text-sm font-medium text-[var(--foreground)]">
-          API key authentication
+          Inference Providers token
         </p>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          OpenAI API access uses an API key. The key is sent only by the
-          workflow runner to OpenAI and is excluded from node output and error
-          messages.
+          Use a Hugging Face token with Inference Providers permission. The
+          token is sent only by the workflow runner and is excluded from node
+          output and error messages.
         </p>
         <a
-          href={OPENAI_SETUP_DOCS_URL}
+          href={HUGGING_FACE_SETUP_DOCS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 inline-flex text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
         >
-          Open OpenAI setup guide
+          Open Hugging Face setup guide
         </a>
       </div>
 
       <IntegrationConfigField
-        label="API key"
-        htmlFor="openai-connection-field-a"
-        hint="Existing keys are never displayed here. Enter a new key to replace the saved credential."
+        label="Access token"
+        htmlFor="huggingface-connection-field-a"
+        hint="Existing tokens are never displayed here. Enter a new token to replace the saved credential."
       >
         <IntegrationConnectionInput
-          id="openai-connection-field-a"
-          connectionId="openai"
+          id="huggingface-connection-field-a"
+          connectionId="huggingface"
           fieldSlot="a"
           mode="secret"
-          placeholder="Paste OpenAI API key"
-          value={apiKey}
+          placeholder="Paste Hugging Face access token"
+          value={accessToken}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            setApiKey(event.target.value);
+            setAccessToken(event.target.value);
           }}
         />
       </IntegrationConfigField>

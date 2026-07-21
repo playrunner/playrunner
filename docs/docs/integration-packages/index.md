@@ -74,6 +74,14 @@ page describes its available user setup and package surfaces.
     installCommand="npm install @playrunner/openai"
   />
   <IntegrationDirectoryItem
+    name="Hugging Face"
+    packageName="@playrunner/huggingface"
+    description="Run hosted open-source models through Hugging Face Inference Providers."
+    icon="huggingface"
+    href="/docs/integration-packages/huggingface"
+    installCommand="npm install @playrunner/huggingface"
+  />
+  <IntegrationDirectoryItem
     name="Playwright"
     packageName="@playrunner/playwright"
     description="Run Playwright test workflows with repository-backed configuration."

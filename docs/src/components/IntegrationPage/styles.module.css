@@ -80,6 +80,10 @@
   background: #ffffff;
 }
 
+.huggingfaceIcon {
+  background: #ffffff;
+}
+
 .jiraIcon {
   background: #ffffff;
 }
@@ -118,6 +122,10 @@
 }
 
 :global([data-theme='dark']) .gcpIcon {
+  background: #111827;
+}
+
+:global([data-theme='dark']) .huggingfaceIcon {
   background: #111827;
 }
 

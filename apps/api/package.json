@@ -32,7 +32,7 @@
     "@playrunner/github": "^0.1.0",
     "@playrunner/javascript": "^0.1.0",
     "@playrunner/jira": "^0.1.0",
-    "@playrunner/openai": "0.1.0",
+    "@playrunner/openai": "0.1.1",
     "@playrunner/playwright": "^0.1.0",
     "@playrunner/schedule": "^0.1.0",
     "@playrunner/slack": "^0.1.0",
