@@ -65,6 +65,62 @@ components.
 Keep brand assets in the package and resolve them from package source, as the
 existing packages do with `new URL('../../assets/example.svg', import.meta.url)`.
 
+### Choose the icon pattern by brand behavior
+
+Use the provider's visual behavior to choose between the two supported icon
+patterns:
+
+- Fixed-color and multicolor logos, such as Jira, Slack, and Playwright, use a
+  package-owned SVG URL as the integration `icon`. Render these logos as normal
+  images so their brand colors remain unchanged.
+- Monochrome logos that must follow the active theme, such as GitHub and OpenAI,
+  use a package-owned React SVG component with `fill="currentColor"`. Set that
+  component as the integration `icon` and reuse it in settings and connection
+  UI.
+
+For a theme-adaptive icon, keep the raw asset URL as a separate export when
+consumers need it. Do not pass the URL as the integration icon and do not apply
+the SVG through CSS `mask-image`; both approaches can render the SVG as an
+opaque rectangle instead of the intended mark.
+
+```tsx
+export function ExampleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="..." />
+    </svg>
+  );
+}
+```
+
+Then register and reuse the component:
+
+```tsx
+import { ExampleIcon } from './ExampleIcon';
+
+export const exampleIntegration: Integration = {
+  id: 'example',
+  name: 'Example',
+  category: 'Developer Tools',
+  description: 'Run an Example action',
+  icon: ExampleIcon,
+  nodeType: 'action',
+  SettingsModal: ExampleSettingsModal,
+  ConfigPanel: ExampleConfigPanel,
+};
+
+<IntegrationSettingsModal
+  icon={<ExampleIcon className="h-5 w-5 text-[var(--foreground)]" />}
+  {...settingsModalProps}
+/>;
+```
+
 ## Use the SDK host boundary
 
 Package UI accesses Playrunner-owned services through

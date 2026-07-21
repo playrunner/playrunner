@@ -22,6 +22,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
 - In integration connection/settings dialogs, use `IntegrationConnectionInput` from `@playrunner/integration-sdk` instead of raw `Input` for manual fields, and include `IntegrationConnectionAutofillGuard` in custom modals so browsers and password-manager extensions do not autofill connection credentials.
+- Render fixed-color or multicolor integration logos from their package-owned SVG URL. For monochrome logos that change with the theme, follow GitHub's package-owned React SVG component pattern with `fill="currentColor"`, and reuse the same component everywhere the integration icon appears; do not use a CSS mask.
 - Use `bg-background`, `bg-surface`, `bg-surface-hover`, `text-[var(--foreground)]`, `text-muted`, `border-[var(--border)]`, and `border-subtle` instead of hard-coded colors.
 - Use `rounded-xl` and `shadow-sm` for standard product cards and inset panels.
 - Use `max-w-7xl mx-auto` on the top-level standard document page container, with page padding on that same container, so the primary content width stays consistent across Projects, Environments, Integrations, Insights, Teams, Settings, and Design System.

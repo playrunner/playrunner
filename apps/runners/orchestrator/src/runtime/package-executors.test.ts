@@ -521,6 +521,88 @@ describe('package orchestrator integration', { concurrency: false }, () => {
   });
 
   describe('workflow host finalization', () => {
+    test('renders completed package output into downstream node templates', async () => {
+      const previousPremium = process.env.ENABLE_PREMIUM;
+      const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
+      const openAIRequests: Record<string, unknown>[] = [];
+
+      process.env.ENABLE_PREMIUM = 'false';
+      process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
+      globalThis.fetch = async (input, init) => {
+        if (String(input) === 'https://api.openai.com/v1/responses') {
+          openAIRequests.push(JSON.parse(String(init?.body)));
+          return new Response(
+            JSON.stringify({
+              output_text:
+                openAIRequests.length === 1 ? 'First result' : 'Second result',
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+
+        return new Response('{}', { status: 200 });
+      };
+
+      try {
+        const { executeWorkflow } = await import('../index');
+        await executeWorkflow({
+          cloudProvider: 'GCP',
+          connections: [
+            {
+              sourceId: 'openai-first',
+              targetId: 'openai-second',
+              type: 'sequential',
+            },
+          ],
+          eventTransport: {
+            projectId: 'test-project',
+            topicName: 'workflow-events',
+            type: 'gcp_pubsub',
+          },
+          executionAuthToken: 'execution-token',
+          nodes: [
+            {
+              config: { prompt: 'Create the first result.' },
+              id: 'openai-first',
+              label: 'First OpenAI action',
+              nodeType: 'openai',
+            },
+            {
+              config: {
+                prompt: 'Use {{node_openai-first.result.data}} downstream.',
+              },
+              id: 'openai-second',
+              label: 'Second OpenAI action',
+              nodeType: 'openai',
+            },
+          ],
+          settings: { openai: { apiKey: 'sk-test-secret' } },
+          testId: 'execution-upstream-output',
+          workflow: {
+            definition: { id: 'workflow-1', name: 'Output template test' },
+          },
+          workflowId: 'workflow-1',
+        });
+      } finally {
+        if (previousPremium === undefined) {
+          delete process.env.ENABLE_PREMIUM;
+        } else {
+          process.env.ENABLE_PREMIUM = previousPremium;
+        }
+        if (previousPubSubEmulator === undefined) {
+          delete process.env.PUBSUB_EMULATOR_HOST;
+        } else {
+          process.env.PUBSUB_EMULATOR_HOST = previousPubSubEmulator;
+        }
+      }
+
+      assert.equal(openAIRequests.length, 2);
+      assert.equal(
+        openAIRequests[1]?.input,
+        'Use {"text":"First result"} downstream.',
+      );
+    });
+
     test('publishes one terminal node state when a package executor throws', async () => {
       const previousPremium = process.env.ENABLE_PREMIUM;
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;

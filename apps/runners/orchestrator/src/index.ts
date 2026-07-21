@@ -244,6 +244,7 @@ function renderNodeTemplate(
   text: string,
   context: {
     env: Record<string, string>;
+    nodeOutputs: Record<string, unknown>;
     workflow: WorkflowTemplateContext;
   },
 ) {
@@ -253,6 +254,9 @@ function renderNodeTemplate(
 
   return text.replace(/{{\s*([^{}]+?)\s*}}/g, (match, expression) => {
     const path = expression.trim();
+    if (path.startsWith('node_')) {
+      return formatTemplateValue(getPathValue(context.nodeOutputs, path));
+    }
     if (!path.startsWith('env.') && !path.startsWith('workflow.')) {
       return match;
     }
@@ -476,6 +480,17 @@ export async function executeWorkflow(reqBody: any) {
       packageExecutorRuntime.preflight(nodes);
 
       const globalEnvVars: Record<string, string> = {};
+      const nodeTemplateOutputs: Record<string, unknown> = Object.fromEntries(
+        nodes
+          .filter(
+            (node: Record<string, unknown>) =>
+              getString(node.id) && node.output !== undefined,
+          )
+          .map((node: Record<string, unknown>) => [
+            `node_${getString(node.id)}`,
+            node.output,
+          ]),
+      );
       const envNodes = nodes.filter(
         (n) => packageExecutorRuntime.nodeType(n) === 'environment',
       );
@@ -794,6 +809,7 @@ export async function executeWorkflow(reqBody: any) {
               renderTemplate: (value) =>
                 renderNodeTemplate(value, {
                   env: globalEnvVars,
+                  nodeOutputs: nodeTemplateOutputs,
                   workflow: workflowContext,
                 }),
               log: publishLog,
@@ -801,6 +817,7 @@ export async function executeWorkflow(reqBody: any) {
             finalState = result.outcome;
 
             if (result.output !== undefined) {
+              nodeTemplateOutputs[`node_${node.id}`] = result.output;
               await publishEvent({
                 nodeId: node.id,
                 output: result.output,

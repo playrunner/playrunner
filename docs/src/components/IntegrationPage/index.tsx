@@ -3,6 +3,7 @@ import Link from '@docusaurus/Link';
 import GcpLogo from '../../../../packages/gcp/assets/gcp.svg';
 import GitHubLogo from '../../../../packages/github/assets/github.svg';
 import JiraLogo from '../../../../packages/jira/assets/jira.svg';
+import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import SlackLogo from '../../../../packages/slack/assets/slack.svg';
 import styles from './styles.module.css';
@@ -13,6 +14,7 @@ type IconKind =
   | 'github'
   | 'javascript'
   | 'jira'
+  | 'openai'
   | 'playwright'
   | 'schedule'
   | 'slack';
@@ -38,6 +40,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <GcpLogo aria-hidden="true" />;
     case 'jira':
       return <JiraLogo aria-hidden="true" />;
+    case 'openai':
+      return <OpenAILogo aria-hidden="true" />;
     case 'playwright':
       return <PlaywrightLogo aria-hidden="true" />;
     case 'slack':

@@ -46,6 +46,11 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "integration-packages/openai",
+              "path": "/playrunner/docs/integration-packages/openai",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "integration-packages/playwright",
               "path": "/playrunner/docs/integration-packages/playwright",
               "sidebar": "tutorialSidebar"

@@ -71,6 +71,11 @@
   color: #181717;
 }
 
+.openaiIcon {
+  background: #ffffff;
+  color: #181717;
+}
+
 .gcpIcon {
   background: #ffffff;
 }
@@ -103,6 +108,11 @@
 }
 
 :global([data-theme='dark']) .githubIcon {
+  background: #111827;
+  color: #ffffff;
+}
+
+:global([data-theme='dark']) .openaiIcon {
   background: #111827;
   color: #ffffff;
 }

@@ -23,5 +23,9 @@
   "previous": {
     "title": "Playwright",
     "permalink": "/playrunner/docs/integration-packages/playwright"
+  },
+  "next": {
+    "title": "OpenAI",
+    "permalink": "/playrunner/docs/integration-packages/openai"
   }
 }

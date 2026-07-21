@@ -66,6 +66,14 @@ page describes its available user setup and package surfaces.
     installCommand="npm install @playrunner/schedule"
   />
   <IntegrationDirectoryItem
+    name="OpenAI"
+    packageName="@playrunner/openai"
+    description="Generate text and structured output with OpenAI models."
+    icon="openai"
+    href="/docs/integration-packages/openai"
+    installCommand="npm install @playrunner/openai"
+  />
+  <IntegrationDirectoryItem
     name="Playwright"
     packageName="@playrunner/playwright"
     description="Run Playwright test workflows with repository-backed configuration."

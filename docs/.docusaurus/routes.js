@@ -84,15 +84,15 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', '9e2'),
+    component: ComponentCreator('/playrunner/docs/', 'ad1'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', 'de1'),
+        component: ComponentCreator('/playrunner/docs/', '627'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', 'f7d'),
+            component: ComponentCreator('/playrunner/docs/', '987'),
             routes: [
               {
                 path: '/playrunner/docs/contributing/',
@@ -133,6 +133,12 @@ export default [
               {
                 path: '/playrunner/docs/integration-packages/jira/',
                 component: ComponentCreator('/playrunner/docs/integration-packages/jira/', '8b2'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/integration-packages/openai/',
+                component: ComponentCreator('/playrunner/docs/integration-packages/openai/', '35f'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

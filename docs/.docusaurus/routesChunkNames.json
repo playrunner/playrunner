@@ -138,17 +138,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-915"
   },
-  "/playrunner/docs/-9e2": {
+  "/playrunner/docs/-ad1": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docs-aba-62c"
     }
   },
-  "/playrunner/docs/-de1": {
+  "/playrunner/docs/-627": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-c-17-30d"
   },
-  "/playrunner/docs/-f7d": {
+  "/playrunner/docs/-987": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/contributing/-4ea": {
@@ -178,6 +178,10 @@
   "/playrunner/docs/integration-packages/jira/-8b2": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-integration-packages-jira-d-3-a-da2"
+  },
+  "/playrunner/docs/integration-packages/openai/-35f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-integration-packages-openai-da-2-646"
   },
   "/playrunner/docs/integration-packages/orchestrator/-285": {
     "__comp": "__comp---theme-doc-item-178-a40",

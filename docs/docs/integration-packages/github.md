@@ -45,8 +45,9 @@ facts={[
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Assets" title="Package-owned icon">
-    The GitHub SVG lives inside the package and the frontend no longer needs a
-    duplicate public asset.
+    GitHub exports a package-owned React SVG component that uses `currentColor`
+    to follow the active theme. Its raw SVG remains available as a separate
+    asset export.
   </IntegrationCard>
 </IntegrationGrid>
 
@@ -59,7 +60,11 @@ installation, and repository selection, see
 ## Exports
 
 ```ts
-import githubIntegration, { GithubSettingsModal } from '@playrunner/github';
+import githubIntegration, {
+  GithubIcon,
+  GithubSettingsModal,
+  githubIconUrl,
+} from '@playrunner/github';
 import githubApiContribution, { githubRouter } from '@playrunner/github/api';
 ```
 
@@ -84,4 +89,8 @@ The router owns:
 
 ## Assets
 
-The GitHub SVG lives inside the package at `packages/github/assets/github.svg`. The frontend entrypoint resolves it with `new URL(..., import.meta.url)`, so the app does not need a duplicate public asset.
+The GitHub SVG lives inside the package at
+`packages/github/assets/github.svg`. Product UI renders `GithubIcon`, whose
+inline SVG uses `fill="currentColor"` so the mark follows the active theme. The
+separate `githubIconUrl` export is available to consumers that specifically need
+the asset URL. The app does not need a duplicate public asset or a CSS mask.
