@@ -83,7 +83,7 @@ async function getGithubConnection(req: unknown) {
       statusCode: 401,
     });
   }
-  return { accessToken, connection };
+  return { accessToken, connection, store };
 }
 
 async function githubGet(accessToken: string, url: string) {
@@ -106,6 +106,51 @@ async function githubGet(accessToken: string, url: string) {
     throw Object.assign(new Error(message), { statusCode: response.status });
   }
   return data;
+}
+
+function errorStatusCode(error: unknown) {
+  return error &&
+    typeof error === 'object' &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number'
+    ? error.statusCode
+    : undefined;
+}
+
+async function createGithubApiClient(req: unknown) {
+  const {
+    accessToken: initialAccessToken,
+    connection,
+    store,
+  } = await getGithubConnection(req);
+  let accessToken = initialAccessToken;
+  let refreshPromise: Promise<void> | undefined;
+
+  async function refreshAccessTokenOnce() {
+    refreshPromise ??= (async () => {
+      await refreshGithubCredentials(store, 'integration', true);
+      const refreshed = await store.resolve('integration', 'github');
+      const refreshedAccessToken = refreshed?.secrets.accessToken;
+      if (typeof refreshedAccessToken !== 'string' || !refreshedAccessToken) {
+        throw new Error('GitHub authorization has expired. Reconnect GitHub.');
+      }
+      accessToken = refreshedAccessToken;
+    })();
+    await refreshPromise;
+  }
+
+  return {
+    connection,
+    async get(url: string) {
+      try {
+        return await githubGet(accessToken, url);
+      } catch (error) {
+        if (errorStatusCode(error) !== 401) throw error;
+        await refreshAccessTokenOnce();
+        return githubGet(accessToken, url);
+      }
+    },
+  };
 }
 
 // Proxy endpoint to exchange GitHub OAuth code for an access token to bypass CORS
@@ -191,7 +236,8 @@ githubRouter.post('/refresh', async (req, res) => {
 
 githubRouter.get('/repositories', async (req, res) => {
   try {
-    const { accessToken, connection } = await getGithubConnection(req);
+    const github = await createGithubApiClient(req);
+    const { connection } = github;
     const savedInstallationId = connection.config.installationId;
     let installationIds: string[] = [];
 
@@ -201,8 +247,7 @@ githubRouter.get('/repositories', async (req, res) => {
     ) {
       installationIds = [String(savedInstallationId)];
     } else {
-      const installations = (await githubGet(
-        accessToken,
+      const installations = (await github.get(
         'https://api.github.com/user/installations?per_page=100',
       )) as { installations?: Array<{ id?: string | number }> };
       installationIds = (installations.installations ?? [])
@@ -216,8 +261,7 @@ githubRouter.get('/repositories', async (req, res) => {
 
     const repositoryLists = await Promise.all(
       installationIds.map(async (installationId) => {
-        const data = (await githubGet(
-          accessToken,
+        const data = (await github.get(
           `https://api.github.com/user/installations/${encodeURIComponent(installationId)}/repositories?per_page=100`,
         )) as {
           repositories?: Array<{ id?: string | number; full_name?: string }>;
@@ -272,9 +316,8 @@ githubRouter.get('/branches', async (req, res) => {
         .json({ error: 'Repository must use the owner/name format.' });
     }
 
-    const { accessToken } = await getGithubConnection(req);
-    const data = (await githubGet(
-      accessToken,
+    const github = await createGithubApiClient(req);
+    const data = (await github.get(
       `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches?per_page=100`,
     )) as Array<{ name?: string }>;
     const branches = Array.isArray(data)
