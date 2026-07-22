@@ -2,6 +2,8 @@
 
 Jira OAuth, issue actions, and workflow execution for Playrunner.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/jira)
+
 ## Install
 
 ```bash

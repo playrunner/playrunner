@@ -2,6 +2,8 @@
 
 Hugging Face Inference Providers execution for Playrunner workflows.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/huggingface)
+
 ## Install
 
 ```bash

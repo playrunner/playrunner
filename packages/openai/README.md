@@ -2,6 +2,8 @@
 
 OpenAI model execution and structured output for Playrunner workflows.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/openai)
+
 ## Install
 
 ```bash

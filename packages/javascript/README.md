@@ -2,6 +2,8 @@
 
 JavaScript workflow-node configuration for Playrunner.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/javascript)
+
 ## Install
 
 ```bash

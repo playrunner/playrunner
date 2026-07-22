@@ -2,6 +2,8 @@
 
 Playwright workflow-node configuration and runner settings for Playrunner.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/playwright)
+
 ## Install
 
 ```bash

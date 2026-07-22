@@ -2,6 +2,8 @@
 
 Google Cloud credentials, Cloud Run workflow execution, GCS output handling, Pub/Sub events, and scheduler support for Playrunner.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/gcp)
+
 ## Install
 
 ```bash

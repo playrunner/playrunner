@@ -2,6 +2,8 @@
 
 Environment-variable configuration for Playrunner workflows.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/environment)
+
 ## Install
 
 ```bash

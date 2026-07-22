@@ -2,6 +2,8 @@
 
 GitHub authentication and repository access for Playrunner workflows.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/github)
+
 ## Install
 
 ```bash

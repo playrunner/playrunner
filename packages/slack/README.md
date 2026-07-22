@@ -2,6 +2,8 @@
 
 Slack OAuth, incoming webhooks, channel selection, and workflow notifications for Playrunner.
 
+[View package on npm](https://www.npmjs.com/package/@playrunner/slack)
+
 ## Install
 
 ```bash
