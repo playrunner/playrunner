@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => {
       getApiUrlFromApiEnv(repoRoot),
   );
   const editionRuntimePath = resolveEditionRuntimePath(
-    env.ENABLE_PREMIUM !== 'false',
     env.PREMIUM_WEB_RUNTIME_PATH,
   );
   const webNodeModulesDir = path.resolve(__dirname, 'node_modules');
@@ -139,25 +138,17 @@ function loadPlaywrightRunnerConfig() {
   return JSON.parse(fs.readFileSync(configPath, 'utf8'));
 }
 
-function resolveEditionRuntimePath(
-  enablePremium: boolean,
-  configuredPath?: string,
-) {
-  if (enablePremium) {
-    const candidates = [
-      configuredPath,
-      path.resolve(__dirname, '../../premium/frontend/src/runtime/edition.ts'),
-      path.resolve(
-        __dirname,
-        '../../../premium/frontend/src/runtime/edition.ts',
-      ),
-    ].filter(Boolean) as string[];
+function resolveEditionRuntimePath(configuredPath?: string) {
+  const candidates = [
+    configuredPath,
+    path.resolve(__dirname, '../../premium/frontend/src/runtime/edition.ts'),
+    path.resolve(__dirname, '../../../premium/frontend/src/runtime/edition.ts'),
+  ].filter(Boolean) as string[];
 
-    for (const candidate of candidates) {
-      const premiumEditionPath = path.resolve(candidate);
-      if (fs.existsSync(premiumEditionPath)) {
-        return premiumEditionPath;
-      }
+  for (const candidate of candidates) {
+    const premiumEditionPath = path.resolve(candidate);
+    if (fs.existsSync(premiumEditionPath)) {
+      return premiumEditionPath;
     }
   }
 

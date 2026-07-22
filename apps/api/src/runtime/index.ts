@@ -206,10 +206,6 @@ const workflowExecution = new WorkflowExecutionRegistry([
   new LocalWorkflowExecutionBackend(logTransport, gcpPubSubEventStreamManager),
 ]);
 
-function isPremiumEnabled(): boolean {
-  return process.env.ENABLE_PREMIUM !== 'false';
-}
-
 function resolvePremiumApiRuntimeEntry(): string | null {
   const configuredPath = process.env.PREMIUM_API_RUNTIME_PATH;
   const candidates = [
@@ -249,10 +245,6 @@ function applyContribution(contribution: ApiRuntimeContribution) {
 }
 
 async function loadPremiumContribution(): Promise<void> {
-  if (!isPremiumEnabled()) {
-    return;
-  }
-
   const premiumRuntimeEntry = resolvePremiumApiRuntimeEntry();
   if (!premiumRuntimeEntry) {
     return;

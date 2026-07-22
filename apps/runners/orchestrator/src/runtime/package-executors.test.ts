@@ -522,11 +522,9 @@ describe('package orchestrator integration', { concurrency: false }, () => {
 
   describe('workflow host finalization', () => {
     test('renders completed package output into downstream node templates', async () => {
-      const previousPremium = process.env.ENABLE_PREMIUM;
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
       const openAIRequests: Record<string, unknown>[] = [];
 
-      process.env.ENABLE_PREMIUM = 'false';
       process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
       globalThis.fetch = async (input, init) => {
         if (String(input) === 'https://api.openai.com/v1/responses') {
@@ -584,11 +582,6 @@ describe('package orchestrator integration', { concurrency: false }, () => {
           workflowId: 'workflow-1',
         });
       } finally {
-        if (previousPremium === undefined) {
-          delete process.env.ENABLE_PREMIUM;
-        } else {
-          process.env.ENABLE_PREMIUM = previousPremium;
-        }
         if (previousPubSubEmulator === undefined) {
           delete process.env.PUBSUB_EMULATOR_HOST;
         } else {
@@ -604,11 +597,9 @@ describe('package orchestrator integration', { concurrency: false }, () => {
     });
 
     test('publishes one terminal node state when a package executor throws', async () => {
-      const previousPremium = process.env.ENABLE_PREMIUM;
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
       const publishedEvents: Record<string, unknown>[] = [];
 
-      process.env.ENABLE_PREMIUM = 'false';
       process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
       globalThis.fetch = async (_input, init) => {
         const requestBody = JSON.parse(String(init?.body)) as {
@@ -649,11 +640,6 @@ describe('package orchestrator integration', { concurrency: false }, () => {
           workflowId: 'workflow-1',
         });
       } finally {
-        if (previousPremium === undefined) {
-          delete process.env.ENABLE_PREMIUM;
-        } else {
-          process.env.ENABLE_PREMIUM = previousPremium;
-        }
         if (previousPubSubEmulator === undefined) {
           delete process.env.PUBSUB_EMULATOR_HOST;
         } else {

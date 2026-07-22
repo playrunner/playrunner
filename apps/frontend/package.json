@@ -15,7 +15,7 @@
     "prebuild": "npm run generate:integrations",
     "build": "vite build",
     "preview": "vite preview",
-    "dev:e2e": "VITE_API_URL=http://127.0.0.1:3999 ENABLE_PREMIUM=false DISABLE_HMR=true vite --host 127.0.0.1 --port 4173",
+    "dev:e2e": "VITE_API_URL=http://127.0.0.1:3999 DISABLE_HMR=true vite --host 127.0.0.1 --port 4173",
     "pree2e": "npm run generate:e2e-integrations",
     "e2e": "playwright test",
     "e2e:ui": "npm run generate:e2e-integrations && playwright test --ui",

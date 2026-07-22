@@ -190,8 +190,6 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
       '-e',
       'PORT=8080',
       '-e',
-      `ENABLE_PREMIUM=${process.env.ENABLE_PREMIUM ?? 'true'}`,
-      '-e',
       `EDITOR_API_URL=${EDITOR_API_URL_DOCKER}`,
       '-e',
       `PUBSUB_EMULATOR_HOST=${PUBSUB_EMULATOR_HOST_DOCKER}`,

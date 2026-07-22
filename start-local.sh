@@ -4,7 +4,6 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-$SCRIPT_DIR}"
 BASE_DIR="${BASE_DIR:-$WORKSPACE_ROOT}"
-PREMIUM_DIR="${PREMIUM_DIR:-$WORKSPACE_ROOT/premium}"
 COMPOSE_FILE="${BASE_DIR}/docker-compose.yml"
 API_DIR="${BASE_DIR}/apps/api"
 FRONTEND_DIR="${BASE_DIR}/apps/frontend"
@@ -76,7 +75,6 @@ export VITE_SETUP_INSTALLER_URL
 
 RUN_SETUP=false
 AUTO_SETUP=false
-EDITION="oss"
 SETUP_COMPLETED=false
 API_ENV_PREPARED=false
 
@@ -86,39 +84,15 @@ while [[ $# -gt 0 ]]; do
             RUN_SETUP=true
             shift
             ;;
-        --edition)
-            if [[ -z "${2:-}" ]]; then
-                echo "Missing value for --edition. Use 'oss' or 'premium'."
-                exit 1
-            fi
-            EDITION="$2"
-            shift 2
-            ;;
         *)
             echo "Unknown argument: $1"
-            echo "Usage: ./start-local.sh [--setup] [--edition oss|premium]"
+            echo "Usage: ./start-local.sh [--setup]"
             exit 1
             ;;
     esac
 done
 
-case "$EDITION" in
-    oss|false)
-        export ENABLE_PREMIUM=false
-        EDITION_LABEL="oss"
-        ;;
-    premium|true)
-        export ENABLE_PREMIUM=true
-        EDITION_LABEL="premium"
-        ;;
-    *)
-        echo "Invalid edition '$EDITION'. Use './start-local.sh' for OSS/local mode or './start-premium.sh' for premium mode."
-        exit 1
-        ;;
-esac
-
 echo "🚀 Starting Local Development Environment..."
-echo "🧩 Edition mode: ${EDITION_LABEL}"
 echo "📁 Workspace root: ${WORKSPACE_ROOT}"
 echo "📦 Base dir: ${BASE_DIR}"
 echo "🌐 Web port: ${WEB_PORT}"

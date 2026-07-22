@@ -4,10 +4,6 @@ import { pathToFileURL } from 'url';
 import type { Express } from 'express';
 
 export async function loadPremiumApiRoutes(app: Express): Promise<void> {
-  if (process.env.ENABLE_PREMIUM === 'false') {
-    return;
-  }
-
   const premiumRoutesEntry = resolvePremiumRoutesEntry();
   if (!premiumRoutesEntry) {
     return;

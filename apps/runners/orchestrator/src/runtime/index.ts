@@ -65,10 +65,6 @@ const playwrightExecution = new PlaywrightExecutionRegistry([
   new GcpPlaywrightExecutionBackend(),
 ]);
 
-function isPremiumEnabled(): boolean {
-  return process.env.ENABLE_PREMIUM !== 'false';
-}
-
 function applyContribution(contribution: OrchestratorRuntimeContribution) {
   if (contribution.playwrightExecutionBackends?.length) {
     playwrightExecution.register(contribution.playwrightExecutionBackends);
@@ -76,10 +72,6 @@ function applyContribution(contribution: OrchestratorRuntimeContribution) {
 }
 
 async function loadPremiumContribution(): Promise<void> {
-  if (!isPremiumEnabled()) {
-    return;
-  }
-
   const premiumRuntimeEntry = resolvePremiumRuntimeEntry();
   if (!premiumRuntimeEntry) {
     return;

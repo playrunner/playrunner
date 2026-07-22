@@ -19,7 +19,6 @@ databaseUrl.searchParams.set('schema', 'playrunner_e2e');
 
 process.env.DATABASE_URL = databaseUrl.toString();
 process.env.PORT = '3999';
-process.env.ENABLE_PREMIUM = 'false';
 process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION = '1';
 process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS = JSON.stringify({
   1: Buffer.alloc(32, 7).toString('base64'),
