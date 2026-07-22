@@ -84,15 +84,15 @@ export default [
   },
   {
     path: '/playrunner/docs/',
-    component: ComponentCreator('/playrunner/docs/', 'c42'),
+    component: ComponentCreator('/playrunner/docs/', 'f44'),
     routes: [
       {
         path: '/playrunner/docs/',
-        component: ComponentCreator('/playrunner/docs/', '999'),
+        component: ComponentCreator('/playrunner/docs/', '963'),
         routes: [
           {
             path: '/playrunner/docs/',
-            component: ComponentCreator('/playrunner/docs/', 'a56'),
+            component: ComponentCreator('/playrunner/docs/', 'cd1'),
             routes: [
               {
                 path: '/playrunner/docs/contributing/',
@@ -325,6 +325,18 @@ export default [
               {
                 path: '/playrunner/docs/runner-architecture/local/',
                 component: ComponentCreator('/playrunner/docs/runner-architecture/local/', '8ce'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/testing/',
+                component: ComponentCreator('/playrunner/docs/testing/', '555'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/playrunner/docs/testing/package-e2e/',
+                component: ComponentCreator('/playrunner/docs/testing/package-e2e/', 'ab8'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               },

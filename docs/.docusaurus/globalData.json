@@ -206,6 +206,16 @@
               "sidebar": "tutorialSidebar"
             },
             {
+              "id": "testing/index",
+              "path": "/playrunner/docs/testing/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "testing/package-e2e",
+              "path": "/playrunner/docs/testing/package-e2e",
+              "sidebar": "tutorialSidebar"
+            },
+            {
               "id": "tutorials/connect-github",
               "path": "/playrunner/docs/tutorials/connect-github",
               "sidebar": "tutorialSidebar"

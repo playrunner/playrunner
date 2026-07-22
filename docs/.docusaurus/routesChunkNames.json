@@ -138,17 +138,17 @@
     },
     "content": "content---playrunner-markdown-page-4-c-6-915"
   },
-  "/playrunner/docs/-c42": {
+  "/playrunner/docs/-f44": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---playrunner-docs-aba-62c"
     }
   },
-  "/playrunner/docs/-999": {
+  "/playrunner/docs/-963": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---playrunner-docs-c-17-30d"
   },
-  "/playrunner/docs/-a56": {
+  "/playrunner/docs/-cd1": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/playrunner/docs/contributing/-4ea": {
@@ -306,6 +306,14 @@
   "/playrunner/docs/runner-architecture/local/-8ce": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---playrunner-docs-runner-architecture-local-470-c9f"
+  },
+  "/playrunner/docs/testing/-555": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-testing-8-aa-3c4"
+  },
+  "/playrunner/docs/testing/package-e2e/-ab8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---playrunner-docs-testing-package-e-2-e-e-73-8b3"
   },
   "/playrunner/docs/tutorials/-d0b": {
     "__comp": "__comp---theme-doc-item-178-a40",

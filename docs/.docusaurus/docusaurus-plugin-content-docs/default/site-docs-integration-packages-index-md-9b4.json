@@ -20,8 +20,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Roadmap",
-    "permalink": "/playrunner/docs/roadmap"
+    "title": "Package E2E Contributions",
+    "permalink": "/playrunner/docs/testing/package-e2e"
   },
   "next": {
     "title": "Jira",

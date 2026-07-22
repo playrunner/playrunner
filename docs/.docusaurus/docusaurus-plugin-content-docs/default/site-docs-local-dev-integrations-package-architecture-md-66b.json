@@ -1,7 +1,7 @@
 {
   "id": "local-dev/integrations/package-architecture",
   "title": "Package Architecture",
-  "description": "Declare self-contained frontend, API, and Orchestrator integration surfaces through package metadata.",
+  "description": "Declare self-contained frontend, API, Orchestrator, and E2E integration surfaces through package metadata.",
   "source": "@site/docs/local-dev/integrations/package-architecture.md",
   "sourceDirName": "local-dev/integrations",
   "slug": "/local-dev/integrations/package-architecture",
@@ -15,7 +15,7 @@
   "frontMatter": {
     "sidebar_position": 2,
     "title": "Package Architecture",
-    "description": "Declare self-contained frontend, API, and Orchestrator integration surfaces through package metadata."
+    "description": "Declare self-contained frontend, API, Orchestrator, and E2E integration surfaces through package metadata."
   },
   "sidebar": "tutorialSidebar",
   "previous": {
