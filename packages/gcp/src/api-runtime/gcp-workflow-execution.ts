@@ -414,7 +414,8 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     }
 
     let prewarmPromise:
-      Promise<Record<string, PrewarmedGcpPlaywrightRunner>> | undefined;
+      | Promise<Record<string, PrewarmedGcpPlaywrightRunner>>
+      | undefined;
     let prewarmedPlaywrightRunners: Record<
       string,
       PrewarmedGcpPlaywrightRunner

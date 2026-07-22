@@ -2,7 +2,9 @@
 
 OpenAI model execution and structured output for Playrunner workflows.
 
-[View package on npm](https://www.npmjs.com/package/@playrunner/openai)
+[![npm version](https://img.shields.io/npm/v/@playrunner/openai.svg)](https://www.npmjs.com/package/@playrunner/openai)
+
+[View source on GitHub](https://github.com/playrunner/playrunner/tree/main/packages/openai)
 
 ## Install
 
@@ -21,6 +23,7 @@ surface.
 - `@playrunner/openai/api` exports the API contribution mounted at
   `/api/openai`.
 - `@playrunner/openai/orchestrator` exports the OpenAI Responses API executor.
+- `@playrunner/openai/e2e` exports the package-owned E2E contribution.
 - `@playrunner/openai/assets/openai.svg` exports the package-owned icon asset.
 
 ```ts
@@ -32,6 +35,23 @@ import openaiIntegration, {
 import openaiApiContribution from '@playrunner/openai/api';
 import openaiOrchestratorContribution from '@playrunner/openai/orchestrator';
 ```
+
+## Testing
+
+Run the package checks and unit tests from the repository root:
+
+```bash
+npm run format:check --prefix packages/openai
+npm run lint --prefix packages/openai
+npm run typecheck --prefix packages/openai
+npm test --prefix packages/openai
+npm run test:e2e:mock -- --grep @openai
+```
+
+The E2E scenario connects, reloads, and disconnects an OpenAI API key. It runs
+in deterministic mock mode through the shared Playrunner browser harness,
+which uses the real frontend, API, authentication, and dedicated E2E database.
+No OpenAI credentials or live API requests are required.
 
 ## Documentation
 

@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/gcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google Cloud runner integration package for Playrunner.",
   "keywords": [
     "playrunner",

@@ -2,7 +2,9 @@
 
 JavaScript workflow-node configuration for Playrunner.
 
-[View package on npm](https://www.npmjs.com/package/@playrunner/javascript)
+[![npm version](https://img.shields.io/npm/v/@playrunner/javascript.svg)](https://www.npmjs.com/package/@playrunner/javascript)
+
+[View source on GitHub](https://github.com/playrunner/playrunner/tree/main/packages/javascript)
 
 ## Install
 
@@ -16,6 +18,7 @@ Add the package as a direct production dependency of the Playrunner frontend and
 
 - `@playrunner/javascript` exports the JavaScript integration and configuration panel.
 - `@playrunner/javascript/api` exports the API contribution mounted at `/api/javascript`.
+- `@playrunner/javascript/e2e` exports the package-owned E2E contribution.
 - The integration id is `code`.
 
 ```ts
@@ -24,6 +27,22 @@ import javascriptIntegration, {
 } from '@playrunner/javascript';
 import javascriptApiContribution from '@playrunner/javascript/api';
 ```
+
+## Testing
+
+Run the package checks from the repository root:
+
+```bash
+npm run format:check --prefix packages/javascript
+npm run lint --prefix packages/javascript
+npm run typecheck --prefix packages/javascript
+npm run test:e2e:mock -- --grep @code
+```
+
+The E2E scenario composes JavaScript Code as a configuration-only integration.
+It runs in deterministic mock mode through the shared Playrunner browser
+harness, which uses the real frontend, API, authentication, and dedicated E2E
+database. No provider credentials are required.
 
 ## Documentation
 

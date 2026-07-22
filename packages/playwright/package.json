@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/playwright",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Playwright integration package for Playrunner.",
   "keywords": [
     "playrunner",

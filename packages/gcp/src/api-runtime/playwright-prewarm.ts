@@ -37,7 +37,12 @@ type CloudRunJob = {
 };
 
 type WorkflowNodeState =
-  'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning';
+  | 'idle'
+  | 'pending'
+  | 'running'
+  | 'success'
+  | 'error'
+  | 'warning';
 
 export type PrewarmedGcpPlaywrightRunner = {
   controlSubscriptionName: string;

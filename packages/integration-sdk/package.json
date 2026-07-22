@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/integration-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Shared contracts and UI helpers for Playrunner integration packages.",
   "keywords": [
     "playrunner",
