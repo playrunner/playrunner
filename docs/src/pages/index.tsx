@@ -14,7 +14,7 @@ type DocsCustomFields = {
   localDocsLandingPath?: string;
 };
 
-type ContributorReason = {
+type JourneyStep = {
   title: string;
   description: string;
 };
@@ -23,11 +23,6 @@ type GettingStartedLink = {
   title: string;
   description: string;
   to: string;
-};
-
-type AssistantFocus = {
-  title: string;
-  description: string;
 };
 
 type GitHubRepositoryResponse = {
@@ -40,76 +35,58 @@ const githubRepositoryUrl = `https://github.com/${githubRepositoryOwner}/${githu
 const githubStargazersUrl = `${githubRepositoryUrl}/stargazers`;
 const githubFallbackStarCount = '1';
 
-const contributorReasons: ContributorReason[] = [
+const journeySteps: JourneyStep[] = [
   {
-    title: 'Own meaningful work',
+    title: '1. Bring your existing tests',
     description:
-      'Take responsibility for a real part of an early developer tool instead of only picking around the edges.',
+      'Connect the repository and keep the Playwright tests and configuration your team already maintains.',
   },
   {
-    title: 'Work on hard testing problems',
+    title: '2. Choose where they run',
     description:
-      'Help solve orchestration, debugging, CI/CD, reporting, and flaky-test problems that teams hit every day.',
+      'Use dedicated cloud runners or run the execution layer in your own environment.',
   },
   {
-    title: 'Build useful experience',
+    title: '3. Define the workflow',
     description:
-      'Go deep on Playwright, React, runners, infrastructure, workflow systems, and modern test automation.',
+      'Connect triggers, conditions, parallel branches, environment data, tests, and downstream systems.',
   },
   {
-    title: 'Shape the platform',
+    title: '4. Inspect the complete run',
     description:
-      'Influence technical direction, architecture, integrations, and contributor experience while the project is still flexible.',
+      'Follow execution state and logs, then keep reports and artefacts attached to the workflow that produced them.',
   },
 ];
 
 const gettingStartedLinks: GettingStartedLink[] = [
   {
-    title: 'Read the contributing guide',
+    title: 'Try Playrunner locally',
     description:
-      'Review how the project is organised and where help is most useful.',
-    to: '/docs/contributing',
-  },
-  {
-    title: 'Pick a good first issue',
-    description: 'Find a scoped task and make your first contribution.',
-    to: 'https://github.com/playrunner/playrunner/issues?q=is%3Aissue%20is%3Aopen%20label%3A%22good%20first%20issue%22',
-  },
-  {
-    title: 'Look at the roadmap',
-    description:
-      'See the larger areas that need technical design and implementation.',
-    to: '/docs/roadmap',
-  },
-  {
-    title: 'Join the discussion',
-    description:
-      'Ask questions, propose ideas, and coordinate with other contributors.',
-    to: 'https://github.com/playrunner/playrunner/discussions',
-  },
-  {
-    title: 'Run the project locally',
-    description:
-      'Start the app, API, runners, and docs site from your own machine.',
+      'Run the complete stack and use it with an existing Playwright project.',
     to: '/docs/tutorials/getting-started',
   },
-];
-
-const assistantFocus: AssistantFocus[] = [
   {
-    title: 'Explain integrations',
+    title: 'Understand workflow execution',
     description:
-      'Help people understand how GitHub, Jira, Playwright, schedules, and future packages fit together.',
+      'See how Playrunner coordinates the API, orchestrator, runners, and run state.',
+    to: '/docs/local-dev/workflow-execution',
   },
   {
-    title: 'Ground answers in data',
-    description:
-      'Use stored workspace data, docs, and site state as the source of truth.',
+    title: 'Compare runner options',
+    description: 'Review local, cloud, and self-hosted execution architecture.',
+    to: '/docs/runner-architecture',
   },
   {
-    title: 'Stay available everywhere',
+    title: 'Browse integrations',
     description:
-      'Let people ask from any page without leaving the context they are already in.',
+      'Connect Playwright runs to schedules, source control, messaging, and other systems.',
+    to: '/docs/integration-packages',
+  },
+  {
+    title: 'Contribute to the platform',
+    description:
+      'Extend runners, integrations, workflows, reporting, or the product itself.',
+    to: '/docs/contributing',
   },
 ];
 
@@ -217,33 +194,35 @@ function HomepageHeader() {
           role="img"
           aria-label="Playrunner logo"
         />
-        <p className={styles.eyebrow}>
-          Playwright orchestration
-        </p>
+        <p className={styles.eyebrow}>For teams already using Playwright</p>
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
-          <span style={{ color: 'var(--ifm-color-primary)' }}>Playrunner</span>{' '}
-          - help build the orchestration layer for Playwright
+          Orchestration for the Playwright tests you already have.
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
-          Playrunner helps teams run, debug, analyse, and improve Playwright
-          test automation with better orchestration, visibility, integrations,
-          and AI-assisted workflows.
+          Playrunner coordinates when and where your existing tests run, how
+          workflows branch, what triggers them, and where the results go. Keep
+          Playwright. Replace the runner infrastructure, CI glue, and
+          orchestration code your team has to maintain.
         </p>
         <div className={styles.heroActions}>
           <Link
             className="button button--primary button--lg"
-            to="/docs/contributing"
+            to="/docs/tutorials/getting-started"
           >
-            Start contributing
+            Try Playrunner locally
           </Link>
-          <GitHubStarsBadge />
           <Link
             className="button button--secondary button--lg"
             to="/docs/overview"
           >
-            Read the docs
+            See how it works
           </Link>
+          <GitHubStarsBadge />
         </div>
+        <p className={styles.heroBoundary}>
+          Not a test framework. Not a CI system. An orchestration layer for the
+          Playwright suite and delivery systems you already use.
+        </p>
       </div>
     </header>
   );
@@ -254,17 +233,19 @@ function MissionSection(): ReactNode {
     <section className={styles.section}>
       <div className={clsx('container', styles.sectionGrid)}>
         <div>
-          <p className={styles.eyebrow}>Why Playrunner exists</p>
+          <p className={styles.eyebrow}>The problem</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Make test orchestration open, extensible, and developer-friendly.
+            Playwright runs the tests. Your team still has to run everything
+            around them.
           </Heading>
         </div>
         <div>
           <p className={styles.leadText}>
-            Playwright is powerful, but teams still end up stitching together CI
-            scripts, dashboards, reports, alerts, flaky-test handling, and
-            ticket workflows themselves. Playrunner exists to make that
-            orchestration layer open, extensible, and developer-friendly.
+            A reliable test run is more than a command. It needs compute,
+            workflow state, conditions, parallelism, schedules, external
+            triggers, credentials, logs, artefacts, reports, and integrations.
+            Playrunner owns that orchestration so test teams do not have to turn
+            a collection of scripts and CI jobs into an internal platform.
           </p>
         </div>
       </div>
@@ -272,23 +253,24 @@ function MissionSection(): ReactNode {
   );
 }
 
-function ContributorInviteSection(): ReactNode {
+function PlatformSection(): ReactNode {
   return (
     <section className={clsx(styles.section, styles.sectionTint)}>
       <div className={clsx('container', styles.inviteLayout)}>
         <div>
-          <p className={styles.eyebrow}>Contributors wanted</p>
+          <p className={styles.eyebrow}>What Playrunner replaces</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Join early and help shape the project
+            One orchestration layer instead of another internal execution
+            platform.
           </Heading>
         </div>
         <div>
           <p className={styles.bodyText}>
-            Playrunner is early, which means contributors can have real
-            influence over the architecture, developer experience, integrations,
-            and roadmap. Whether you want to work on frontend, runners,
-            integrations, infrastructure, documentation, or the Playrunner AI
-            Assistant, there is room to own a meaningful part of the project.
+            Without a shared layer, runner provisioning, conditional execution,
+            retries, schedules, API endpoints, webhooks, notifications, artefact
+            storage, and reporting spread across CI configuration and team-owned
+            services. Playrunner puts those responsibilities behind one workflow
+            model while leaving your tests and CI system in place.
           </p>
         </div>
       </div>
@@ -296,28 +278,28 @@ function ContributorInviteSection(): ReactNode {
   );
 }
 
-function WhyContributeSection(): ReactNode {
+function JourneySection(): ReactNode {
   return (
     <section className={styles.section}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <p className={styles.eyebrow}>Why contribute</p>
+          <p className={styles.eyebrow}>How it fits</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Build public, useful developer tooling.
+            Keep your suite. Change how it runs.
           </Heading>
           <p className={styles.bodyText}>
-            The project needs people who care about reliable test automation,
-            practical developer experience, and tools that teams can understand
-            and extend.
+            Playrunner sits around Playwright rather than replacing it. Start
+            with one workflow and move only the execution concerns you no longer
+            want to own.
           </p>
         </div>
         <div className={styles.reasonGrid}>
-          {contributorReasons.map((reason) => (
-            <article className={styles.reasonCard} key={reason.title}>
+          {journeySteps.map((step) => (
+            <article className={styles.reasonCard} key={step.title}>
               <Heading as="h3" className={styles.cardTitle}>
-                {reason.title}
+                {step.title}
               </Heading>
-              <p className={styles.cardText}>{reason.description}</p>
+              <p className={styles.cardText}>{step.description}</p>
             </article>
           ))}
         </div>
@@ -326,15 +308,57 @@ function WhyContributeSection(): ReactNode {
   );
 }
 
-function GettingStartedSection(): ReactNode {
+function ValidationSection(): ReactNode {
   return (
     <section className={clsx(styles.section, styles.sectionTint)}>
+      <div className={clsx('container', styles.validationLayout)}>
+        <div>
+          <p className={styles.eyebrow}>Early teams wanted</p>
+          <Heading as="h2" className={styles.sectionTitle}>
+            Already running Playwright? Help us test whether Playrunner removes
+            the hard parts.
+          </Heading>
+        </div>
+        <div>
+          <p className={styles.bodyText}>
+            We are looking for a few teams maintaining Playwright runner
+            infrastructure, CI glue, scheduled suites, or custom integrations.
+            Try one real workflow, tell us where the setup is still too
+            complicated, and help shape what Playrunner should own next.
+          </p>
+          <div className={styles.validationActions}>
+            <Link
+              className="button button--primary button--lg"
+              to="/docs/tutorials/getting-started"
+            >
+              Try it with your suite
+            </Link>
+            <Link
+              className="button button--secondary button--lg"
+              to="https://discord.gg/23yz25kat"
+            >
+              Talk to us about your setup
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function GettingStartedSection(): ReactNode {
+  return (
+    <section className={styles.section}>
       <div className="container">
         <div className={styles.sectionHeader}>
-          <p className={styles.eyebrow}>Start here</p>
+          <p className={styles.eyebrow}>Go deeper</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Choose a first step and get involved.
+            Evaluate the parts that matter to your team.
           </Heading>
+          <p className={styles.bodyText}>
+            Start locally, inspect the execution model, or go directly to the
+            runner and integration architecture.
+          </p>
         </div>
         <div className={styles.startList}>
           {gettingStartedLinks.map((item) => (
@@ -384,16 +408,16 @@ export default function Home(): ReactNode {
 
   return (
     <Layout
-      title="Join the Playrunner project"
-      description="Help build Playrunner, the orchestration layer for Playwright test automation."
+      title="Orchestration for Playwright"
+      description="Run and orchestrate existing Playwright tests without building and maintaining your own execution platform."
     >
       <HomepageHeader />
       <main>
         <MissionSection />
-        <ContributorInviteSection />
-
         <HomepageFeatures />
-        <WhyContributeSection />
+        <PlatformSection />
+        <JourneySection />
+        <ValidationSection />
         <GettingStartedSection />
       </main>
     </Layout>

@@ -2,44 +2,45 @@ import type { ReactNode } from 'react';
 import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
-type ContributionArea = {
+type Capability = {
   title: string;
   description: string;
 };
 
-const contributionAreas: ContributionArea[] = [
+const capabilities: Capability[] = [
   {
-    title: 'Frontend and UX',
+    title: 'Existing Playwright suites',
     description:
-      'Help build a clean, modern interface for test runs, traces, workflows, and results.',
+      'Run the tests and configuration you already maintain without adopting another test framework.',
   },
   {
-    title: 'Playwright runners',
+    title: 'Dedicated runners',
     description:
-      'Improve how tests are executed, scheduled, reported, retried, and analysed.',
+      'Execute locally, on managed cloud runners, or inside infrastructure your team controls.',
   },
   {
-    title: 'Integrations',
+    title: 'Workflow orchestration',
     description:
-      'Build connections with GitHub, Jira, Slack, CI/CD systems, and developer workflows.',
+      'Model conditions, parallel branches, shared environment data, and dependent steps explicitly.',
   },
   {
-    title: 'Automated Testing',
-    description: 'Help detect, explain, and reduce unreliable tests.',
+    title: 'Schedules and triggers',
+    description:
+      'Start workflows on a schedule, through an API or webhook, or from an external system.',
   },
   {
-    title: 'Documentation and examples',
+    title: 'Artefacts and reporting',
     description:
-      'Make it easier for teams and new contributors to understand and adopt Playrunner.',
+      'Keep execution logs, Playwright reports, and run artefacts connected to the workflow.',
   },
   {
-    title: 'Playrunner AI Assistant',
+    title: 'Extensible integrations',
     description:
-      'Build a grounded assistant that can explain integrations, docs, workflows, and site behavior across the platform.',
+      'Add systems and execution behavior through package-based plugins and a growing marketplace.',
   },
 ];
 
-function ContributionAreaCard({ title, description }: ContributionArea) {
+function CapabilityCard({ title, description }: Capability) {
   return (
     <article className={styles.areaCard}>
       <Heading as="h3" className={styles.areaTitle}>
@@ -52,28 +53,25 @@ function ContributionAreaCard({ title, description }: ContributionArea) {
 
 export default function HomepageFeatures(): ReactNode {
   return (
-    <section
-      className={styles.features}
-      aria-labelledby="contribution-areas-title"
-    >
+    <section className={styles.features} aria-labelledby="capabilities-title">
       <div className="container">
         <div className={styles.sectionHeader}>
-          <p className={styles.eyebrow}>Where to help</p>
+          <p className={styles.eyebrow}>The orchestration layer</p>
           <Heading
             as="h2"
             className={styles.sectionTitle}
-            id="contribution-areas-title"
+            id="capabilities-title"
           >
-            Contribution areas
+            The operational pieces around a Playwright run.
           </Heading>
           <p className={styles.sectionCopy}>
-            There are useful entry points across the product, runner stack,
-            documentation, and integration surface.
+            Use the parts you need now. Keep the workflow model consistent as
+            execution grows across teams, environments, and external systems.
           </p>
         </div>
         <div className={styles.areaGrid}>
-          {contributionAreas.map((area) => (
-            <ContributionAreaCard key={area.title} {...area} />
+          {capabilities.map((capability) => (
+            <CapabilityCard key={capability.title} {...capability} />
           ))}
         </div>
       </div>

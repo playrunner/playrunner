@@ -74,4 +74,8 @@
   .areaGrid {
     grid-template-columns: 1fr;
   }
+
+  .areaCard {
+    min-height: auto;
+  }
 }
