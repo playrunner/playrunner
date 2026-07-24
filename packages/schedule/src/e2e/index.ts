@@ -8,20 +8,14 @@ export const scheduleE2EContribution = definePlayrunnerE2EContribution({
   createPom: ({ host, page }) => new ScheduleE2EPom(page, host),
   scenarios: [
     {
-      id: "catalog-composition",
+      id: "configuration-only-composition",
       mode: "mock",
-      title: "renders the Schedule contribution in the integration catalog",
+      title: "composes Schedule as a configuration-only integration",
       tags: ["@schedule", "@integration"],
       async run({ data, expect, pom }) {
         expect(data.runId).toBeTruthy();
         await pom.openCatalog();
-        await expect(
-          pom.card.getByRole("heading", { name: "Schedule" }),
-        ).toBeVisible();
-        await expect(pom.card).toContainText(
-          "Schedule your workflow to run on a recurring basis",
-        );
-        await expect(pom.card).toContainText("Triggers");
+        await expect(pom.card).toHaveCount(0);
       },
     },
   ],

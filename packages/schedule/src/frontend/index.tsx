@@ -12,6 +12,7 @@ export const scheduleIntegration: Integration = {
   color: "text-white",
   requiresAuth: false,
   nodeSelectorOrder: 30,
+  showInIntegrationsPage: false,
   showInputPanel: false,
   ConfigPanel: ScheduleConfigPanel,
 };
