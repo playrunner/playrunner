@@ -86,19 +86,10 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-function buildTerraformApplyCommand(projectId?: string, location?: string) {
-  const args = [
-    projectId ? `-var="project_id=${projectId}"` : '',
-    location ? `-var="region=${location}"` : '',
-  ].filter(Boolean);
-
-  return `terraform -chdir=infra/gcp apply${args.length ? ` ${args.join(' ')}` : ''}`;
-}
-
 function clarifySchedulerError(
   message: string,
   projectId?: string,
-  location?: string,
+  _location?: string,
 ): string {
   if (
     message.includes('cloudscheduler.googleapis.com') &&
@@ -110,9 +101,7 @@ function clarifySchedulerError(
     const projectLabel = projectId
       ? `project ${projectId}`
       : 'the selected project';
-    const terraformCommand = buildTerraformApplyCommand(projectId, location);
-
-    return `${normalizedMessage}. Enable Cloud Scheduler for ${projectLabel} by running "${terraformCommand}" from the repo root, or save project_id and region in infra/gcp/terraform.tfvars and run "terraform -chdir=infra/gcp apply". Terraform also creates the scheduler service account used by schedule triggers.`;
+    return `${normalizedMessage}. Open the GCP Runner connection, select ${projectLabel}, and run "Provision cloud runners". OAuth provisioning enables Cloud Scheduler and creates the scheduler service account used by schedule triggers.`;
   }
 
   return message;
@@ -242,7 +231,7 @@ function assertHttpsSchedulerTarget(triggerUrl: string) {
   }
 
   throw new Error(
-    `Cloud Scheduler target URL must start with https:// because Playrunner uses OIDC authentication for scheduled runs. Current target is "${triggerUrl}". Set PLAYRUNNER_PUBLIC_API_URL in apps/api/.env to an HTTPS public API base URL, such as the Terraform api_service_uri output or a Cloudflare Tunnel URL, then restart the API and save the workflow again. For local API testing, run "cloudflared tunnel --url http://127.0.0.1:<api-port>" and use the printed https://... URL.`,
+    `Cloud Scheduler target URL must start with https:// because Playrunner uses OIDC authentication for scheduled runs. Current target is "${triggerUrl}". Set PLAYRUNNER_PUBLIC_API_URL in apps/api/.env to the deployed Playrunner API URL or a Cloudflare Tunnel URL, then restart the API and save the workflow again. For local API testing, run "cloudflared tunnel --url http://127.0.0.1:<api-port>" and use the printed https://... URL.`,
   );
 }
 

@@ -1,14 +1,23 @@
 ---
 sidebar_position: 5
-title: Terraform Setup
-sidebar_label: Terraform
+title: Optional Terraform Deployment
+sidebar_label: Terraform (Optional)
 ---
 
-# Terraform Setup
+# Optional Terraform Deployment
 
-Run this after [Google OAuth setup](./oauth.md) and
-[Project and Region setup](./project-region.md) are complete. Terraform expects
-the saved project ID to reference a Google Cloud project that already exists.
+Terraform is not required to provision cloud runners through the **Connect to
+GCP** dialog. Use this page only when you intentionally want Terraform to manage
+the wider deployment, including the Playrunner API Cloud Run service.
+
+Complete [Google OAuth setup](./oauth.md) and
+[Project and Region setup](./project-region.md) first. Terraform expects the
+saved project ID to reference an existing Google Cloud project.
+
+If OAuth provisioning has already created the repositories, Pub/Sub topic, or
+scheduler service account, import those resources into Terraform state before
+applying this configuration. Do not ask Terraform to create resources that
+already exist outside its state.
 
 ## 1. Generate `terraform.tfvars`
 
@@ -157,6 +166,6 @@ image URI templates from the same local `CloudCredential` row.
 | `No GCP cloud credential found`                              | Complete OAuth, select a project and region, then click **Save GCP Settings**.                                                                                    |
 | `GCP setting "selectedProject" is empty`                     | Reopen Connect to GCP, select the project, and save again.                                                                                                        |
 | `GCP setting "cloudRunLocation" is empty`                    | Reopen Connect to GCP, set the Cloud Run region, and save again.                                                                                                  |
-| Cloud Resource Manager is disabled while selecting a project | Enter the project ID manually in Connect to GCP. The project list is autocomplete only; Terraform enables the required APIs for the selected project.             |
+| Cloud Resource Manager is disabled while selecting a project | Enter the project ID manually. For OAuth provisioning, enable Cloud Resource Manager if the Provision stage reports that the API is disabled.                     |
 | Terraform cannot create resources                            | Confirm the account used by Terraform can enable services and create Artifact Registry, Cloud Run, Pub/Sub, IAM, and Scheduler resources in the selected project. |
 | Cloud Run cannot pull images                                 | Run `./infra/gcp/scripts/push-runners.sh --target all --yes` after Terraform creates the Artifact Registry repositories.                                          |

@@ -10,9 +10,10 @@ The GCP runner implements the [shared runner architecture](../) with Cloud
 Run, GCP Pub/Sub, and Google Cloud Storage. This page describes the GCP-specific
 deployment, provisioning, authentication, and scaling model.
 
-For setup, start with [GCP Setup](./setup), then use
-[OAuth](./oauth), [Project & Region](./project-region), and
-[Terraform](./terraform) for the individual configuration steps.
+For setup, start with [GCP Setup](./setup), then complete
+[OAuth](./oauth) and [Project & Region](./project-region) before provisioning
+the runner resources in the app. Terraform is optional and is only needed when
+you want it to manage the wider GCP deployment.
 
 ## GCP Deployment
 
@@ -47,7 +48,7 @@ templates.
 Runtime provisioning does not build or publish images. Cloud Run must already
 be able to pull the Orchestrator and Playwright runner images. Follow
 [GCP Setup](./setup) for the required order and
-[Publishing to GCP](../../local-dev/docker-images#publishing-to-gcp) for image
+[Publishing to GCP](../../local-dev/06-docker-images.md#publishing-to-gcp) for image
 commands.
 
 The API passes the connected user's OAuth token to the Orchestrator. The
@@ -63,14 +64,16 @@ runner operations. The connected user therefore needs permission to:
 
 ## Infrastructure and Images
 
-Terraform under `infra/gcp` creates the Artifact Registry repositories and the
-shared Pub/Sub workflow-events topic. At runtime, the API manages the filtered
-execution subscription, while the Orchestrator manages the runner control and
-status subscriptions.
+The **Provision** stage uses the connected user's OAuth token to enable the
+required APIs and create or reuse the Artifact Registry repositories, shared
+Pub/Sub workflow-events topic, and Cloud Scheduler identity. At runtime, the
+API manages the filtered execution subscription, while the Orchestrator manages
+the runner control and status subscriptions.
 
-The selected project and Cloud Run region should match the Terraform
-`project_id` and `region`. Apply the Terraform when moving to infrastructure
-that does not already contain the required repositories and topic.
+Terraform under `infra/gcp` remains available as an optional deployment path
+when the Playrunner API itself should run in Cloud Run and the wider
+infrastructure should be tracked in Terraform state. It is not required for a
+local Playrunner API to use GCP cloud runners.
 
 Like every Orchestrator implementation, the GCP image statically bundles its
 trusted package executors. Adding, upgrading, or removing an executor requires a
@@ -101,4 +104,4 @@ concurrency does not determine which nodes inside a workflow run in parallel.
 
 A local API can debug GCP runs by pulling their Pub/Sub execution events over
 outbound HTTPS. No inbound tunnel to the local machine is required. See
-[Remote Runner Messaging](../../local-dev/remote-debugging).
+[Remote Runner Messaging](../../local-dev/10-remote-debugging.md).

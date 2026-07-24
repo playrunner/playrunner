@@ -1,5 +1,9 @@
 import { Router } from 'express';
 import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
+import {
+  GcpProvisioningError,
+  provisionGcpCloudRunners,
+} from './gcp-provisioning';
 
 function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
   return (req as { integrationCredentials?: IntegrationCredentialStore })
@@ -242,5 +246,70 @@ gcpRouter.get('/projects', async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch GCP projects:', error);
     return res.status(500).json({ error: 'Failed to fetch GCP projects.' });
+  }
+});
+
+gcpRouter.post('/provision', async (req, res) => {
+  const store = credentialStore(req);
+  if (!store) {
+    return res
+      .status(500)
+      .json({ error: 'Credential storage is unavailable.' });
+  }
+
+  try {
+    await refreshGcpCredentials(store, 'cloud');
+    const connection = await store.resolve('cloud', 'gcp');
+    if (!connection) {
+      return res.status(404).json({ error: 'GCP is not connected.' });
+    }
+
+    const accessToken = connection.secrets.accessToken;
+    const projectId = connection.config.selectedProject;
+    const region = connection.config.cloudRunLocation;
+    const orchestratorImageUriTemplate =
+      connection.config.orchestratorImageUriTemplate;
+    const playwrightImageUriTemplate =
+      connection.config.playwrightImageUriTemplate;
+    if (typeof accessToken !== 'string' || !accessToken) {
+      return res.status(401).json({ error: 'GCP is not authenticated.' });
+    }
+    if (typeof projectId !== 'string' || typeof region !== 'string') {
+      return res.status(400).json({
+        error: 'Save a Google Cloud project and region before provisioning.',
+      });
+    }
+
+    const provisioning = await provisionGcpCloudRunners({
+      accessToken,
+      orchestratorImageUriTemplate:
+        typeof orchestratorImageUriTemplate === 'string'
+          ? orchestratorImageUriTemplate
+          : undefined,
+      playwrightImageUriTemplate:
+        typeof playwrightImageUriTemplate === 'string'
+          ? playwrightImageUriTemplate
+          : undefined,
+      projectId,
+      region,
+    });
+    await store.save('cloud', 'gcp', {
+      provider: 'gcp',
+      config: {
+        ...connection.config,
+        provisioning,
+      },
+    });
+    return res.json({ provisioning });
+  } catch (error) {
+    if (error instanceof GcpProvisioningError) {
+      return res.status(error.statusCode).json({
+        error: error.message,
+        missingPermissions: error.missingPermissions,
+        steps: error.steps,
+      });
+    }
+    console.error('Failed to provision GCP cloud runners:', error);
+    return res.status(500).json({ error: 'Failed to provision GCP runners.' });
   }
 });

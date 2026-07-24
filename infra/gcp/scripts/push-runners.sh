@@ -4,6 +4,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 PLAYWRIGHT_CONFIG_SCRIPT="${REPO_ROOT}/infra/scripts/playwright-runner-config.mjs"
+RUNNER_FINGERPRINT_SCRIPT="${REPO_ROOT}/packages/gcp/src/api/runner-build-fingerprints.mjs"
 cd "${REPO_ROOT}"
 
 PROJECT_ID=""
@@ -280,16 +281,25 @@ push_orchestrator() {
     echo "Building Orchestrator..."
     echo "======================================"
     configure_docker_auth "$(image_registry_host "${ORCHESTRATOR_IMAGE_URI}")"
+    local orchestrator_fingerprint orchestrator_fingerprint_uri
+    orchestrator_fingerprint="$(node "${RUNNER_FINGERPRINT_SCRIPT}" orchestrator \
+        --repo-root "${REPO_ROOT}" \
+        --base-path "${BASE_PATH}")"
+    orchestrator_fingerprint_uri="${ORCHESTRATOR_IMAGE_URI%:*}:build-${orchestrator_fingerprint}"
+    echo "Build fingerprint: ${orchestrator_fingerprint}"
 
     docker build \
         --platform linux/amd64 \
         --build-arg BASE_PATH="${BASE_PATH}" \
+        --label "dev.playrunner.build-fingerprint=${orchestrator_fingerprint}" \
         -f "${REPO_ROOT}/apps/runners/orchestrator/Dockerfile" \
         -t "${ORCHESTRATOR_IMAGE_URI}" \
+        -t "${orchestrator_fingerprint_uri}" \
         "${REPO_ROOT}"
 
     echo "Pushing Orchestrator..."
-    docker push --quiet "${ORCHESTRATOR_IMAGE_URI}"
+    docker push "${ORCHESTRATOR_IMAGE_URI}"
+    docker push "${orchestrator_fingerprint_uri}"
 
     echo "Deploying Orchestrator to Cloud Run..."
     local cpu_throttling_flag
@@ -335,14 +345,21 @@ push_playwright() {
     for runtime in typescript python; do
         local dockerfile="${pw_ctx}/Dockerfile.${runtime}"
         for version in "${versions[@]}"; do
-            local image_versioned
+            local image_versioned fingerprint image_fingerprint
             image_versioned="$(substitute "$PLAYWRIGHT_TEMPLATE" \
                 "projectId=${PROJECT_ID}" \
                 "runtime=${runtime}" \
                 "version=${version}")"
+            fingerprint="$(node "${RUNNER_FINGERPRINT_SCRIPT}" playwright \
+                --repo-root "${REPO_ROOT}" \
+                --runtime "${runtime}" \
+                --version "${version}")"
+            image_fingerprint="${image_versioned%:*}:build-${fingerprint}"
 
             local tag_args=(-t "${image_versioned}")
             built_images+=("${image_versioned}")
+            tag_args+=(-t "${image_fingerprint}")
+            built_images+=("${image_fingerprint}")
 
             if [ "$version" = "$latest_tag" ]; then
                 local image_latest
@@ -355,10 +372,12 @@ push_playwright() {
             fi
 
             echo "Building ${runtime} ${version}..."
+            echo "Build fingerprint: ${fingerprint}"
             docker build \
                 --platform linux/amd64 \
                 -f "${dockerfile}" \
                 --build-arg PLAYWRIGHT_VERSION="${version}" \
+                --label "dev.playrunner.build-fingerprint=${fingerprint}" \
                 "${tag_args[@]}" \
                 "${pw_ctx}"
         done
@@ -371,7 +390,7 @@ push_playwright() {
             *":latest") suffix=" [latest -> ${latest_tag}]" ;;
         esac
         echo "Pushing ${image}${suffix}..."
-        docker push --quiet "${image}"
+        docker push "${image}"
     done
 
     echo ""

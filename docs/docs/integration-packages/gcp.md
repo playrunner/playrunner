@@ -15,7 +15,7 @@ IntegrationHero,
 <IntegrationHero
 name="GCP"
 packageName="@playrunner/gcp"
-description="Connect Google Cloud credentials, configure Cloud Run runner images, and register package-owned GCP workflow runtime backends."
+description="Connect Google Cloud with OAuth, provision runner resources, configure Cloud Run runner images, and register package-owned GCP workflow runtime backends."
 icon="gcp"
 installCommand="npm install @playrunner/gcp"
 npmUrl="https://www.npmjs.com/package/@playrunner/gcp"
@@ -30,14 +30,15 @@ facts={[
 <IntegrationGrid>
   <IntegrationCard eyebrow="Frontend" title="Cloud credential settings">
     Exports `gcpIntegration`, `gcpCloudProvider`, and `GcpSettingsModal`.
-    The modal writes OAuth tokens, selected project, Cloud Run region, runner
-    defaults, and generated image URI templates to the shared cloud credential
-    store.
+    The three-stage modal writes OAuth tokens, selected project, Cloud Run
+    region, runner defaults, provisioning results, and generated image URI
+    templates to the shared cloud credential store.
   </IntegrationCard>
 
-  <IntegrationCard eyebrow="Backend" title="OAuth proxy routes">
+  <IntegrationCard eyebrow="Backend" title="OAuth and provisioning routes">
     Default-exports `gcpApiContribution`, discovered by the API build and
-    mounted at `/api/gcp`, for Google OAuth token exchange and refresh calls.
+    mounted at `/api/gcp`, for Google OAuth token exchange, refresh, project
+    lookup, and idempotent runner-resource provisioning.
   </IntegrationCard>
 
   <IntegrationCard eyebrow="Runtime" title="Runner contribution">
@@ -78,6 +79,12 @@ module separately imports `gcpCloudProvider` for runner selection. The API host
 imports the package's `./api-runtime` surface directly at build time and applies
 that contribution during API startup; it is not part of the manifest-generated
 frontend/API composition.
+
+The setup wizard provisions required APIs, the `orchestrator` and
+`playwright-runner` Artifact Registry repositories, the
+`playrunner-workflow-events` Pub/Sub topic, and the `playrunner-scheduler`
+service account through the connected user's OAuth token. It reports missing
+project permissions and image readiness without requiring Terraform.
 
 ## API Runtime
 

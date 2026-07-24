@@ -598,11 +598,11 @@ storeRouter.put(
   '/secrets/:secretKey',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const secret = await prisma.secret.upsert({
+    const secret = await prisma.environmentSecret.upsert({
       where: {
-        userId_secretKey: {
+        userId_key: {
           userId,
-          secretKey: req.params.secretKey,
+          key: req.params.secretKey,
         },
       },
       update: {
@@ -611,7 +611,7 @@ storeRouter.put(
       },
       create: {
         userId,
-        secretKey: req.params.secretKey,
+        key: req.params.secretKey,
         value: toOptionalString(req.body?.value) || '',
         description: toNullableString(req.body?.description) ?? null,
       },
@@ -621,7 +621,7 @@ storeRouter.put(
       secret: {
         id: secret.id,
         userId: secret.userId,
-        secretKey: secret.secretKey,
+        secretKey: secret.key,
         value: secret.value,
         description: secret.description,
         createdAt: secret.createdAt,

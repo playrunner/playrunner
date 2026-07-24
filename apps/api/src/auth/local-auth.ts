@@ -6,47 +6,40 @@ import { AuthUser } from './auth.types';
 const LOCAL_AUTH_ISSUER = 'playrunner-local';
 const LOCAL_AUTH_AUDIENCE = 'playrunner-local';
 const LOCAL_AUTH_SUBJECT = 'local-admin';
-const LOCAL_AUTH_SECRET_OWNER = '__playrunner_local_auth__';
-const LOCAL_AUTH_SECRET_KEYS = {
-  jwtSecret: 'local.auth.jwt_secret',
-  passwordHash: 'local.auth.password_hash',
-  username: 'local.auth.username',
-} as const;
 const LOCAL_AUTH_NOT_CONFIGURED_MESSAGE =
   'Local auth is not configured. Run ./start-local.sh to reopen setup.';
 
 type LocalAuthConfig = {
-  jwtSecret: string;
+  email: string | null;
+  id: string;
   passwordHash: string;
   username: string;
 };
 
+function getLocalAuthJwtSecret() {
+  const jwtSecret = process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET?.trim() || '';
+  if (jwtSecret.length < 32) {
+    throw new Error(LOCAL_AUTH_NOT_CONFIGURED_MESSAGE);
+  }
+
+  return jwtSecret;
+}
+
 async function readLocalAuthConfig(): Promise<LocalAuthConfig> {
   try {
-    const secrets = await prisma.secret.findMany({
-      where: {
-        secretKey: {
-          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
-        },
-        userId: LOCAL_AUTH_SECRET_OWNER,
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: LOCAL_AUTH_SUBJECT },
     });
-
-    const values = new Map(
-      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
-    );
-    const username = values.get(LOCAL_AUTH_SECRET_KEYS.username) || '';
-    const passwordHash = values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || '';
-    const jwtSecret = values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || '';
-
-    if (!username || !passwordHash || !jwtSecret) {
+    if (!user?.username.trim() || !user.passwordHash.trim()) {
       throw new Error(LOCAL_AUTH_NOT_CONFIGURED_MESSAGE);
     }
+    getLocalAuthJwtSecret();
 
     return {
-      jwtSecret,
-      passwordHash,
-      username,
+      email: user.email,
+      id: user.id,
+      passwordHash: user.passwordHash,
+      username: user.username,
     };
   } catch (error) {
     if (
@@ -67,7 +60,6 @@ function hashPassword(password: string) {
 }
 
 export async function configureLocalAuth(params: {
-  jwtSecret?: string;
   password: string;
   username: string;
 }) {
@@ -77,53 +69,27 @@ export async function configureLocalAuth(params: {
     throw new Error('Local auth password must be at least 8 characters.');
   }
 
-  await Promise.all([
-    upsertLocalAuthSecret(
-      LOCAL_AUTH_SECRET_KEYS.username,
-      username,
-      'Local setup admin username.',
-    ),
-    upsertLocalAuthSecret(
-      LOCAL_AUTH_SECRET_KEYS.passwordHash,
-      hashPassword(params.password),
-      'Local setup admin password hash.',
-    ),
-    upsertLocalAuthSecret(
-      LOCAL_AUTH_SECRET_KEYS.jwtSecret,
-      params.jwtSecret ?? crypto.randomBytes(32).toString('base64url'),
-      'Local setup JWT signing secret.',
-    ),
-  ]);
-}
-
-async function upsertLocalAuthSecret(
-  secretKey: string,
-  value: string,
-  description: string,
-) {
-  await prisma.secret.upsert({
-    where: {
-      userId_secretKey: {
-        userId: LOCAL_AUTH_SECRET_OWNER,
-        secretKey,
-      },
-    },
+  const email = resolveSetupEmail(username);
+  const passwordHash = hashPassword(params.password);
+  await prisma.user.upsert({
+    where: { id: LOCAL_AUTH_SUBJECT },
     update: {
-      description,
-      value,
+      email,
+      passwordHash,
+      username,
     },
     create: {
-      description,
-      secretKey,
-      userId: LOCAL_AUTH_SECRET_OWNER,
-      value,
+      email,
+      id: LOCAL_AUTH_SUBJECT,
+      passwordHash,
+      username,
     },
   });
 }
 
 async function getLocalAuthSecret() {
-  const config = await readLocalAuthConfig();
-  return new TextEncoder().encode(config.jwtSecret);
+  await readLocalAuthConfig();
+  return new TextEncoder().encode(getLocalAuthJwtSecret());
 }
 
 function verifyPasswordHash(password: string, storedHash: string) {
@@ -163,14 +129,13 @@ function resolveSetupEmail(username: string) {
 }
 
 export async function getLocalAuthPublicUser() {
-  const { username } = await readLocalAuthConfig();
-  const email = resolveSetupEmail(username);
+  const { email, id, username } = await readLocalAuthConfig();
   const name = email ? email.split('@')[0] : username;
 
   return {
     email,
     name,
-    uid: LOCAL_AUTH_SUBJECT,
+    uid: id,
     username,
   };
 }
@@ -208,11 +173,10 @@ export async function updateLocalAuthPassword(params: {
     throw new Error('New password must be at least 8 characters.');
   }
 
-  await upsertLocalAuthSecret(
-    LOCAL_AUTH_SECRET_KEYS.passwordHash,
-    hashPassword(newPassword),
-    'Local setup admin password hash.',
-  );
+  await prisma.user.update({
+    where: { id: config.id },
+    data: { passwordHash: hashPassword(newPassword) },
+  });
 }
 
 export async function issueLocalAuthToken(username: string) {
@@ -233,7 +197,7 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
   });
 
   const config = await readLocalAuthConfig();
-  const username =
+  const tokenUsername =
     typeof payload.username === 'string' && payload.username.trim()
       ? payload.username.trim()
       : config.username;
@@ -242,9 +206,8 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
   return {
     email: publicUser.email ?? undefined,
     provider: 'local',
-    providerUserId:
-      typeof payload.sub === 'string' ? payload.sub : LOCAL_AUTH_SUBJECT,
+    providerUserId: typeof payload.sub === 'string' ? payload.sub : config.id,
     name: publicUser.name,
-    username,
+    username: tokenUsername,
   };
 }

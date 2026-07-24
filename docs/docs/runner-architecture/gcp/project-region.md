@@ -6,113 +6,96 @@ sidebar_label: Project & Region
 
 # Project and Region Setup
 
-This step tells Playrunner which Google Cloud project and Cloud Run region to
-use. It does not create the Google Cloud project.
-
-Create the project in GCP if it is not already created. Playrunner and the
-`infra/gcp` Terraform expect `project_id` to reference an existing Google Cloud
-project.
+This stage tells Playrunner which existing Google Cloud project and Cloud Run
+region to provision through OAuth. Playrunner does not create the project.
 
 ## 1. Create or Choose a Google Cloud Project
 
-Use an existing Google Cloud project, or create a new one in the
+Use an existing project, or create one in the
 [Google Cloud Console](https://console.cloud.google.com/projectcreate).
 
-Copy the **Project ID**, not the project display name. For example, use
+Copy the **Project ID**, not the display name. For example, use
 `my-gcp-project-123`, not `My GCP Project`.
 
 Before continuing, confirm:
 
-- The project exists in Google Cloud.
-- Billing is enabled if your organization requires it for Cloud Run, Artifact
-  Registry, Pub/Sub, or Cloud Scheduler.
-- The account that will run Terraform can enable services and create resources
-  in the project.
-
-Terraform enables the required Google Cloud APIs, but it does not create the
-project itself.
+- the project exists;
+- billing is enabled when required for the selected services;
+- organization policies allow Artifact Registry, Cloud Run, Pub/Sub, Cloud
+  Scheduler, IAM service accounts, and Cloud Storage; and
+- the connected Google account has the required project permissions.
 
 ## 2. Enter the Project in Playrunner
 
-Open **Integrations**, choose **Connect to GCP**, and go to
-**Project & Region**.
+Open **Integrations**, choose **Connect to GCP**, and go to **Project & Region**.
 
-After OAuth connects, Playrunner loads the Google Cloud projects visible to the
-connected account. Start typing in **Google Cloud Project** and select the
-matching **Project ID** from the suggestions.
+After OAuth connects, Playrunner loads the projects visible to the connected
+account. Start typing in **Google Cloud Project** and select the matching
+Project ID.
 
-If the project is new, not visible to the connected account, or Google project
-lookup fails, click **Refresh projects**. If it still does not appear, type the
-Project ID manually. The project must already exist in GCP before you continue
-to Terraform.
+If the project is new or lookup fails, click **Refresh projects**. If it still
+does not appear, type the Project ID manually. If provisioning reports that
+Cloud Resource Manager is disabled, enable that API in the selected project and
+retry.
 
 ## 3. Choose the Cloud Run Region
 
-Enter the Cloud Run region where Playrunner should create and run GCP services,
-for example:
+Enter the region where Playrunner should create and run GCP services, for
+example:
 
 ```text
 us-central1
 ```
 
 Use a region that supports Cloud Run and Artifact Registry. The saved region is
-also used to generate the standard Artifact Registry image paths for the API,
-Orchestrator, and Playwright runner images.
+also used to generate the Orchestrator and Playwright Artifact Registry paths.
 
 ## 4. Review Advanced Runner Defaults
 
-The default settings are usually enough for local evaluation:
+The defaults are suitable for most evaluations:
 
 - **Orchestrator Service Name** defaults to `playrunner-orchestrator`.
-- **Min Instances** can be `0` if you want the Orchestrator to scale to zero.
+- **Min Instances** can be `0` to allow scale-to-zero.
 - **Max Instances** must be at least `1`.
-- **Always-allocated CPU** keeps background DAG work active after `/execute`.
+- **Always-allocated CPU** lets background DAG work continue after `/execute`
+  returns.
 
-Change these only when you know the runtime behavior you want.
+## 5. Save and Provision
 
-## 5. Save and Continue
+Click **Save and Continue**. Playrunner saves the project, region, runner
+defaults, generated image URI templates, and scheduler service account email
+with the GCP connection.
 
-Click **Save and Continue** in the Connect to GCP dialog.
+The dialog then moves to **Provision**. Click **Provision cloud runners** to
+check permissions, enable APIs, and create the shared runner resources. No
+Terraform command is required.
 
-Playrunner saves the project, region, scheduler service account email, runner
-defaults, and generated image URI templates in the local `CloudCredential` row.
-The dialog then moves to **Terraform**, where you can generate
-`infra/gcp/terraform.tfvars`.
+## Changing Project or Region
 
-Continue to [Terraform setup](./terraform.md).
+Changing the project or region clears the saved provisioning result:
 
-## Changing Project or Region Later
-
-If you change the project or region after Terraform has already been run:
-
-1. Save the new values in **Project & Region**.
-2. Re-run the setup script:
-
-```bash
-./infra/gcp/scripts/setup-terraform.sh
-```
-
-3. Review `infra/gcp/terraform.tfvars`.
-4. Run Terraform again:
+1. Save the new project or region.
+2. Click **Provision cloud runners**.
+3. Upload the runner images to the new repositories:
 
 ```bash
-terraform -chdir=infra/gcp plan
-terraform -chdir=infra/gcp apply
+./infra/gcp/scripts/push-runners.sh --target both --yes
 ```
 
-5. Publish the runtime images again so the generated image paths match the saved
-   project and region:
+4. Click **Recheck setup**.
 
-```bash
-./infra/gcp/scripts/push-runners.sh --target all --yes
-```
+Existing resources in the previous project or region are not deleted
+automatically.
 
 ## Troubleshooting
 
-| Symptom                                  | Check                                                                                                                                                          |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Project does not appear in suggestions   | Click **Refresh projects**. If it is still missing, confirm the project exists and the connected Google account can see it, then type the Project ID manually. |
-| Terraform says `project_id` is invalid   | Confirm the project already exists in Google Cloud and that you used the Project ID, not the project name.                                                     |
-| Terraform cannot enable services         | Confirm the account running Terraform has permission to enable services in the selected project.                                                               |
-| Cloud Run or Artifact Registry fails     | Confirm billing and organization policy allow these services in the selected project and region.                                                               |
-| Published images go to the wrong project | Save the correct project and region, re-run `setup-terraform.sh`, apply Terraform, then run `push-runners.sh --target all --yes` from the repo root.           |
+| Symptom                                     | Check                                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Project is missing from suggestions         | Confirm the connected account can see it, refresh the list, or enter the Project ID manually.                 |
+| Provisioning says the Project ID is invalid | Use the immutable Project ID rather than the project name or number.                                          |
+| API enablement fails                        | Grant `serviceusage.services.enable` and confirm organization policy permits the required APIs.               |
+| Artifact Registry creation fails            | Confirm the selected region supports Artifact Registry and the account has the listed repository permissions. |
+| Images go to the wrong project              | Save the correct project and region, provision again, then rerun `push-runners.sh --target both --yes`.       |
+
+Return to [GCP Setup](./setup.md) for the provisioning checklist and complete
+permission list.

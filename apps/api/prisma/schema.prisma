@@ -138,15 +138,27 @@ model Environment {
   @@index([userId])
 }
 
-model Secret {
+model User {
+  id           String   @id @default(cuid())
+  email        String?  @unique
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("Users")
+}
+
+model EnvironmentSecret {
   id          String   @id @default(cuid())
-  userId      String
-  secretKey   String
+  userId      String   @map("user_id")
+  key         String
   value       String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  @@unique([userId, secretKey])
+  @@unique([userId, key])
   @@index([userId])
+  @@map("EnvironmentSecrets")
 }

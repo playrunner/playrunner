@@ -6,6 +6,9 @@ export class GcpE2EPom {
   readonly clientIdInput: Locator;
   readonly clientSecretInput: Locator;
   readonly dialog: Locator;
+  readonly provisionButton: Locator;
+  readonly provisionStepButton: Locator;
+  readonly provisioningGuideLink: Locator;
   readonly setupGuideLink: Locator;
 
   constructor(
@@ -17,6 +20,15 @@ export class GcpE2EPom {
     this.clientSecretInput = this.dialog.getByLabel('Client Secret');
     this.authenticateButton = this.dialog.getByRole('button', {
       name: 'Authenticate',
+    });
+    this.provisionStepButton = this.dialog.getByRole('button', {
+      name: /Step 3 Provision/,
+    });
+    this.provisionButton = this.dialog.getByRole('button', {
+      name: 'Provision cloud runners',
+    });
+    this.provisioningGuideLink = this.dialog.getByRole('link', {
+      name: 'Open GCP setup guide',
     });
     this.setupGuideLink = this.dialog.getByRole('link', {
       name: 'Open OAuth setup guide',

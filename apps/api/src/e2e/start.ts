@@ -23,6 +23,8 @@ process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION = '1';
 process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS = JSON.stringify({
   1: Buffer.alloc(32, 7).toString('base64'),
 });
+process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET =
+  'playrunner-e2e-jwt-secret-with-at-least-32-bytes';
 
 const prismaBin = path.join(
   apiDirectory,
@@ -30,7 +32,7 @@ const prismaBin = path.join(
   '.bin',
   process.platform === 'win32' ? 'prisma.cmd' : 'prisma',
 );
-const pushResult = spawnSync(prismaBin, ['db', 'push'], {
+const pushResult = spawnSync(prismaBin, ['db', 'push', '--accept-data-loss'], {
   cwd: apiDirectory,
   encoding: 'utf8',
   env: process.env,
@@ -44,6 +46,14 @@ if (pushResult.status !== 0) {
 
 async function startE2EApi() {
   const { prisma } = await import('../lib/prisma');
+  const schemas = await prisma.$queryRawUnsafe<
+    Array<{ currentSchema: string }>
+  >('SELECT current_schema() AS "currentSchema"');
+  if (schemas[0]?.currentSchema !== 'playrunner_e2e') {
+    throw new Error(
+      `Refusing to start E2E cleanup in schema "${schemas[0]?.currentSchema || 'unknown'}". Expected "playrunner_e2e".`,
+    );
+  }
 
   await prisma.$transaction([
     prisma.workflowEvent.deleteMany(),
@@ -54,12 +64,12 @@ async function startE2EApi() {
     prisma.project.deleteMany(),
     prisma.connection.deleteMany(),
     prisma.environment.deleteMany(),
-    prisma.secret.deleteMany(),
+    prisma.environmentSecret.deleteMany(),
+    prisma.user.deleteMany(),
   ]);
 
   const { configureLocalAuth } = await import('../auth/local-auth');
   await configureLocalAuth({
-    jwtSecret: 'playrunner-e2e-jwt-secret-with-at-least-32-bytes',
     password: 'playrunner-e2e-password',
     username: 'e2e@playrunner.dev',
   });

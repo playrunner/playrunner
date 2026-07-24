@@ -3,6 +3,7 @@ import {
   BookOpen,
   Copy,
   Check,
+  ChevronDown,
   ChevronRight,
   ExternalLink,
   Loader2,
@@ -29,8 +30,40 @@ type GcpCredentialData = {
   orchestratorMinInstanceCount?: number;
   orchestratorServiceName?: string;
   playwrightImageUriTemplate?: string;
+  provisioning?: GcpProvisioningResult | null;
   schedulerServiceAccountEmail?: string;
   selectedProject?: string;
+};
+
+type GcpProvisioningStep = {
+  detail: string;
+  id:
+    | 'permissions'
+    | 'services'
+    | 'repositories'
+    | 'pubsub'
+    | 'scheduler'
+    | 'images';
+  label: string;
+  items?: GcpProvisioningStepItem[];
+  state: 'complete' | 'failed' | 'warning';
+};
+
+type GcpProvisioningStepItem = {
+  detail?: string;
+  label: string;
+  state: 'complete' | 'failed' | 'warning';
+  value?: string;
+};
+
+type GcpProvisioningResult = {
+  imageCommand: string;
+  missingRuntimePermissions: string[];
+  projectId: string;
+  ready: boolean;
+  region: string;
+  steps: GcpProvisioningStep[];
+  updatedAt: string;
 };
 
 type GcpProject = {
@@ -38,7 +71,7 @@ type GcpProject = {
   projectId: string;
 };
 
-type GcpWizardStep = 'oauth' | 'project-region' | 'terraform';
+type GcpWizardStep = 'oauth' | 'project-region' | 'provision';
 
 type GcpActionButtonVariant = 'primary' | 'secondary' | 'danger' | 'tertiary';
 
@@ -61,9 +94,9 @@ const GCP_WIZARD_STEPS: Array<{
     stepNumber: 2,
   },
   {
-    description: 'Terraform commands',
-    id: 'terraform',
-    label: 'Terraform',
+    description: 'Cloud resources',
+    id: 'provision',
+    label: 'Provision',
     stepNumber: 3,
   },
 ];
@@ -78,25 +111,57 @@ const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
 const DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID = 'playrunner-scheduler';
-const DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME = 'playrunner-workflow-events';
-const DEFAULT_API_SERVICE_NAME = 'playrunner-api';
-const TERRAFORM_SETUP_COMMAND = './infra/gcp/scripts/setup-terraform.sh';
-const TERRAFORM_DIRECT_COMMANDS = [
-  'terraform -chdir=infra/gcp init',
-  'terraform -chdir=infra/gcp plan',
-  'terraform -chdir=infra/gcp apply',
-].join('\n');
+const PUSH_RUNNER_IMAGES_COMMAND =
+  './infra/gcp/scripts/push-runners.sh --target both --yes';
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const GCP_SETUP_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/setup');
 const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/oauth');
 const GCP_PROJECT_REGION_DOCS_URL = getDocsUrl(
   'docs/runner-architecture/gcp/project-region',
 );
-const GCP_TERRAFORM_DOCS_URL = getDocsUrl(
-  'docs/runner-architecture/gcp/terraform',
-);
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
   'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
+
+const GCP_PERMISSION_DESCRIPTIONS: Record<string, string> = {
+  'artifactregistry.dockerimages.list':
+    'Check whether the runner repositories contain images.',
+  'artifactregistry.repositories.create':
+    'Create the Orchestrator and Playwright runner repositories.',
+  'artifactregistry.repositories.get': 'Inspect existing runner repositories.',
+  'cloudscheduler.jobs.create': 'Create workflow schedules.',
+  'cloudscheduler.jobs.delete': 'Delete workflow schedules.',
+  'cloudscheduler.jobs.get': 'Inspect workflow schedules.',
+  'cloudscheduler.jobs.update': 'Update workflow schedules.',
+  'iam.serviceAccounts.actAs':
+    'Use the scheduler service account when creating scheduled jobs.',
+  'iam.serviceAccounts.create': 'Create the scheduler service account.',
+  'iam.serviceAccounts.get': 'Inspect the scheduler service account.',
+  'pubsub.subscriptions.consume': 'Receive workflow runner events.',
+  'pubsub.subscriptions.create':
+    'Create execution, control, and status subscriptions.',
+  'pubsub.subscriptions.delete':
+    'Clean up execution, control, and status subscriptions.',
+  'pubsub.subscriptions.get':
+    'Inspect execution, control, and status subscriptions.',
+  'pubsub.topics.create': 'Create the shared workflow events topic.',
+  'pubsub.topics.get': 'Inspect the shared workflow events topic.',
+  'pubsub.topics.publish': 'Publish runner status and workflow events.',
+  'run.jobs.create': 'Create Playwright Cloud Run jobs.',
+  'run.jobs.get': 'Inspect Playwright Cloud Run jobs.',
+  'run.jobs.run': 'Start Playwright Cloud Run jobs.',
+  'run.jobs.runWithOverrides':
+    'Start Playwright jobs with workflow-specific environment overrides.',
+  'run.jobs.update': 'Update Playwright Cloud Run jobs.',
+  'run.services.create': 'Create the Orchestrator Cloud Run service.',
+  'run.services.get': 'Inspect the Orchestrator Cloud Run service.',
+  'run.services.setIamPolicy':
+    'Configure access to the Orchestrator Cloud Run service.',
+  'run.services.update': 'Update the Orchestrator Cloud Run service.',
+  'serviceusage.services.enable': 'Enable required Google Cloud APIs.',
+  'storage.buckets.create': 'Create workflow output buckets.',
+  'storage.buckets.get':
+    'Check whether a workflow output bucket exists and read its metadata.',
+};
 
 type DocsImportMeta = ImportMeta & {
   env?: {
@@ -113,6 +178,16 @@ function getDocsUrl(path = '') {
   const normalizedPath = path.trim().replace(/^\/+/, '');
 
   return normalizedPath ? `${baseUrl}/${normalizedPath}` : baseUrl;
+}
+
+function defaultExpandedProvisioningSteps(
+  provisioning: GcpProvisioningResult | null | undefined,
+) {
+  return new Set(
+    provisioning?.steps
+      .filter((step) => step.state !== 'complete')
+      .map((step) => step.id) || [],
+  );
 }
 
 function buildOrchestratorTemplate(
@@ -244,38 +319,34 @@ export function GcpSettingsModal({
   const [isSavingRunnerSettings, setIsSavingRunnerSettings] = useState(false);
   const [runnerSettingsSaved, setRunnerSettingsSaved] = useState(false);
   const [runnerSettingsError, setRunnerSettingsError] = useState('');
+  const [isProvisioning, setIsProvisioning] = useState(false);
+  const [provisioning, setProvisioning] =
+    useState<GcpProvisioningResult | null>(null);
+  const [expandedProvisioningSteps, setExpandedProvisioningSteps] = useState<
+    Set<GcpProvisioningStep['id']>
+  >(new Set());
+  const [provisioningError, setProvisioningError] = useState('');
   const [activeStep, setActiveStep] = useState<GcpWizardStep>('oauth');
   const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedTerraformCommand, setCopiedTerraformCommand] = useState(false);
+  const [copiedImageCommand, setCopiedImageCommand] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
   const credentialRef = React.useRef<GcpCredentialData>({
     orchestratorServiceName: DEFAULT_ORCHESTRATOR_SERVICE_NAME,
   });
 
   const callbackUrl = `${window.location.origin}/oauth/callback/gcp`;
-  const terraformVars = React.useMemo(() => {
-    const projectId = selectedProject.trim() || '<project-id>';
-    const region = cloudRunLocation.trim() || 'us-central1';
-
-    return [
-      `project_id = "${projectId}"`,
-      `region     = "${region}"`,
-      `scheduler_service_account_id = "${DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID}"`,
-      `api_service_name = "${DEFAULT_API_SERVICE_NAME}"`,
-      `workflow_events_topic_name = "${DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME}"`,
-    ].join('\n');
-  }, [cloudRunLocation, selectedProject]);
-
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(callbackUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
-  const handleCopyTerraformCommand = () => {
-    navigator.clipboard.writeText(TERRAFORM_SETUP_COMMAND);
-    setCopiedTerraformCommand(true);
-    setTimeout(() => setCopiedTerraformCommand(false), 2000);
+  const handleCopyImageCommand = () => {
+    navigator.clipboard.writeText(
+      provisioning?.imageCommand || PUSH_RUNNER_IMAGES_COMMAND,
+    );
+    setCopiedImageCommand(true);
+    setTimeout(() => setCopiedImageCommand(false), 2000);
   };
 
   const resetCredentialState = React.useCallback(() => {
@@ -299,8 +370,12 @@ export function GcpSettingsModal({
     setAuthError('');
     setRunnerSettingsSaved(false);
     setRunnerSettingsError('');
+    setProvisioning(null);
+    setExpandedProvisioningSteps(new Set());
+    setProvisioningError('');
+    setIsProvisioning(false);
     setActiveStep('oauth');
-    setCopiedTerraformCommand(false);
+    setCopiedImageCommand(false);
   }, []);
 
   const loadCredentialState = React.useCallback((data: any) => {
@@ -335,6 +410,12 @@ export function GcpSettingsModal({
         typeof data?.playwrightImageUriTemplate === 'string'
           ? data.playwrightImageUriTemplate
           : undefined,
+      provisioning:
+        data?.provisioning &&
+        typeof data.provisioning === 'object' &&
+        Array.isArray(data.provisioning.steps)
+          ? (data.provisioning as GcpProvisioningResult)
+          : null,
       schedulerServiceAccountEmail:
         typeof data?.schedulerServiceAccountEmail === 'string'
           ? data.schedulerServiceAccountEmail
@@ -370,7 +451,14 @@ export function GcpSettingsModal({
         : DEFAULT_ORCHESTRATOR_CPU_IDLE,
     );
     setSelectedProject(next.selectedProject || '');
-    setRunnerSettingsSaved(false);
+    setProvisioning(next.provisioning || null);
+    setExpandedProvisioningSteps(
+      defaultExpandedProvisioningSteps(next.provisioning),
+    );
+    setProvisioningError('');
+    setRunnerSettingsSaved(
+      Boolean(next.selectedProject?.trim() && next.cloudRunLocation?.trim()),
+    );
     setRunnerSettingsError('');
   }, []);
 
@@ -669,6 +757,7 @@ export function GcpSettingsModal({
         orchestratorMinInstanceCount: minInstanceCount,
         orchestratorServiceName: normalizedServiceName,
         playwrightImageUriTemplate: buildPlaywrightTemplate(normalizedRegion),
+        provisioning: null,
         schedulerServiceAccountEmail:
           buildSchedulerServiceAccountEmail(normalizedProject),
         selectedProject: normalizedProject,
@@ -677,12 +766,83 @@ export function GcpSettingsModal({
         next.orchestratorServiceName || DEFAULT_ORCHESTRATOR_SERVICE_NAME,
       );
       setRunnerSettingsSaved(true);
-      setActiveStep('terraform');
+      setProvisioning(null);
+      setExpandedProvisioningSteps(new Set());
+      setProvisioningError('');
+      setActiveStep('provision');
     } catch (error) {
       console.error('Failed to save GCP settings', error);
       setRunnerSettingsError('Failed to save GCP settings.');
     } finally {
       setIsSavingRunnerSettings(false);
+    }
+  };
+
+  const handleProvisionGcp = async () => {
+    if (!auth.currentUser) return;
+    if (!authSuccess) {
+      setProvisioningError('Connect Google OAuth before provisioning.');
+      return;
+    }
+    if (!selectedProject.trim() || !cloudRunLocation.trim()) {
+      setProvisioningError(
+        'Save a Google Cloud project and region before provisioning.',
+      );
+      return;
+    }
+
+    setIsProvisioning(true);
+    setProvisioningError('');
+    try {
+      const userToken = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/gcp/provision', {
+        headers: { Authorization: `Bearer ${userToken}` },
+        method: 'POST',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (Array.isArray(data.steps)) {
+          const partialProvisioning: GcpProvisioningResult = {
+            imageCommand: PUSH_RUNNER_IMAGES_COMMAND,
+            missingRuntimePermissions: Array.isArray(data.missingPermissions)
+              ? data.missingPermissions
+              : [],
+            projectId: selectedProject.trim(),
+            ready: false,
+            region: cloudRunLocation.trim(),
+            steps: data.steps,
+            updatedAt: new Date().toISOString(),
+          };
+          setProvisioning(partialProvisioning);
+          setExpandedProvisioningSteps(
+            defaultExpandedProvisioningSteps(partialProvisioning),
+          );
+        }
+        throw new Error(
+          typeof data.error === 'string'
+            ? data.error
+            : 'Failed to provision GCP cloud runners.',
+        );
+      }
+
+      const nextProvisioning = data.provisioning as GcpProvisioningResult;
+      credentialRef.current = {
+        ...credentialRef.current,
+        provisioning: nextProvisioning,
+      };
+      setProvisioning(nextProvisioning);
+      setExpandedProvisioningSteps(
+        defaultExpandedProvisioningSteps(nextProvisioning),
+      );
+    } catch (error) {
+      console.error('Failed to provision GCP runners', error);
+      setProvisioningError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to provision GCP cloud runners.',
+      );
+    } finally {
+      setIsProvisioning(false);
     }
   };
 
@@ -704,6 +864,7 @@ export function GcpSettingsModal({
       <button
         type="button"
         onClick={onCopy}
+        aria-label={title}
         className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--background)] text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
         title={title}
       >
@@ -787,7 +948,11 @@ export function GcpSettingsModal({
   const isStepComplete = (stepId: GcpWizardStep) => {
     if (stepId === 'oauth') return authSuccess;
     if (stepId === 'project-region') return isProjectRegionComplete;
-    return false;
+    return Boolean(
+      provisioning?.ready &&
+      provisioning.projectId === selectedProject.trim() &&
+      provisioning.region === cloudRunLocation.trim(),
+    );
   };
 
   const renderActionButton = ({
@@ -890,7 +1055,7 @@ export function GcpSettingsModal({
     <div className="space-y-4">
       {renderSetupGuideCallout({
         description:
-          'Create the Google OAuth client first, then paste the generated client ID and secret here. Terraform setup happens after authentication succeeds.',
+          'Create the Google OAuth client first, then paste the generated client ID and secret here. Playrunner uses this connection to provision runner resources after authentication succeeds.',
         href: GCP_OAUTH_DOCS_URL,
         linkLabel: 'Open OAuth setup guide',
         title: '1. Google OAuth setup',
@@ -971,7 +1136,7 @@ export function GcpSettingsModal({
     <div className="space-y-4">
       {renderSetupGuideCallout({
         description:
-          'Save the GCP project and Cloud Run region here. The Terraform setup script reads these saved values from Postgres.',
+          'Save the GCP project and Cloud Run region here. Playrunner will provision resources in this location using your OAuth connection.',
         href: GCP_PROJECT_REGION_DOCS_URL,
         linkLabel: 'Open Project and Region guide',
         title: '2. Project and region',
@@ -1170,58 +1335,209 @@ export function GcpSettingsModal({
     </div>
   );
 
-  const renderTerraformStep = () => (
-    <div className="space-y-4">
-      {renderSetupGuideCallout({
-        description:
-          'After saving, run this from the repo root. It writes infra/gcp/terraform.tfvars from the saved project and region. It does not run Terraform.',
-        href: GCP_TERRAFORM_DOCS_URL,
-        linkLabel: 'Open Terraform setup guide',
-        title: '3. Terraform setup',
-      })}
+  const renderProvisioningStep = () => {
+    const provisioningMatchesSettings =
+      provisioning?.projectId === selectedProject.trim() &&
+      provisioning?.region === cloudRunLocation.trim();
+    const displayedProvisioning = provisioningMatchesSettings
+      ? provisioning
+      : null;
+    const toggleProvisioningStep = (stepId: GcpProvisioningStep['id']) => {
+      setExpandedProvisioningSteps((current) => {
+        const next = new Set(current);
+        if (next.has(stepId)) next.delete(stepId);
+        else next.add(stepId);
+        return next;
+      });
+    };
 
-      <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-left">
-        {renderCommandBlock({
-          command: TERRAFORM_SETUP_COMMAND,
-          copied: copiedTerraformCommand,
-          onCopy: handleCopyTerraformCommand,
-          title: 'Copy Terraform setup command',
+    return (
+      <div className="space-y-4">
+        {renderSetupGuideCallout({
+          description:
+            'Playrunner validates access on the actual resources, enables required APIs, and reconciles Artifact Registry, Pub/Sub, and the scheduler identity through Google Cloud APIs.',
+          linkLabel: 'Open GCP setup guide',
+          title: '3. Provision cloud runners',
         })}
 
-        <p className="text-xs leading-relaxed text-muted">
-          After reviewing the generated file, run Terraform directly:
-        </p>
+        <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 text-left">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5">
+            <p className="text-xs font-medium text-[var(--foreground)]">
+              Terraform is not required for cloud runners
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              This OAuth setup creates and checks the runner resources directly.
+              Terraform is only optional when you want to deploy and manage the
+              Playrunner API/control plane in Google Cloud as well.
+            </p>
+          </div>
 
-        <pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
-          <code>{TERRAFORM_DIRECT_COMMANDS}</code>
-        </pre>
+          <div className="flex items-start gap-3">
+            <div
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                displayedProvisioning?.ready
+                  ? 'border-emerald-500/20 bg-emerald-500/10'
+                  : provisioningError
+                    ? 'border-red-500/20 bg-red-500/10'
+                    : 'border-[var(--border)] bg-[var(--surface)]'
+              }`}
+            >
+              {isProvisioning ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted" />
+              ) : displayedProvisioning?.ready ? (
+                <Check className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <RefreshCw className="h-4 w-4 text-muted" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-[var(--foreground)]">
+                {isProvisioning
+                  ? 'Provisioning Google Cloud resources...'
+                  : displayedProvisioning?.ready
+                    ? 'Cloud runners are ready'
+                    : displayedProvisioning
+                      ? 'Cloud setup needs attention'
+                      : 'Ready to provision'}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Project <code>{selectedProject.trim() || 'not selected'}</code>{' '}
+                in{' '}
+                <code>{cloudRunLocation.trim() || 'no region selected'}</code>.
+                Existing resources are reused and reconciled.
+              </p>
+            </div>
+          </div>
 
-        <p className="text-xs leading-relaxed text-muted">
-          Terraform creates the scheduler service account from{' '}
-          <code>scheduler_service_account_id</code>; the full email is an
-          output, not a value you enter by hand.
-        </p>
+          {displayedProvisioning?.steps.length ? (
+            <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+              {displayedProvisioning.steps.map((step) => {
+                const isExpanded = expandedProvisioningSteps.has(step.id);
+                const items: GcpProvisioningStepItem[] | undefined =
+                  step.items?.length || step.id !== 'permissions'
+                    ? step.items
+                    : displayedProvisioning.missingRuntimePermissions.map(
+                        (permission) => ({
+                          detail:
+                            GCP_PERMISSION_DESCRIPTIONS[permission] ||
+                            'Required for Google Cloud runner operations.',
+                          label: permission,
+                          state: 'warning' as const,
+                        }),
+                      );
 
-        <details className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
-          <summary className="cursor-pointer text-xs font-medium text-[var(--foreground)]">
-            Generated terraform.tfvars preview
-          </summary>
-          <pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 text-xs leading-relaxed text-[var(--foreground)]">
-            <code>{terraformVars}</code>
-          </pre>
-          <p className="mt-2 text-[10px] leading-relaxed text-muted">
-            The setup script writes this file from the saved settings. It also
-            keeps the standard Artifact Registry image paths generated
-            automatically for Playrunner.
-          </p>
-        </details>
+                return (
+                  <div key={step.id}>
+                    <button
+                      type="button"
+                      aria-expanded={isExpanded}
+                      onClick={() => toggleProvisioningStep(step.id)}
+                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                          step.state === 'complete'
+                            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500'
+                            : step.state === 'failed'
+                              ? 'border-red-500/20 bg-red-500/10 text-red-500'
+                              : 'border-amber-500/20 bg-amber-500/10 text-amber-500'
+                        }`}
+                      >
+                        {step.state === 'complete' ? (
+                          <Check className="h-3 w-3" />
+                        ) : (
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-medium text-[var(--foreground)]">
+                          {step.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                          {step.detail}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={`mt-1 h-4 w-4 shrink-0 text-muted transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {isExpanded ? (
+                      <div className="space-y-2 border-t border-[var(--border)] bg-[var(--background)] px-3 py-3">
+                        {items?.length ? (
+                          items.map((item, index) => (
+                            <div
+                              key={`${item.label}-${item.value || index}`}
+                              className="flex items-start gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5"
+                            >
+                              <span
+                                className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                                  item.state === 'complete'
+                                    ? 'bg-emerald-500'
+                                    : item.state === 'failed'
+                                      ? 'bg-red-500'
+                                      : 'bg-amber-500'
+                                }`}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium text-[var(--foreground)]">
+                                  {item.label}
+                                </p>
+                                {item.value ? (
+                                  <code className="mt-1 block overflow-x-auto font-mono text-xs text-[var(--foreground)]">
+                                    {item.value}
+                                  </code>
+                                ) : null}
+                                {item.detail ? (
+                                  <p className="mt-1 text-xs leading-relaxed text-muted">
+                                    {GCP_PERMISSION_DESCRIPTIONS[item.label] ||
+                                      item.detail}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs leading-relaxed text-muted">
+                            Detailed results were not saved by the previous
+                            setup check. Click Recheck setup to refresh them.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {step.id === 'images' && step.state === 'warning' ? (
+                      <div className="border-t border-[var(--border)] px-3 py-3">
+                        {renderCommandBlock({
+                          command:
+                            displayedProvisioning.imageCommand ||
+                            PUSH_RUNNER_IMAGES_COMMAND,
+                          copied: copiedImageCommand,
+                          onCopy: handleCopyImageCommand,
+                          title: 'Copy runner image command',
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs leading-relaxed text-muted">
+              Provisioning validates access while reading or reconciling each
+              actual resource. It is safe to run again if setup is interrupted.
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderActiveStep = () => {
     if (activeStep === 'project-region') return renderProjectRegionStep();
-    if (activeStep === 'terraform') return renderTerraformStep();
+    if (activeStep === 'provision') return renderProvisioningStep();
     return renderOauthStep();
   };
 
@@ -1355,21 +1671,65 @@ export function GcpSettingsModal({
 
     return (
       <div className="flex w-full items-center gap-3">
-        <span className={`min-h-5 flex-1 text-xs ${footerStatusClassName}`}>
-          {footerStatusMessage}
+        <span
+          className={`min-h-5 flex-1 text-xs ${
+            provisioningError
+              ? 'text-red-500'
+              : provisioning?.ready
+                ? 'text-emerald-500'
+                : 'text-muted'
+          }`}
+        >
+          {provisioningError ||
+            (provisioning?.ready
+              ? 'Cloud runners are ready.'
+              : provisioning
+                ? 'Cloud resources provisioned; review remaining items.'
+                : '')}
         </span>
         <div className="flex shrink-0 items-center justify-end gap-2">
           {renderActionButton({
             children: 'Back to Project & Region',
+            disabled: isProvisioning,
             onClick: () => setActiveStep('project-region'),
             type: 'button',
             variant: 'secondary',
           })}
           {renderActionButton({
-            children: 'Close',
-            onClick: onClose,
+            children: isProvisioning ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Provisioning...
+              </>
+            ) : provisioning?.ready ? (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Recheck setup
+              </>
+            ) : (
+              <>
+                Provision cloud runners
+                <ChevronRight className="h-4 w-4" />
+              </>
+            ),
+            className: 'gap-2',
+            disabled:
+              isProvisioning ||
+              !authSuccess ||
+              !isProjectRegionComplete ||
+              !runnerSettingsSaved,
+            onClick: handleProvisionGcp,
             type: 'button',
           })}
+          {provisioning?.ready
+            ? renderActionButton({
+                children: 'Close',
+                disabled: isProvisioning,
+                onClick: onClose,
+                type: 'button',
+                variant: 'secondary',
+              })
+            : null}
         </div>
       </div>
     );

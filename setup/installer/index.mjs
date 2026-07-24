@@ -10,12 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const PORT = parseInt(process.env.SETUP_INSTALLER_PORT || "3003", 10);
 const SETUP_SESSION_TOKEN = process.env.SETUP_SESSION_TOKEN || "";
-const LOCAL_AUTH_SECRET_OWNER = "__playrunner_local_auth__";
-const LOCAL_AUTH_SECRET_KEYS = {
-  jwtSecret: "local.auth.jwt_secret",
-  passwordHash: "local.auth.password_hash",
-  username: "local.auth.username",
-};
+const LOCAL_AUTH_USER_ID = "local-admin";
 
 function getRepoRoot() {
   return path.resolve(__dirname, "..", "..");
@@ -180,19 +175,26 @@ function createApiRequire() {
   return createRequire(path.join(getApiDir(), "package.json"));
 }
 
-function hasCompleteLocalAuthConfig(config) {
-  return Boolean(config.username && config.passwordHash && config.jwtSecret);
-}
-
 async function withApiPrismaClient(databaseUrl, callback) {
   const requireFromApi = createApiRequire();
   const unregisterTypeScript = requireFromApi("tsx/cjs/api").register();
   const { PrismaPg } = requireFromApi("@prisma/adapter-pg");
-  const { PrismaClient } = requireFromApi(
-    "./src/generated/prisma/client.cts",
-  );
+  const { PrismaClient } = requireFromApi("./src/generated/prisma/client.cts");
+  const parsedDatabaseUrl = new URL(databaseUrl);
+  const schema =
+    parsedDatabaseUrl.searchParams.get("schema")?.trim() || undefined;
+  if (schema && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error(`DATABASE_URL contains an invalid schema: "${schema}".`);
+  }
+  parsedDatabaseUrl.searchParams.delete("schema");
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: databaseUrl }),
+    adapter: new PrismaPg(
+      {
+        connectionString: parsedDatabaseUrl.toString(),
+        ...(schema ? { options: `-c search_path=${schema}` } : {}),
+      },
+      schema ? { schema } : undefined,
+    ),
   });
 
   try {
@@ -204,74 +206,39 @@ async function withApiPrismaClient(databaseUrl, callback) {
 }
 
 async function upsertStoredLocalAuthConfig(databaseUrl, config) {
-  const secretValues = [
-    {
-      description: "Local setup admin JWT signing secret.",
-      secretKey: LOCAL_AUTH_SECRET_KEYS.jwtSecret,
-      value: config.jwtSecret,
-    },
-    {
-      description: "Local setup admin password hash.",
-      secretKey: LOCAL_AUTH_SECRET_KEYS.passwordHash,
-      value: config.passwordHash,
-    },
-    {
-      description: "Local setup admin username.",
-      secretKey: LOCAL_AUTH_SECRET_KEYS.username,
-      value: config.username,
-    },
-  ];
-
   await withApiPrismaClient(databaseUrl, async (prisma) => {
-    for (const secret of secretValues) {
-      await prisma.secret.upsert({
-        where: {
-          userId_secretKey: {
-            userId: LOCAL_AUTH_SECRET_OWNER,
-            secretKey: secret.secretKey,
-          },
-        },
-        update: {
-          value: secret.value,
-          description: secret.description,
-        },
-        create: {
-          userId: LOCAL_AUTH_SECRET_OWNER,
-          secretKey: secret.secretKey,
-          value: secret.value,
-          description: secret.description,
-        },
-      });
-    }
+    const email = config.username.includes("@") ? config.username : null;
+    await prisma.user.upsert({
+      where: { id: LOCAL_AUTH_USER_ID },
+      update: {
+        email,
+        passwordHash: config.passwordHash,
+        username: config.username,
+      },
+      create: {
+        email,
+        id: LOCAL_AUTH_USER_ID,
+        passwordHash: config.passwordHash,
+        username: config.username,
+      },
+    });
   });
 }
 
 async function readStoredLocalAuthConfig(databaseUrl) {
   return withApiPrismaClient(databaseUrl, async (prisma) => {
-    const secrets = await prisma.secret.findMany({
-      where: {
-        secretKey: {
-          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
-        },
-        userId: LOCAL_AUTH_SECRET_OWNER,
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: LOCAL_AUTH_USER_ID },
     });
-
-    const values = new Map(
-      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
-    );
-
     return {
-      jwtSecret: values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || "",
-      passwordHash: values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || "",
-      username: values.get(LOCAL_AUTH_SECRET_KEYS.username) || "",
+      passwordHash: user?.passwordHash.trim() || "",
+      username: user?.username.trim() || "",
     };
   });
 }
 
 async function seedLocalAuthConfig(config) {
   await upsertStoredLocalAuthConfig(config.databaseUrl, {
-    jwtSecret: crypto.randomBytes(32).toString("hex"),
     passwordHash: hashPassword(config.password),
     username: config.username,
   });
@@ -282,7 +249,7 @@ async function hasStoredLocalAuthConfig(databaseUrl) {
     () => null,
   );
 
-  return Boolean(storedConfig && hasCompleteLocalAuthConfig(storedConfig));
+  return Boolean(storedConfig?.username && storedConfig.passwordHash);
 }
 
 async function installPostgresFiles(config) {
@@ -293,6 +260,17 @@ async function installPostgresFiles(config) {
   const envLines = await readApiEnvTemplateLines();
 
   upsertEnvVariable(envLines, "DATABASE_URL", config.databaseUrl);
+  const localAuthJwtSecret = getEnvVariable(
+    envLines,
+    "PLAYRUNNER_LOCAL_AUTH_JWT_SECRET",
+  );
+  if (!localAuthJwtSecret || localAuthJwtSecret.length < 32) {
+    upsertEnvVariable(
+      envLines,
+      "PLAYRUNNER_LOCAL_AUTH_JWT_SECRET",
+      crypto.randomBytes(32).toString("base64url"),
+    );
+  }
   if (!getEnvVariable(envLines, "PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS")) {
     const key = crypto.randomBytes(32).toString("base64");
     upsertEnvVariable(
@@ -340,11 +318,16 @@ async function getSetupStatus() {
   const envContents = await fs.readFile(apiEnvPath, "utf8").catch(() => "");
   const envLines = envContents ? envContents.split(/\r?\n/) : [];
   const databaseUrl = getEnvVariable(envLines, "DATABASE_URL");
+  const jwtSecret = getEnvVariable(
+    envLines,
+    "PLAYRUNNER_LOCAL_AUTH_JWT_SECRET",
+  );
 
   return {
-    completed: databaseUrl
-      ? await hasStoredLocalAuthConfig(databaseUrl)
-      : false,
+    completed:
+      databaseUrl && jwtSecret && jwtSecret.length >= 32
+        ? await hasStoredLocalAuthConfig(databaseUrl)
+        : false,
   };
 }
 

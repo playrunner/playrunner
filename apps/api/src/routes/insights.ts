@@ -319,7 +319,7 @@ insightsRouter.get(
       integrations,
       cloudCredentials,
       environments,
-      secrets,
+      environmentSecrets,
     ] = await prisma.$transaction([
       prisma.project.findMany({
         where: { userId },
@@ -386,7 +386,7 @@ insightsRouter.get(
         select: { id: true, name: true, createdAt: true, updatedAt: true },
         orderBy: { updatedAt: 'desc' },
       }),
-      prisma.secret.findMany({
+      prisma.environmentSecret.findMany({
         where: { userId },
         select: { id: true, createdAt: true, updatedAt: true },
         orderBy: { updatedAt: 'desc' },
@@ -848,7 +848,7 @@ insightsRouter.get(
         nodeCount: totalNodeCount,
         p95DurationMs: round(percentile(durations, 0.95), 0),
         projectCount: projects.length,
-        secretCount: secrets.length,
+        secretCount: environmentSecrets.length,
         successRate: round(successRate(totals), 4),
         totalEvents: events.length,
         workflowCount: workflows.length,
@@ -880,8 +880,8 @@ insightsRouter.get(
           updatedAt: project.updatedAt,
         })),
         secrets: {
-          count: secrets.length,
-          lastUpdatedAt: secrets[0]?.updatedAt ?? null,
+          count: environmentSecrets.length,
+          lastUpdatedAt: environmentSecrets[0]?.updatedAt ?? null,
         },
       },
     };

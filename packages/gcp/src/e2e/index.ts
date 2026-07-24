@@ -10,7 +10,7 @@ export const gcpE2EContribution = definePlayrunnerE2EContribution({
     {
       id: 'oauth-setup',
       mode: 'mock',
-      title: 'validates the GCP OAuth setup wizard',
+      title: 'validates the GCP OAuth provisioning wizard',
       tags: ['@gcp', '@integration'],
       async run({ data, expect, pom }) {
         await pom.open();
@@ -24,6 +24,16 @@ export const gcpE2EContribution = definePlayrunnerE2EContribution({
         await pom.clientSecretInput.click();
         await pom.clientSecretInput.fill(data.clientSecret);
         await expect(pom.authenticateButton).toBeEnabled();
+
+        await pom.provisionStepButton.click();
+        await expect(pom.provisioningGuideLink).toHaveAttribute(
+          'target',
+          '_blank',
+        );
+        await expect(pom.provisionButton).toBeDisabled();
+        await expect(pom.dialog).toContainText(
+          'Terraform is not required for cloud runners',
+        );
       },
     },
   ],

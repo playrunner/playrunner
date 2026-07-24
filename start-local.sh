@@ -183,12 +183,7 @@ const path = require('path');
 const { createRequire } = require('module');
 
 const [, , rootEnvPath, apiEnvPath, apiDir] = process.argv;
-const LOCAL_AUTH_SECRET_OWNER = '__playrunner_local_auth__';
-const LOCAL_AUTH_SECRET_KEYS = {
-  jwtSecret: 'local.auth.jwt_secret',
-  passwordHash: 'local.auth.password_hash',
-  username: 'local.auth.username',
-};
+const LOCAL_AUTH_USER_ID = 'local-admin';
 
 function fileExists(filePath) {
   try {
@@ -233,8 +228,21 @@ async function withPrismaClient(databaseUrl, callback) {
   const { PrismaClient } = requireFromApi(
     './src/generated/prisma/client.cts',
   );
+  const parsedDatabaseUrl = new URL(databaseUrl);
+  const schema =
+    parsedDatabaseUrl.searchParams.get('schema')?.trim() || undefined;
+  if (schema && !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema)) {
+    throw new Error(`DATABASE_URL contains an invalid schema: "${schema}".`);
+  }
+  parsedDatabaseUrl.searchParams.delete('schema');
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: databaseUrl }),
+    adapter: new PrismaPg(
+      {
+        connectionString: parsedDatabaseUrl.toString(),
+        ...(schema ? { options: `-c search_path=${schema}` } : {}),
+      },
+      schema ? { schema } : undefined,
+    ),
   });
 
   try {
@@ -247,23 +255,12 @@ async function withPrismaClient(databaseUrl, callback) {
 
 async function readStoredLocalAuthConfig(databaseUrl) {
   return withPrismaClient(databaseUrl, async (prisma) => {
-    const secrets = await prisma.secret.findMany({
-      where: {
-        secretKey: {
-          in: Object.values(LOCAL_AUTH_SECRET_KEYS),
-        },
-        userId: LOCAL_AUTH_SECRET_OWNER,
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: LOCAL_AUTH_USER_ID },
     });
-
-    const values = new Map(
-      secrets.map((secret) => [secret.secretKey, secret.value.trim()]),
-    );
-
     return {
-      jwtSecret: values.get(LOCAL_AUTH_SECRET_KEYS.jwtSecret) || '',
-      passwordHash: values.get(LOCAL_AUTH_SECRET_KEYS.passwordHash) || '',
-      username: values.get(LOCAL_AUTH_SECRET_KEYS.username) || '',
+      passwordHash: user?.passwordHash.trim() || '',
+      username: user?.username.trim() || '',
     };
   });
 }
@@ -275,15 +272,22 @@ if (!fileExists(rootEnvPath) || !fileExists(apiEnvPath)) {
 async function main() {
   const envLines = fs.readFileSync(apiEnvPath, 'utf8').split(/\r?\n/);
   const databaseUrl = getEnvVariable(envLines, 'DATABASE_URL');
+  const jwtSecret = getEnvVariable(
+    envLines,
+    'PLAYRUNNER_LOCAL_AUTH_JWT_SECRET',
+  );
 
-  if (!databaseUrl) {
+  if (!databaseUrl || jwtSecret.length < 32) {
     return false;
   }
 
   const storedConfig = await readStoredLocalAuthConfig(databaseUrl).catch(
     () => null,
   );
-  return Boolean(storedConfig && hasCompleteLocalAuthConfig(storedConfig));
+  return Boolean(
+    storedConfig &&
+      hasCompleteLocalAuthConfig({ ...storedConfig, jwtSecret }),
+  );
 }
 
 main()
@@ -356,7 +360,7 @@ NODE
     echo "🔌 Frontend API proxy: ${VITE_API_URL}"
 }
 
-ensure_api_credential_encryption_key() {
+ensure_api_security_keys() {
     node - "${API_DIR}/.env" <<'NODE'
 const crypto = require('crypto');
 const fs = require('fs');
@@ -389,6 +393,13 @@ let encodedKeyring = readValue('PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS');
 let activeVersion = readValue(
   'PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION',
 );
+let localAuthJwtSecret = readValue('PLAYRUNNER_LOCAL_AUTH_JWT_SECRET');
+
+if (localAuthJwtSecret.length < 32) {
+  localAuthJwtSecret = crypto.randomBytes(32).toString('base64url');
+  upsert('PLAYRUNNER_LOCAL_AUTH_JWT_SECRET', localAuthJwtSecret);
+  console.log('🔐 Generated local-auth JWT signing secret.');
+}
 
 if (!encodedKeyring) {
   encodedKeyring = JSON.stringify({
@@ -426,7 +437,7 @@ bootstrap_api_prisma() {
         exit 1
     fi
 
-    ensure_api_credential_encryption_key
+    ensure_api_security_keys
 
     echo "🗃️  Generating Prisma client..."
     (
@@ -561,6 +572,7 @@ wait_for_compose_service pubsub 30
 
 if [ -f "${API_DIR}/.env" ]; then
     sync_api_database_url
+    ensure_api_security_keys
 fi
 
 if has_completed_local_setup; then

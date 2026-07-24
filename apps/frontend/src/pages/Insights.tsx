@@ -842,7 +842,7 @@ function WorkspaceInventory({ workspace }: { workspace: Workspace }) {
       detail: workspace.secrets.lastUpdatedAt
         ? `Updated ${formatDate(workspace.secrets.lastUpdatedAt)}`
         : 'No secret updates',
-      label: 'Secrets',
+      label: 'Environment secrets',
       value: workspace.secrets.count,
     },
   ];
@@ -1101,9 +1101,9 @@ export default function Insights() {
                 value={formatNumber(report.summary.environmentCount)}
               />
               <MetricCard
-                helper={`${formatNumber(report.summary.secretCount)} secret metadata rows`}
+                helper={`${formatNumber(report.summary.secretCount)} environment secret rows`}
                 icon={CalendarDays}
-                label="Secrets"
+                label="Environment secrets"
                 value={formatNumber(report.summary.secretCount)}
               />
             </div>

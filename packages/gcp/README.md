@@ -39,10 +39,11 @@ npm run typecheck --prefix packages/gcp
 npm run test:e2e:mock -- --grep @gcp
 ```
 
-The E2E scenario validates the GCP OAuth setup wizard. It runs in deterministic
-mock mode through the shared Playrunner browser harness, which uses the real
-frontend, API, authentication, and dedicated E2E database. No Google Cloud
-credentials or live provider requests are required.
+The E2E scenario validates the GCP OAuth, project selection, and cloud-resource
+provisioning wizard. It runs in deterministic mock mode through the shared
+Playrunner browser harness, which uses the real frontend, API, authentication,
+and dedicated E2E database. No Google Cloud credentials or live provider
+requests are required.
 
 ## Documentation
 
