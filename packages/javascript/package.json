@@ -28,6 +28,7 @@
       "id": "code",
       "frontend": ".",
       "api": "./api",
+      "orchestrator": "./orchestrator",
       "e2e": "./e2e"
     }
   },
@@ -50,6 +51,12 @@
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
     },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
+    },
     "./e2e": {
       "types": "./src/e2e/index.ts",
       "import": "./src/e2e/index.ts",
@@ -60,7 +67,9 @@
   "files": [
     "LICENSE",
     "README.md",
-    "src"
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
   ],
   "scripts": {
     "lint": "eslint .",
@@ -96,6 +105,7 @@
     "@eslint/js": "^9.39.4",
     "@playwright/test": "1.61.0",
     "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "10.1.8",

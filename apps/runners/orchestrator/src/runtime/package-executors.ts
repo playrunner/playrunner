@@ -39,6 +39,7 @@ export interface PackageNodeExecutionInput {
   node: PersistedWorkflowNode;
   settings: unknown;
   env: Readonly<Record<string, string>>;
+  nodeOutputs?: Readonly<Record<string, unknown>>;
   workflow: Readonly<Record<string, unknown>>;
   renderTemplate: (value: string) => string;
   log: (message: string, level?: OrchestratorLogLevel) => Promise<void>;
@@ -275,6 +276,7 @@ export class PackageExecutorRuntime {
       } satisfies OrchestratorNode),
       settings: readonlySnapshot(providerSettings),
       env: readonlySnapshot(input.env),
+      nodeOutputs: readonlySnapshot(input.nodeOutputs ?? {}),
       workflow: readonlySnapshot(input.workflow),
       renderTemplate: input.renderTemplate,
       log: input.log,

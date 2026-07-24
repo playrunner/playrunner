@@ -159,6 +159,7 @@ describe('package orchestrator integration', { concurrency: false }, () => {
         { id: 'environment', nodeType: 'environment' },
         { id: 'playwright', nodeType: 'playwright' },
         { id: 'schedule', nodeType: 'schedule' },
+        { id: 'code', nodeType: 'code' },
         { id: 'github', nodeType: 'github' },
         { id: 'slack', nodeType: 'slack' },
         { id: 'jira', nodeType: 'jira', config: { action: 'update' } },
@@ -521,6 +522,102 @@ describe('package orchestrator integration', { concurrency: false }, () => {
   });
 
   describe('workflow host finalization', () => {
+    test('executes JavaScript and publishes its output', async () => {
+      const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
+      const publishedEvents: Record<string, unknown>[] = [];
+
+      process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
+      globalThis.fetch = async (_input, init) => {
+        const requestBody = JSON.parse(String(init?.body)) as {
+          messages: Array<{ data: string }>;
+        };
+        for (const message of requestBody.messages) {
+          publishedEvents.push(
+            JSON.parse(Buffer.from(message.data, 'base64').toString('utf8')),
+          );
+        }
+        return new Response('{}', { status: 200 });
+      };
+
+      try {
+        const { executeWorkflow } = await import('../index');
+        await executeWorkflow({
+          cloudProvider: 'GCP',
+          connections: [],
+          eventTransport: {
+            projectId: 'test-project',
+            topicName: 'workflow-events',
+            type: 'gcp_pubsub',
+          },
+          executionAuthToken: 'execution-token',
+          nodes: [
+            {
+              config: {
+                code: `
+                  console.log('Running workflow code');
+                  return {
+                    greeting: 'Hello ' + env.NAME,
+                    workflowId: workflow.definition.id,
+                  };
+                `,
+              },
+              id: 'code-node',
+              label: 'JavaScript',
+              nodeType: 'code',
+            },
+            {
+              config: {
+                variables: [
+                  {
+                    enabled: true,
+                    key: 'NAME',
+                    currentValue: 'Playrunner',
+                  },
+                ],
+              },
+              id: 'environment',
+              label: 'Environment',
+              nodeType: 'environment',
+            },
+          ],
+          settings: {},
+          testId: 'execution-javascript',
+          workflow: {
+            definition: { id: 'workflow-1', name: 'JavaScript test' },
+          },
+          workflowId: 'workflow-1',
+        });
+      } finally {
+        if (previousPubSubEmulator === undefined) {
+          delete process.env.PUBSUB_EMULATOR_HOST;
+        } else {
+          process.env.PUBSUB_EMULATOR_HOST = previousPubSubEmulator;
+        }
+      }
+
+      const outputEvent = publishedEvents.find(
+        (event) => event.type === 'node_output' && event.nodeId === 'code-node',
+      );
+      assert.deepEqual(outputEvent?.output, {
+        greeting: 'Hello Playrunner',
+        workflowId: 'workflow-1',
+      });
+      assert.equal(
+        publishedEvents.filter(
+          (event) =>
+            event.type === 'node_state' &&
+            event.nodeId === 'code-node' &&
+            event.state === 'success',
+        ).length,
+        1,
+      );
+      assert.equal(
+        publishedEvents.filter((event) => event.type === 'workflow_completed')
+          .length,
+        1,
+      );
+    });
+
     test('renders completed package output into downstream node templates', async () => {
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
       const openAIRequests: Record<string, unknown>[] = [];

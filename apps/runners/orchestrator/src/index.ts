@@ -805,6 +805,7 @@ export async function executeWorkflow(reqBody: any) {
               node,
               settings,
               env: globalEnvVars,
+              nodeOutputs: nodeTemplateOutputs,
               workflow: workflowContext as unknown as Record<string, unknown>,
               renderTemplate: (value) =>
                 renderNodeTemplate(value, {

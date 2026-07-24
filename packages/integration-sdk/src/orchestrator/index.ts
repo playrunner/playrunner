@@ -27,6 +27,7 @@ export interface NodeExecutionContext {
   node: OrchestratorNode;
   settings: Readonly<Record<string, unknown>>;
   env: Readonly<Record<string, string>>;
+  nodeOutputs?: Readonly<Record<string, unknown>>;
   workflow: Readonly<Record<string, unknown>>;
   renderTemplate: (value: string) => string;
   log: (message: string, level?: OrchestratorLogLevel) => Promise<void>;
