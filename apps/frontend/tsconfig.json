@@ -15,9 +15,6 @@
     "paths": {
       "@/*": ["./*"],
       "@edition-runtime": ["./src/runtime/edition.ts"],
-      "@playrunner/integration-sdk": [
-        "../../packages/integration-sdk/src/frontend/index.tsx"
-      ],
       "react": ["./node_modules/@types/react/index.d.ts"],
       "react/jsx-runtime": ["./node_modules/@types/react/jsx-runtime.d.ts"]
     },

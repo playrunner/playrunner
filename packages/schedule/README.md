@@ -22,8 +22,8 @@ Add the package as a direct production dependency of the Playrunner frontend and
 - The integration id is `schedule`.
 
 ```ts
-import scheduleIntegration, { ScheduleConfigPanel } from "@playrunner/schedule";
-import scheduleApiContribution from "@playrunner/schedule/api";
+import scheduleIntegration, { ScheduleConfigPanel } from '@playrunner/schedule';
+import scheduleApiContribution from '@playrunner/schedule/api';
 ```
 
 ## Testing

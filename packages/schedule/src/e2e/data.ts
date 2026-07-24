@@ -1,4 +1,4 @@
-import type { PlayrunnerE2EDataContext } from "@playrunner/integration-sdk/e2e";
+import type { PlayrunnerE2EDataContext } from '@playrunner/integration-sdk/e2e';
 
 export interface ScheduleE2EData {
   runId: string;
