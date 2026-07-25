@@ -58,76 +58,6 @@
   line-height: 1.6;
 }
 
-.githubStars {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.githubStarsButton,
-.githubStarsCount {
-  min-height: 2.45rem;
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  background: var(--ifm-card-background-color);
-  color: var(--ifm-font-color-base);
-  box-shadow: var(--ifm-global-shadow-lw);
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1;
-  text-decoration: none;
-  transition:
-    border-color var(--ifm-transition-fast) var(--ifm-transition-timing-default),
-    color var(--ifm-transition-fast) var(--ifm-transition-timing-default);
-}
-
-.githubStarsButton:hover,
-.githubStarsCount:hover {
-  border-color: var(--ifm-color-primary);
-  color: var(--ifm-color-primary);
-  text-decoration: none;
-}
-
-.githubStarsButton {
-  gap: 0.45rem;
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.5rem;
-}
-
-.githubStarsCount {
-  min-width: 4.1rem;
-  justify-content: center;
-  position: relative;
-  padding: 0.45rem 0.85rem;
-  border-radius: 0.5rem;
-}
-
-.githubStarsCount::before {
-  content: '';
-  width: 0.55rem;
-  height: 0.55rem;
-  position: absolute;
-  left: -0.35rem;
-  top: 50%;
-  border-bottom: 1px solid var(--ifm-color-emphasis-300);
-  border-left: 1px solid var(--ifm-color-emphasis-300);
-  background: var(--ifm-card-background-color);
-  transform: translateY(-50%) rotate(45deg);
-  transition: border-color var(--ifm-transition-fast)
-    var(--ifm-transition-timing-default);
-}
-
-.githubStarsCount:hover::before {
-  border-color: var(--ifm-color-primary);
-}
-
-.githubStarsIcon {
-  width: 1.35rem;
-  height: 1.35rem;
-  flex: 0 0 auto;
-}
-
 .section {
   padding: 4rem 0;
 }
@@ -347,10 +277,6 @@
   .heroActions {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .githubStars {
-    justify-content: center;
   }
 
   .heroActions :global(.button) {
