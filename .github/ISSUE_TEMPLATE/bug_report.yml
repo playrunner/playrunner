@@ -16,7 +16,7 @@ body:
     attributes:
       value: |
         ## Ask for help through appropriate channels
-        If you feel unsure about the cause of the problem, consider asking for help in our [Discord channel](https://discord.gg/23yz25kat) before posting a bug report. The issue tracker is not a help forum.
+        If you feel unsure about the cause of the problem, consider asking for help in our [Discord channel](https://discord.gg/4zPdBy3DwU) before posting a bug report. The issue tracker is not a help forum.
   - type: markdown
     attributes:
       value: |

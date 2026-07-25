@@ -38,7 +38,7 @@ export function HeaderActions() {
       </a>
 
       <a
-        href="https://discord.gg/23yz25kat"
+        href="https://discord.gg/4zPdBy3DwU"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center rounded-md text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors py-1 px-2"

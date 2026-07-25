@@ -335,7 +335,7 @@ function ValidationSection(): ReactNode {
             </Link>
             <Link
               className="button button--secondary button--lg"
-              to="https://discord.gg/23yz25kat"
+              to="https://discord.gg/4zPdBy3DwU"
             >
               Talk to us about your setup
             </Link>

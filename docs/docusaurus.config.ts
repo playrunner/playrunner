@@ -101,7 +101,7 @@ const config: Config = {
           'aria-label': 'View Playrunner on GitHub',
         },
         {
-          href: 'https://discord.gg/23yz25kat',
+          href: 'https://discord.gg/4zPdBy3DwU',
           position: 'right',
           className: 'header-discord-link',
           'aria-label': 'Join our Discord',
@@ -146,7 +146,7 @@ const config: Config = {
           title: 'Discuss',
           items: [
             { label: 'Blog', to: '/blog' },
-            { label: 'Discord', href: 'https://discord.gg/23yz25kat' },
+            { label: 'Discord', href: 'https://discord.gg/4zPdBy3DwU' },
           ],
         },
         {
