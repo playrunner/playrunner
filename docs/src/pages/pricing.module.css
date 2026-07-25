@@ -1,0 +1,421 @@
+.page {
+  --pricing-border: var(--ifm-color-emphasis-200);
+  --pricing-muted: var(--ifm-color-content-secondary);
+  background: var(--ifm-background-color);
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 6rem 0 5.5rem;
+  border-bottom: 1px solid var(--pricing-border);
+  background:
+    radial-gradient(
+      circle at 78% 18%,
+      color-mix(in srgb, var(--ifm-color-primary) 13%, transparent),
+      transparent 28rem
+    ),
+    var(--ifm-background-surface-color);
+}
+
+.hero::after {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  right: -8rem;
+  bottom: -14rem;
+  border: 1px solid
+    color-mix(in srgb, var(--ifm-color-primary) 28%, transparent);
+  border-radius: 50%;
+  content: '';
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  max-width: 820px;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 0.8rem;
+  color: var(--ifm-color-primary);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 760px;
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 4.7rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.hero p {
+  max-width: 720px;
+  margin: 1.5rem 0 0;
+  color: var(--pricing-muted);
+  font-size: 1.22rem;
+  line-height: 1.7;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 2rem;
+}
+
+.plansSection {
+  padding: 5rem 0;
+}
+
+.sectionHeading {
+  max-width: 760px;
+  margin-bottom: 2.5rem;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.sectionHeading p {
+  max-width: 650px;
+  margin: 1rem 0 0;
+  color: var(--pricing-muted);
+  font-size: 1.08rem;
+  line-height: 1.65;
+}
+
+.planGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.planCard {
+  position: relative;
+  overflow: hidden;
+  padding: 2rem;
+  border: 1px solid var(--pricing-border);
+  border-radius: 1rem;
+  background: var(--ifm-card-background-color);
+  box-shadow: var(--ifm-global-shadow-lw);
+}
+
+.featuredCard {
+  border-color: color-mix(
+    in srgb,
+    var(--ifm-color-primary) 60%,
+    var(--pricing-border)
+  );
+  box-shadow: 0 18px 55px
+    color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+}
+
+.cloudCard {
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--ifm-color-primary-lightest) 10%, transparent),
+      transparent 55%
+    ),
+    var(--ifm-card-background-color);
+}
+
+.cloudGlow {
+  position: absolute;
+  width: 14rem;
+  height: 14rem;
+  top: -8rem;
+  right: -6rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+  filter: blur(8px);
+}
+
+.planHeader {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 9.5rem;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--pricing-border);
+}
+
+.status {
+  display: inline-flex;
+  margin-bottom: 1rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid
+    color-mix(in srgb, var(--ifm-color-primary) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ifm-color-primary) 9%, transparent);
+  color: var(--ifm-color-primary-dark);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.soonStatus {
+  color: var(--ifm-color-primary);
+}
+
+.planHeader h2 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.planSummary {
+  max-width: 330px;
+  margin: 0.55rem 0 0;
+  color: var(--pricing-muted);
+  line-height: 1.55;
+}
+
+.price {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: start;
+  flex: 0 0 auto;
+  color: var(--ifm-heading-color);
+}
+
+.currency {
+  padding-top: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.price strong {
+  font-size: 4rem;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+}
+
+.priceNote {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+  color: var(--pricing-muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.cloudMark {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--pricing-border);
+  border-radius: 0.9rem;
+  background: var(--ifm-background-surface-color);
+  color: var(--ifm-color-primary);
+}
+
+.cloudMark svg,
+.licenseIcon svg {
+  width: 1.7rem;
+  height: 1.7rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+.featureList {
+  display: grid;
+  gap: 1rem;
+  min-height: 15rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.featureList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  color: var(--ifm-font-color-base);
+  line-height: 1.55;
+}
+
+.checkIcon {
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: 0.12rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: var(--ifm-color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+}
+
+.planAction {
+  margin-top: 1.75rem;
+}
+
+.comingSoon {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  padding: 1rem;
+  border: 1px solid var(--pricing-border);
+  border-radius: 0.75rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.pulse {
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.42rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ifm-color-primary);
+  box-shadow: 0 0 0 5px
+    color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+}
+
+.comingSoon strong {
+  font-size: 0.9rem;
+}
+
+.comingSoon p {
+  margin: 0.25rem 0 0;
+  color: var(--pricing-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.licenseSection {
+  padding: 0 0 5rem;
+}
+
+.licenseCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 2rem;
+  border: 1px solid var(--pricing-border);
+  border-radius: 1rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.licenseIcon {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  border: 1px solid var(--pricing-border);
+  border-radius: 0.9rem;
+  background: var(--ifm-card-background-color);
+  color: var(--ifm-color-primary);
+}
+
+.licenseCopy {
+  max-width: 820px;
+}
+
+.licenseCopy h2 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.licenseCopy p {
+  margin: 0.8rem 0 0;
+  color: var(--pricing-muted);
+  line-height: 1.7;
+}
+
+.licenseLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  font-weight: 700;
+}
+
+.bottomCta {
+  padding: 3.5rem 0;
+  border-top: 1px solid var(--pricing-border);
+  background: var(--ifm-background-surface-color);
+}
+
+.bottomCtaInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.bottomCta h2 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.bottomCta p {
+  margin: 0.6rem 0 0;
+  color: var(--pricing-muted);
+}
+
+@media (max-width: 996px) {
+  .hero {
+    padding: 4.5rem 0 4rem;
+  }
+
+  .planGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .featureList {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .hero {
+    padding: 3.5rem 0;
+  }
+
+  .hero h1 {
+    font-size: 2.65rem;
+  }
+
+  .plansSection {
+    padding: 3.5rem 0;
+  }
+
+  .planCard,
+  .licenseCard {
+    padding: 1.4rem;
+  }
+
+  .planHeader {
+    min-height: 0;
+  }
+
+  .price {
+    display: none;
+  }
+
+  .licenseCard {
+    grid-template-columns: 1fr;
+  }
+
+  .bottomCtaInner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
