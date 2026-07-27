@@ -7,6 +7,7 @@ import JiraLogo from '../../../../packages/jira/assets/jira.svg';
 import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import SlackLogo from '../../../../packages/slack/assets/slack.svg';
+import WebhooksLogo from '../../../../packages/webhooks/assets/webhooks.svg';
 import styles from './styles.module.css';
 
 type IconKind =
@@ -19,7 +20,8 @@ type IconKind =
   | 'openai'
   | 'playwright'
   | 'schedule'
-  | 'slack';
+  | 'slack'
+  | 'webhooks';
 
 type Fact = {
   label: string;
@@ -50,6 +52,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <PlaywrightLogo aria-hidden="true" />;
     case 'slack':
       return <SlackLogo aria-hidden="true" />;
+    case 'webhooks':
+      return <WebhooksLogo aria-hidden="true" />;
     case 'environment':
       return (
         <svg

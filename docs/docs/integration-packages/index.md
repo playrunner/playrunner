@@ -97,6 +97,14 @@ page describes its available user setup and package surfaces.
     href="/docs/integration-packages/slack"
     installCommand="npm install @playrunner/slack"
   />
+  <IntegrationDirectoryItem
+    name="Webhooks"
+    packageName="@playrunner/webhooks"
+    description="Receive inbound workflow triggers and send outbound HTTPS requests."
+    icon="webhooks"
+    href="/docs/integration-packages/webhooks"
+    installCommand="npm install @playrunner/webhooks"
+  />
 </IntegrationDirectory>
 
 ## Build-time selection and runtime configuration
