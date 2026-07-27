@@ -107,6 +107,11 @@
   color: #ffffff;
 }
 
+.webhooksIcon {
+  background: #111827;
+  color: #ffffff;
+}
+
 .slackIcon {
   background: #ffffff;
 }
@@ -144,7 +149,8 @@
 
 .environmentIcon svg,
 .javascriptIcon svg,
-.scheduleIcon svg {
+.scheduleIcon svg,
+.webhooksIcon svg {
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
