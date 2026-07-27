@@ -2,7 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { PORT } from './config';
-import { registerIntegrationApiRoutes } from './integrations/package-registry';
+import {
+  registerIntegrationApiRoutes,
+  registerPublicIntegrationApiRoutes,
+} from './integrations/package-registry';
 import { runnersRouter } from './routes/runners';
 import { workflowsRouter } from './routes/workflows';
 import { outputsRouter } from './routes/outputs';
@@ -16,9 +19,12 @@ import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
 import { storeRouter } from './routes/store';
 import { createIntegrationCredentialStore } from './services/connections';
+import { createIntegrationApiHost } from './services/inbound-webhooks';
+import { tunnelService } from './services/tunnel';
 
 const app = express();
 app.use(cors());
+registerPublicIntegrationApiRoutes(app, createIntegrationApiHost());
 app.use(express.json({ limit: '100mb' }));
 
 app.get('/health', (_req, res) => {
@@ -60,9 +66,15 @@ async function start() {
   await loadPremiumApiRoutes(app);
   void apiRuntime.logTransport.setup();
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`API Server running on port ${PORT} (execution SSE enabled)`);
   });
+  const shutdown = () => {
+    tunnelService.stop();
+    server.close();
+  };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
 }
 
 start().catch((error) => {

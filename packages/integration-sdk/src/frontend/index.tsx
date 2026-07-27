@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 
 export interface Integration {
   id: string;
@@ -36,6 +37,7 @@ export interface IntegrationConfigPanelProps {
   integrationData?: any;
   onLabelChange?: (newLabel: string) => void;
   workflowCloudProvider?: string;
+  workflowId?: string;
 }
 
 export interface IntegrationAuthUser {
@@ -357,16 +359,21 @@ export function IntegrationCopyableCode({
 
   return (
     <div className="relative mt-2">
-      <code className="block rounded-lg border border-subtle bg-[var(--background)] p-3 pr-14 font-mono text-xs text-blue-400 overflow-x-auto whitespace-nowrap select-all">
+      <code className="block overflow-x-auto whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 pr-12 font-mono text-xs text-[var(--foreground)] select-all">
         {value}
       </code>
       <button
         type="button"
         onClick={copyValue}
-        className="absolute top-2 right-2 rounded bg-[var(--background)] px-2 py-1 text-[10px] font-medium text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors"
+        aria-label={copied ? 'Copied' : label}
+        className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--background)] text-muted transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
         title={label}
       >
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-green-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
       </button>
     </div>
   );

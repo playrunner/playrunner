@@ -27,6 +27,7 @@ interface IntegrationConfigPanelProps {
   incomingNodes?: any[];
   onLabelChange?: (nodeId: string, newLabel: string) => void;
   workflowCloudProvider?: string;
+  workflowId?: string;
 }
 
 type WorkflowInputVariable = {
@@ -77,6 +78,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   incomingNodes = [],
   onLabelChange,
   workflowCloudProvider,
+  workflowId,
 }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [integrationData, setIntegrationData] = useState<any>(null);
@@ -853,6 +855,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 onLabelChange?.(nodeId, newLabel)
               }
               workflowCloudProvider={workflowCloudProvider}
+              workflowId={workflowId}
             />
           ) : (
             <>

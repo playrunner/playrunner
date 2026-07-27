@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Select, Textarea, Badge } from '../components/ui';
+import { IntegrationCopyableCode } from '@playrunner/integration-sdk';
 
 import { MultiSelectDropdown } from '../components/MultiSelectDropdown';
 
@@ -199,6 +200,32 @@ export default function DesignSystem() {
                 />
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* --- Copyable Values --- */}
+        <section className="space-y-6">
+          <div className="border-b border-subtle pb-2">
+            <h2 className="text-xl font-medium text-[var(--foreground)] mb-1">
+              Copyable Values
+            </h2>
+            <p className="text-sm text-muted">
+              Commands, URLs, IDs, and secrets use an icon-only copy action.
+            </p>
+          </div>
+
+          <div className="max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Webhook endpoint
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              The button uses a copy icon, then briefly shows a green check.
+              Accessible labels and tooltips describe the action.
+            </p>
+            <IntegrationCopyableCode
+              value="https://example.test/api/webhooks/inbound/endpoint-id/secret"
+              label="Copy webhook endpoint"
+            />
           </div>
         </section>
 

@@ -1,4 +1,5 @@
 import type { Express, Router } from 'express';
+import type { IntegrationApiHost } from '@playrunner/integration-sdk/api';
 import { discoveredIntegrationContributions } from './generated-package-contributions';
 
 interface IntegrationCredentialStore {
@@ -23,6 +24,8 @@ interface IntegrationApiContribution {
   id: string;
   mountPath: string;
   router: Router;
+  publicRouter?: Router;
+  configure?: (host: IntegrationApiHost) => void;
   prepareCredentials?: (
     store: IntegrationCredentialStore,
     kind: 'cloud' | 'integration',
@@ -92,6 +95,18 @@ export const packageApiContributions = discoveredIntegrationContributions.map(
 export function registerIntegrationApiRoutes(app: Express): void {
   for (const contribution of packageApiContributions) {
     app.use(contribution.mountPath, contribution.router);
+  }
+}
+
+export function registerPublicIntegrationApiRoutes(
+  app: Express,
+  host: IntegrationApiHost,
+): void {
+  for (const contribution of packageApiContributions) {
+    contribution.configure?.(host);
+    if (contribution.publicRouter) {
+      app.use(contribution.mountPath, contribution.publicRouter);
+    }
   }
 }
 

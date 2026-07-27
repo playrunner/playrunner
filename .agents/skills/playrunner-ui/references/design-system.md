@@ -48,6 +48,8 @@
 
 - Use bordered inset blocks, not black translucent overlays:
   `rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 font-mono text-xs text-[var(--foreground)]`
+- Use `IntegrationCopyableCode` for copyable commands, URLs, IDs, secrets, and endpoint values. Its copy control is icon-only: an absolute `h-7 w-7` button at `right-2 top-2`, with a Lucide `Copy` icon at `h-3.5 w-3.5`, changing briefly to a green `Check` icon after success.
+- Give every icon-only copy button an action-specific `aria-label` and matching `title`, such as `Copy webhook endpoint`. Do not place visible `Copy` or `Copied` text inside the field.
 
 ## Setup-Specific Guidance
 
@@ -59,6 +61,7 @@
 ## Anti-Patterns
 
 - Do not invent page-local button classes when a shared `Button` variant already fits.
+- Do not implement copyable value fields with visible `Copy`/`Copied` button text or a page-local copy-button style; use the shared icon-only pattern.
 - Do not hard-code slate/white/dark palette values for product pages when theme tokens already exist.
 - Do not mix marketing-style hero sections with system-style forms in the same flow.
 - Do not use large custom radii or heavy shadows by default when the system uses `rounded-xl` and `shadow-sm`.

@@ -1,10 +1,36 @@
 {
   "name": "@playrunner/webhooks",
   "version": "0.1.0",
-  "description": "Webhooks integration package placeholder for Playrunner.",
-  "license": "SEE LICENSE IN ../../LICENSE",
+  "description": "Inbound and outbound webhook integration for Playrunner.",
+  "keywords": [
+    "playrunner",
+    "webhooks",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
   "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/webhooks"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/webhooks/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
   "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "playrunner": {
+    "integration": {
+      "id": "webhooks",
+      "frontend": ".",
+      "api": "./api",
+      "orchestrator": "./orchestrator"
+    }
+  },
   "exports": {
     ".": {
       "types": "./src/frontend/index.tsx",
@@ -23,21 +49,63 @@
       "import": "./src/api/index.ts",
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
-    }
+    },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
+    },
+    "./assets/webhooks.svg": "./assets/webhooks.svg"
   },
   "files": [
-    "src"
+    "LICENSE",
+    "README.md",
+    "assets",
+    "src",
+    "!src/**/*.test.ts"
   ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
   "peerDependencies": {
     "@playrunner/integration-sdk": "^0.1.0",
+    "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
   "peerDependenciesMeta": {
     "@playrunner/integration-sdk": {
       "optional": true
     },
+    "lucide-react": {
+      "optional": true
+    },
     "react": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/express": "^5.0.6",
+    "@types/react": "^19.2.14",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "lucide-react": "^0.546.0",
+    "prettier": "3.8.4",
+    "tsx": "^4.23.1",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.61.1"
   }
 }

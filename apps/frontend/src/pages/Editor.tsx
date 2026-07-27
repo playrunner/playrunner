@@ -3419,6 +3419,7 @@ export default function Editor() {
                   onChange={handleNodeConfigChange}
                   onLabelChange={handleNodeLabelChange}
                   workflowCloudProvider={cloudProvider}
+                  workflowId={workflowId}
                   incomingNodes={incomingNodes}
                   onConnectOAuth={(provider) => {
                     const nodeIntegration = getIntegration(node.nodeType);
