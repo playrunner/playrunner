@@ -9,7 +9,6 @@ export const scheduleIntegration: Integration = {
   description: 'Schedule your workflow to run on a recurring basis',
   icon: AlarmClock,
   nodeType: 'trigger',
-  color: 'text-white',
   requiresAuth: false,
   nodeSelectorOrder: 30,
   showInIntegrationsPage: false,

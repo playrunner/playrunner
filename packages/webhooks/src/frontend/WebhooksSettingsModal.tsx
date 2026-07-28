@@ -123,6 +123,7 @@ export function WebhooksSettingsModal({
         <div className="space-y-1.5">
           <label className="text-sm font-medium">Inbound exposure</label>
           <Select
+            aria-label="Inbound exposure"
             value={mode}
             onChange={(event) => setMode(event.target.value as ExposureMode)}
           >
@@ -140,6 +141,7 @@ export function WebhooksSettingsModal({
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Public HTTPS base URL</label>
             <IntegrationConnectionInput
+              aria-label="Public HTTPS base URL"
               connectionId="webhooks"
               fieldSlot="public-url"
               value={publicUrl}
@@ -206,6 +208,7 @@ export function WebhooksSettingsModal({
             Default outbound bearer token
           </label>
           <IntegrationConnectionInput
+            aria-label="Default outbound bearer token"
             connectionId="webhooks"
             fieldSlot="bearer"
             mode="secret"

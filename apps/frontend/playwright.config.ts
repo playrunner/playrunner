@@ -1,9 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCi = Boolean(process.env.CI);
+const slowMo = Number(process.env.PLAYRUNNER_E2E_SLOW_MO ?? 0);
+
+if (!Number.isFinite(slowMo) || slowMo < 0) {
+  throw new Error('PLAYRUNNER_E2E_SLOW_MO must be a non-negative number.');
+}
 
 export default defineConfig({
   testDir: './e2e/specs',
+  timeout: slowMo > 0 ? 120_000 : 30_000,
   fullyParallel: false,
   forbidOnly: isCi,
   retries: isCi ? 1 : 0,
@@ -27,7 +33,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: { slowMo },
+      },
     },
   ],
   webServer: [

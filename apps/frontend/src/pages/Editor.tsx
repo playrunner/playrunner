@@ -2862,6 +2862,8 @@ export default function Editor() {
               return (
                 <div
                   key={node.id}
+                  data-testid={`canvas-node-${node.nodeType}`}
+                  data-node-id={node.id}
                   className={cn(
                     'group guard-node absolute bg-[var(--node-bg)] p-4 shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
                     isScheduleNode

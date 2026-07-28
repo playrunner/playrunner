@@ -72,6 +72,8 @@ export function NodeSelectorModal({
     return (
       <button
         key={node.id}
+        data-testid={`node-selector-option-${node.id}`}
+        data-node-type={node.id}
         onClick={() => onSelect({ typeId: node.id, label: node.label })}
         className={cn(
           'w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left group',
@@ -137,7 +139,12 @@ export function NodeSelectorModal({
         className="absolute inset-0 bg-background/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+      <div
+        aria-label="Add node"
+        aria-modal="true"
+        role="dialog"
+        className="relative w-full max-w-md bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+      >
         <div className="p-4 border-b border-subtle">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
