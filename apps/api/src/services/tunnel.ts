@@ -7,12 +7,25 @@ const URL_PATTERN = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
 const START_TIMEOUT_MS = 30_000;
 const REACHABLE_TIMEOUT_MS = 60_000;
 const POLL_INTERVAL_MS = 2_000;
+const REACHABILITY_REQUEST_TIMEOUT_MS = 5_000;
 const MAX_LOG_LINES = 40;
 const MAX_LOG_LINE_LENGTH = 500;
 const ANSI_ESCAPE_PATTERN = new RegExp(
   String.raw`\u001B\[[0-?]*[ -/]*[@-~]`,
   'g',
 );
+
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+
+  const cause =
+    'cause' in error && error.cause !== undefined
+      ? describeError(error.cause)
+      : '';
+  return cause && cause !== error.message
+    ? `${error.message}: ${cause}`
+    : error.message;
+}
 
 class TunnelService {
   private child: ChildProcess | null = null;
@@ -51,11 +64,11 @@ class TunnelService {
       await this.assertInstalled();
       this.addLog('cloudflared is available.');
       this.message = 'Starting cloudflared…';
-      this.addLog(`Starting a quick tunnel to http://localhost:${PORT}.`);
+      this.addLog(`Starting a quick tunnel to http://127.0.0.1:${PORT}.`);
 
       const child = spawn(
         'cloudflared',
-        ['tunnel', '--no-autoupdate', '--url', `http://localhost:${PORT}`],
+        ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${PORT}`],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
       this.child = child;
@@ -65,13 +78,12 @@ class TunnelService {
 
       const url = await this.waitForUrl(child);
       this.url = url;
-      this.message = 'Waiting for Cloudflare DNS and routing…';
-      this.addLog(`Cloudflare assigned ${url}.`);
-      this.addLog('Waiting for the public URL to reach the local API.');
-      await this.waitUntilReachable(url);
       this.status = 'running';
-      this.message = 'Tunnel is publicly reachable.';
-      this.addLog('Tunnel is ready and publicly reachable.');
+      this.message = 'Tunnel is running. Verifying public reachability…';
+      this.addLog(`Cloudflare assigned ${url}.`);
+      this.addLog(
+        'Tunnel is active. Checking that the public URL reaches the local API.',
+      );
       child.once('exit', () => {
         if (this.child !== child) return;
         this.child = null;
@@ -81,6 +93,7 @@ class TunnelService {
         this.url = '';
         this.addLog(this.error);
       });
+      void this.verifyReachability(child, url);
       return { url };
     } catch (error) {
       this.error = error instanceof Error ? error.message : String(error);
@@ -154,27 +167,50 @@ class TunnelService {
     });
   }
 
-  private async waitUntilReachable(url: string) {
+  private async verifyReachability(child: ChildProcess, url: string) {
+    const reachabilityError = await this.waitUntilReachable(child, url);
+    if (this.child !== child) return;
+
+    if (reachabilityError) {
+      this.message =
+        'Tunnel is running, but Playrunner could not verify public reachability.';
+      this.addLog(
+        `Public reachability could not be verified (${reachabilityError}). ` +
+          'Keeping the assigned tunnel active.',
+      );
+      return;
+    }
+
+    this.message = 'Tunnel is publicly reachable.';
+    this.addLog('Tunnel is ready and publicly reachable.');
+  }
+
+  private async waitUntilReachable(
+    child: ChildProcess,
+    url: string,
+  ): Promise<string> {
     const deadline = Date.now() + REACHABLE_TIMEOUT_MS;
     let lastError = 'unknown network error';
     let attempts = 0;
-    while (Date.now() < deadline) {
+    while (Date.now() < deadline && this.child === child) {
       attempts += 1;
       try {
-        const response = await fetch(new URL('/health', url));
+        const response = await fetch(new URL('/health', url), {
+          signal: AbortSignal.timeout(REACHABILITY_REQUEST_TIMEOUT_MS),
+        });
         if (!response.ok) {
           throw new Error(`health check returned HTTP ${response.status}`);
         }
-        return;
+        return '';
       } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+        lastError = describeError(error);
         if (attempts === 1 || attempts % 5 === 0) {
           this.addLog(`Public reachability check pending: ${lastError}`);
         }
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       }
     }
-    throw new Error(`Cloudflare tunnel did not become reachable: ${lastError}`);
+    return lastError;
   }
 
   private cleanup() {
