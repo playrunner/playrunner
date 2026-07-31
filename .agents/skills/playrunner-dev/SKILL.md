@@ -1,6 +1,6 @@
 ---
 name: playrunner-dev
-description: Development rules for working in the Playrunner repo, including integration package development under packages/*. Use whenever making code changes in this repository to govern package structure, documentation boundaries, verification, and operational handoff.
+description: Development and project-work rules for the Playrunner repo, including issue creation and integration package development under packages/*. Use whenever planning, creating backlog items, or making code changes in this repository to govern tracker selection, package structure, documentation boundaries, verification, and operational handoff.
 ---
 
 # Playrunner Dev
@@ -18,6 +18,13 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 - For GCP workflow, Cloud Run, orchestrator, or Playwright runner fixes, close out with the operational handoff the user needs to test the change: tell them to restart the local API so package/API runtime changes are loaded, tell them to try the workflow again in the editor, and state whether pushed runner images are needed. If pushed images are needed, give the exact command without running it unless the user confirms: `./infra/gcp/scripts/push-runners.sh --target orchestrator --yes` for orchestrator-only changes, `./infra/gcp/scripts/push-runners.sh --target playwright --yes` for Playwright runner image changes, or `./infra/gcp/scripts/push-runners.sh --target both --yes` when both images changed.
 - Do not duplicate local-runner and cloud-runner protocol code. When local and GCP share behaviour such as Pub/Sub event transport, runner control/status signalling, node state transitions, or output-event publication, implement the shared protocol once and vary only the environment/configuration needed by each runtime.
 - Do not send runner messages through API event callbacks. Logs, node state, runner control/status, and output events must go through the runner's messaging transport: local development defaults to the Pub/Sub emulator, GCP uses GCP Pub/Sub, and future AWS/Azure runners should use their provider-native messaging.
+
+## Issue Tracking
+
+- For work about this repository, interpret an unqualified request to create an issue, feature request, task, or backlog item as a request for a GitHub issue in the repository identified by the local `origin` remote. For this checkout, that is `playrunner/playrunner`.
+- Use Jira only when the user explicitly asks for Jira or supplies a Jira project, issue, or URL as the target. Do not choose a tracker merely because its connector is available.
+- Before creating a GitHub issue, resolve the local remote, inspect the relevant `.github/ISSUE_TEMPLATE` file when present, and search the repository for duplicates. Structure the issue using the repository template and return the created GitHub URL.
+- If the target remains genuinely ambiguous after checking the repository context, ask the user before mutating any external tracker.
 
 ## Documentation and Code Snippets
 
