@@ -10,33 +10,28 @@ type Capability = {
 const capabilities: Capability[] = [
   {
     title: 'Existing Playwright suites',
-    description:
-      'Run the tests and configuration you already maintain without adopting another test framework.',
+    description: 'Your tests and config, unchanged. No framework to adopt.',
   },
   {
     title: 'Dedicated runners',
-    description:
-      'Execute locally, on managed cloud runners, or inside infrastructure your team controls.',
+    description: 'Provision on demand: local, managed cloud, or self-hosted.',
   },
   {
     title: 'Workflow orchestration',
     description:
-      'Model conditions, parallel branches, shared environment data, and dependent steps explicitly.',
+      'Conditions, parallel branches, shared environment data, dependent steps.',
   },
   {
     title: 'Schedules and triggers',
-    description:
-      'Start workflows on a schedule, through an API or webhook, or from an external system.',
+    description: 'Start on a schedule, an API call, or a webhook.',
   },
   {
     title: 'Artefacts and reporting',
-    description:
-      'Keep execution logs, Playwright reports, and run artefacts connected to the workflow.',
+    description: 'Logs, Playwright reports, and artefacts stay with the run.',
   },
   {
     title: 'Extensible integrations',
-    description:
-      'Add systems and execution behavior through package-based plugins and a growing marketplace.',
+    description: 'Package-based plugins, plus a growing marketplace.',
   },
 ];
 
@@ -65,8 +60,8 @@ export default function HomepageFeatures(): ReactNode {
             The operational pieces around a Playwright run.
           </Heading>
           <p className={styles.sectionCopy}>
-            Use the parts you need now. Keep the workflow model consistent as
-            execution grows across teams, environments, and external systems.
+            Use the parts you need. The workflow model stays the same as you
+            grow.
           </p>
         </div>
         <div className={styles.areaGrid}>

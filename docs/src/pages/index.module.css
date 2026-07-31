@@ -15,11 +15,12 @@
 }
 
 .eyebrow {
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--eyebrow-gap, 0.75rem);
   color: var(--ifm-color-primary);
-  font-size: 0.78rem;
+  font-size: var(--eyebrow-size, 0.78rem);
   font-weight: 700;
   letter-spacing: 0;
+  line-height: var(--eyebrow-line, 1.3);
   text-transform: uppercase;
 }
 
@@ -58,6 +59,38 @@
   line-height: 1.6;
 }
 
+.showcase {
+  padding: 0 0 4rem;
+}
+
+.showcaseFigure {
+  margin: 0;
+}
+
+.showcaseInline {
+  margin-top: 3rem;
+}
+
+.showcaseImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 0.9rem;
+  background: #0b0b0d;
+  box-shadow: 0 18px 55px
+    color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+}
+
+.showcaseCaption {
+  max-width: 640px;
+  margin: 1rem auto 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
 .section {
   padding: 4rem 0;
 }
@@ -71,10 +104,23 @@
 .sectionGrid,
 .inviteLayout,
 .validationLayout {
+  --eyebrow-size: 0.78rem;
+  --eyebrow-gap: 0.75rem;
+  --eyebrow-line: 1.3;
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 3rem;
   align-items: start;
+}
+
+/* The eyebrow only exists in the first column, so drop the second column by
+   its height to line the body copy up with the heading instead. */
+.sectionGrid > *:nth-child(2),
+.inviteLayout > *:nth-child(2),
+.validationLayout > *:nth-child(2) {
+  padding-top: calc(
+    var(--eyebrow-size) * var(--eyebrow-line) + var(--eyebrow-gap)
+  );
 }
 
 .assistantLayout {
@@ -257,6 +303,12 @@
   .validationLayout {
     grid-template-columns: 1fr;
     gap: 1.25rem;
+  }
+
+  .sectionGrid > *:nth-child(2),
+  .inviteLayout > *:nth-child(2),
+  .validationLayout > *:nth-child(2) {
+    padding-top: 0;
   }
 
   .reasonGrid {
