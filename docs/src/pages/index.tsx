@@ -28,54 +28,49 @@ type GettingStartedLink = {
 const journeySteps: JourneyStep[] = [
   {
     title: '1. Bring your existing tests',
-    description:
-      'Connect the repository and keep the Playwright tests and configuration your team already maintains.',
+    description: 'Connect the repo. Your tests and config stay as they are.',
   },
   {
     title: '2. Choose where they run',
     description:
-      'Use dedicated cloud runners or run the execution layer in your own environment.',
+      'Local Docker, managed cloud runners, or your own infrastructure.',
   },
   {
     title: '3. Define the workflow',
     description:
-      'Connect triggers, conditions, parallel branches, environment data, tests, and downstream systems.',
+      'Wire triggers, conditions, branches, and downstream systems on the canvas.',
   },
   {
     title: '4. Inspect the complete run',
     description:
-      'Follow execution state and logs, then keep reports and artefacts attached to the workflow that produced them.',
+      'Follow state and logs live. Reports and artefacts stay attached to the run.',
   },
 ];
 
 const gettingStartedLinks: GettingStartedLink[] = [
   {
     title: 'Try Playrunner locally',
-    description:
-      'Run the complete stack and use it with an existing Playwright project.',
+    description: 'Run the full stack against a real Playwright project.',
     to: '/docs/tutorials/getting-started',
   },
   {
     title: 'Understand workflow execution',
-    description:
-      'See how Playrunner coordinates the API, orchestrator, runners, and run state.',
+    description: 'How the API, orchestrator, and runners coordinate a run.',
     to: '/docs/local-dev/workflow-execution',
   },
   {
     title: 'Compare runner options',
-    description: 'Review local, cloud, and self-hosted execution architecture.',
+    description: 'Local, cloud, and self-hosted execution architecture.',
     to: '/docs/runner-architecture',
   },
   {
     title: 'Browse integrations',
-    description:
-      'Connect Playwright runs to schedules, source control, messaging, and other systems.',
+    description: 'Schedules, source control, messaging, and more.',
     to: '/docs/integration-packages',
   },
   {
     title: 'Contribute to the platform',
-    description:
-      'Extend runners, integrations, workflows, reporting, or the product itself.',
+    description: 'Extend runners, integrations, reporting, or the product.',
     to: '/docs/contributing',
   },
 ];
@@ -94,10 +89,9 @@ function HomepageHeader() {
           Orchestrate your Playwright suite on a canvas, not in YAML.
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
-          Keep the tests and config you already maintain. Drag nodes to wire
-          triggers, environments, parallel branches, runners, and GitHub, Slack,
-          or Jira, then watch state and logs stream back as it runs, locally, on
-          managed cloud runners, or your own infrastructure.
+          Keep the tests and config you already maintain. Wire triggers,
+          environments, branches, and runners on a canvas, then watch state and
+          logs stream back as the run executes.
         </p>
         <div className={styles.heroActions}>
           <Link
@@ -114,11 +108,33 @@ function HomepageHeader() {
           </Link>
         </div>
         <p className={styles.heroBoundary}>
-          Not a test framework. Not a CI system. An orchestration layer for the
-          Playwright suite and delivery systems you already use.
+          Not a test framework. Not a CI system.
         </p>
       </div>
     </header>
+  );
+}
+
+function CanvasShowcase(): ReactNode {
+  return (
+    <section className={styles.showcase}>
+      <div className="container">
+        <figure className={styles.showcaseFigure}>
+          <img
+            className={styles.showcaseImage}
+            src={useBaseUrl('/img/workflow-canvas.png')}
+            alt="A Playrunner workflow mid-run: a smoke test branches on failure into an OpenAI analysis and a Jira bug, and on success through Slack, a regression suite, a report, and a deploy webhook. Individual nodes carry amber warning markers showing their own execution status."
+            width={3148}
+            height={1554}
+            loading="lazy"
+          />
+          <figcaption className={styles.showcaseCaption}>
+            Live run state on the canvas. Every node reports its own outcome,
+            and the branch the run actually took is drawn between them.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
   );
 }
 
@@ -129,17 +145,14 @@ function MissionSection(): ReactNode {
         <div>
           <p className={styles.eyebrow}>The problem</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Playwright runs the tests. Your team still has to run everything
-            around them.
+            Playwright runs the tests. Your team runs everything around them.
           </Heading>
         </div>
         <div>
           <p className={styles.leadText}>
-            A reliable test run is more than a command. It needs compute,
-            workflow state, conditions, parallelism, schedules, external
-            triggers, credentials, logs, artefacts, reports, and integrations.
-            Playrunner owns that orchestration so test teams do not have to turn
-            a collection of scripts and CI jobs into an internal platform.
+            A reliable run needs more than a command. It needs compute, state,
+            conditions, schedules, credentials, artefacts, and reporting, and
+            teams end up building that themselves, one script at a time.
           </p>
         </div>
       </div>
@@ -154,17 +167,14 @@ function PlatformSection(): ReactNode {
         <div>
           <p className={styles.eyebrow}>What Playrunner replaces</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            One orchestration layer instead of another internal execution
-            platform.
+            One orchestration layer instead of another internal platform.
           </Heading>
         </div>
         <div>
           <p className={styles.bodyText}>
-            Without a shared layer, runner provisioning, conditional execution,
-            retries, schedules, API endpoints, webhooks, notifications, artefact
-            storage, and reporting spread across CI configuration and team-owned
-            services. Playrunner puts those responsibilities behind one workflow
-            model while leaving your tests and CI system in place.
+            Runner provisioning, retries, schedules, webhooks, notifications,
+            and reporting move behind a single workflow model. Your tests and
+            your CI system stay where they are.
           </p>
         </div>
       </div>
@@ -182,8 +192,7 @@ function JourneySection(): ReactNode {
             Keep your suite. Change how it runs.
           </Heading>
           <p className={styles.bodyText}>
-            Playrunner sits around Playwright rather than replacing it. Start
-            with one workflow and move only the execution concerns you no longer
+            Start with one workflow and move only the execution you no longer
             want to own.
           </p>
         </div>
@@ -197,6 +206,20 @@ function JourneySection(): ReactNode {
             </article>
           ))}
         </div>
+        <figure className={clsx(styles.showcaseFigure, styles.showcaseInline)}>
+          <img
+            className={styles.showcaseImage}
+            src={useBaseUrl('/img/workflow-canvas-branch.png')}
+            alt="A regression test node on the canvas splitting into two paths: a red failure branch into an OpenAI analysis and a Jira bug, and a green success branch into a Slack alert and a deploy webhook."
+            width={2444}
+            height={1454}
+            loading="lazy"
+          />
+          <figcaption className={styles.showcaseCaption}>
+            One result, two paths. Failures go to triage, passes go to deploy,
+            and the condition lives on the connection rather than in a script.
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
@@ -209,16 +232,14 @@ function ValidationSection(): ReactNode {
         <div>
           <p className={styles.eyebrow}>Early teams wanted</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            Already running Playwright? Help us test whether Playrunner removes
-            the hard parts.
+            Already running Playwright? Help us remove the hard parts.
           </Heading>
         </div>
         <div>
           <p className={styles.bodyText}>
-            We are looking for a few teams maintaining Playwright runner
-            infrastructure, CI glue, scheduled suites, or custom integrations.
-            Try one real workflow, tell us where the setup is still too
-            complicated, and help shape what Playrunner should own next.
+            We want a few teams already maintaining runner infrastructure or CI
+            glue. Run one real workflow, tell us where it is still too hard, and
+            shape what we build next.
           </p>
           <div className={styles.validationActions}>
             <Link
@@ -249,10 +270,6 @@ function GettingStartedSection(): ReactNode {
           <Heading as="h2" className={styles.sectionTitle}>
             Evaluate the parts that matter to your team.
           </Heading>
-          <p className={styles.bodyText}>
-            Start locally, inspect the execution model, or go directly to the
-            runner and integration architecture.
-          </p>
         </div>
         <div className={styles.startList}>
           {gettingStartedLinks.map((item) => (
@@ -307,6 +324,7 @@ export default function Home(): ReactNode {
     >
       <HomepageHeader />
       <main>
+        <CanvasShowcase />
         <MissionSection />
         <HomepageFeatures />
         <PlatformSection />
