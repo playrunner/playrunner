@@ -1,63 +1,500 @@
-import { ExternalLink, GitPullRequest, Users } from 'lucide-react';
-import { Badge } from '../components/ui';
-import { getDocsUrl } from '../lib/docs';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
+import {
+  Clock3,
+  Loader2,
+  MailPlus,
+  Plus,
+  RefreshCw,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import { IntegrationCopyableCode } from '@playrunner/integration-sdk';
+import { Badge, Button, Input } from '../components/ui';
+import { DbAPI } from '../lib/db';
+
+type TeamMember = {
+  createdAt: string;
+  displayName: string | null;
+  email: string | null;
+  id: string;
+  role: 'owner' | 'member';
+  userId: string;
+};
+
+type TeamInvitation = {
+  acceptedAt: string | null;
+  createdAt: string;
+  email: string;
+  expiresAt: string;
+  id: string;
+  revokedAt: string | null;
+  status: 'pending' | 'accepted' | 'revoked' | 'expired';
+};
+
+type Team = {
+  createdAt: string;
+  currentUserRole: 'owner' | 'member';
+  id: string;
+  invitations: TeamInvitation[];
+  members: TeamMember[];
+  name: string;
+};
+
+type CreatedInvitation = TeamInvitation & { invitationPath: string };
+
+function invitationBadge(status: TeamInvitation['status']) {
+  if (status === 'accepted') return <Badge variant="success">Accepted</Badge>;
+  if (status === 'pending') return <Badge variant="default">Pending</Badge>;
+  if (status === 'revoked') return <Badge variant="danger">Revoked</Badge>;
+  return <Badge variant="outline">Expired</Badge>;
+}
+
+function invitationUrl(path: string) {
+  return new URL(path, window.location.origin).toString();
+}
 
 export default function Teams() {
-  const contributingUrl = getDocsUrl('docs/contributing');
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [teamName, setTeamName] = useState('');
+  const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
+  const [latestInvitation, setLatestInvitation] =
+    useState<CreatedInvitation | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [busyAction, setBusyAction] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTeams = useCallback(async () => {
+    try {
+      setTeams((await DbAPI.getTeams()) as Team[]);
+      setError(null);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Failed to load teams.',
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTeams();
+  }, [loadTeams]);
+
+  const createTeam = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusyAction('create-team');
+    setError(null);
+    try {
+      await DbAPI.createTeam(teamName);
+      setTeamName('');
+      await loadTeams();
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : 'Failed to create the team.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const inviteMember = async (
+    event: FormEvent<HTMLFormElement>,
+    teamId: string,
+  ) => {
+    event.preventDefault();
+    const email = inviteEmails[teamId] ?? '';
+    setBusyAction(`invite-${teamId}`);
+    setError(null);
+    try {
+      const invitation = (await DbAPI.createTeamInvitation(
+        teamId,
+        email,
+      )) as CreatedInvitation;
+      setLatestInvitation(invitation);
+      setInviteEmails((current) => ({ ...current, [teamId]: '' }));
+      await loadTeams();
+    } catch (inviteError) {
+      setError(
+        inviteError instanceof Error
+          ? inviteError.message
+          : 'Failed to create the invitation.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const resendInvitation = async (teamId: string, invitationId: string) => {
+    setBusyAction(`resend-${invitationId}`);
+    setError(null);
+    try {
+      const invitation = (await DbAPI.resendTeamInvitation(
+        teamId,
+        invitationId,
+      )) as CreatedInvitation;
+      setLatestInvitation(invitation);
+      await loadTeams();
+    } catch (resendError) {
+      setError(
+        resendError instanceof Error
+          ? resendError.message
+          : 'Failed to resend the invitation.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const revokeInvitation = async (teamId: string, invitationId: string) => {
+    setBusyAction(`revoke-${invitationId}`);
+    setError(null);
+    try {
+      await DbAPI.revokeTeamInvitation(teamId, invitationId);
+      setLatestInvitation((current) =>
+        current?.id === invitationId ? null : current,
+      );
+      await loadTeams();
+    } catch (revokeError) {
+      setError(
+        revokeError instanceof Error
+          ? revokeError.message
+          : 'Failed to revoke the invitation.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const removeMember = async (teamId: string, member: TeamMember) => {
+    if (!window.confirm(`Remove ${member.email || member.displayName}?`))
+      return;
+    setBusyAction(`remove-${member.id}`);
+    setError(null);
+    try {
+      await DbAPI.removeTeamMember(teamId, member.id);
+      await loadTeams();
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : 'Failed to remove the member.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
 
   return (
-    <main className="flex-1 max-w-7xl mx-auto p-8 w-full">
-      <div className="mb-8 border-b border-subtle pb-6">
-        <h2 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+    <main className="flex-1 max-w-7xl mx-auto p-8 w-full space-y-6">
+      <header className="border-b border-subtle pb-6">
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
           Teams
-        </h2>
+        </h1>
         <p className="text-sm text-muted mt-2 leading-relaxed">
-          Workspace collaboration and role-based access controls.
+          Create shared workspaces, invite collaborators, and manage access.
         </p>
-      </div>
+      </header>
 
-      <section className="bg-surface border border-subtle rounded-xl shadow-sm p-8">
-        <div className="max-w-xl">
-          <div className="h-9 w-9 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted mb-5">
-            <Users className="h-4 w-4" />
-          </div>
-          <Badge variant="outline" className="uppercase tracking-wide">
-            COMING SOON
-          </Badge>
-          <h3 className="text-xl font-medium text-[var(--foreground)] mt-4">
-            Team management is coming soon
-          </h3>
-          <p className="text-sm text-muted leading-relaxed mt-2">
-            This page will support inviting collaborators, assigning roles, and
-            managing workspace access when team features are available.
-          </p>
+      {error ? (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500"
+        >
+          {error}
         </div>
-      </section>
+      ) : null}
 
-      <section className="mt-6 bg-surface border border-subtle rounded-xl shadow-sm p-8">
-        <div className="max-w-2xl">
-          <div className="h-9 w-9 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted mb-5">
-            <GitPullRequest className="h-4 w-4" />
+      <section className="bg-surface border border-subtle rounded-xl shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-subtle">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted">
+              <Plus className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-xl font-medium text-[var(--foreground)]">
+                Create a team
+              </h2>
+              <p className="text-sm text-muted leading-relaxed mt-1">
+                You become the owner and can invite or remove members.
+              </p>
+            </div>
           </div>
-          <h3 className="text-xl font-medium text-[var(--foreground)]">
-            Playrunner needs contributors
-          </h3>
-          <p className="text-sm text-muted leading-relaxed mt-2">
-            Team management is not ready yet, but Playrunner is open for people
-            who want to help shape workflows, runners, integrations, and
-            documentation.
-          </p>
-          <a
-            href={contributingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-5 inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--foreground)] shadow-sm outline-none transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]"
+        </div>
+        <form
+          className="flex flex-col gap-3 p-6 sm:flex-row"
+          onSubmit={createTeam}
+        >
+          <label className="sr-only" htmlFor="team-name">
+            Team name
+          </label>
+          <Input
+            id="team-name"
+            value={teamName}
+            onChange={(event) => setTeamName(event.target.value)}
+            placeholder="Team name"
+            maxLength={80}
+            required
+          />
+          <Button
+            type="submit"
+            className="shrink-0 gap-2"
+            disabled={busyAction === 'create-team'}
           >
-            Read Contributing Docs
-            <ExternalLink className="h-4 w-4" />
-          </a>
-        </div>
+            {busyAction === 'create-team' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+            Create team
+          </Button>
+        </form>
       </section>
+
+      {latestInvitation ? (
+        <section className="bg-surface border border-subtle rounded-xl shadow-sm p-6">
+          <div className="flex items-start gap-3">
+            <div className="h-9 w-9 shrink-0 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted">
+              <MailPlus className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-medium text-[var(--foreground)]">
+                Invitation ready
+              </h2>
+              <p className="text-sm text-muted leading-relaxed mt-1">
+                Share this single-use link with {latestInvitation.email}. A new
+                link replaces the previous one when you resend.
+              </p>
+              <IntegrationCopyableCode
+                value={invitationUrl(latestInvitation.invitationPath)}
+                label="Copy team invitation link"
+              />
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12 text-muted">
+          <Loader2
+            className="h-5 w-5 animate-spin"
+            aria-label="Loading teams"
+          />
+        </div>
+      ) : teams.length === 0 ? (
+        <section className="bg-surface border border-subtle rounded-xl shadow-sm p-8 text-center">
+          <Users className="mx-auto h-6 w-6 text-muted" />
+          <h2 className="mt-4 text-xl font-medium text-[var(--foreground)]">
+            No teams yet
+          </h2>
+          <p className="mt-2 text-sm text-muted leading-relaxed">
+            Create your first team to start collaborating.
+          </p>
+        </section>
+      ) : (
+        teams.map((team) => (
+          <section
+            key={team.id}
+            className="bg-surface border border-subtle rounded-xl shadow-sm overflow-hidden"
+          >
+            <div className="flex items-center justify-between gap-4 p-6 border-b border-subtle">
+              <div>
+                <h2 className="text-xl font-medium text-[var(--foreground)]">
+                  {team.name}
+                </h2>
+                <p className="text-sm text-muted leading-relaxed mt-1">
+                  {team.members.length} member
+                  {team.members.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <Badge
+                variant={
+                  team.currentUserRole === 'owner' ? 'success' : 'default'
+                }
+              >
+                {team.currentUserRole === 'owner' ? (
+                  <ShieldCheck className="h-3 w-3" />
+                ) : null}
+                {team.currentUserRole}
+              </Badge>
+            </div>
+
+            {team.currentUserRole === 'owner' ? (
+              <div className="p-6 border-b border-subtle">
+                <h3 className="text-sm font-medium text-[var(--foreground)]">
+                  Invite a member
+                </h3>
+                <p className="text-xs text-muted leading-relaxed mt-1">
+                  Membership is granted only after the recipient signs in with
+                  this verified email address.
+                </p>
+                <form
+                  className="mt-4 flex flex-col gap-3 sm:flex-row"
+                  onSubmit={(event) => void inviteMember(event, team.id)}
+                >
+                  <label
+                    className="sr-only"
+                    htmlFor={`invite-email-${team.id}`}
+                  >
+                    Email address
+                  </label>
+                  <Input
+                    id={`invite-email-${team.id}`}
+                    type="email"
+                    value={inviteEmails[team.id] ?? ''}
+                    onChange={(event) =>
+                      setInviteEmails((current) => ({
+                        ...current,
+                        [team.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="colleague@example.com"
+                    required
+                  />
+                  <Button
+                    type="submit"
+                    className="shrink-0 gap-2"
+                    disabled={busyAction === `invite-${team.id}`}
+                  >
+                    <MailPlus className="h-4 w-4" />
+                    Send invitation
+                  </Button>
+                </form>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--foreground)]">
+                  Members
+                </h3>
+                <div className="mt-3 space-y-2">
+                  {team.members.map((member) => (
+                    <div
+                      key={member.id}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-subtle bg-[var(--background)] p-4"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <UserRound className="h-4 w-4 shrink-0 text-muted" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                            {member.displayName ||
+                              member.email ||
+                              'Team member'}
+                          </p>
+                          {member.email ? (
+                            <p className="truncate text-xs text-muted">
+                              {member.email}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            member.role === 'owner' ? 'success' : 'default'
+                          }
+                        >
+                          {member.role}
+                        </Badge>
+                        {team.currentUserRole === 'owner' &&
+                        member.role !== 'owner' ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Remove ${member.email || member.displayName || 'member'}`}
+                            title="Remove member"
+                            disabled={busyAction === `remove-${member.id}`}
+                            onClick={() => void removeMember(team.id, member)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {team.currentUserRole === 'owner' ? (
+                <div>
+                  <h3 className="text-sm font-medium text-[var(--foreground)]">
+                    Invitations
+                  </h3>
+                  <div className="mt-3 space-y-2">
+                    {team.invitations.length === 0 ? (
+                      <div className="rounded-xl border border-subtle bg-[var(--background)] p-4 text-sm text-muted">
+                        No invitations sent.
+                      </div>
+                    ) : (
+                      team.invitations.map((invitation) => (
+                        <div
+                          key={invitation.id}
+                          className="rounded-xl border border-subtle bg-[var(--background)] p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                                {invitation.email}
+                              </p>
+                              <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+                                <Clock3 className="h-3 w-3" />
+                                Expires{' '}
+                                {new Date(
+                                  invitation.expiresAt,
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                            {invitationBadge(invitation.status)}
+                          </div>
+                          {invitation.status === 'pending' ? (
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="gap-1.5"
+                                disabled={
+                                  busyAction === `resend-${invitation.id}`
+                                }
+                                onClick={() =>
+                                  void resendInvitation(team.id, invitation.id)
+                                }
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Resend
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                disabled={
+                                  busyAction === `revoke-${invitation.id}`
+                                }
+                                onClick={() =>
+                                  void revokeInvitation(team.id, invitation.id)
+                                }
+                              >
+                                Revoke
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ))
+      )}
     </main>
   );
 }

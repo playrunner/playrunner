@@ -156,6 +156,34 @@ class LocalAuth {
     return this.currentUser;
   }
 
+  async registerWithInvitation(
+    invitationToken: string,
+    email: string,
+    password: string,
+  ) {
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, invitationToken, password }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+      token?: string;
+      user?: StoredAuthUser;
+    } | null;
+    if (!response.ok || !payload?.token || !payload.user) {
+      throw new Error(payload?.error ?? 'Registration failed.');
+    }
+
+    const session: StoredAuthSession = {
+      token: payload.token,
+      user: payload.user,
+    };
+    this.persistSession(session);
+    this.applySession(session);
+    return this.currentUser;
+  }
+
   async validateSession() {
     if (!this.token) {
       return this.currentUser;
@@ -205,4 +233,12 @@ export const auth = new LocalAuth();
 
 export function signInWithPassword(username: string, password: string) {
   return auth.signInWithPassword(username, password);
+}
+
+export function registerWithInvitation(
+  invitationToken: string,
+  email: string,
+  password: string,
+) {
+  return auth.registerWithInvitation(invitationToken, email, password);
 }

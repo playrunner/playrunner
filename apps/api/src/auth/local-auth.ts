@@ -16,6 +16,13 @@ type LocalAuthConfig = {
   username: string;
 };
 
+export type LocalAuthPublicUser = {
+  email: string | null;
+  name: string;
+  uid: string;
+  username: string;
+};
+
 function getLocalAuthJwtSecret() {
   const jwtSecret = process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET?.trim() || '';
   if (jwtSecret.length < 32) {
@@ -51,6 +58,21 @@ async function readLocalAuthConfig(): Promise<LocalAuthConfig> {
 
     throw new Error(LOCAL_AUTH_NOT_CONFIGURED_MESSAGE);
   }
+}
+
+async function readLocalAuthUser(userId: string): Promise<LocalAuthConfig> {
+  await readLocalAuthConfig();
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.username.trim() || !user.passwordHash.trim()) {
+    throw new Error('Local user account not found.');
+  }
+
+  return {
+    email: user.email,
+    id: user.id,
+    passwordHash: user.passwordHash,
+    username: user.username,
+  };
 }
 
 function hashPassword(password: string) {
@@ -128,8 +150,10 @@ function resolveSetupEmail(username: string) {
   return username.includes('@') ? username : null;
 }
 
-export async function getLocalAuthPublicUser() {
-  const { email, id, username } = await readLocalAuthConfig();
+export async function getLocalAuthPublicUser(
+  userId = LOCAL_AUTH_SUBJECT,
+): Promise<LocalAuthPublicUser> {
+  const { email, id, username } = await readLocalAuthUser(userId);
   const name = email ? email.split('@')[0] : username;
 
   return {
@@ -140,24 +164,27 @@ export async function getLocalAuthPublicUser() {
   };
 }
 
-export async function verifyLocalCredentials(
+export async function authenticateLocalCredentials(
   username: string,
   password: string,
 ) {
-  const config = await readLocalAuthConfig();
-
-  if (username.trim() !== config.username) {
-    return false;
+  await readLocalAuthConfig();
+  const config = await prisma.user.findUnique({
+    where: { username: username.trim() },
+  });
+  if (!config || !verifyPasswordHash(password, config.passwordHash)) {
+    return null;
   }
 
-  return verifyPasswordHash(password, config.passwordHash);
+  return getLocalAuthPublicUser(config.id);
 }
 
 export async function updateLocalAuthPassword(params: {
   currentPassword: string;
   newPassword: string;
+  userId: string;
 }) {
-  const config = await readLocalAuthConfig();
+  const config = await readLocalAuthUser(params.userId);
   const currentPassword = params.currentPassword;
   const newPassword = params.newPassword;
 
@@ -179,12 +206,12 @@ export async function updateLocalAuthPassword(params: {
   });
 }
 
-export async function issueLocalAuthToken(username: string) {
+export async function issueLocalAuthToken(userId: string, username: string) {
   return new SignJWT({ username })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuer(LOCAL_AUTH_ISSUER)
     .setAudience(LOCAL_AUTH_AUDIENCE)
-    .setSubject(LOCAL_AUTH_SUBJECT)
+    .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime('7d')
     .sign(await getLocalAuthSecret());
@@ -196,18 +223,48 @@ export async function verifyLocalAuthToken(token: string): Promise<AuthUser> {
     audience: LOCAL_AUTH_AUDIENCE,
   });
 
-  const config = await readLocalAuthConfig();
+  if (typeof payload.sub !== 'string' || !payload.sub) {
+    throw new Error('Token is missing its local user subject.');
+  }
+  const config = await readLocalAuthUser(payload.sub);
   const tokenUsername =
     typeof payload.username === 'string' && payload.username.trim()
       ? payload.username.trim()
       : config.username;
-  const publicUser = await getLocalAuthPublicUser();
+  const publicUser = await getLocalAuthPublicUser(config.id);
 
   return {
     email: publicUser.email ?? undefined,
+    emailVerified: Boolean(publicUser.email),
     provider: 'local',
-    providerUserId: typeof payload.sub === 'string' ? payload.sub : config.id,
+    providerUserId: config.id,
     name: publicUser.name,
     username: tokenUsername,
   };
+}
+
+export async function createInvitedLocalUser(params: {
+  email: string;
+  password: string;
+}) {
+  const email = params.email.trim().toLocaleLowerCase('en-US');
+  if (!email) throw new Error('Email address is required.');
+  if (params.password.trim().length < 8) {
+    throw new Error('Password must be at least 8 characters.');
+  }
+  await readLocalAuthConfig();
+
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hashPassword(params.password),
+      username: email,
+    },
+  });
+  return getLocalAuthPublicUser(user.id);
+}
+
+export async function deleteInvitedLocalUser(userId: string) {
+  if (userId === LOCAL_AUTH_SUBJECT) return;
+  await prisma.user.deleteMany({ where: { id: userId } });
 }

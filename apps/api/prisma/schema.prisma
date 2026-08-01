@@ -167,6 +167,55 @@ model User {
   @@map("Users")
 }
 
+model Team {
+  id              String           @id @default(cuid())
+  name            String
+  createdByUserId String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  memberships     TeamMembership[]
+  invitations     TeamInvitation[]
+
+  @@index([createdByUserId])
+}
+
+model TeamMembership {
+  id              String   @id @default(cuid())
+  teamId          String
+  userId          String
+  email           String?
+  normalizedEmail String?
+  displayName     String?
+  role            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@unique([teamId, normalizedEmail])
+  @@index([userId])
+}
+
+model TeamInvitation {
+  id               String    @id @default(cuid())
+  teamId           String
+  email            String
+  normalizedEmail  String
+  tokenHash        String    @unique
+  status           String    @default("pending")
+  expiresAt        DateTime
+  acceptedAt       DateTime?
+  acceptedByUserId String?
+  revokedAt        DateTime?
+  createdByUserId  String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  team             Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, normalizedEmail])
+  @@index([teamId, status])
+}
+
 model EnvironmentSecret {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")

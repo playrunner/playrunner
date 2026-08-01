@@ -2,12 +2,19 @@ import { Router } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
 import { verifyToken } from '../auth/verify-token';
 import {
+  authenticateLocalCredentials,
+  createInvitedLocalUser,
+  deleteInvitedLocalUser,
   getLocalAuthPublicUser,
   isLocalAuthConfigured,
   issueLocalAuthToken,
   updateLocalAuthPassword,
-  verifyLocalCredentials,
 } from '../auth/local-auth';
+import {
+  acceptTeamInvitation,
+  getInvitationPreview,
+  TeamServiceError,
+} from '../services/teams';
 
 export const authRouter = Router();
 
@@ -39,14 +46,13 @@ authRouter.post('/login', async (req, res) => {
   }
 
   try {
-    const isValid = await verifyLocalCredentials(username, password);
-    if (!isValid) {
+    const user = await authenticateLocalCredentials(username, password);
+    if (!user) {
       res.status(401).json({ error: 'Invalid username or password.' });
       return;
     }
 
-    const user = await getLocalAuthPublicUser();
-    const token = await issueLocalAuthToken(user.username);
+    const token = await issueLocalAuthToken(user.uid, user.username);
 
     res.json({ token, user });
   } catch (error) {
@@ -67,16 +73,16 @@ authRouter.get('/session', async (req, res) => {
   }
 
   try {
-    await verifyToken(token);
-    const user = await getLocalAuthPublicUser();
+    const authUser = await verifyToken(token);
+    const user = await getLocalAuthPublicUser(authUser.providerUserId);
     res.json({ user });
   } catch {
     res.json({ user: null });
   }
 });
 
-authRouter.get('/me', requireAuth, async (_req, res) => {
-  const user = await getLocalAuthPublicUser();
+authRouter.get('/me', requireAuth, async (req, res) => {
+  const user = await getLocalAuthPublicUser(req.authUser!.providerUserId);
   res.json({ user });
 });
 
@@ -106,6 +112,7 @@ authRouter.post('/password', requireAuth, async (req, res) => {
     await updateLocalAuthPassword({
       currentPassword,
       newPassword,
+      userId: req.authUser!.providerUserId,
     });
     res.json({ ok: true });
   } catch (error) {
@@ -114,5 +121,89 @@ authRouter.post('/password', requireAuth, async (req, res) => {
     res
       .status(message === 'Current password is incorrect.' ? 400 : 500)
       .json({ error: message });
+  }
+});
+
+authRouter.get('/invitations/:token', async (req, res) => {
+  try {
+    res.json({ invitation: await getInvitationPreview(req.params.token) });
+  } catch (error) {
+    if (error instanceof TeamServiceError) {
+      res
+        .status(error.statusCode)
+        .json({ code: error.code, error: error.message });
+      return;
+    }
+    res.status(500).json({ error: 'Failed to load the invitation.' });
+  }
+});
+
+authRouter.post('/register', async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email : '';
+  const password =
+    typeof req.body?.password === 'string' ? req.body.password : '';
+  const invitationToken =
+    typeof req.body?.invitationToken === 'string'
+      ? req.body.invitationToken
+      : '';
+
+  if (!email || !password || !invitationToken) {
+    res.status(400).json({
+      error: 'Invitation token, email address, and password are required.',
+    });
+    return;
+  }
+
+  let user: Awaited<ReturnType<typeof createInvitedLocalUser>> | null = null;
+  try {
+    const preview = await getInvitationPreview(invitationToken);
+    if (
+      preview.email.toLocaleLowerCase('en-US') !==
+      email.trim().toLocaleLowerCase('en-US')
+    ) {
+      res.status(403).json({
+        code: 'invitation_email_mismatch',
+        error: 'Register with the email address that received this invitation.',
+      });
+      return;
+    }
+
+    user = await createInvitedLocalUser({ email, password });
+    await acceptTeamInvitation(
+      {
+        email: user.email ?? undefined,
+        emailVerified: true,
+        name: user.name,
+        provider: 'local',
+        providerUserId: user.uid,
+        username: user.username,
+      },
+      invitationToken,
+    );
+    const token = await issueLocalAuthToken(user.uid, user.username);
+    res.status(201).json({ token, user });
+  } catch (error) {
+    if (user) {
+      await deleteInvitedLocalUser(user.uid).catch((cleanupError) => {
+        console.error(
+          'Failed to roll back invited user registration:',
+          cleanupError,
+        );
+      });
+    }
+    if (error instanceof TeamServiceError) {
+      res
+        .status(error.statusCode)
+        .json({ code: error.code, error: error.message });
+      return;
+    }
+    const message =
+      error instanceof Error ? error.message : 'Registration failed.';
+    const conflict = /unique constraint/i.test(message);
+    res.status(conflict ? 409 : 400).json({
+      error: conflict
+        ? 'An account already exists for that email address. Sign in instead.'
+        : message,
+    });
   }
 });

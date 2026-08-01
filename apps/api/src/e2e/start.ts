@@ -56,6 +56,9 @@ async function startE2EApi() {
   }
 
   await prisma.$transaction([
+    prisma.teamInvitation.deleteMany(),
+    prisma.teamMembership.deleteMany(),
+    prisma.team.deleteMany(),
     prisma.workflowEvent.deleteMany(),
     prisma.workflowScheduleTrigger.deleteMany(),
     prisma.workflowSchedule.deleteMany(),

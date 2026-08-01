@@ -10,6 +10,7 @@ import {
   Route,
   Navigate,
   Outlet,
+  useLocation,
 } from 'react-router-dom';
 import Login from './pages/Login';
 import Editor from './pages/Editor';
@@ -23,6 +24,8 @@ import Integrations from './pages/Integrations';
 import Insights from './pages/Insights';
 import Teams from './pages/Teams';
 import OAuthCallback from './pages/OAuthCallback';
+import TeamInvitation from './pages/TeamInvitation';
+import RegisterInvitation from './pages/RegisterInvitation';
 import { ThemeProvider } from './components/ThemeProvider';
 import { PageLayout } from './components/PageLayout';
 import { auth } from './lib/auth';
@@ -32,6 +35,7 @@ import { integrationSdkHost } from './integrations/sdkHost';
 function RequireAuth() {
   const [user, setUser] = useState(auth.currentUser);
   const [isReady, setIsReady] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     let isMounted = true;
@@ -56,7 +60,13 @@ function RequireAuth() {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    const returnTo = `${location.pathname}${location.search}`;
+    return (
+      <Navigate
+        to={`/login?returnTo=${encodeURIComponent(returnTo)}`}
+        replace
+      />
+    );
   }
 
   return <Outlet />;
@@ -67,6 +77,7 @@ function AppShell() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<RegisterInvitation />} />
         <Route path="/design" element={<DesignSystem />} />
         <Route path="/oauth/callback/:provider" element={<OAuthCallback />} />
         <Route element={<RequireAuth />}>
@@ -90,6 +101,10 @@ function AppShell() {
               element={<Navigate to="/insights" replace />}
             />
             <Route path="/teams" element={<Teams />} />
+            <Route
+              path="/teams/invitations/:token"
+              element={<TeamInvitation />}
+            />
           </Route>
         </Route>
       </Routes>

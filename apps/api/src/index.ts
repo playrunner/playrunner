@@ -18,6 +18,7 @@ import { requireAuth } from './auth/auth.middleware';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
 import { storeRouter } from './routes/store';
+import { teamsRouter } from './routes/teams';
 import { createIntegrationCredentialStore } from './services/connections';
 import { createIntegrationApiHost } from './services/inbound-webhooks';
 import { tunnelService } from './services/tunnel';
@@ -58,6 +59,7 @@ registerIntegrationApiRoutes(app);
 app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/store', storeRouter);
+app.use('/api/teams', teamsRouter);
 app.use('/api/insights', insightsRouter);
 app.use('/api/reports', insightsRouter);
 

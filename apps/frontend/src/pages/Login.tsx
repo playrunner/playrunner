@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Loader2, LockKeyhole, UserRound } from 'lucide-react';
 import { Button, Input } from '../components/ui';
 import { auth, signInWithPassword } from '../lib/auth';
@@ -10,12 +10,20 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedReturnTo = searchParams.get('returnTo') ?? '';
+  const returnTo =
+    requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//')
+      ? requestedReturnTo
+      : '/projects';
+  const invitationMatch = returnTo.match(/^\/teams\/invitations\/([^/?#]+)/);
+  const invitationToken = invitationMatch?.[1] ?? '';
 
   useEffect(() => {
     if (auth.currentUser) {
-      navigate('/projects', { replace: true });
+      navigate(returnTo, { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, returnTo]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,7 +33,7 @@ export default function Login() {
     try {
       await signInWithPassword(username.trim(), password);
       localStorage.removeItem('hasCompletedOnboarding');
-      navigate('/projects', { replace: true });
+      navigate(returnTo, { replace: true });
     } catch (loginError) {
       setError(
         loginError instanceof Error ? loginError.message : 'Login failed.',
@@ -106,6 +114,18 @@ export default function Login() {
               {isLoading ? 'Signing in...' : 'Enter Playrunner'}
             </Button>
           </form>
+
+          {invitationToken ? (
+            <p className="mt-5 text-center text-xs text-muted">
+              New to Playrunner?{' '}
+              <Link
+                to={`/register?invitation=${encodeURIComponent(invitationToken)}`}
+                className="font-medium text-[var(--foreground)] underline underline-offset-4"
+              >
+                Create an account from this invitation
+              </Link>
+            </p>
+          ) : null}
 
           <div className="mt-6 rounded-xl border border-subtle bg-[var(--background)]/70 px-4 py-3">
             <p className="text-xs text-muted">

@@ -49,7 +49,7 @@ async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
     | null;
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       await auth.signOut();
     }
 
@@ -120,6 +120,56 @@ async function saveCloudCredentialRecord(providerId: string, data: any) {
 }
 
 export const DbAPI = {
+  async getTeams() {
+    const payload = await apiRequest<{ teams: any[] }>('/api/teams');
+    return payload.teams;
+  },
+
+  async createTeam(name: string) {
+    const payload = await apiRequest<{ team: any }>('/api/teams', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    return payload.team;
+  },
+
+  async createTeamInvitation(teamId: string, email: string) {
+    const payload = await apiRequest<{ invitation: any }>(
+      `/api/teams/${encodeURIComponent(teamId)}/invitations`,
+      { method: 'POST', body: JSON.stringify({ email }) },
+    );
+    return payload.invitation;
+  },
+
+  async resendTeamInvitation(teamId: string, invitationId: string) {
+    const payload = await apiRequest<{ invitation: any }>(
+      `/api/teams/${encodeURIComponent(teamId)}/invitations/${encodeURIComponent(invitationId)}/resend`,
+      { method: 'POST' },
+    );
+    return payload.invitation;
+  },
+
+  async revokeTeamInvitation(teamId: string, invitationId: string) {
+    await apiRequest(
+      `/api/teams/${encodeURIComponent(teamId)}/invitations/${encodeURIComponent(invitationId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async removeTeamMember(teamId: string, membershipId: string) {
+    await apiRequest(
+      `/api/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(membershipId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async acceptTeamInvitation(token: string) {
+    return apiRequest<{ teamId: string }>(
+      `/api/teams/invitations/${encodeURIComponent(token)}/accept`,
+      { method: 'POST' },
+    );
+  },
+
   async changePassword(data: { currentPassword: string; newPassword: string }) {
     await apiRequest<{ ok: boolean }>('/api/auth/password', {
       method: 'POST',
