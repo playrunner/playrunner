@@ -62,7 +62,7 @@ and Orchestrator artifacts.
 
 :::
 
-## Connect OpenAI
+## Setup
 
 1. Create an API key from the
    [OpenAI API keys page](https://platform.openai.com/api-keys).

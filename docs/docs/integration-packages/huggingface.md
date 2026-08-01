@@ -62,7 +62,7 @@ Orchestrator artifacts.
 
 :::
 
-## Connect Hugging Face
+## Setup
 
 1. Open the [Hugging Face access tokens page](https://huggingface.co/settings/tokens)
    and create a token that can call Inference Providers.

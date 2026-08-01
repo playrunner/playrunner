@@ -49,6 +49,18 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
+## Setup
+
+1. Add an **Environment** config node to the workflow canvas.
+2. Select an existing saved environment or create one from the **Environments**
+   page.
+3. Add the variables the workflow needs as name and value pairs.
+4. Connect the Environment node to nodes that should receive those variables,
+   such as Playwright.
+
+Environment does not require account credentials. Its variables are stored in
+Playrunner and injected into connected workflow nodes at runtime.
+
 ## Exports
 
 ```ts

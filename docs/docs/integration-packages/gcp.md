@@ -53,6 +53,24 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
+## Setup
+
+Open Playrunner, go to **Integrations**, and select **Google Cloud Platform**.
+The setup wizard guides you through three stages:
+
+1. Create a Google OAuth client, add the callback URL displayed by Playrunner,
+   and authenticate your Google account.
+2. Select the Google Cloud project and Cloud Run region that will host workflow
+   runners.
+3. Provision the required APIs, Artifact Registry repositories, Pub/Sub topic,
+   and scheduler service account.
+
+Follow the [GCP setup guide](../runner-architecture/gcp/setup.md) for the full
+prerequisites and walkthrough. The guide links to the detailed
+[OAuth configuration](../runner-architecture/gcp/oauth.md) and
+[project and region selection](../runner-architecture/gcp/project-region.md)
+instructions used by the wizard.
+
 ## Exports
 
 ```ts

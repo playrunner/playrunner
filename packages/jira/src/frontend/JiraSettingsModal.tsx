@@ -15,7 +15,7 @@ interface JiraSettingsModalProps {
 }
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const JIRA_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/jira');
+const JIRA_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/jira#setup');
 
 type DocsImportMeta = ImportMeta & {
   env?: {

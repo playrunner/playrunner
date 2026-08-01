@@ -49,7 +49,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-## Install
+## Setup
 
 ```bash
 npm install @playrunner/webhooks

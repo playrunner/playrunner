@@ -20,7 +20,9 @@ interface GithubSettingsModalProps {
 }
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const GITHUB_SETUP_DOCS_URL = getDocsUrl('docs/tutorials/connect-github');
+const GITHUB_SETUP_DOCS_URL = getDocsUrl(
+  'docs/integration-packages/github#setup',
+);
 
 type DocsImportMeta = ImportMeta & {
   env?: {

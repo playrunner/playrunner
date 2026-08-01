@@ -49,6 +49,18 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
+## Setup
+
+1. Add a **Schedule** trigger node to the workflow canvas.
+2. Choose the schedule frequency and interval.
+3. Select the timezone used to calculate the run times.
+4. Review the generated cron summary, then connect the trigger to the first
+   action in the workflow.
+
+Schedule configuration is stored on the workflow node and does not require
+account credentials. Running scheduled workflows on GCP also requires the
+[GCP integration setup](./gcp.md#setup).
+
 ## Exports
 
 ```ts

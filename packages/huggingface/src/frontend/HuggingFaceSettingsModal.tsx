@@ -17,7 +17,7 @@ interface HuggingFaceSettingsModalProps {
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const HUGGING_FACE_SETUP_DOCS_URL = getDocsUrl(
-  'docs/integration-packages/huggingface',
+  'docs/integration-packages/huggingface#setup',
 );
 
 type DocsImportMeta = ImportMeta & {

@@ -16,7 +16,9 @@ interface OpenAISettingsModalProps {
 }
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const OPENAI_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/openai');
+const OPENAI_SETUP_DOCS_URL = getDocsUrl(
+  'docs/integration-packages/openai#setup',
+);
 
 type DocsImportMeta = ImportMeta & {
   env?: {

@@ -64,6 +64,16 @@ will fail preflight until an executor is implemented and bundled.
 
 :::
 
+## Setup
+
+1. Add a **JavaScript** action node to the workflow canvas.
+2. Enter the JavaScript source in the node's code editor.
+3. Connect any upstream nodes whose workflow data the script will use.
+
+The configuration UI is available, but JavaScript execution is not currently
+wired into the Orchestrator. Workflows containing this node fail preflight until
+an executor is implemented and bundled.
+
 ## Exports
 
 ```ts

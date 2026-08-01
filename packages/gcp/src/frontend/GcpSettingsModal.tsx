@@ -114,11 +114,7 @@ const DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID = 'playrunner-scheduler';
 const PUSH_RUNNER_IMAGES_COMMAND =
   './infra/gcp/scripts/push-runners.sh --target both --yes';
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
-const GCP_SETUP_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/setup');
-const GCP_OAUTH_DOCS_URL = getDocsUrl('docs/runner-architecture/gcp/oauth');
-const GCP_PROJECT_REGION_DOCS_URL = getDocsUrl(
-  'docs/runner-architecture/gcp/project-region',
-);
+const GCP_SETUP_DOCS_URL = getDocsUrl('docs/integration-packages/gcp#setup');
 const DISCONNECT_GCP_CONFIRM_MESSAGE =
   'Disconnect GCP from Playrunner?\n\nThis removes the saved GCP credentials and settings from Playrunner. It does not delete GCP infrastructure, Artifact Registry images, Cloud Run services, or Pub/Sub topics.';
 
@@ -1056,7 +1052,7 @@ export function GcpSettingsModal({
       {renderSetupGuideCallout({
         description:
           'Create the Google OAuth client first, then paste the generated client ID and secret here. Playrunner uses this connection to provision runner resources after authentication succeeds.',
-        href: GCP_OAUTH_DOCS_URL,
+        href: GCP_SETUP_DOCS_URL,
         linkLabel: 'Open OAuth setup guide',
         title: '1. Google OAuth setup',
       })}
@@ -1137,7 +1133,7 @@ export function GcpSettingsModal({
       {renderSetupGuideCallout({
         description:
           'Save the GCP project and Cloud Run region here. Playrunner will provision resources in this location using your OAuth connection.',
-        href: GCP_PROJECT_REGION_DOCS_URL,
+        href: GCP_SETUP_DOCS_URL,
         linkLabel: 'Open Project and Region guide',
         title: '2. Project and region',
       })}

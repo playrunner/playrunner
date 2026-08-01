@@ -58,6 +58,18 @@ each app that consumes its surfaces. Both packages declare their own build
 surfaces, so no shared registry edit is required.
 </IntegrationCallout>
 
+## Setup
+
+1. Install both `@playrunner/playwright` and `@playrunner/github` as direct
+   production dependencies of each consuming app.
+2. Connect GitHub from **Integrations** by following the
+   [GitHub setup instructions](./github.md#setup).
+3. Add a **Playwright** node to the workflow canvas.
+4. Select the repository and branch containing the tests, then configure the
+   test command or inline script and runner resources.
+5. Optionally connect an Environment node to inject environment variables into
+   the test run.
+
 ## Exports
 
 ```ts
