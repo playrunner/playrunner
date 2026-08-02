@@ -6,7 +6,6 @@ import {
   FolderClosed,
   LogOut,
   MoreVertical,
-  Palette,
   Server,
   Boxes,
   BarChart2,
@@ -244,15 +243,6 @@ export function Sidebar({
                 }
                 onClick={() => {
                   navigate('/insights');
-                }}
-              />
-              <NavItem
-                icon={Palette}
-                label="Design System"
-                isOpen={isOpen}
-                isActive={location.pathname === '/design'}
-                onClick={() => {
-                  navigate('/design');
                 }}
               />
               <ExternalNavItem
