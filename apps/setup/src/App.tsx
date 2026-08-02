@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { CheckCircle2, LockKeyhole, Sparkles } from 'lucide-react';
+import { AmbientDotBackground } from '@frontend/components/AmbientDotBackground';
 import { ThemeProvider } from '@frontend/components/ThemeProvider';
 import { Badge } from '@frontend/components/ui';
 import Setup from './pages/Setup';
@@ -37,8 +38,9 @@ function SetupShell() {
 
   if (bootState === 'booting') {
     return (
-      <div className="min-h-screen bg-background text-[var(--foreground)] font-sans">
-        <div className="mx-auto flex min-h-screen max-w-2xl items-center px-6 py-12">
+      <div className="relative isolate min-h-screen bg-background text-[var(--foreground)] font-sans">
+        <AmbientDotBackground />
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-2xl items-center px-6 py-12">
           <div className={SHELL_CARD_CLASS}>
             <Badge variant="outline" className="gap-2 px-3 py-1">
               <Sparkles className="h-3.5 w-3.5" />
@@ -66,8 +68,9 @@ function SetupShell() {
     const isCompleted = bootState === 'completed';
 
     return (
-      <div className="min-h-screen bg-background text-[var(--foreground)] font-sans">
-        <div className="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-12">
+      <div className="relative isolate min-h-screen bg-background text-[var(--foreground)] font-sans">
+        <AmbientDotBackground />
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl items-center px-6 py-12">
           <div className={SHELL_CARD_CLASS}>
             <Badge
               variant={isCompleted ? 'success' : 'outline'}

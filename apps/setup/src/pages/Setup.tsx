@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import { AmbientDotBackground } from '@frontend/components/AmbientDotBackground';
 import { Badge, Button, Input } from '@frontend/components/ui';
 import type { RuntimeSetupConfig } from '../lib/setup';
 import { getActiveSetupSessionToken } from '../lib/setup';
@@ -156,8 +157,9 @@ export default function Setup() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-[var(--foreground)] font-sans">
-      <div className="mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-12">
+    <div className="relative isolate min-h-screen bg-background text-[var(--foreground)] font-sans">
+      <AmbientDotBackground />
+      <div className="relative z-10 mx-auto max-w-3xl px-5 py-8 md:px-8 md:py-12">
         <header className="border-b border-subtle pb-6">
           <div className="space-y-4">
             <Badge variant="outline" className="w-fit gap-2 px-3 py-1">

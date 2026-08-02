@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Loader2, LockKeyhole, UserRound } from 'lucide-react';
+import { AmbientDotBackground } from '../components/AmbientDotBackground';
 import { Button, Input } from '../components/ui';
 import { auth, signInWithPassword } from '../lib/auth';
 
@@ -44,14 +45,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none flex items-center justify-center">
-        <div className="w-[800px] h-[600px] bg-[var(--border)] opacity-20 blur-[120px] rounded-full mix-blend-screen" />
-      </div>
+    <div className="relative isolate min-h-screen flex items-start justify-center bg-background px-4 py-10 sm:pt-[8vh]">
+      <AmbientDotBackground focus="form" />
 
-      <div className="w-full max-w-sm z-10">
+      <div className="relative z-10 w-full max-w-sm">
         <div className="text-center mb-10">
-          <div className="flex flex-col items-center justify-center gap-3 mb-4">
+          <div className="flex flex-col items-center justify-center gap-3">
             <img
               src="/images/playrunner-icon.svg"
               alt="Playrunner"
@@ -61,11 +60,6 @@ export default function Login() {
               Playrunner
             </h1>
           </div>
-          <p className="text-sm text-muted">
-            No-code test orchestration and cloud runner
-            <br />
-            for modern engineering teams.
-          </p>
         </div>
 
         <div className="bg-surface border border-subtle rounded-2xl p-8 shadow-2xl relative overflow-hidden">
@@ -133,13 +127,6 @@ export default function Login() {
               <code>./start-local.sh</code> and finish the setup wizard.
             </p>
           </div>
-        </div>
-
-        <div className="mt-12 flex items-center justify-center gap-1.5 opacity-50">
-          <span className="text-xs text-muted">Powered by</span>
-          <span className="text-xs font-semibold tracking-wider uppercase text-muted">
-            Playrunner
-          </span>
         </div>
       </div>
     </div>
