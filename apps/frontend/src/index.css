@@ -97,7 +97,7 @@ body {
 }
 
 .ambient-dot-background--form {
-  --ambient-dot-focus-y: calc(8vh + 320px);
+  --ambient-dot-focus-y: calc(8vh + 280px);
 }
 
 .ambient-dot-background::before {
