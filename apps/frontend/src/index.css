@@ -88,6 +88,8 @@ body {
 
 .ambient-dot-background {
   --ambient-dot-focus-y: 50%;
+  --ambient-dot-mask-width: 48%;
+  --ambient-dot-mask-height: 42%;
 
   position: fixed;
   inset: 0;
@@ -98,6 +100,8 @@ body {
 
 .ambient-dot-background--form {
   --ambient-dot-focus-y: calc(8vh + 280px);
+  --ambient-dot-mask-width: 18%;
+  --ambient-dot-mask-height: 34%;
 }
 
 .ambient-dot-background::before {
@@ -113,14 +117,16 @@ body {
   background-size: 32px 32px;
   opacity: 0.72;
   -webkit-mask-image: radial-gradient(
-    ellipse 48% 42% at 50% var(--ambient-dot-focus-y),
+    ellipse var(--ambient-dot-mask-width) var(--ambient-dot-mask-height) at 50%
+      var(--ambient-dot-focus-y),
     transparent 0%,
     transparent 30%,
     rgb(0 0 0 / 0.18) 48%,
     #000 82%
   );
   mask-image: radial-gradient(
-    ellipse 48% 42% at 50% var(--ambient-dot-focus-y),
+    ellipse var(--ambient-dot-mask-width) var(--ambient-dot-mask-height) at 50%
+      var(--ambient-dot-focus-y),
     transparent 0%,
     transparent 30%,
     rgb(0 0 0 / 0.18) 48%,
