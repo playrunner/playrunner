@@ -1,0 +1,130 @@
+---
+slug: playrunner-ci-cd-pipeline
+title: 'Use Playrunner as a CI/CD quality gate'
+description: 'Run a saved Playrunner workflow from CI/CD, keep credentials secure, and block deployments when end-to-end checks fail.'
+authors: [playrunner]
+tags: [playwright, ci-cd]
+---
+
+End-to-end tests are most useful when they run at the point where a team decides
+whether to ship. The Playrunner CLI lets a CI/CD job start a saved workflow,
+stream its progress, and fail the job when the workflow does not complete
+successfully.
+
+That turns a Playrunner workflow into a quality gate without rebuilding the
+workflow as a long collection of pipeline-specific steps.
+
+{/* truncate */}
+
+## Why run Playrunner from CI/CD?
+
+A delivery pipeline needs a reliable pass-or-fail result, but useful browser
+testing involves more than launching a test command. Teams also need consistent
+environments, orchestration, reports, artifacts, and a way to understand what
+failed.
+
+Playrunner keeps that workflow in one place and gives the pipeline a small,
+stable interface to it. This provides several practical benefits:
+
+- **Use the same workflow everywhere.** Run the saved workflow manually while
+  developing it, then trigger that same workflow from pull requests, mainline
+  builds, or release pipelines.
+- **Keep pipeline configuration focused.** The CI/CD file starts the workflow
+  and responds to its result. Test orchestration remains visible on the
+  Playrunner canvas instead of being spread across provider-specific YAML and
+  shell scripts.
+- **Gate releases with a real exit status.** By default, the CLI waits for the
+  workflow to finish and exits unsuccessfully if the workflow fails, is
+  cancelled, times out, or cannot be started.
+- **Use scoped, revocable credentials.** A Playrunner machine token can be
+  limited to the workflow the pipeline needs. Store it as a protected secret
+  and revoke it without changing a user account.
+- **Get useful evidence after a failure.** The workflow run keeps its node
+  status, logs, Playwright report, and captured artifacts together, making the
+  failure easier to investigate than a bare test-process exit code.
+- **Avoid coupling to one CI provider.** The CLI works anywhere Node.js and an
+  outbound connection to Playrunner are available.
+
+## Prepare the workflow and token
+
+Before editing the pipeline:
+
+1. Save the workflow you want CI/CD to run.
+2. Copy its ID from the Playrunner URL. The workflow ID is the value after
+   `/workflows/`.
+3. Open **Settings → API tokens** and create a machine token.
+4. Allow the token to run that workflow.
+5. Add the token to your CI/CD provider as a protected, masked secret named
+   `PLAYRUNNER_API_KEY`.
+
+The workflow ID is an identifier rather than a credential, so it can appear
+directly in the pipeline configuration. Never commit the API token.
+
+## GitHub Actions example
+
+The following workflow runs Playrunner for pull requests and pushes to `main`.
+Replace the example UUID with the ID of your saved workflow.
+
+```yaml
+name: Playrunner quality gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  end-to-end:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Run Playrunner workflow
+        env:
+          PLAYRUNNER_API_KEY: ${{ secrets.PLAYRUNNER_API_KEY }}
+        run: >-
+          npx --yes playrunner@0.1.3
+          2cc84235-58f7-4cb1-89cd-0c379d3b6908
+          --url https://playrunner.cloud
+          --timeout 30m
+```
+
+Pinning the CLI version makes pipeline runs reproducible. Upgrade the version
+deliberately when a newer CLI is available. The job timeout is slightly longer
+than the CLI timeout so the CLI has time to report a useful timeout error before
+the CI provider stops the job.
+
+Because the command waits by default, no polling script is required. A
+successful workflow returns exit code `0`; any unsuccessful result prevents
+dependent deployment jobs from starting.
+
+## Use it with another CI/CD provider
+
+The integration is not specific to GitHub Actions. In GitLab CI, CircleCI,
+Buildkite, Jenkins, or another provider, expose the same secret to the job and
+run the same command:
+
+```bash
+npx --yes playrunner@0.1.3 WORKFLOW_ID \
+  --url https://playrunner.cloud \
+  --timeout 30m
+```
+
+Replace `WORKFLOW_ID` with the saved workflow's ID. For a self-hosted Playrunner
+installation, replace `https://playrunner.cloud` with that environment's URL.
+
+Use `--json` when another tool needs newline-delimited lifecycle records, or
+`--no-wait` when the pipeline should only confirm that Playrunner accepted the
+run. For a quality gate, keep the default waiting behavior so the pipeline
+receives the final result.
+
+## A simpler boundary between testing and delivery
+
+The CI/CD system should decide when a check runs and what can deploy after it.
+Playrunner should own how the browser-testing workflow executes and how its
+results are presented. The CLI connects those responsibilities with one command
+and a standard process exit code.
+
+That boundary keeps pipeline files smaller, makes test workflows easier for the
+whole team to understand, and gives release decisions consistent evidence from
+every run.

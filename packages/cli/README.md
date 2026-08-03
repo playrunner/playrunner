@@ -8,23 +8,31 @@ Run a saved Playrunner workflow from CI/CD with a revocable machine token.
    The ID is the value after `/workflows/`.
 2. Open **Settings → API tokens**, create a token, and allow it to run that
    workflow.
-3. Set the server URL, API token, and workflow ID in your shell:
+3. Export the API token:
 
-```bash
-export PLAYRUNNER_URL='https://playrunner.example.com'
+```text
 export PLAYRUNNER_API_KEY='<your-api-token>'
-export PLAYRUNNER_WORKFLOW_ID='<your-workflow-id>'
-
-npx playrunner "$PLAYRUNNER_WORKFLOW_ID"
 ```
 
-Use `https://playrunner.cloud` for Playrunner Cloud. For a self-hosted or local
-installation, use the Playrunner URL for that environment.
+4. Run the CLI, replacing `WORKFLOW_ID` with the workflow ID you copied:
+
+```text
+npx playrunner WORKFLOW_ID --url https://playrunner.cloud
+```
+
+For example:
+
+```text
+npx playrunner 2cc84235-58f7-4cb1-89cd-0c379d3b6908 --url https://playrunner.cloud
+```
+
+For a self-hosted or local installation, replace `https://playrunner.cloud`
+with the Playrunner URL for that environment.
 
 In CI/CD, store `PLAYRUNNER_API_KEY` in your provider's protected, masked secret
-variables instead of committing it to source control. Store the workflow ID in
-a normal CI variable and pass it as the first CLI argument. The CLI never writes
-the token to disk or includes it in URLs or output.
+variables instead of committing it to source control. Pass the workflow ID as
+the first CLI argument. The CLI never writes the token to disk or includes it in
+URLs or output.
 
 By default the command streams safe progress, waits up to 30 minutes, and exits
 successfully only when the workflow completes. Use `--no-wait` to return after

@@ -72,19 +72,23 @@ from documentation.
 
 ### Run the workflow
 
-Set your own values as environment variables, then pass the workflow ID to the
-CLI:
+Export the API token, then run the CLI with the workflow ID you copied. Replace
+`WORKFLOW_ID` in the command; do not type it literally:
 
 ```bash
-export PLAYRUNNER_URL='<your-playrunner-url>'
 export PLAYRUNNER_API_KEY='<your-api-token>'
-export PLAYRUNNER_WORKFLOW_ID='<your-workflow-id>'
 
-npx playrunner "$PLAYRUNNER_WORKFLOW_ID"
+npx playrunner WORKFLOW_ID --url https://playrunner.cloud
 ```
 
-For Playrunner Cloud, set `PLAYRUNNER_URL` to `https://playrunner.cloud`. For a
-self-hosted or local installation, use the Playrunner URL for that environment.
+For example:
+
+```bash
+npx playrunner 2cc84235-58f7-4cb1-89cd-0c379d3b6908 --url https://playrunner.cloud
+```
+
+For a self-hosted or local installation, replace `https://playrunner.cloud`
+with the Playrunner URL for that environment.
 
 The command streams progress and returns a non-zero exit code if the workflow
 fails. Use `--no-wait` to return as soon as Playrunner accepts the run, or
@@ -102,7 +106,7 @@ commit API tokens to source control or paste them into documentation.
 | Node stays yellow indefinitely | Orchestrator container not running — check `docker ps` |
 | `git clone` fails              | GitHub token expired or repo access revoked            |
 | Tests error immediately        | Wrong Playwright version selected for your project     |
-| `PLAYRUNNER_URL` is required   | Export the URL in the same shell that runs the CLI     |
+| Playrunner URL is required     | Pass the URL with `--url` or export `PLAYRUNNER_URL`   |
 | `command not found`            | Use `npx playrunner` or install the CLI globally       |
 
 See the [Troubleshooting guide](../local-dev/09-troubleshooting.md) for more

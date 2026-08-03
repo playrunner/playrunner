@@ -35,6 +35,13 @@ function harness(responses: Response[]) {
   };
 }
 
+test('--version reports the package version', async () => {
+  const run = harness([]);
+
+  assert.equal(await runCli(['--version'], run.dependencies), 0);
+  assert.deepEqual(run.stdout, ['0.1.3']);
+});
+
 test('waits for success, streams safe messages, and authenticates by header', async () => {
   const run = harness([
     jsonResponse({ executionId: 'execution-1', status: 'running' }, 202),

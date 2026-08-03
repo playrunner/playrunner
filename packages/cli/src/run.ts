@@ -1,4 +1,4 @@
-const VERSION = '0.1.0';
+const VERSION = '0.1.3';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);

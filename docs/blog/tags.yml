@@ -12,3 +12,8 @@ contributors:
   label: Contributors
   permalink: /contributors
   description: Ways to contribute to Playrunner
+
+ci-cd:
+  label: CI/CD
+  permalink: /ci-cd
+  description: Continuous integration and delivery with Playrunner
