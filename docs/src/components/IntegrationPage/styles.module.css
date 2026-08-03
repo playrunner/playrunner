@@ -76,6 +76,11 @@
   color: #181717;
 }
 
+.resendIcon {
+  background: #ffffff;
+  color: #000000;
+}
+
 .gcpIcon {
   background: #ffffff;
 }
@@ -122,6 +127,11 @@
 }
 
 :global([data-theme='dark']) .openaiIcon {
+  background: #111827;
+  color: #ffffff;
+}
+
+:global([data-theme='dark']) .resendIcon {
   background: #111827;
   color: #ffffff;
 }

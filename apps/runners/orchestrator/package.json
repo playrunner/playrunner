@@ -30,6 +30,7 @@
     "@playrunner/javascript": "file:../../../packages/javascript",
     "@playrunner/jira": "file:../../../packages/jira",
     "@playrunner/openai": "file:../../../packages/openai",
+    "@playrunner/resend": "file:../../../packages/resend",
     "@playrunner/slack": "file:../../../packages/slack",
     "@playrunner/webhooks": "file:../../../packages/webhooks",
     "axios": "^1.18.0",

@@ -1,0 +1,126 @@
+{
+  "name": "@playrunner/resend",
+  "version": "0.1.0",
+  "description": "Resend email integration for Playrunner.",
+  "keywords": [
+    "playrunner",
+    "resend",
+    "email",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/resend"
+  },
+  "homepage": "https://playrunner.dev/docs/integration-packages/resend/",
+  "bugs": {
+    "url": "https://github.com/playrunner/playrunner/issues"
+  },
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "playrunner": {
+    "integration": {
+      "id": "resend",
+      "frontend": ".",
+      "api": "./api",
+      "orchestrator": "./orchestrator",
+      "e2e": "./e2e"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
+    },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
+    },
+    "./assets/resend.svg": "./assets/resend.svg"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "assets",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "NODE_OPTIONS=--preserve-symlinks tsx --test src/*.test.ts src/api/*.test.ts src/orchestrator/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@playrunner/integration-sdk": "^0.1.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
+    "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.0",
+    "@eslint/js": "^9.39.4",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.6.2",
+    "@types/react": "^19.2.14",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "lucide-react": "^0.546.0",
+    "prettier": "3.8.4",
+    "tsx": "^4.23.1",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.61.1"
+  }
+}

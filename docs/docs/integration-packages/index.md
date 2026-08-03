@@ -90,6 +90,14 @@ page describes its available user setup and package surfaces.
     installCommand="npm install @playrunner/playwright @playrunner/github"
   />
   <IntegrationDirectoryItem
+    name="Resend"
+    packageName="@playrunner/resend"
+    description="Send email or wait for inbound messages, verification codes, and attachments."
+    icon="resend"
+    href="/docs/integration-packages/resend"
+    installCommand="npm install @playrunner/resend"
+  />
+  <IntegrationDirectoryItem
     name="Slack"
     packageName="@playrunner/slack"
     description="Send notifications and alerts to Slack channels."

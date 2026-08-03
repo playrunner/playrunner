@@ -6,6 +6,7 @@ import HuggingFaceLogo from '../../../../packages/huggingface/assets/huggingface
 import JiraLogo from '../../../../packages/jira/assets/jira.svg';
 import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
+import { ResendIcon } from '../../../../packages/resend/src/frontend/ResendIcon';
 import SlackLogo from '../../../../packages/slack/assets/slack.svg';
 import styles from './styles.module.css';
 
@@ -18,6 +19,7 @@ type IconKind =
   | 'jira'
   | 'openai'
   | 'playwright'
+  | 'resend'
   | 'schedule'
   | 'slack'
   | 'webhooks';
@@ -49,6 +51,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <OpenAILogo aria-hidden="true" />;
     case 'playwright':
       return <PlaywrightLogo aria-hidden="true" />;
+    case 'resend':
+      return <ResendIcon />;
     case 'slack':
       return <SlackLogo aria-hidden="true" />;
     case 'webhooks':
