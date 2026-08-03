@@ -4,9 +4,8 @@ import { Prisma } from '../generated/prisma/client.cts';
 import { Request, Router } from 'express';
 import { getPublicApiBaseUrl } from '../config';
 import { prisma } from '../lib/prisma';
-import { apiRuntime } from '../runtime';
-import { state } from '../state';
 import { getPublicConnection } from '../services/connections';
+import { executeSavedWorkflow } from '../services/saved-workflow-execution';
 
 export const schedulerRouter = Router();
 
@@ -246,41 +245,37 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
   }
 
   const testId = crypto.randomUUID();
-  state.testCloudProviders[testId] = 'GCP';
 
   await prisma.workflowScheduleTrigger.update({
     where: { id: triggerRecord.id },
     data: { executionId: testId },
   });
 
-  let result;
+  let started;
 
   try {
-    result = await apiRuntime.workflowExecution.execute({
+    started = await executeSavedWorkflow({
       body: {
-        cloudProvider: 'GCP',
-        concurrency: schedule.workflow.concurrency ?? undefined,
-        connections: schedule.workflow.connections ?? [],
-        nodes: schedule.workflow.nodes ?? [],
         scheduledTime: scheduledTime.toISOString(),
         scheduler: {
           scheduleId: schedule.id,
           scheduleNodeId: schedule.scheduleNodeId,
         },
-        workflowId: schedule.workflowId,
-        workflow: {
-          definition: {
-            id: schedule.workflowId,
-            name: schedule.workflow.title || 'Untitled Workflow',
-          },
-          run: {
-            runner: 'GCP',
-            trigger: 'schedule',
+      },
+      executionId: testId,
+      req: createExecutionRequest(req, schedule.userId),
+      trigger: {
+        data: {
+          scheduledTime: scheduledTime.toISOString(),
+          scheduler: {
+            scheduleId: schedule.id,
+            scheduleNodeId: schedule.scheduleNodeId,
           },
         },
+        name: 'schedule',
       },
-      req: createExecutionRequest(req, schedule.userId),
-      testId,
+      userId: schedule.userId,
+      workflowId: schedule.workflowId,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -308,7 +303,7 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
     return;
   }
 
-  if (result.status >= 200 && result.status < 300) {
+  if (started && started.result.status >= 200 && started.result.status < 300) {
     await prisma.$transaction([
       prisma.workflowSchedule.update({
         where: { id: schedule.id },
@@ -334,9 +329,9 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
   }
 
   const message =
-    typeof result.body?.error === 'string'
-      ? result.body.error
-      : `Workflow start failed with status ${result.status}.`;
+    typeof started?.result.body?.error === 'string'
+      ? started.result.body.error
+      : `Workflow start failed with status ${started?.result.status ?? 404}.`;
   await prisma.$transaction([
     prisma.workflowSchedule.update({
       where: { id: schedule.id },
@@ -353,7 +348,7 @@ schedulerRouter.post('/trigger/:scheduleId', async (req, res) => {
       },
     }),
   ]);
-  res.status(result.status).json({
+  res.status(started?.result.status ?? 404).json({
     error: message,
     executionId: testId,
     scheduleId: schedule.id,

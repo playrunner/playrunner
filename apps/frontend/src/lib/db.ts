@@ -120,6 +120,35 @@ async function saveCloudCredentialRecord(providerId: string, data: any) {
 }
 
 export const DbAPI = {
+  async getApiTokens() {
+    const payload = await apiRequest<{ tokens: any[] }>('/api/tokens');
+    return payload.tokens;
+  },
+
+  async createApiToken(data: {
+    allowedWorkflowIds: string[];
+    expiresAt: string | null;
+    name: string;
+  }) {
+    return await apiRequest<{ plaintext: string; token: any }>('/api/tokens', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async revokeApiToken(tokenId: string) {
+    await apiRequest(`/api/tokens/${encodeURIComponent(tokenId)}/revoke`, {
+      method: 'POST',
+    });
+  },
+
+  async rotateApiToken(tokenId: string) {
+    return await apiRequest<{ plaintext: string; token: any }>(
+      `/api/tokens/${encodeURIComponent(tokenId)}/rotate`,
+      { method: 'POST' },
+    );
+  },
+
   async getTeams() {
     const payload = await apiRequest<{ teams: any[] }>('/api/teams');
     return payload.teams;

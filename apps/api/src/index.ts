@@ -19,6 +19,8 @@ import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
 import { storeRouter } from './routes/store';
 import { teamsRouter } from './routes/teams';
+import { apiTokensRouter } from './routes/api-tokens';
+import { machineExecutionsRouter } from './routes/machine-executions';
 import { createIntegrationCredentialStore } from './services/connections';
 import { createIntegrationApiHost } from './services/inbound-webhooks';
 import { tunnelService } from './services/tunnel';
@@ -48,6 +50,7 @@ app.use('/api/executions', executionsRouter);
 app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/scheduler', schedulerRouter);
+app.use('/api/v1/workflows', machineExecutionsRouter);
 
 app.use('/api', requireAuth);
 app.use('/api', (req, _res, next) => {
@@ -60,6 +63,7 @@ app.use('/api/runners', runnersRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/store', storeRouter);
 app.use('/api/teams', teamsRouter);
+app.use('/api/tokens', apiTokensRouter);
 app.use('/api/insights', insightsRouter);
 app.use('/api/reports', insightsRouter);
 

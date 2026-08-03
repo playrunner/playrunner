@@ -39,6 +39,12 @@ interface RequestIntegrationCredentialStore {
 declare module 'express-serve-static-core' {
   interface Request {
     authUser?: AuthUser;
+    apiToken?: {
+      allowedWorkflowIds: unknown;
+      id: string;
+      scopes: unknown;
+      userId: string;
+    };
     integrationCredentials?: RequestIntegrationCredentialStore;
   }
 }

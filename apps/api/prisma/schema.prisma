@@ -129,6 +129,38 @@ model WorkflowEvent {
   @@index([workflowId])
 }
 
+model ApiToken {
+  id                 String          @id @default(cuid())
+  userId             String
+  name               String
+  tokenHash          String          @unique
+  displayPrefix      String
+  scopes             Json
+  allowedWorkflowIds Json?
+  createdAt          DateTime        @default(now())
+  lastUsedAt         DateTime?
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+  auditEvents        ApiTokenAudit[]
+
+  @@index([userId])
+  @@index([userId, revokedAt])
+}
+
+model ApiTokenAudit {
+  id          BigInt   @id @default(autoincrement())
+  apiTokenId  String
+  userId      String
+  action      String
+  workflowId  String?
+  executionId String?
+  createdAt   DateTime @default(now())
+  apiToken    ApiToken @relation(fields: [apiTokenId], references: [id], onDelete: Cascade)
+
+  @@index([apiTokenId, createdAt])
+  @@index([userId, createdAt])
+}
+
 model Connection {
   id                String   @id @default(cuid())
   userId            String

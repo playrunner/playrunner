@@ -15,8 +15,73 @@ type StreamableWorkflowEvent = {
   payload: Record<string, unknown>;
 };
 
+const SAFE_EVENT_MESSAGES: Record<string, string> = {
+  workflow_started: 'Workflow started.',
+  workflow_completed: 'Workflow completed.',
+  workflow_failed: 'Workflow failed.',
+  workflow_cancelled: 'Workflow cancelled.',
+  node_started: 'Node started.',
+  node_completed: 'Node completed.',
+  node_failed: 'Node failed.',
+  node_cancelled: 'Node cancelled.',
+};
+const SAFE_NODE_STATES = new Set([
+  'idle',
+  'pending',
+  'running',
+  'success',
+  'error',
+  'warning',
+]);
+const SAFE_LEVELS = new Set(['debug', 'info', 'warn', 'error', 'success']);
+const MAX_SAFE_LOG_LENGTH = 10_000;
+
 function normalizeString(value: unknown) {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function stripControlSequences(value: string) {
+  let result = '';
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 27 && value[index + 1] === '[') {
+      index += 2;
+      while (index < value.length) {
+        const sequenceCode = value.charCodeAt(index);
+        if (sequenceCode >= 64 && sequenceCode <= 126) break;
+        index += 1;
+      }
+      continue;
+    }
+    if (
+      code === 9 ||
+      code === 10 ||
+      code === 13 ||
+      (code >= 32 && code !== 127)
+    ) {
+      result += value[index];
+    }
+  }
+  return result;
+}
+
+export function sanitizeWorkflowLogMessage(value: unknown) {
+  const message = normalizeString(value);
+  if (!message) return null;
+
+  return stripControlSequences(message)
+    .slice(0, MAX_SAFE_LOG_LENGTH)
+    .replace(/pr_live_[a-zA-Z0-9_-]{10,}/g, '[redacted]')
+    .replace(
+      /\b(?:gh[pousr]_[a-zA-Z0-9_]{20,}|github_pat_[a-zA-Z0-9_]{20,}|sk-[a-zA-Z0-9_-]{20,})\b/g,
+      '[redacted]',
+    )
+    .replace(/(Bearer\s+)[a-zA-Z0-9._~+/=-]+/gi, '$1[redacted]')
+    .replace(
+      /(["']?(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password)["']?\s*[:=]\s*["']?)[^"'\s,}]+/gi,
+      '$1[redacted]',
+    )
+    .replace(/([?&](?:token|key|secret|api_key)=)[^&#\s]+/gi, '$1[redacted]');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -112,6 +177,40 @@ function toStreamableEvent(event: WorkflowEvent): StreamableWorkflowEvent {
       workflowId:
         normalizeString(payload.workflowId) ?? event.workflowId ?? null,
     },
+  };
+}
+
+export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
+  const rawType = normalizeString(event.payload.type) ?? 'event';
+  const rawState = normalizeString(event.payload.state);
+  const state = rawState && SAFE_NODE_STATES.has(rawState) ? rawState : null;
+  const type =
+    rawType === 'log' && sanitizeWorkflowLogMessage(event.payload.message)
+      ? 'log'
+      : rawType === 'node_state' && state
+        ? 'node_state'
+        : Object.hasOwn(SAFE_EVENT_MESSAGES, rawType)
+          ? rawType
+          : 'event';
+  const rawNodeId = normalizeString(event.payload.nodeId);
+  const nodeId =
+    rawNodeId && /^[a-zA-Z0-9_-]{1,100}$/.test(rawNodeId) ? rawNodeId : null;
+  const rawLevel = normalizeString(event.payload.level);
+  const rawTimestamp = normalizeString(event.payload.timestamp);
+  const timestamp = rawTimestamp ? parseOccurredAt(rawTimestamp) : undefined;
+  return {
+    sequence: event.sequence.toString(),
+    type,
+    level: rawLevel && SAFE_LEVELS.has(rawLevel) ? rawLevel : null,
+    message:
+      type === 'log'
+        ? sanitizeWorkflowLogMessage(event.payload.message)
+        : type === 'node_state'
+          ? `${nodeId ? `Node ${nodeId}` : 'Node'} is ${state}.`
+          : (SAFE_EVENT_MESSAGES[type] ?? null),
+    nodeId,
+    state,
+    timestamp: timestamp?.toISOString() ?? null,
   };
 }
 
@@ -274,6 +373,11 @@ class ExecutionEventsService {
     });
 
     return events.map(toStreamableEvent);
+  }
+
+  async listSafeEvents(executionId: string, afterSequence: bigint, take = 100) {
+    const events = await this.listEvents(executionId, afterSequence, take);
+    return events.map(toSafeWorkflowEvent);
   }
 }
 

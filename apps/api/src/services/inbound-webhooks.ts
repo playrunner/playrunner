@@ -5,8 +5,7 @@ import type {
 } from '@playrunner/integration-sdk/api';
 import type { Request } from 'express';
 import { prisma } from '../lib/prisma';
-import { apiRuntime } from '../runtime';
-import { state } from '../state';
+import { executeSavedWorkflow } from './saved-workflow-execution';
 import {
   decryptCredentialSecrets,
   encryptCredentialSecrets,
@@ -148,38 +147,24 @@ export const inboundWebhookHost: IntegrationApiHost['inboundWebhooks'] = {
       return null;
     }
 
-    const executionId = crypto.randomUUID();
-    const cloudProvider =
-      endpoint.workflow.cloudProvider === 'GCP' ? 'GCP' : 'LOCAL_RUNNER';
-    state.testCloudProviders[executionId] = cloudProvider;
     const receivedAt = new Date().toISOString();
     const trigger = {
       webhook: sanitizeRequest(inboundRequest, receivedAt),
     };
-    const result = await apiRuntime.workflowExecution.execute({
-      body: {
-        cloudProvider,
-        concurrency: endpoint.workflow.concurrency ?? undefined,
-        connections: endpoint.workflow.connections ?? [],
-        nodes: endpoint.workflow.nodes ?? [],
-        trigger,
-        workflowId: endpoint.workflowId,
-        workflow: {
-          definition: {
-            id: endpoint.workflowId,
-            name: endpoint.workflow.title || 'Untitled Workflow',
-          },
-          run: { runner: cloudProvider, trigger: 'webhook' },
-          trigger,
-        },
-      },
+    const started = await executeSavedWorkflow({
       req: executionRequest('http://localhost:3011', endpoint.userId),
-      testId: executionId,
+      trigger: { data: trigger, name: 'webhook' },
+      userId: endpoint.userId,
+      workflowId: endpoint.workflowId,
     });
-    if (result.status < 200 || result.status >= 300) {
+    if (
+      !started ||
+      started.result.status < 200 ||
+      started.result.status >= 300
+    ) {
       throw new Error('Workflow could not be started.');
     }
-    return { executionId, status: 'started' };
+    return { executionId: started.executionId, status: 'started' };
   },
 
   async getEndpoint({ nodeId, userId, workflowId }) {
