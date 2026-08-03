@@ -63,8 +63,9 @@ requires rebuilding and redeploying the affected artifacts.
 
 ## Setup
 
-You need a Resend account. The same Playrunner connection supports sending and
-receiving; the operation is selected on each workflow node.
+You need a [Resend account](https://resend.com). The same Playrunner connection
+supports sending and receiving; the operation is selected on each workflow
+node.
 
 ### Connect Resend
 
