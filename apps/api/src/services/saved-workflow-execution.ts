@@ -24,8 +24,7 @@ export async function executeSavedWorkflow(params: {
   if (!workflow) return null;
 
   const executionId = params.executionId ?? crypto.randomUUID();
-  const cloudProvider =
-    workflow.cloudProvider === 'GCP' ? 'GCP' : 'LOCAL_RUNNER';
+  const cloudProvider = workflow.cloudProvider || 'LOCAL_RUNNER';
   state.testCloudProviders[executionId] = cloudProvider;
   const triggerData = params.trigger.data ?? {};
   const result = await apiRuntime.workflowExecution.execute({

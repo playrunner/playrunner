@@ -14,8 +14,7 @@ export function buildSavedWorkflowExecutionBody(params: {
   triggerName: 'ci' | 'schedule' | 'webhook';
   workflow: SavedWorkflow;
 }) {
-  const cloudProvider =
-    params.workflow.cloudProvider === 'GCP' ? 'GCP' : 'LOCAL_RUNNER';
+  const cloudProvider = params.workflow.cloudProvider || 'LOCAL_RUNNER';
   return {
     ...params.body,
     cloudProvider,
