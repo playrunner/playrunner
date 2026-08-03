@@ -167,8 +167,8 @@ export default function Pricing(): ReactNode {
                 </svg>
               </div>
               <div className={styles.licenseCopy}>
-                <span className={styles.eyebrow}>A clear license boundary</span>
-                <h2>Free to use does not mean unrestricted use.</h2>
+                <span className={styles.eyebrow}>Sustainable Use</span>
+                <h2>Free to use under the Sustainable Use License.</h2>
                 <p>
                   Self-hosting is available under the Playrunner Sustainable Use
                   License. It permits internal business use and personal,
