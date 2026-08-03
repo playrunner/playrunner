@@ -24,6 +24,22 @@ yarn build
 
 This command generates static content into the `build` directory and can be served using any static contents hosting service.
 
+## Algolia DocSearch
+
+The navbar search and `/search` page are enabled when all three public DocSearch
+values are available:
+
+```bash
+ALGOLIA_APP_ID="your-application-id"
+ALGOLIA_INDEX_NAME="your-index-name"
+ALGOLIA_SEARCH_API_KEY="your-search-only-api-key"
+```
+
+Add these values to `.env.local` when running the full local stack. For the
+GitHub Pages deployment, add them as GitHub Actions repository variables. The
+search-only API key is exposed to browsers by design; never use an Algolia admin
+API key.
+
 ## Deployment
 
 Using SSH:

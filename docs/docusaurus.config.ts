@@ -8,6 +8,28 @@ import type * as Preset from '@docusaurus/preset-classic';
 // project path for the local Docusaurus development server.
 const baseUrl = process.env.NODE_ENV === 'production' ? '/' : '/playrunner/';
 
+const algoliaAppId = process.env.ALGOLIA_APP_ID;
+const algoliaApiKey = process.env.ALGOLIA_SEARCH_API_KEY;
+const algoliaIndexName = process.env.ALGOLIA_INDEX_NAME;
+const algoliaValues = [algoliaAppId, algoliaApiKey, algoliaIndexName];
+
+if (algoliaValues.some(Boolean) && !algoliaValues.every(Boolean)) {
+  throw new Error(
+    'Algolia DocSearch requires ALGOLIA_APP_ID, ALGOLIA_SEARCH_API_KEY, and ALGOLIA_INDEX_NAME.',
+  );
+}
+
+const algolia =
+  algoliaAppId && algoliaApiKey && algoliaIndexName
+    ? {
+        appId: algoliaAppId,
+        apiKey: algoliaApiKey,
+        indexName: algoliaIndexName,
+        contextualSearch: true,
+        searchPagePath: 'search',
+      }
+    : undefined;
+
 const config: Config = {
   title: 'Playrunner',
   tagline: 'Orchestration for Playwright test automation.',
@@ -71,6 +93,7 @@ const config: Config = {
 
   themeConfig: {
     image: 'img/playrunner-icon.svg',
+    ...(algolia ? { algolia } : {}),
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -89,6 +112,7 @@ const config: Config = {
         },
         { to: '/pricing', label: 'Pricing', position: 'left' },
         { to: '/blog', label: 'Blog', position: 'left' },
+        ...(algolia ? ([{ type: 'search', position: 'right' }] as const) : []),
         {
           href: 'https://www.npmjs.com/org/playrunner',
           position: 'right',

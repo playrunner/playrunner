@@ -40,6 +40,10 @@ jobs:
 
       - name: Build Docusaurus site
         working-directory: docs
+        env:
+          ALGOLIA_APP_ID: ${{ vars.ALGOLIA_APP_ID }}
+          ALGOLIA_INDEX_NAME: ${{ vars.ALGOLIA_INDEX_NAME }}
+          ALGOLIA_SEARCH_API_KEY: ${{ vars.ALGOLIA_SEARCH_API_KEY }}
         run: npm run build
 
       - name: Upload GitHub Pages artifact
