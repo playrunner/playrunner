@@ -41,7 +41,7 @@
     "@playrunner/playwright": "^0.1.1",
     "@playrunner/resend": "file:../../packages/resend",
     "@playrunner/schedule": "^0.1.2",
-    "@playrunner/slack": "file:../../packages/slack",
+    "@playrunner/slack": "^0.1.2",
     "@playrunner/webhooks": "file:../../packages/webhooks",
     "clsx": "^2.1.1",
     "lucide-react": "^0.546.0",
