@@ -192,6 +192,20 @@
   text-transform: none;
 }
 
+.packageName a,
+.directoryPackageName {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--integration-border);
+  text-underline-offset: 0.2rem;
+}
+
+.packageName a:hover,
+.directoryPackageName:hover {
+  color: var(--ifm-color-primary);
+  text-decoration-color: currentColor;
+}
+
 .heroActions {
   align-items: center;
   display: flex;
@@ -331,7 +345,7 @@
   width: 3.75rem;
 }
 
-.directoryItem > span {
+.directoryPackageName {
   color: var(--integration-muted);
   font-size: 0.72rem;
   font-weight: 800;
@@ -343,6 +357,17 @@
   color: var(--ifm-heading-color);
   font-size: 1.15rem;
   margin: 0;
+}
+
+.directoryItem h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.directoryItem h2 a:hover {
+  color: var(--ifm-color-primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
 }
 
 .directoryItem p {

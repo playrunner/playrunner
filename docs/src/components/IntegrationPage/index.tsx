@@ -134,7 +134,9 @@ export function IntegrationHero({
       <div className={styles.heroBody}>
         <IntegrationIcon icon={icon} />
         <div className={styles.heroCopy}>
-          <p className={styles.packageName}>{packageName}</p>
+          <p className={styles.packageName}>
+            <a href={npmUrl}>{packageName}</a>
+          </p>
           <h1>{name} Integration</h1>
           <p>{description}</p>
         </div>
@@ -203,14 +205,20 @@ export function IntegrationDirectoryItem({
   href: string;
   installCommand: string;
 }) {
+  const npmUrl = `https://www.npmjs.com/package/${packageName}`;
+
   return (
-    <Link className={styles.directoryItem} to={href}>
+    <article className={styles.directoryItem}>
       <IntegrationIcon icon={icon} />
-      <span>{packageName}</span>
-      <h2>{name}</h2>
+      <a className={styles.directoryPackageName} href={npmUrl}>
+        {packageName}
+      </a>
+      <h2>
+        <Link to={href}>{name}</Link>
+      </h2>
       <p>{description}</p>
       <code>{installCommand}</code>
-    </Link>
+    </article>
   );
 }
 
