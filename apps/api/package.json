@@ -35,7 +35,7 @@
     "@playrunner/javascript": "^0.1.0",
     "@playrunner/jira": "^0.1.2",
     "@playrunner/openai": "^0.1.3",
-    "@playrunner/playwright": "^0.1.0",
+    "@playrunner/playwright": "^0.1.1",
     "@playrunner/resend": "file:../../packages/resend",
     "@playrunner/schedule": "^0.1.2",
     "@playrunner/slack": "^0.1.2",
