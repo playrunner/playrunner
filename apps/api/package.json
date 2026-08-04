@@ -38,7 +38,7 @@
     "@playrunner/playwright": "^0.1.0",
     "@playrunner/resend": "file:../../packages/resend",
     "@playrunner/schedule": "^0.1.2",
-    "@playrunner/slack": "^0.1.2",
+    "@playrunner/slack": "file:../../packages/slack",
     "@playrunner/webhooks": "file:../../packages/webhooks",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.1",

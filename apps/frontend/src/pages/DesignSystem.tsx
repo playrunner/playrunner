@@ -19,6 +19,9 @@ export default function DesignSystem() {
   const [selectedBrowsers, setSelectedBrowsers] = useState<string[]>([
     'chrome',
   ]);
+  const [connectionMethod, setConnectionMethod] = useState<'oauth' | 'apiKey'>(
+    'oauth',
+  );
   const handleBackClick = () => {
     if (window.history.state?.idx > 0) {
       navigate(-1);
@@ -199,6 +202,46 @@ export default function DesignSystem() {
                   className="min-h-[96px]"
                 />
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* --- Segmented Controls --- */}
+        <section className="space-y-6">
+          <div className="border-b border-subtle pb-2">
+            <h2 className="text-xl font-medium text-[var(--foreground)] mb-1">
+              Segmented Controls
+            </h2>
+            <p className="text-sm text-muted">
+              Use the accent colors for the active option so it is dark in the
+              light theme and white in the dark theme.
+            </p>
+          </div>
+
+          <div className="max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+            <p className="text-sm font-medium text-[var(--foreground)]">
+              Authentication method
+            </p>
+            <div
+              className="mt-4 flex gap-2 border-b border-subtle pb-2"
+              role="group"
+              aria-label="Example authentication method"
+            >
+              {(['oauth', 'apiKey'] as const).map((method) => (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => setConnectionMethod(method)}
+                  aria-pressed={connectionMethod === method}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    connectionMethod === method
+                      ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
+                      : 'text-muted hover:text-[var(--foreground)]'
+                  }`}
+                >
+                  {method === 'oauth' ? 'Connect to provider' : 'API key'}
+                </button>
+              ))}
             </div>
           </div>
         </section>

@@ -19,7 +19,19 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
           'href',
           /\/docs\/integration-packages\/resend#setup$/,
         );
+        await expect(pom.connectModeButton).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
+        await expect(pom.apiKeyModeButton).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        );
         await pom.apiKeyModeButton.click();
+        await expect(pom.apiKeyModeButton).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
         await expect(pom.apiKeyInput).toHaveAttribute('type', 'password');
         await expect(pom.saveButton).toBeDisabled();
 

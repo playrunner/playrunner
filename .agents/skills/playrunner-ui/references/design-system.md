@@ -43,6 +43,7 @@
 - Use `Input` for text fields and keep labels directly above controls with tight spacing.
 - Use `Badge` for status and small state chips.
 - For icon containers inside cards, use compact inset surfaces like `h-8 w-8` or `h-9 w-9`, `rounded-lg`, `bg-[var(--surface-hover)]`, `border border-[var(--border)]`.
+- For integration authentication choices, use the Slack-style segmented control: a `flex gap-2 border-b border-subtle pb-2` group with compact `rounded-lg px-3 py-1.5 text-xs font-medium` buttons. Select the action-oriented OAuth/provider option by default when available. Active options use `bg-[var(--accent)] text-[var(--accent-foreground)]`, which appears dark in the light theme and white in the dark theme; inactive options use `text-muted hover:text-[var(--foreground)]`. Add a group label and `aria-pressed` states.
 
 ## Code And Command Blocks
 

@@ -274,19 +274,24 @@ export function ResendSettingsModal({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] p-1">
+      <div
+        className="flex gap-2 border-b border-subtle pb-2"
+        role="group"
+        aria-label="Resend authentication method"
+      >
         {(['oauth', 'apiKey'] as const).map((mode) => (
           <button
             key={mode}
             type="button"
             onClick={() => setAuthMode(mode)}
-            className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+            aria-pressed={authMode === mode}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               authMode === mode
-                ? 'bg-[var(--surface)] text-[var(--foreground)] shadow-sm'
+                ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
                 : 'text-muted hover:text-[var(--foreground)]'
             }`}
           >
-            {mode === 'oauth' ? 'OAuth' : 'API key'}
+            {mode === 'oauth' ? 'Connect to Resend' : 'API key'}
           </button>
         ))}
       </div>

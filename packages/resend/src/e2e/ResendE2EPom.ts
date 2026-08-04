@@ -4,6 +4,7 @@ import type { PlayrunnerE2EHost } from '@playrunner/integration-sdk/e2e';
 export class ResendE2EPom {
   readonly apiKeyInput: Locator;
   readonly apiKeyModeButton: Locator;
+  readonly connectModeButton: Locator;
   readonly connectedHeading: Locator;
   readonly dialog: Locator;
   readonly disconnectButton: Locator;
@@ -18,6 +19,9 @@ export class ResendE2EPom {
     this.dialog = page.getByRole('dialog', { name: 'Connect to Resend' });
     this.apiKeyModeButton = this.dialog.getByRole('button', {
       name: 'API key',
+    });
+    this.connectModeButton = this.dialog.getByRole('button', {
+      name: 'Connect to Resend',
     });
     this.apiKeyInput = this.dialog.getByLabel('API key');
     this.receivingAddressInput = this.dialog.getByLabel(
