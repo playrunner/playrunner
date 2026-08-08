@@ -26,6 +26,7 @@
     "@google-cloud/storage": "^7.19.0",
     "@huggingface/inference": "^4.13.23",
     "@playrunner/huggingface": "file:../../../packages/huggingface",
+    "@playrunner/github": "file:../../../packages/github",
     "@playrunner/integration-sdk": "file:../../../packages/integration-sdk",
     "@playrunner/javascript": "file:../../../packages/javascript",
     "@playrunner/jira": "file:../../../packages/jira",

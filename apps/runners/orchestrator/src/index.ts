@@ -779,21 +779,6 @@ export async function executeWorkflow(reqBody: any) {
                 `Playwright Runner failed: ${getErrorMessage(error)}`,
               );
             }
-          } else if (type === 'github') {
-            const hasGithubSettings = !!(settings && settings.github);
-            await publishLog(
-              `Processing node: ${node.label} (${node.id})`,
-              'info',
-            );
-            if (hasGithubSettings) {
-              await publishLog(
-                'GitHub credentials loaded. Authenticating...',
-                'info',
-              );
-            } else {
-              await publishLog('No GitHub credentials provided.', 'warn');
-              finalState = 'error';
-            }
           } else {
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,

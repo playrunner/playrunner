@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/github",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "GitHub integration package for Playrunner.",
   "keywords": [
     "playrunner",
@@ -28,6 +28,7 @@
       "id": "github",
       "frontend": ".",
       "api": "./api",
+      "orchestrator": "./orchestrator",
       "e2e": "./e2e"
     }
   },
@@ -50,6 +51,12 @@
       "require": "./src/api/index.ts",
       "default": "./src/api/index.ts"
     },
+    "./orchestrator": {
+      "types": "./src/orchestrator/index.ts",
+      "import": "./src/orchestrator/index.ts",
+      "require": "./src/orchestrator/index.ts",
+      "default": "./src/orchestrator/index.ts"
+    },
     "./e2e": {
       "types": "./src/e2e/index.ts",
       "import": "./src/e2e/index.ts",
@@ -71,7 +78,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "NODE_OPTIONS=--preserve-symlinks tsx --test src/api/*.test.ts",
+    "test": "NODE_OPTIONS=--preserve-symlinks tsx --test src/api/*.test.ts src/orchestrator/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

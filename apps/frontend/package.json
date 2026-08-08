@@ -32,7 +32,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@playrunner/environment": "^0.1.2",
     "@playrunner/gcp": "0.1.2",
-    "@playrunner/github": "^0.1.1",
+    "@playrunner/github": "file:../../packages/github",
     "@playrunner/huggingface": "^0.1.2",
     "@playrunner/integration-sdk": "file:../../packages/integration-sdk",
     "@playrunner/javascript": "^0.1.1",
