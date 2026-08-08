@@ -7,7 +7,7 @@ export const githubIntegration: Integration = {
   id: 'github',
   name: 'GitHub',
   category: 'Version Control',
-  description: 'Create and read GitHub issues',
+  description: 'Manage GitHub issues, comments, and pull requests',
   icon: GithubIcon,
   nodeType: 'action',
   nodeSelectorOrder: 35,

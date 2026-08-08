@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
 
+const GITHUB_API_VERSION = '2026-03-10';
+
 function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
   return (req as { integrationCredentials?: IntegrationCredentialStore })
     .integrationCredentials;
@@ -128,7 +130,7 @@ async function githubGet(accessToken: string, url: string) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      'X-GitHub-Api-Version': GITHUB_API_VERSION,
     },
   });
   const data = await response.json().catch(() => ({}));
@@ -188,6 +190,37 @@ async function createGithubApiClient(req: unknown) {
       }
     },
   };
+}
+
+async function githubGetAllPages<T>(
+  github: { get(url: string): Promise<unknown> },
+  url: string,
+  collectionKey?: string,
+): Promise<T[]> {
+  const items: T[] = [];
+  const pageSize = 100;
+
+  for (let page = 1; ; page += 1) {
+    const separator = url.includes('?') ? '&' : '?';
+    const data = await github.get(
+      `${url}${separator}per_page=${pageSize}&page=${page}`,
+    );
+    const pageItems = collectionKey
+      ? data &&
+        typeof data === 'object' &&
+        collectionKey in data &&
+        Array.isArray(data[collectionKey as keyof typeof data])
+        ? (data[collectionKey as keyof typeof data] as T[])
+        : []
+      : Array.isArray(data)
+        ? (data as T[])
+        : [];
+
+    items.push(...pageItems);
+    if (pageItems.length < pageSize) break;
+  }
+
+  return items;
 }
 
 // Proxy endpoint to exchange GitHub OAuth code for an access token to bypass CORS
@@ -285,10 +318,10 @@ githubRouter.get('/repositories', async (req, res) => {
     ) {
       installationIds = [String(savedInstallationId)];
     } else {
-      const installations = (await github.get(
-        'https://api.github.com/user/installations?per_page=100',
-      )) as { installations?: Array<{ id?: string | number }> };
-      installationIds = (installations.installations ?? [])
+      const installations = await githubGetAllPages<{
+        id?: string | number;
+      }>(github, 'https://api.github.com/user/installations', 'installations');
+      installationIds = installations
         .map((installation) => installation.id)
         .filter(
           (id): id is string | number =>
@@ -299,12 +332,14 @@ githubRouter.get('/repositories', async (req, res) => {
 
     const repositoryLists = await Promise.all(
       installationIds.map(async (installationId) => {
-        const data = (await github.get(
-          `https://api.github.com/user/installations/${encodeURIComponent(installationId)}/repositories?per_page=100`,
-        )) as {
-          repositories?: Array<{ id?: string | number; full_name?: string }>;
-        };
-        return data.repositories ?? [];
+        return githubGetAllPages<{
+          id?: string | number;
+          full_name?: string;
+        }>(
+          github,
+          `https://api.github.com/user/installations/${encodeURIComponent(installationId)}/repositories`,
+          'repositories',
+        );
       }),
     );
     const repositories = repositoryLists
@@ -321,6 +356,11 @@ githubRouter.get('/repositories', async (req, res) => {
         id: String(repository.id),
         full_name: repository.full_name,
       }))
+      .filter(
+        (repository, index, all) =>
+          all.findIndex((candidate) => candidate.id === repository.id) ===
+          index,
+      )
       .sort((left, right) => left.full_name.localeCompare(right.full_name));
 
     return res.json({ repositories });
@@ -355,17 +395,15 @@ githubRouter.get('/branches', async (req, res) => {
     }
 
     const github = await createGithubApiClient(req);
-    const data = (await github.get(
-      `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches?per_page=100`,
-    )) as Array<{ name?: string }>;
-    const branches = Array.isArray(data)
-      ? data
-          .filter(
-            (branch): branch is { name: string } =>
-              typeof branch.name === 'string',
-          )
-          .map((branch) => ({ name: branch.name }))
-      : [];
+    const data = await githubGetAllPages<{ name?: string }>(
+      github,
+      `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches`,
+    );
+    const branches = data
+      .filter(
+        (branch): branch is { name: string } => typeof branch.name === 'string',
+      )
+      .map((branch) => ({ name: branch.name }));
 
     return res.json({ branches });
   } catch (error) {
