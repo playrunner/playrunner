@@ -5,6 +5,7 @@ import { Textarea } from './ui/Textarea';
 import { Select } from './ui/Select';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
+import { openAuthenticatedOutput } from '../lib/output-links';
 import { INTEGRATIONS } from '../integrations/registry';
 import {
   ChevronDown,
@@ -473,7 +474,13 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                   rel="noreferrer"
                                   className="text-[10px] text-blue-500 hover:underline break-all pointer-events-auto w-fit"
                                   onDragStart={(e) => e.preventDefault()}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    void openAuthenticatedOutput(
+                                      inNode.output.reportUrl,
+                                    );
+                                  }}
                                 >
                                   Open HTML Report
                                 </a>
