@@ -7,6 +7,7 @@ function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
 }
 
 export const githubRouter = Router();
+const githubCredentialRefreshes = new Map<string, Promise<void>>();
 
 export const githubApiContribution = {
   id: 'github',
@@ -17,7 +18,7 @@ export const githubApiContribution = {
 
 export default githubApiContribution;
 
-async function refreshGithubCredentials(
+export async function refreshGithubCredentials(
   store: IntegrationCredentialStore,
   _kind?: 'cloud' | 'integration',
   force = false,
@@ -39,26 +40,62 @@ async function refreshGithubCredentials(
       throw new Error('Saved GitHub refresh credentials are incomplete.');
     return;
   }
+
+  const refreshKey = String(refreshToken);
+  const activeRefresh = githubCredentialRefreshes.get(refreshKey);
+  if (activeRefresh) {
+    await activeRefresh;
+    return;
+  }
+
+  const refresh = refreshGithubAccessToken(store, {
+    clientId: String(clientId),
+    clientSecret: String(clientSecret),
+    refreshToken: refreshKey,
+  }).finally(() => {
+    if (githubCredentialRefreshes.get(refreshKey) === refresh) {
+      githubCredentialRefreshes.delete(refreshKey);
+    }
+  });
+  githubCredentialRefreshes.set(refreshKey, refresh);
+  await refresh;
+}
+
+async function refreshGithubAccessToken(
+  store: IntegrationCredentialStore,
+  credentials: {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+  },
+) {
+  const parameters = new URLSearchParams({
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    refresh_token: credentials.refreshToken,
+    grant_type: 'refresh_token',
+  });
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json',
       'User-Agent': 'Playrunner-App',
     },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
+    body: parameters,
   });
-  const data = (await response.json()) as Record<string, any>;
-  if (!response.ok || typeof data.access_token !== 'string')
+  const data = (await response.json().catch(() => ({}))) as Record<string, any>;
+  if (!response.ok || typeof data.access_token !== 'string') {
+    const errorCode =
+      typeof data.error === 'string' ? data.error : 'unknown_error';
+    console.warn(
+      `GitHub token refresh failed (${response.status}): ${errorCode}.`,
+    );
     throw new Error('GitHub authorization has expired. Reconnect GitHub.');
+  }
   await store.updateSecrets('integration', 'github', {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token || refreshToken,
+    refreshToken: data.refresh_token || credentials.refreshToken,
     expiresAt: data.expires_in
       ? Date.now() + data.expires_in * 1000
       : undefined,
@@ -159,18 +196,19 @@ githubRouter.post('/token', async (req, res) => {
     req.body;
 
   try {
+    const parameters = new URLSearchParams({
+      client_id,
+      client_secret,
+      code,
+    });
     const gRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
         'User-Agent': 'Playrunner-App',
       },
-      body: JSON.stringify({
-        client_id,
-        client_secret,
-        code,
-      }),
+      body: parameters,
     });
 
     const text = await gRes.text();
