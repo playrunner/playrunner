@@ -8,7 +8,7 @@ import { executionEvents } from '../services/execution-events';
 import type { AuthUser } from './auth.types';
 import { verifyToken } from './verify-token';
 
-export const OUTPUT_SESSION_COOKIE = 'playrunner_output_session';
+export const OUTPUT_SESSION_COOKIE = '__session';
 const OUTPUT_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isSecureRequest(req: Request) {
