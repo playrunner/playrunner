@@ -224,6 +224,7 @@ class LocalAuth {
   }
 
   async signOut() {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     this.persistSession(null);
     this.applySession(null);
   }

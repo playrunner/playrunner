@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { requireAuth } from '../auth/auth.middleware';
 import { verifyToken } from '../auth/verify-token';
 import {
+  clearOutputSessionCookie,
+  setOutputSessionCookie,
+} from '../auth/output-access';
+import {
   authenticateLocalCredentials,
   createInvitedLocalUser,
   deleteInvitedLocalUser,
@@ -54,6 +58,7 @@ authRouter.post('/login', async (req, res) => {
 
     const token = await issueLocalAuthToken(user.uid, user.username);
 
+    setOutputSessionCookie(req, res, token);
     res.json({ token, user });
   } catch (error) {
     res.status(500).json({
@@ -75,6 +80,7 @@ authRouter.get('/session', async (req, res) => {
   try {
     const authUser = await verifyToken(token);
     const user = await getLocalAuthPublicUser(authUser.providerUserId);
+    setOutputSessionCookie(req, res, token);
     res.json({ user });
   } catch {
     res.json({ user: null });
@@ -84,6 +90,11 @@ authRouter.get('/session', async (req, res) => {
 authRouter.get('/me', requireAuth, async (req, res) => {
   const user = await getLocalAuthPublicUser(req.authUser!.providerUserId);
   res.json({ user });
+});
+
+authRouter.post('/logout', (req, res) => {
+  clearOutputSessionCookie(req, res);
+  res.status(204).send();
 });
 
 authRouter.post('/password', requireAuth, async (req, res) => {
@@ -181,6 +192,7 @@ authRouter.post('/register', async (req, res) => {
       invitationToken,
     );
     const token = await issueLocalAuthToken(user.uid, user.username);
+    setOutputSessionCookie(req, res, token);
     res.status(201).json({ token, user });
   } catch (error) {
     if (user) {
