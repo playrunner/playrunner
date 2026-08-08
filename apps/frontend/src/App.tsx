@@ -28,6 +28,7 @@ import TeamInvitation from './pages/TeamInvitation';
 import RegisterInvitation from './pages/RegisterInvitation';
 import { ThemeProvider } from './components/ThemeProvider';
 import { PageLayout } from './components/PageLayout';
+import { NavigationProgress } from './components/NavigationProgress';
 import { auth } from './lib/auth';
 import { IntegrationSdkProvider } from '@playrunner/integration-sdk';
 import { integrationSdkHost } from './integrations/sdkHost';
@@ -75,6 +76,7 @@ function RequireAuth() {
 function AppShell() {
   return (
     <BrowserRouter>
+      <NavigationProgress />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegisterInvitation />} />
