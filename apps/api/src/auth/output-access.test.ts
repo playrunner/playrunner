@@ -119,3 +119,59 @@ test('rejects an invalid output session', async () => {
 
   assert.equal(result.status, 401);
 });
+
+test('allows an active API key to read its owner workflow output', async () => {
+  let lookup: { executionId: string; userId: string } | undefined;
+  const middleware = createRequireOutputAccess({
+    authenticateApiToken: async () => ({
+      allowedWorkflowIds: ['workflow-1'],
+      scopes: ['workflow:execute'],
+      userId: 'user-1',
+    }),
+    findExecutionForUser: async (executionId, userId) => {
+      lookup = { executionId, userId };
+      return { workflowId: 'workflow-1' };
+    },
+    verify: async () =>
+      assert.fail('API keys must not use user token verification'),
+  });
+  const { response } = createResponse();
+  let continued = false;
+
+  await middleware(
+    createRequest({ authorization: 'Bearer pr_live_active-key' }),
+    response,
+    (() => {
+      continued = true;
+    }) as NextFunction,
+  );
+
+  assert.equal(continued, true);
+  assert.deepEqual(lookup, {
+    executionId: 'execution-1',
+    userId: 'user-1',
+  });
+});
+
+test('does not reveal output outside an API key workflow restriction', async () => {
+  const middleware = createRequireOutputAccess({
+    authenticateApiToken: async () => ({
+      allowedWorkflowIds: ['workflow-2'],
+      scopes: ['workflow:execute'],
+      userId: 'user-1',
+    }),
+    findExecutionForUser: async () => ({ workflowId: 'workflow-1' }),
+    verify: async () =>
+      assert.fail('API keys must not use user token verification'),
+  });
+  const { response, result } = createResponse();
+
+  await middleware(
+    createRequest({ authorization: 'Bearer pr_live_restricted-key' }),
+    response,
+    (() => assert.fail('middleware should not continue')) as NextFunction,
+  );
+
+  assert.equal(result.status, 404);
+  assert.deepEqual(result.body, { error: 'Output not found.' });
+});

@@ -1,4 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
+import {
+  apiTokens,
+  API_TOKEN_PREFIX,
+  tokenCanExecuteWorkflow,
+} from '../services/api-tokens';
 import { executionEvents } from '../services/execution-events';
 import type { AuthUser } from './auth.types';
 import { verifyToken } from './verify-token';
@@ -66,10 +71,15 @@ export function clearOutputSessionCookie(req: Request, res: Response) {
 }
 
 export function createRequireOutputAccess(dependencies: {
+  authenticateApiToken?: (token: string) => Promise<{
+    allowedWorkflowIds: unknown;
+    scopes: unknown;
+    userId: string;
+  } | null>;
   findExecutionForUser: (
     executionId: string,
     userId: string,
-  ) => Promise<unknown>;
+  ) => Promise<{ workflowId?: string; [key: string]: unknown } | null>;
   verify: (token: string) => Promise<AuthUser>;
 }) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -83,7 +93,15 @@ export function createRequireOutputAccess(dependencies: {
     }
 
     try {
-      const authUser = await dependencies.verify(token);
+      const isApiToken = token.startsWith(API_TOKEN_PREFIX);
+      const apiToken = isApiToken
+        ? await dependencies.authenticateApiToken?.(token)
+        : null;
+      const authUser = isApiToken ? null : await dependencies.verify(token);
+      if (isApiToken && !apiToken) {
+        res.status(401).json({ error: 'Unauthorized.' });
+        return;
+      }
       const executionId = req.path.split('/').filter(Boolean)[0];
       if (!executionId) {
         res.status(404).json({ error: 'Output not found.' });
@@ -92,14 +110,22 @@ export function createRequireOutputAccess(dependencies: {
 
       const execution = await dependencies.findExecutionForUser(
         executionId,
-        authUser.providerUserId,
+        apiToken?.userId ?? authUser!.providerUserId,
       );
       if (!execution) {
         res.status(404).json({ error: 'Output not found.' });
         return;
       }
+      if (
+        apiToken &&
+        (!execution.workflowId ||
+          !tokenCanExecuteWorkflow(apiToken, execution.workflowId))
+      ) {
+        res.status(404).json({ error: 'Output not found.' });
+        return;
+      }
 
-      req.authUser = authUser;
+      if (authUser) req.authUser = authUser;
       next();
     } catch {
       res.status(401).json({ error: 'Unauthorized.' });
@@ -108,6 +134,7 @@ export function createRequireOutputAccess(dependencies: {
 }
 
 export const requireOutputAccess = createRequireOutputAccess({
+  authenticateApiToken: (token) => apiTokens.authenticate(token),
   findExecutionForUser: (executionId, userId) =>
     executionEvents.getExecutionForUser(executionId, userId),
   verify: verifyToken,
