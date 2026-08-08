@@ -47,6 +47,7 @@ import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
+import { openAuthenticatedOutput } from '../lib/output-links';
 import {
   CLOUD_PROVIDERS,
   getCloudProvider,
@@ -3317,7 +3318,9 @@ export default function Editor() {
                       )}
                       onClick={() => {
                         if (hasReport) {
-                          window.open(node.output!.reportUrl, '_blank');
+                          void openAuthenticatedOutput(
+                            node.output!.reportUrl,
+                          );
                           setContextMenu(null);
                         }
                       }}
