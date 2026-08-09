@@ -17,7 +17,7 @@
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
-    "google-auth-library": "^10.7.0"
+    "google-auth-library": "^11.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
