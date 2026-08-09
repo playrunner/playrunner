@@ -6,7 +6,10 @@ export class EnvironmentE2EPom {
   readonly environmentSelect: Locator;
   readonly saveGloballyCheckbox: Locator;
   readonly variableInitialValueInput: Locator;
+  readonly variableCurrentValueInput: Locator;
   readonly variableNameInput: Locator;
+  readonly variableTypeSelect: Locator;
+  readonly variableEnabledToggle: Locator;
 
   constructor(
     readonly page: Page,
@@ -20,6 +23,15 @@ export class EnvironmentE2EPom {
     this.variableNameInput = this.dialog.getByLabel('Variable 1 name');
     this.variableInitialValueInput = this.dialog.getByLabel(
       'Variable 1 initial value',
+    );
+    this.variableCurrentValueInput = page.getByTestId(
+      'environment-node-variable-0-current',
+    );
+    this.variableTypeSelect = page.getByTestId(
+      'environment-node-variable-0-type',
+    );
+    this.variableEnabledToggle = page.getByTestId(
+      'environment-node-variable-0-enabled',
     );
   }
 

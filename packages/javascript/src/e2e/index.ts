@@ -18,6 +18,20 @@ export const javascriptE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.integrationCard()).toHaveCount(0);
       },
     },
+    {
+      id: 'configure-persist-and-run-node',
+      mode: 'mock',
+      title: 'configures, persists, and runs a Javascript node',
+      tags: ['@code', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.createNode();
+        await pom.scriptInput.fill(data.code);
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.scriptInput).toHaveValue(data.code);
+        await pom.closeNode();
+        expect(await pom.runWorkflow()).toBe('success');
+      },
+    },
   ],
 });
 

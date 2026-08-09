@@ -20,6 +20,7 @@ export const JavascriptConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Code runs in a sandboxed environment."
       >
         <Textarea
+          data-testid="code-node-script"
           value={config.code || ''}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             onChange(nodeId, { ...config, code: event.target.value });

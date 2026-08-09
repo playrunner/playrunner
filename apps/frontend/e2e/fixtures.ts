@@ -24,11 +24,12 @@ async function clearIntegrationConnections(
 
   await Promise.all(
     Object.keys(payload.integrations ?? {}).map(async (provider) => {
-      const preserveGithub =
-        provider === 'github' &&
-        ((process.env.PLAYRUNNER_E2E_MODE ?? 'mock') === 'mock' ||
+      const mode = process.env.PLAYRUNNER_E2E_MODE ?? 'mock';
+      const preserveSeededProvider =
+        (mode === 'mock' && ['github', 'jira'].includes(provider)) ||
+        (provider === 'github' &&
           Boolean(process.env.PLAYRUNNER_E2E_GITHUB_TOKEN?.trim()));
-      if (preserveGithub) return;
+      if (preserveSeededProvider) return;
       const deleteResponse = await request.delete(
         `http://127.0.0.1:3999/api/store/integrations/${encodeURIComponent(provider)}`,
         { headers },

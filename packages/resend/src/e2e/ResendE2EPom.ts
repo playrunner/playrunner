@@ -13,6 +13,7 @@ export class ResendE2EPom {
   readonly recipientTextarea: Locator;
   readonly saveButton: Locator;
   readonly setupGuideLink: Locator;
+  readonly advancedOptions: Locator;
 
   constructor(
     readonly page: Page,
@@ -43,6 +44,7 @@ export class ResendE2EPom {
     this.setupGuideLink = this.dialog.getByRole('link', {
       name: 'Open Playrunner setup guide',
     });
+    this.advancedOptions = this.nodeDialog.getByText('Advanced send options');
   }
 
   integrationCard() {
@@ -104,6 +106,16 @@ export class ResendE2EPom {
   }
 
   async reopenNodeSettings() {
+    await this.host.openNodeSettings('resend');
+  }
+
+  nodeField(name: string) {
+    return this.page.getByTestId(`resend-node-${name}`);
+  }
+
+  async createNode() {
+    await this.host.openNewWorkflow();
+    await this.host.addNode('resend');
     await this.host.openNodeSettings('resend');
   }
 }

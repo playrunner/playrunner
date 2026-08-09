@@ -132,6 +132,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       hint="Use the repository-scoped issue number. From a Create Issue node, drag result.data.number here."
     >
       <Input
+        data-testid="github-node-issue-number"
         value={config.issueNumber || ''}
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
           updateConfig({ issueNumber: event.target.value });
@@ -146,6 +147,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       <IntegrationConfigField label="Action">
         <Select
           aria-label="Action"
+          data-testid="github-node-action"
           value={action}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ action: event.target.value });
@@ -170,6 +172,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       >
         <Select
           aria-label="Repository"
+          data-testid="github-node-repository"
           value={config.repository || ''}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ repository: event.target.value });
@@ -199,6 +202,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           >
             <Input
               aria-label="Title"
+              data-testid="github-node-create-title"
               value={config.title || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ title: event.target.value });
@@ -213,6 +217,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           >
             <Textarea
               aria-label="Body"
+              data-testid="github-node-create-body"
               value={config.body || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 updateConfig({ body: event.target.value });
@@ -228,6 +233,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           >
             <Input
               aria-label="Labels"
+              data-testid="github-node-labels"
               value={config.labels || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ labels: event.target.value });
@@ -242,6 +248,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           >
             <Input
               aria-label="Assignees"
+              data-testid="github-node-assignees"
               value={config.assignees || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ assignees: event.target.value });
@@ -262,6 +269,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Optional. Leave blank to keep the current title."
           >
             <Input
+              data-testid="github-node-update-title"
               value={config.title || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ title: event.target.value });
@@ -274,6 +282,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Optional. Leave blank to keep the current body."
           >
             <Textarea
+              data-testid="github-node-update-body"
               value={config.body || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 updateConfig({ body: event.target.value });
@@ -284,6 +293,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           </IntegrationConfigField>
           <IntegrationConfigField label="State">
             <Select
+              data-testid="github-node-state"
               value={config.state || ''}
               onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 updateConfig({ state: event.target.value });
@@ -306,6 +316,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Adds a timeline comment. GitHub Markdown and {{variables}} are supported."
           >
             <Textarea
+              data-testid="github-node-comment"
               value={config.body || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 updateConfig({ body: event.target.value });
@@ -334,6 +345,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             }
           >
             <Input
+              data-testid="github-node-base"
               list={`github-branches-${nodeId}`}
               value={config.base || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,6 +359,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="The branch containing the changes. {{variables}} are supported."
           >
             <Input
+              data-testid="github-node-head"
               list={`github-branches-${nodeId}`}
               value={config.head || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,6 +373,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="You can use {{variables}} here."
           >
             <Input
+              data-testid="github-node-pr-title"
               value={config.title || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ title: event.target.value });
@@ -372,6 +386,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Optional. GitHub Markdown and {{variables}} are supported."
           >
             <Textarea
+              data-testid="github-node-pr-body"
               value={config.body || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 updateConfig({ body: event.target.value });
@@ -382,6 +397,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           </IntegrationConfigField>
           <IntegrationConfigField label="Status">
             <Select
+              data-testid="github-node-pr-status"
               value={config.draft === true ? 'draft' : 'ready'}
               onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 updateConfig({ draft: event.target.value === 'draft' });

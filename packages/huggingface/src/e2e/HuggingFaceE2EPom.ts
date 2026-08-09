@@ -8,6 +8,11 @@ export class HuggingFaceE2EPom {
   readonly disconnectButton: Locator;
   readonly saveButton: Locator;
   readonly setupGuideLink: Locator;
+  readonly nodeInput: Locator;
+  readonly nodeModel: Locator;
+  readonly nodeParameters: Locator;
+  readonly nodeProvider: Locator;
+  readonly nodeTask: Locator;
 
   constructor(
     readonly page: Page,
@@ -29,6 +34,11 @@ export class HuggingFaceE2EPom {
     this.setupGuideLink = this.dialog.getByRole('link', {
       name: 'Open Hugging Face setup guide',
     });
+    this.nodeInput = page.getByTestId('huggingface-node-input');
+    this.nodeModel = page.getByTestId('huggingface-node-model');
+    this.nodeParameters = page.getByTestId('huggingface-node-parameters');
+    this.nodeProvider = page.getByTestId('huggingface-node-provider');
+    this.nodeTask = page.getByTestId('huggingface-node-task');
   }
 
   integrationCard() {
@@ -49,5 +59,18 @@ export class HuggingFaceE2EPom {
   async reloadAndOpen() {
     await this.page.reload();
     await this.open();
+  }
+
+  async createNode() {
+    await this.host.openNewWorkflow();
+    await this.host.addNode('huggingface');
+    await this.host.openNodeSettings('huggingface');
+  }
+
+  async saveReloadAndReopenNode() {
+    await this.host.closeNodeSettings();
+    await this.host.saveWorkflow();
+    await this.host.reloadWorkflow();
+    await this.host.openNodeSettings('huggingface');
   }
 }

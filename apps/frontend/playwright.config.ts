@@ -49,6 +49,22 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
+      command: 'npm run dev:e2e:jira-fake --prefix ../api',
+      url: 'http://127.0.0.1:4011/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npm run dev:e2e:slack-fake --prefix ../api',
+      url: 'http://127.0.0.1:4012/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
       command: 'npm run dev:e2e --prefix ../api',
       url: 'http://127.0.0.1:3999/health',
       reuseExistingServer: false,

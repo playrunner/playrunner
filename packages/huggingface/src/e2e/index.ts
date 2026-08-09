@@ -38,6 +38,27 @@ export const huggingFaceE2EContribution = definePlayrunnerE2EContribution({
         ).toBeVisible();
       },
     },
+    {
+      id: 'configure-all-node-values',
+      mode: 'mock',
+      title: 'configures and persists every Hugging Face node value',
+      tags: ['@huggingface', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.createNode();
+        await pom.nodeTask.selectOption('text-classification');
+        await pom.nodeProvider.selectOption('hf-inference');
+        await pom.nodeModel.fill(data.model);
+        await pom.nodeInput.fill(data.input);
+        await pom.nodeParameters.fill(data.parameters);
+        await pom.saveReloadAndReopenNode();
+
+        await expect(pom.nodeTask).toHaveValue('text-classification');
+        await expect(pom.nodeProvider).toHaveValue('hf-inference');
+        await expect(pom.nodeModel).toHaveValue(data.model);
+        await expect(pom.nodeInput).toHaveValue(data.input);
+        await expect(pom.nodeParameters).toHaveValue(data.parameters);
+      },
+    },
   ],
 });
 

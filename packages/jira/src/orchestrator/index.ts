@@ -8,6 +8,12 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+function jiraApiBaseUrl(context: NodeExecutionContext) {
+  return (
+    optionalString(context.settings.apiBaseUrl) ?? 'https://api.atlassian.com'
+  ).replace(/\/+$/, '');
+}
+
 class JiraExecutionError extends Error {}
 
 function createDescription(value: string) {
@@ -67,7 +73,7 @@ async function executeJiraCreate(
     }
 
     const response = await fetch(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue`,
+      `${jiraApiBaseUrl(context)}/ex/jira/${cloudId}/rest/api/3/issue`,
       {
         method: 'POST',
         headers: {
@@ -134,7 +140,7 @@ async function executeJiraUpdate(
     }
 
     const response = await fetch(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
+      `${jiraApiBaseUrl(context)}/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
       {
         method: 'PUT',
         headers: {

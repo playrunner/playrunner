@@ -19,6 +19,8 @@
     "test": "node --import tsx --test src/**/*.test.ts",
     "dev:e2e": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx src/e2e/start.ts",
     "dev:e2e:github-fake": "tsx src/e2e/github-fake.ts",
+    "dev:e2e:jira-fake": "tsx src/e2e/jira-fake.ts",
+    "dev:e2e:slack-fake": "tsx src/e2e/slack-fake.ts",
     "start": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx --watch --env-file=.env src/index.ts",
     "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts"
   },

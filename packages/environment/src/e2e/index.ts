@@ -29,6 +29,9 @@ export const environmentE2EContribution = definePlayrunnerE2EContribution({
 
         await pom.variableNameInput.fill(data.variableName);
         await pom.variableInitialValueInput.fill(data.variableValue);
+        await pom.variableCurrentValueInput.fill(data.variableCurrentValue);
+        await pom.variableEnabledToggle.click();
+        await pom.variableEnabledToggle.click();
         await pom.saveGloballyCheckbox.click();
         await expect(pom.environmentSelect).toContainText(data.environmentName);
 
@@ -41,6 +44,14 @@ export const environmentE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.variableInitialValueInput).toHaveValue(
           data.variableValue,
         );
+        await expect(pom.variableCurrentValueInput).toHaveValue(
+          data.variableCurrentValue,
+        );
+        await expect(pom.variableEnabledToggle).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
+        await expect(pom.variableTypeSelect).toHaveValue('default');
         await expect(pom.environmentSelect).toContainText(data.environmentName);
 
         await pom.close();

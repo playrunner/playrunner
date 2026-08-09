@@ -2,8 +2,14 @@ import type { PlayrunnerE2EDataContext } from '@playrunner/integration-sdk/e2e';
 
 export interface ResendE2EData {
   apiKey: string;
+  body: string;
+  from: string;
+  html: string;
   receivingAddress: string;
   recipientVariableName: string;
+  subject: string;
+  templateId: string;
+  templateVariables: string;
 }
 
 export function createResendE2EData({
@@ -16,7 +22,13 @@ export function createResendE2EData({
     .slice(-32);
   return {
     apiKey: `re_e2e_${suffix}`,
+    body: `Plain text ${suffix}`,
+    from: `Playrunner <sender+${suffix}@example.test>`,
+    html: `<p>HTML ${suffix}</p>`,
     receivingAddress: `login+${suffix}@example.resend.app`,
     recipientVariableName: `RESEND_RECIPIENT_${variableSuffix}`,
+    subject: `Resend E2E ${suffix}`,
+    templateId: `template-${suffix}`,
+    templateVariables: `{"runId":"${suffix}"}`,
   };
 }

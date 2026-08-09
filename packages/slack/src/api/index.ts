@@ -16,6 +16,12 @@ export const slackApiContribution = {
 
 export default slackApiContribution;
 
+function slackApiBaseUrl() {
+  return (
+    process.env.PLAYRUNNER_SLACK_API_BASE_URL || 'https://slack.com'
+  ).replace(/\/+$/, '');
+}
+
 slackRouter.post('/oauth-token', async (req, res) => {
   const { code, client_id, client_secret, redirect_uri } = req.body;
 
@@ -89,7 +95,7 @@ slackRouter.get('/channels', async (req, res) => {
 
   try {
     const channelsRes = await fetch(
-      'https://slack.com/api/conversations.list?types=public_channel,private_channel&exclude_archived=true&limit=200',
+      `${slackApiBaseUrl()}/api/conversations.list?types=public_channel,private_channel&exclude_archived=true&limit=200`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

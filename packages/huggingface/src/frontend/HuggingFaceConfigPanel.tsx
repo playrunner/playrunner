@@ -46,6 +46,7 @@ export const HuggingFaceConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     <div className="space-y-4">
       <IntegrationConfigField label="Task">
         <Select
+          data-testid="huggingface-node-task"
           value={task}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             const nextTask = event.target.value as HuggingFaceTask;
@@ -67,6 +68,7 @@ export const HuggingFaceConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Auto follows the provider order configured in your Hugging Face account."
       >
         <Select
+          data-testid="huggingface-node-provider"
           value={config.provider || 'auto'}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ provider: event.target.value });
@@ -88,6 +90,7 @@ export const HuggingFaceConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Enter a model ID from the Hugging Face Hub."
       >
         <Input
+          data-testid="huggingface-node-model"
           value={config.model || defaults.model}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             updateConfig({ model: event.target.value });
@@ -101,6 +104,7 @@ export const HuggingFaceConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Drag workflow or upstream-node variables from the Input panel."
       >
         <Textarea
+          data-testid="huggingface-node-input"
           value={config.input ?? ''}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             updateConfig({ input: event.target.value });
@@ -115,6 +119,7 @@ export const HuggingFaceConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Optional JSON parameters supported by the selected task and model."
       >
         <Textarea
+          data-testid="huggingface-node-parameters"
           value={config.parameters ?? defaults.parameters}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             updateConfig({ parameters: event.target.value });

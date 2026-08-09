@@ -50,6 +50,9 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 <td className="p-0 border-r border-[#2e2e2e] text-center w-[44px]">
                   {!isEmpty && (
                     <div
+                      data-testid={`environment-node-variable-${index}-enabled`}
+                      role="button"
+                      aria-pressed={v.enabled}
                       className="flex w-full h-full min-h-[38px] items-center justify-center p-2 cursor-pointer"
                       onClick={() => onToggleEnabled(v.id)}
                     >
@@ -81,6 +84,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    data-testid={`environment-node-variable-${index}-name`}
                     aria-label={`Variable ${index + 1} name`}
                     value={v.key}
                     onChange={(e) => onUpdateVar(v.id, { key: e.target.value })}
@@ -95,6 +99,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                   {!isEmpty && (
                     <div className="absolute inset-0 flex items-center w-full h-full">
                       <select
+                        data-testid={`environment-node-variable-${index}-type`}
                         aria-label={`Variable ${index + 1} type`}
                         value={v.type}
                         onChange={(e) => {
@@ -135,6 +140,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    data-testid={`environment-node-variable-${index}-initial`}
                     aria-label={`Variable ${index + 1} initial value`}
                     value={v.initialValue}
                     onChange={(e) =>
@@ -150,6 +156,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    data-testid={`environment-node-variable-${index}-current`}
                     aria-label={`Variable ${index + 1} current value`}
                     value={v.currentValue}
                     onChange={(e) =>

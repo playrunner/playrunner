@@ -7,6 +7,12 @@ export class WebhooksE2EPom {
   readonly exposureSelect: Locator;
   readonly publicUrlInput: Locator;
   readonly saveButton: Locator;
+  readonly nodeBody: Locator;
+  readonly nodeDirection: Locator;
+  readonly nodeHeaders: Locator;
+  readonly nodeMethod: Locator;
+  readonly nodeRetries: Locator;
+  readonly nodeUrl: Locator;
 
   constructor(
     readonly page: Page,
@@ -21,6 +27,12 @@ export class WebhooksE2EPom {
     this.saveButton = this.dialog.getByRole('button', {
       name: 'Save settings',
     });
+    this.nodeBody = page.getByTestId('webhooks-node-body');
+    this.nodeDirection = page.getByTestId('webhooks-node-direction');
+    this.nodeHeaders = page.getByTestId('webhooks-node-headers');
+    this.nodeMethod = page.getByTestId('webhooks-node-method');
+    this.nodeRetries = page.getByTestId('webhooks-node-retries');
+    this.nodeUrl = page.getByTestId('webhooks-node-url');
   }
 
   integrationCard() {
@@ -54,5 +66,18 @@ export class WebhooksE2EPom {
       .getByRole('button', { name: 'Configure Webhooks' })
       .click();
     await this.dialog.waitFor();
+  }
+
+  async createNode() {
+    await this.host.openNewWorkflow();
+    await this.host.addNode('webhooks');
+    await this.host.openNodeSettings('webhooks');
+  }
+
+  async saveReloadAndReopenNode() {
+    await this.host.closeNodeSettings();
+    await this.host.saveWorkflow();
+    await this.host.reloadWorkflow();
+    await this.host.openNodeSettings('webhooks');
   }
 }

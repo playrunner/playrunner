@@ -501,6 +501,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       <div className="p-4 border-b border-subtle bg-surface/50 space-y-3">
         <div className="relative">
           <select
+            data-testid="environment-node-environment"
             value={dropdownEnvId}
             onChange={(e) => handleSelectEnvironment(e.target.value)}
             className="w-full bg-[var(--control-bg)] border border-[var(--border)] rounded-md py-1.5 pl-2.5 pr-8 text-xs text-[var(--foreground)] appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-colors"
@@ -519,6 +520,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         {dropdownEnvId === '__create_new__' && (
           <label className="flex items-center gap-2 cursor-pointer w-fit">
             <input
+              data-testid="environment-node-save-globally"
               type="checkbox"
               checked={!!linkedEnvId}
               onChange={(e) => handleToggleGlobal(e.target.checked)}

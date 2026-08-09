@@ -154,6 +154,7 @@ export function WebhooksConfigPanel({
       </div>
       <IntegrationConfigField label="Direction">
         <Select
+          data-testid="webhooks-node-direction"
           value={mode}
           onChange={(event) => update({ mode: event.target.value })}
         >
@@ -327,6 +328,7 @@ export function WebhooksConfigPanel({
         <>
           <IntegrationConfigField label="Target URL">
             <Input
+              data-testid="webhooks-node-url"
               value={config.url || ''}
               placeholder="https://example.com/hooks/playrunner"
               onChange={(event) => update({ url: event.target.value })}
@@ -335,6 +337,7 @@ export function WebhooksConfigPanel({
           <div className="grid grid-cols-2 gap-3">
             <IntegrationConfigField label="Method">
               <Select
+                data-testid="webhooks-node-method"
                 value={config.method || 'POST'}
                 onChange={(event) => update({ method: event.target.value })}
               >
@@ -345,6 +348,7 @@ export function WebhooksConfigPanel({
             </IntegrationConfigField>
             <IntegrationConfigField label="Retries">
               <Input
+                data-testid="webhooks-node-retries"
                 type="number"
                 min={0}
                 max={3}
@@ -360,6 +364,7 @@ export function WebhooksConfigPanel({
             hint="JSON object. Authorization is configured in integration settings."
           >
             <Textarea
+              data-testid="webhooks-node-headers"
               className="min-h-24 font-mono text-xs"
               value={config.headers || '{}'}
               onChange={(event) => update({ headers: event.target.value })}
@@ -367,6 +372,7 @@ export function WebhooksConfigPanel({
           </IntegrationConfigField>
           <IntegrationConfigField label="Body template">
             <Textarea
+              data-testid="webhooks-node-body"
               className="min-h-40 font-mono text-xs"
               value={config.body || ''}
               placeholder={'{"status":"{{workflow.run.status}}"}'}

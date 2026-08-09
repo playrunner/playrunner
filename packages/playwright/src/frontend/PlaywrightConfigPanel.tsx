@@ -206,6 +206,7 @@ test.describe('navigation', () => {
     <>
       <div className="flex items-center gap-2 mt-6 mb-4 overflow-x-auto pb-1 scrollbar-hide">
         <button
+          data-testid="playwright-node-tab-config"
           onClick={() => setActiveTab('config')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -217,6 +218,7 @@ test.describe('navigation', () => {
           Configuration
         </button>
         <button
+          data-testid="playwright-node-tab-env"
           onClick={() => setActiveTab('env')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -228,6 +230,7 @@ test.describe('navigation', () => {
           Environment
         </button>
         <button
+          data-testid="playwright-node-tab-resources"
           onClick={() => setActiveTab('resources')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -288,6 +291,7 @@ test.describe('navigation', () => {
             </p>
           </div>
           <button
+            data-testid="playwright-node-dismiss-language-info"
             onClick={() =>
               onChange(nodeId, { ...config, dismissedLanguageInfo: true })
             }
@@ -317,6 +321,7 @@ test.describe('navigation', () => {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted">Action</label>
               <Select
+                data-testid="playwright-node-action"
                 value={config.action || 'clone'}
                 onChange={(e) => {
                   const nextAction = e.target.value;
@@ -414,6 +419,7 @@ test.describe('navigation', () => {
                     Repository
                   </label>
                   <Select
+                    data-testid="playwright-node-repository"
                     value={config.repository || ''}
                     onChange={(e) =>
                       onChange(nodeId, {
@@ -446,6 +452,7 @@ test.describe('navigation', () => {
                     Branch
                   </label>
                   <Select
+                    data-testid="playwright-node-branch"
                     value={config.branch || ''}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, branch: e.target.value })
@@ -473,6 +480,7 @@ test.describe('navigation', () => {
                     Runtime
                   </label>
                   <Select
+                    data-testid="playwright-node-test-language"
                     value={config.testLanguage || 'typescript'}
                     onChange={(e) =>
                       onChange(nodeId, {
@@ -495,6 +503,7 @@ test.describe('navigation', () => {
                     Folder
                   </label>
                   <Input
+                    data-testid="playwright-node-folder"
                     value={config.folder || '/'}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, folder: e.target.value })
@@ -512,6 +521,11 @@ test.describe('navigation', () => {
             {config.action === 'run' && (
               <div className="flex flex-col gap-1.5 shrink-0">
                 <div className="rounded-xl border border-subtle bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
+                  <div
+                    data-testid="playwright-node-script"
+                    data-script-value={config.testScript || ''}
+                    className="h-full"
+                  >
                   <Editor
                     height="100%"
                     defaultLanguage="javascript"
@@ -533,6 +547,7 @@ test.describe('navigation', () => {
                       dropIntoEditor: { enabled: true },
                     }}
                   />
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted mt-1">
                   The test will run in a headless browser on our infrastructure.
@@ -574,6 +589,7 @@ test.describe('navigation', () => {
                     </p>
                   </div>
                   <input
+                    data-testid="playwright-node-zip-file"
                     type="file"
                     accept=".zip"
                     className="hidden"
@@ -610,7 +626,9 @@ test.describe('navigation', () => {
                       <line x1="12" x2="12" y1="3" y2="15" />
                     </svg>
                     <span className="text-xs text-[var(--foreground)] truncate">
+                      <span data-testid="playwright-node-zip-file-name">
                       {config.zipFileName}
+                      </span>
                     </span>
                   </div>
                 )}
@@ -684,6 +702,7 @@ test.describe('navigation', () => {
                 Playwright Version
               </label>
               <Select
+                data-testid="playwright-node-version"
                 value={config.playwrightVersion || DEFAULT_PLAYWRIGHT_VERSION}
                 onChange={(e) =>
                   onChange(nodeId, {
@@ -710,6 +729,7 @@ test.describe('navigation', () => {
                 Injected Environment Variables
               </label>
               <div
+                data-testid="playwright-node-env-vars"
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 className="min-h-[80px] border-2 border-dashed border-subtle rounded-xl p-4 flex flex-col gap-2 bg-surface/30 transition-colors hover:bg-surface/50 relative group"
@@ -776,6 +796,7 @@ test.describe('navigation', () => {
                 CPU
               </label>
               <Select
+                data-testid="playwright-node-cpu"
                 value={config.cpu || DEFAULT_CPU}
                 onChange={(e) =>
                   onChange(nodeId, { ...config, cpu: parseInt(e.target.value) })
@@ -793,6 +814,7 @@ test.describe('navigation', () => {
                 Memory
               </label>
               <Select
+                data-testid="playwright-node-memory"
                 value={config.memory || DEFAULT_MEMORY}
                 onChange={(e) =>
                   onChange(nodeId, {
@@ -816,6 +838,7 @@ test.describe('navigation', () => {
                 Workers (Max 100)
               </label>
               <Input
+                data-testid="playwright-node-workers"
                 type="number"
                 min={1}
                 max={100}

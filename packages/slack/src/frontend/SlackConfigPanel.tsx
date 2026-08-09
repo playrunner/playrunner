@@ -82,6 +82,7 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       ) : (
         <IntegrationConfigField label="Channel">
           <Select
+            data-testid="slack-node-channel"
             value={config.channel || ''}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
               onChange(nodeId, {
@@ -109,6 +110,7 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="You can use {{workflow.definition.name}}, {{workflow.run.status}}, {{workflow.run.failedNode.name}} and other shared workflow variables."
       >
         <Textarea
+          data-testid="slack-node-message"
           value={config.message || ''}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             onChange(nodeId, { ...config, message: event.target.value });
@@ -123,6 +125,7 @@ export const SlackConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Override the default bot username for this message."
       >
         <Input
+          data-testid="slack-node-username"
           value={config.username || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             onChange(nodeId, { ...config, username: event.target.value });

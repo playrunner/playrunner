@@ -155,14 +155,22 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         : false,
   }));
   const latestConfigRef = useRef(config);
+  const latestOnChangeRef = useRef(onChange);
 
   useEffect(() => {
     latestConfigRef.current = config;
   }, [config]);
 
   useEffect(() => {
-    onChange(nodeId, { ...latestConfigRef.current, schedule });
-  }, [nodeId, onChange, schedule]);
+    latestOnChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    latestOnChangeRef.current(nodeId, {
+      ...latestConfigRef.current,
+      schedule,
+    });
+  }, [nodeId, schedule]);
 
   useEffect(() => {
     if (!isCloudSchedulerAvailable && schedule.enabled) {
@@ -318,6 +326,8 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           </div>
         </div>
         <button
+          data-testid="schedule-node-enabled"
+          aria-pressed={schedule.enabled}
           disabled={!isCloudSchedulerAvailable}
           onClick={() => {
             if (isCloudSchedulerAvailable) {
@@ -359,6 +369,8 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           {FREQUENCY_OPTIONS.map((opt) => (
             <button
               key={opt.value}
+              data-testid={`schedule-node-frequency-${opt.value}`}
+              aria-pressed={schedule.frequency === opt.value}
               onClick={() => updateSchedule({ frequency: opt.value })}
               className={cn(
                 'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all duration-200 text-center',
@@ -394,6 +406,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               Run every
             </span>
             <input
+              data-testid="schedule-node-interval"
               type="number"
               min={1}
               max={schedule.frequency === 'minute' ? 59 : 23}
@@ -423,6 +436,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
               At minute
             </span>
             <input
+              data-testid="schedule-node-minute-of-hour"
               type="number"
               min={0}
               max={59}
@@ -454,6 +468,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             <Clock className="w-4 h-4 text-muted" />
             <span className="text-sm text-muted">Run at</span>
             <input
+              data-testid="schedule-node-time"
               type="time"
               value={schedule.time}
               onChange={(e) => updateSchedule({ time: e.target.value })}
@@ -473,6 +488,8 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             {DAYS_OF_WEEK.map((day) => (
               <button
                 key={day.value}
+                data-testid={`schedule-node-day-${day.value}`}
+                aria-pressed={schedule.daysOfWeek.includes(day.value)}
                 onClick={() => toggleDay(day.value)}
                 className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center text-xs font-medium border transition-all duration-200',
@@ -507,6 +524,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             <CalendarDays className="w-4 h-4 text-muted" />
             <span className="text-sm text-muted whitespace-nowrap">On day</span>
             <input
+              data-testid="schedule-node-day-of-month"
               type="number"
               min={1}
               max={31}
@@ -533,6 +551,7 @@ export const ScheduleConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         </h4>
         <div className="bg-[var(--background)] border border-subtle rounded-lg p-4">
           <select
+            data-testid="schedule-node-timezone"
             value={schedule.timezone}
             onChange={(e) => updateSchedule({ timezone: e.target.value })}
             className="w-full bg-[var(--control-bg)] border border-subtle rounded-md px-3 py-2 text-sm text-[var(--foreground)] appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-all cursor-pointer"

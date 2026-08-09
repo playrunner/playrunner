@@ -217,6 +217,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
               assign Jira scopes, and find the client ID and secret.
             </p>
             <a
+              data-testid="jira-settings-guide"
               href={JIRA_SETUP_DOCS_URL}
               target="_blank"
               rel="noopener noreferrer"
@@ -243,6 +244,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
           htmlFor="jira-connection-field-a"
         >
           <IntegrationConnectionInput
+            data-testid="jira-settings-client-id"
             id="jira-connection-field-a"
             connectionId="jira"
             fieldSlot="a"
@@ -258,6 +260,7 @@ export function JiraSettingsModal({ isOpen, onClose }: JiraSettingsModalProps) {
           htmlFor="jira-connection-field-b"
         >
           <IntegrationConnectionInput
+            data-testid="jira-settings-client-secret"
             id="jira-connection-field-b"
             connectionId="jira"
             fieldSlot="b"

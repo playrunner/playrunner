@@ -436,6 +436,7 @@ function CloudProviderDropdown({
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
+        data-testid="workflow-runner-selector"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 hover:bg-surface-hover text-sm font-medium text-[var(--foreground)] rounded-full py-1.5 px-3 focus:outline-none transition-colors"
         title={displayLabel}
@@ -494,6 +495,7 @@ function CloudProviderDropdown({
                   <button
                     key={provider.id}
                     type="button"
+                    data-testid={`workflow-runner-option-${provider.id}`}
                     onClick={() => {
                       if (isDisabled) {
                         setNotice(provider.disabledReason || 'Premium feature');

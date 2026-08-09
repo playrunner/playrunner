@@ -35,6 +35,8 @@ process.env.PUBSUB_EMULATOR_HOST_DOCKER =
 const e2eMode = process.env.PLAYRUNNER_E2E_MODE ?? 'mock';
 if (e2eMode === 'mock') {
   process.env.PLAYRUNNER_GITHUB_API_BASE_URL = 'http://127.0.0.1:4010';
+  process.env.PLAYRUNNER_JIRA_API_BASE_URL = 'http://127.0.0.1:4011';
+  process.env.PLAYRUNNER_SLACK_API_BASE_URL = 'http://127.0.0.1:4012';
 }
 
 const prismaBin = path.join(
@@ -102,6 +104,13 @@ async function startE2EApi() {
         repository: 'playrunner/e2e-fixture',
       },
       secrets: { accessToken: 'github-e2e-fake-token' },
+    });
+    await saveConnection('local-admin', 'integration', 'jira', {
+      config: { apiBaseUrl: 'http://host.docker.internal:4011' },
+      secrets: {
+        accessToken: 'jira-e2e-fake-token',
+        expiresAt: Date.now() + 60 * 60 * 1000,
+      },
     });
   } else if (liveGithubToken && liveGithubRepository) {
     await saveConnection('local-admin', 'integration', 'github', {

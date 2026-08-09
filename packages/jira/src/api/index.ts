@@ -17,6 +17,13 @@ export const jiraApiContribution = {
 
 export default jiraApiContribution;
 
+function atlassianApiBaseUrl() {
+  return (process.env.PLAYRUNNER_JIRA_API_BASE_URL || 'https://api.atlassian.com').replace(
+    /\/+$/,
+    '',
+  );
+}
+
 async function refreshJiraCredentials(
   store: IntegrationCredentialStore,
   _kind?: 'cloud' | 'integration',
@@ -147,7 +154,7 @@ jiraRouter.get('/projects', async (req, res) => {
 
   try {
     const resourceRes = await fetch(
-      'https://api.atlassian.com/oauth/token/accessible-resources',
+      `${atlassianApiBaseUrl()}/oauth/token/accessible-resources`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -166,7 +173,7 @@ jiraRouter.get('/projects', async (req, res) => {
 
     const cloudId = resources[0].id;
     const projectsRes = await fetch(
-      `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/project?expand=issueTypes`,
+      `${atlassianApiBaseUrl()}/ex/jira/${cloudId}/rest/api/3/project?expand=issueTypes`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

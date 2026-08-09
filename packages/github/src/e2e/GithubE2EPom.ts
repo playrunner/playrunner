@@ -53,6 +53,10 @@ export class GithubE2EPom {
     await this.host.openNodeSettings('github');
   }
 
+  nodeField(name: string) {
+    return this.page.getByTestId(`github-node-${name}`);
+  }
+
   async closeNode() {
     await this.host.closeNodeSettings();
   }
