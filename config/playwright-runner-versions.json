@@ -1,9 +1,9 @@
 {
-  "defaultTag": "v1.61.0-jammy",
+  "defaultTag": "v1.62.1-jammy",
   "versions": [
     {
-      "tag": "v1.61.0-jammy",
-      "label": "v1.61.0",
+      "tag": "v1.62.1-jammy",
+      "label": "v1.62.1",
       "publishAsLatest": true
     }
   ]
