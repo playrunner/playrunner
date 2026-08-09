@@ -2,6 +2,13 @@ import { Router } from 'express';
 import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
 
 const GITHUB_API_VERSION = '2026-03-10';
+const GITHUB_API_BASE_URL = (
+  process.env.PLAYRUNNER_GITHUB_API_BASE_URL || 'https://api.github.com'
+).replace(/\/+$/, '');
+
+function githubApiUrl(path: string) {
+  return `${GITHUB_API_BASE_URL}/${path.replace(/^\/+/, '')}`;
+}
 
 function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
   return (req as { integrationCredentials?: IntegrationCredentialStore })
@@ -309,6 +316,29 @@ githubRouter.get('/repositories', async (req, res) => {
   try {
     const github = await createGithubApiClient(req);
     const { connection } = github;
+    const configuredRepository = connection.config.repository;
+    if (
+      typeof configuredRepository === 'string' &&
+      /^[^/]+\/[^/]+$/.test(configuredRepository)
+    ) {
+      const [owner, repositoryName] = configuredRepository.split('/');
+      const repository = (await github.get(
+        githubApiUrl(
+          `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`,
+        ),
+      )) as { full_name?: unknown; id?: unknown };
+      if (
+        (typeof repository.id === 'string' ||
+          typeof repository.id === 'number') &&
+        typeof repository.full_name === 'string'
+      ) {
+        return res.json({
+          repositories: [
+            { id: String(repository.id), full_name: repository.full_name },
+          ],
+        });
+      }
+    }
     const savedInstallationId = connection.config.installationId;
     let installationIds: string[] = [];
 
@@ -320,7 +350,7 @@ githubRouter.get('/repositories', async (req, res) => {
     } else {
       const installations = await githubGetAllPages<{
         id?: string | number;
-      }>(github, 'https://api.github.com/user/installations', 'installations');
+      }>(github, githubApiUrl('user/installations'), 'installations');
       installationIds = installations
         .map((installation) => installation.id)
         .filter(
@@ -337,7 +367,9 @@ githubRouter.get('/repositories', async (req, res) => {
           full_name?: string;
         }>(
           github,
-          `https://api.github.com/user/installations/${encodeURIComponent(installationId)}/repositories`,
+          githubApiUrl(
+            `user/installations/${encodeURIComponent(installationId)}/repositories`,
+          ),
           'repositories',
         );
       }),
@@ -397,7 +429,9 @@ githubRouter.get('/branches', async (req, res) => {
     const github = await createGithubApiClient(req);
     const data = await githubGetAllPages<{ name?: string }>(
       github,
-      `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches`,
+      githubApiUrl(
+        `repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches`,
+      ),
     );
     const branches = data
       .filter(

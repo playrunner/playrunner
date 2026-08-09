@@ -25,6 +25,22 @@ export interface Integration {
   authProviders?: { id: string; label: string }[];
   getAuthPath?: (uid: string) => string;
   ConfigPanel?: React.FC<IntegrationConfigPanelProps>;
+  getOutputVariables?: (
+    config: Record<string, unknown>,
+  ) => readonly IntegrationOutputVariable[];
+}
+
+export interface IntegrationOutputVariable {
+  path: string;
+  type:
+    | 'array'
+    | 'boolean'
+    | 'datetime'
+    | 'number'
+    | 'object'
+    | 'string'
+    | 'url';
+  description?: string;
 }
 
 export interface IntegrationConfigPanelProps {

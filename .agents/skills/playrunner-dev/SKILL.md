@@ -69,3 +69,27 @@ When building or extending packages under `packages/*`, follow the package shape
 - Run `npm pack --dry-run --json` from the package directory and inspect the reported filename, package size, unpacked size, and complete file list. The tarball must include `package.json`, `LICENSE`, `README.md`, declared source entrypoints, and exported assets, while excluding tests, credentials, local configuration, caches, `node_modules`, generated app composition, and unrelated repository files.
 - Publish scoped Playrunner packages with the package manifest's public npm `publishConfig`; the explicit command is `npm publish --access public --registry https://registry.npmjs.org`. Do not add `--force`, bypass lifecycle checks, or publish from the repository root.
 - After publishing, verify the exact version and dist-tag from npm, then install that exact published version into a temporary directory and confirm every declared export resolves. Publishing the package does not rebuild or deploy any consuming Playrunner frontend, API, or runner artifact.
+
+## Adding Playwright Runner Versions
+
+- Treat `config/playwright-runner-versions.json` as the only release registry. A normal Playwright runner version addition must change this file only; do not edit `infra/scripts/playwright-runner-config.mjs`, either file under `apps/runners/playwright/Dockerfile.*`, or a cloud Dockerfile/build definition.
+- Add one registry entry containing:
+  - `tag`: the exact Microsoft Playwright image tag, such as `v1.62.1-jammy`.
+  - `label`: the user-facing Playwright version, such as `v1.62.1`.
+  - `npmVersion`: the exact published npm `playwright` and `@playwright/test` version.
+  - `pythonVersion`: the exact published PyPI `playwright` version. This may differ from the image/npm patch version when PyPI has not published the same patch; verify availability instead of assuming equality.
+  - `publishAsLatest`: `true` for exactly one entry and `false` for every retained older entry.
+- Set `defaultTag` to the preferred release and retain every still-supported older entry. Never replace the versions array when the request is to add or retain a release.
+- Do not put numeric Playwright defaults back into the Dockerfiles. The publisher must pass `PLAYWRIGHT_VERSION`, `PLAYWRIGHT_NPM_VERSION`, and `PYTHON_PLAYWRIGHT_VERSION` from the registry.
+- Validate the registry before any image publication:
+
+```bash
+node infra/scripts/playwright-runner-config.mjs default-tag
+node infra/scripts/playwright-runner-config.mjs tags
+node infra/scripts/playwright-runner-config.mjs npm-version <runner-tag>
+node infra/scripts/playwright-runner-config.mjs python-version <runner-tag>
+bash -n infra/gcp/scripts/push-runners.sh
+git diff --check
+```
+
+- Build and smoke-test TypeScript and Python images for every registry entry when changing the generic publisher. For a registry-only release addition, rely on the existing generic publisher and verify every versioned registry tag plus `latest` after publication.

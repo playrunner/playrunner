@@ -2865,6 +2865,7 @@ export default function Editor() {
                   key={node.id}
                   data-testid={`canvas-node-${node.nodeType}`}
                   data-node-id={node.id}
+                  data-node-status={status}
                   className={cn(
                     'group guard-node absolute bg-[var(--node-bg)] p-4 shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
                     isScheduleNode
@@ -3318,9 +3319,7 @@ export default function Editor() {
                       )}
                       onClick={() => {
                         if (hasReport) {
-                          void openAuthenticatedOutput(
-                            node.output!.reportUrl,
-                          );
+                          void openAuthenticatedOutput(node.output!.reportUrl);
                           setContextMenu(null);
                         }
                       }}

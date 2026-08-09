@@ -40,7 +40,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
           </tr>
         </thead>
         <tbody className="divide-y divide-[#2e2e2e]">
-          {variables.map((v) => {
+          {variables.map((v, index) => {
             const isEmpty = !v.key && !v.initialValue && !v.currentValue;
             return (
               <tr
@@ -81,6 +81,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    aria-label={`Variable ${index + 1} name`}
                     value={v.key}
                     onChange={(e) => onUpdateVar(v.id, { key: e.target.value })}
                     placeholder=""
@@ -94,6 +95,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                   {!isEmpty && (
                     <div className="absolute inset-0 flex items-center w-full h-full">
                       <select
+                        aria-label={`Variable ${index + 1} type`}
                         value={v.type}
                         onChange={(e) => {
                           const newType = e.target.value as
@@ -133,6 +135,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    aria-label={`Variable ${index + 1} initial value`}
                     value={v.initialValue}
                     onChange={(e) =>
                       onUpdateVar(v.id, { initialValue: e.target.value })
@@ -147,6 +150,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                 </td>
                 <td className="p-0 border-r border-[#2e2e2e] relative">
                   <input
+                    aria-label={`Variable ${index + 1} current value`}
                     value={v.currentValue}
                     onChange={(e) =>
                       onUpdateVar(v.id, { currentValue: e.target.value })
@@ -163,6 +167,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                   {!isEmpty && (
                     <div className="flex w-full h-full min-h-[38px] items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        aria-label={`Delete variable ${index + 1}`}
                         onClick={() => onRemoveVar(v.id)}
                         className="p-1.5 text-muted hover:text-red-400 hover:bg-red-400/10 rounded"
                       >

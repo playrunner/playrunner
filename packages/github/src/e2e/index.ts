@@ -2,30 +2,148 @@ import { definePlayrunnerE2EContribution } from '@playrunner/integration-sdk/e2e
 import { createGithubE2EData } from './data';
 import { GithubE2EPom } from './GithubE2EPom';
 
+async function findLiveIssue(repository: string, title: string) {
+  const token = process.env.PLAYRUNNER_E2E_GITHUB_TOKEN?.trim();
+  if (!token) return undefined;
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/issues?state=all&per_page=100&sort=created&direction=desc`,
+    {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': '2026-03-10',
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`GitHub issue verification returned ${response.status}.`);
+  }
+  const issues = (await response.json()) as Array<{
+    number?: number;
+    pull_request?: unknown;
+    title?: string;
+  }>;
+  return issues.find((issue) => !issue.pull_request && issue.title === title);
+}
+
+async function waitForLiveIssue(repository: string, title: string) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const issue = await findLiveIssue(repository, title);
+    if (issue) return issue;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+  return undefined;
+}
+
+async function closeLiveIssue(repository: string, issueNumber: number) {
+  const token = process.env.PLAYRUNNER_E2E_GITHUB_TOKEN?.trim();
+  if (!token) return;
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/issues/${issueNumber}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-GitHub-Api-Version': '2026-03-10',
+      },
+      body: JSON.stringify({ state: 'closed', state_reason: 'not_planned' }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`GitHub issue cleanup returned ${response.status}.`);
+  }
+}
+
 export const githubE2EContribution = definePlayrunnerE2EContribution({
   id: 'github',
   createData: createGithubE2EData,
   createPom: ({ host, page }) => new GithubE2EPom(page, host),
   scenarios: [
     {
-      id: 'oauth-setup',
+      id: 'connected-state',
       mode: 'mock',
-      title: 'validates the GitHub OAuth setup form',
+      title: 'loads the encrypted GitHub test connection',
       tags: ['@github', '@integration'],
-      async run({ data, expect, pom }) {
+      async run({ expect, pom }) {
         await pom.open();
+        await expect(pom.connectedHeading).toBeVisible();
+        await pom.closeConnection();
+      },
+    },
+    {
+      id: 'create-issue-node-mock',
+      mode: 'mock',
+      title: 'creates an issue through a GitHub node and fake upstream',
+      tags: ['@github', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.createIssueNode();
+        await pom.nodeActionSelect.selectOption('create');
+        await expect(pom.nodeRepositorySelect).toContainText(data.repository);
+        await pom.nodeRepositorySelect.selectOption(data.repository);
+        await pom.nodeTitleInput.fill(data.issueTitle);
+        await pom.nodeBodyInput.fill(data.issueBody);
+        await pom.closeNode();
+        await pom.saveWorkflow();
+        await pom.reloadWorkflow();
+        await pom.reopenNode();
+        await expect(pom.nodeRepositorySelect).toHaveValue(data.repository);
+        await expect(pom.nodeTitleInput).toHaveValue(data.issueTitle);
+        await expect(pom.nodeBodyInput).toHaveValue(data.issueBody);
+        await pom.closeNode();
 
-        await expect(pom.setupGuideLink).toHaveAttribute('target', '_blank');
-        await expect(pom.clientSecretInput).toHaveAttribute('type', 'password');
-        await expect(pom.authenticateButton).toBeDisabled();
+        expect(await pom.runWorkflow()).toBe('success');
+        const response = await fetch(
+          `http://127.0.0.1:4010/__e2e/issues?title=${encodeURIComponent(data.issueTitle)}`,
+        );
+        expect(response.ok).toBe(true);
+        const issues = (await response.json()) as Array<{ title?: string }>;
+        expect(issues).toHaveLength(1);
+        expect(issues[0]?.title).toBe(data.issueTitle);
+      },
+    },
+    {
+      id: 'create-issue-node-live',
+      mode: 'live',
+      requiredEnvironment: [
+        'PLAYRUNNER_E2E_GITHUB_REPOSITORY',
+        'PLAYRUNNER_E2E_GITHUB_TOKEN',
+      ],
+      title: 'creates and closes a real issue through a GitHub node',
+      tags: ['@github', '@integration', '@node', '@live-provider'],
+      async run({ data, expect, pom }) {
+        let issueNumber: number | undefined;
+        try {
+          await pom.open();
+          await expect(pom.connectedHeading).toBeVisible();
+          await pom.closeConnection();
+          await pom.createIssueNode();
+          await pom.nodeActionSelect.selectOption('create');
+          await expect(pom.nodeRepositorySelect).toContainText(data.repository);
+          await pom.nodeRepositorySelect.selectOption(data.repository);
+          await pom.nodeTitleInput.fill(data.issueTitle);
+          await pom.nodeBodyInput.fill(data.issueBody);
+          await pom.closeNode();
+          await pom.saveWorkflow();
+          expect(await pom.runWorkflow()).toBe('success');
 
-        await pom.appNameInput.click();
-        await pom.appNameInput.fill(data.appName);
-        await pom.clientIdInput.click();
-        await pom.clientIdInput.fill(data.clientId);
-        await pom.clientSecretInput.click();
-        await pom.clientSecretInput.fill(data.clientSecret);
-        await expect(pom.authenticateButton).toBeEnabled();
+          const issue = await waitForLiveIssue(
+            data.repository,
+            data.issueTitle,
+          );
+          expect(issue).toBeTruthy();
+          issueNumber = issue?.number;
+        } finally {
+          if (!issueNumber) {
+            issueNumber = (
+              await findLiveIssue(data.repository, data.issueTitle)
+            )?.number;
+          }
+          if (issueNumber) {
+            await closeLiveIssue(data.repository, issueNumber);
+          }
+        }
       },
     },
   ],

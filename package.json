@@ -7,9 +7,12 @@
     "dev": "./start-local.sh",
     "dev:setup": "./start-local.sh --setup",
     "build": "npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
+    "build:e2e:orchestrator": "./infra/scripts/rebuild-orchestrator.sh",
+    "start:e2e:services": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; docker compose up -d postgres pubsub",
+    "show:e2e-report": "npm exec --prefix apps/frontend playwright -- show-report apps/frontend/playwright-report",
     "test:e2e": "npm run e2e --prefix apps/frontend --",
-    "test:e2e:mock": "PLAYRUNNER_E2E_MODE=mock npm run e2e --prefix apps/frontend --",
-    "test:e2e:live": "PLAYRUNNER_E2E_MODE=live npm run e2e --prefix apps/frontend --",
+    "test:e2e:mock": "npm run start:e2e:services && npm run build:e2e:orchestrator && PLAYRUNNER_E2E_MODE=mock npm run e2e --prefix apps/frontend --",
+    "test:e2e:live": "npm run start:e2e:services && npm run build:e2e:orchestrator && PLAYRUNNER_E2E_MODE=live npm run e2e --prefix apps/frontend --",
     "test:integration-composition": "node --test infra/scripts/generate-integration-composition.test.mjs"
   }
 }

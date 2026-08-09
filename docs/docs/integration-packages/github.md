@@ -160,6 +160,41 @@ repository IDs and full names. The branch endpoint accepts the selected
 credentials out of browser integration data while still supporting the
 Playwright selectors.
 
+## End-to-end tests
+
+Run the deterministic GitHub scenarios from the repository root:
+
+```bash
+npm run test:e2e:mock -- --grep @github
+```
+
+Mock mode creates an encrypted server-side test connection, loads repositories
+through the GitHub package API, configures and reloads a Create Issue node, and
+executes it through the local Orchestrator. Only the outbound GitHub HTTP
+boundary is fake; the browser, Playrunner API, database, credential encryption,
+Pub/Sub, and Orchestrator are real.
+
+To create and clean up a real GitHub issue, provide a protected token with
+access to the target repository and permission to read and write issues:
+
+```bash
+export PLAYRUNNER_E2E_GITHUB_TOKEN='replace-with-a-protected-token'
+export PLAYRUNNER_E2E_GITHUB_REPOSITORY='owner/repository'
+
+npm run test:e2e:live -- --grep @github
+```
+
+The live token is seeded into the encrypted API connection store and is never
+sent to the browser. The test creates a uniquely named issue, verifies it
+through GitHub, and closes it as not planned during cleanup. The live scenario
+is skipped when either required environment variable is absent.
+
+Open the generated HTML report from the repository root with:
+
+```bash
+npm run show:e2e-report
+```
+
 ## Assets
 
 The GitHub SVG lives inside the package at

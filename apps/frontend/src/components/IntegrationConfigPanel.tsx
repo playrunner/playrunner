@@ -36,6 +36,16 @@ type WorkflowInputVariable = {
   type: string;
 };
 
+type OutputVariable = WorkflowInputVariable & {
+  description?: string;
+};
+
+type OutputAwareIntegration = {
+  getOutputVariables?: (
+    config: Record<string, unknown>,
+  ) => readonly OutputVariable[];
+};
+
 const WORKFLOW_INPUT_PANEL_ID = '__workflow__';
 const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
   { path: 'workflow.definition.id', type: 'string' },
@@ -52,6 +62,12 @@ const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
   { path: 'workflow.run.url', type: 'url' },
 ];
 
+const DEFAULT_OUTPUT_VARIABLES: readonly OutputVariable[] = [
+  { path: 'result.status', type: 'string' },
+  { path: 'result.data', type: 'object', description: 'Response payload' },
+  { path: 'error.message', type: 'string' },
+];
+
 function setDragText(event: React.DragEvent, dragText: string) {
   event.dataTransfer.setData('text/plain', dragText);
 
@@ -65,6 +81,64 @@ function setDragText(event: React.DragEvent, dragText: string) {
   setTimeout(() => {
     document.body.removeChild(dragGhost);
   }, 0);
+}
+
+function outputVariablesFor(
+  integration: OutputAwareIntegration | undefined,
+  config: Record<string, unknown> | undefined,
+  output?: unknown,
+): readonly OutputVariable[] {
+  const declaredVariables = integration?.getOutputVariables?.(config ?? {});
+  if (declaredVariables) return declaredVariables;
+
+  const inferredVariables = inferOutputVariables(output);
+  return inferredVariables.length > 0
+    ? inferredVariables
+    : DEFAULT_OUTPUT_VARIABLES;
+}
+
+function inferOutputVariables(
+  value: unknown,
+  parentPath = '',
+  depth = 0,
+): OutputVariable[] {
+  if (
+    depth > 4 ||
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value)
+  ) {
+    return [];
+  }
+
+  return Object.entries(value as Record<string, unknown>).flatMap(
+    ([key, child]) => {
+      const path = parentPath ? `${parentPath}.${key}` : key;
+      const isObject =
+        typeof child === 'object' && child !== null && !Array.isArray(child);
+      const isStandardContainer =
+        !parentPath && (key === 'result' || key === 'error');
+      const variable: OutputVariable = {
+        path,
+        type: Array.isArray(child)
+          ? 'array'
+          : isObject
+            ? 'object'
+            : typeof child === 'boolean'
+              ? 'boolean'
+              : typeof child === 'number'
+                ? 'number'
+                : typeof child === 'string' && /^https?:\/\//.test(child)
+                  ? 'url'
+                  : 'string',
+      };
+      const children = isObject
+        ? inferOutputVariables(child, path, depth + 1)
+        : [];
+
+      return isStandardContainer ? children : [variable, ...children];
+    },
+  );
 }
 
 export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
@@ -89,6 +163,9 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     [WORKFLOW_INPUT_PANEL_ID]: true,
   });
   const [expandedMediaItems, setExpandedMediaItems] = useState<
+    Record<string, boolean>
+  >({});
+  const [expandedOutputObjects, setExpandedOutputObjects] = useState<
     Record<string, boolean>
   >({});
 
@@ -206,6 +283,84 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const showAuthenticationPanel =
     currentIntegration?.requiresAuth !== false &&
     currentIntegration?.showAuthenticationPanel !== false;
+
+  const renderOutputVariables = (
+    variables: readonly OutputVariable[],
+    options: { nodeId?: string; color: string },
+  ) =>
+    variables.map((variable) => {
+      const parentObjects = variables.filter(
+        (candidate) =>
+          candidate.type === 'object' &&
+          variable.path.startsWith(`${candidate.path}.`),
+      );
+      const isVisible = parentObjects.every(
+        (parent) =>
+          expandedOutputObjects[`${options.nodeId ?? nodeId}:${parent.path}`],
+      );
+      if (!isVisible) return null;
+
+      const objectKey = `${options.nodeId ?? nodeId}:${variable.path}`;
+      const isObject = variable.type === 'object';
+      const isExpanded = expandedOutputObjects[objectKey];
+      const dragText = options.nodeId
+        ? `{{node_${options.nodeId}.${variable.path}}}`
+        : undefined;
+      const isNested = parentObjects.length > 0;
+
+      return (
+        <div
+          key={variable.path}
+          className={cn(
+            'flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors',
+            dragText ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+            isNested && 'ml-3',
+          )}
+          draggable={Boolean(dragText)}
+          onDragStart={
+            dragText ? (event) => setDragText(event, dragText) : undefined
+          }
+          title={dragText ? `Drag ${dragText} to inject this value` : undefined}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn('text-xs font-mono', options.color)}>
+              {variable.path}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                {variable.type}
+              </span>
+              {isObject && (
+                <button
+                  type="button"
+                  className="p-0.5 text-muted hover:text-[var(--foreground)]"
+                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${variable.path}`}
+                  title={`${isExpanded ? 'Collapse' : 'Expand'} ${variable.path}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpandedOutputObjects((previous) => ({
+                      ...previous,
+                      [objectKey]: !previous[objectKey],
+                    }));
+                  }}
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          {variable.description && (
+            <span className="text-[10px] text-muted leading-relaxed">
+              {variable.description}
+            </span>
+          )}
+        </div>
+      );
+    });
 
   return (
     <div
@@ -678,6 +833,11 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                       </div>
                     );
                   } else {
+                    const outputVariables = outputVariablesFor(
+                      matchedIntegration as OutputAwareIntegration | undefined,
+                      inNode.config,
+                      inNode.output,
+                    );
                     return (
                       <div
                         key={inNode.id}
@@ -701,33 +861,10 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                         </button>
                         {!isCollapsed && (
                           <div className="space-y-2 mt-2">
-                            <div
-                              className="flex items-center justify-between p-2 rounded hover:bg-surface transition-colors border border-transparent hover:border-subtle cursor-grab active:cursor-grabbing"
-                              draggable
-                              onDragStart={(e) => {
-                                const dragText = `{{node_${inNode.id}.result.data}}`;
-                                e.dataTransfer.setData('text/plain', dragText);
-
-                                const dragGhost = document.createElement('div');
-                                dragGhost.textContent = dragText;
-                                dragGhost.className =
-                                  'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
-                                document.body.appendChild(dragGhost);
-                                e.dataTransfer.setDragImage(dragGhost, 10, 10);
-
-                                setTimeout(() => {
-                                  document.body.removeChild(dragGhost);
-                                }, 0);
-                              }}
-                              title="Drag to inject this object"
-                            >
-                              <span className="text-xs font-mono text-blue-400">
-                                result.data
-                              </span>
-                              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                                object
-                              </span>
-                            </div>
+                            {renderOutputVariables(outputVariables, {
+                              nodeId: inNode.id,
+                              color: 'text-blue-400',
+                            })}
                           </div>
                         )}
                       </div>
@@ -1105,39 +1242,13 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 Provides
               </h4>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-green-400">
-                      result.status
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                    string
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-green-400">
-                      result.data
-                    </span>
-                    <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                      object
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted">
-                    Response payload
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-orange-400">
-                      error.message
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                    string
-                  </span>
-                </div>
+                {renderOutputVariables(
+                  outputVariablesFor(
+                    currentIntegration as OutputAwareIntegration | undefined,
+                    config,
+                  ),
+                  { color: 'text-green-400' },
+                )}
               </div>
             </div>
           )}
