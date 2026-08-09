@@ -1,5 +1,6 @@
-ARG PLAYWRIGHT_VERSION=v1.62.1-jammy
-ARG PYTHON_PLAYWRIGHT_VERSION=1.62.0
+ARG PLAYWRIGHT_VERSION
+ARG PLAYWRIGHT_NPM_VERSION
+ARG PYTHON_PLAYWRIGHT_VERSION
 FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION} AS builder
 
 WORKDIR /app
@@ -9,6 +10,7 @@ COPY . .
 RUN npm run build
 
 FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}
+ARG PLAYWRIGHT_NPM_VERSION
 ARG PYTHON_PLAYWRIGHT_VERSION
 
 WORKDIR /app
@@ -20,7 +22,9 @@ RUN apt-get update && \
 RUN pip3 install --no-cache-dir "playwright==${PYTHON_PLAYWRIGHT_VERSION}" pytest pytest-playwright
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN node -e \
+      "const fs = require('fs'); const manifest = require('./package.json'); delete manifest.devDependencies; manifest.dependencies['@playwright/test'] = '${PLAYWRIGHT_NPM_VERSION}'; manifest.dependencies.playwright = '${PLAYWRIGHT_NPM_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(manifest));" && \
+    npm install --omit=dev --package-lock=false
 COPY --from=builder /app/dist ./dist
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
