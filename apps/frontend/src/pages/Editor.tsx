@@ -2915,11 +2915,10 @@ export default function Editor() {
                         (c.sourcePort === 'right' || !c.sourcePort),
                     ) && (
                       <div className="absolute top-1/2 -translate-y-1/2 left-full flex items-center z-[-1]">
-                        <div className="w-[40px] h-[2px] bg-[var(--node-border)]" />
+                        <div className="w-[40px] h-[2px] shrink-0 bg-[var(--node-border)]" />
                         <button
-                          className="w-6 h-6 rounded-md bg-[var(--node-bg)] hover:bg-[#3f3f46] flex items-center justify-center transition-colors text-muted hover:text-[var(--foreground)] shadow-sm pointer-events-auto"
+                          className="group/add-node relative w-6 h-6 rounded-md bg-[var(--node-bg)] hover:bg-surface-hover dark:hover:bg-[#3f3f46] flex items-center justify-center transition-colors text-muted hover:text-[var(--foreground)] shadow-sm pointer-events-auto"
                           aria-label="Add connected node"
-                          title="Add connected node"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPendingConnectionSource({
@@ -2936,6 +2935,9 @@ export default function Editor() {
                           onPointerDown={(e) => e.stopPropagation()}
                         >
                           <Plus className="w-4 h-4" />
+                          <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded border border-subtle bg-surface-hover px-2 py-1 text-xs font-medium text-[var(--foreground)] dark:border-[#555] dark:bg-[#555] dark:text-white opacity-0 shadow-lg transition-opacity group-hover/add-node:opacity-100">
+                            Add connected node
+                          </span>
                         </button>
                       </div>
                     )}

@@ -33,6 +33,19 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   onConnectOAuth,
 }) => {
   const { auth, ui } = useIntegrationHost();
+  const [isDarkTheme, setIsDarkTheme] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDarkTheme(root.classList.contains('dark'));
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
   const Input = ui.Input;
   const Select = ui.Select;
   const [repositories, setRepositories] = useState<
@@ -275,16 +288,16 @@ test.describe('navigation', () => {
                 Azure Playwright Testing:
               </span>{' '}
               For TypeScript, if a{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 playwright.service.config.ts
               </code>{' '}
               is detected alongside your standard config, it will be
               automatically executed. For Python, standard{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 pytest.ini
               </code>{' '}
               and{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 conftest.py
               </code>{' '}
               configurations are supported.
@@ -520,33 +533,33 @@ test.describe('navigation', () => {
 
             {config.action === 'run' && (
               <div className="flex flex-col gap-1.5 shrink-0">
-                <div className="rounded-xl border border-subtle bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
+                <div className="rounded-xl border border-subtle bg-background dark:bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
                   <div
                     data-testid="playwright-node-script"
                     data-script-value={config.testScript || ''}
                     className="h-full"
                   >
-                  <Editor
-                    height="100%"
-                    defaultLanguage="javascript"
-                    theme="vs-dark"
-                    value={config.testScript || ''}
-                    onChange={(value) =>
-                      onChange(nodeId, { ...config, testScript: value || '' })
-                    }
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      fontFamily: 'var(--font-mono)',
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      wordWrap: 'on',
-                      padding: { top: 16, bottom: 16 },
-                      tabSize: 2,
-                      dragAndDrop: true,
-                      dropIntoEditor: { enabled: true },
-                    }}
-                  />
+                    <Editor
+                      height="100%"
+                      defaultLanguage="javascript"
+                      theme={isDarkTheme ? 'vs-dark' : 'light'}
+                      value={config.testScript || ''}
+                      onChange={(value) =>
+                        onChange(nodeId, { ...config, testScript: value || '' })
+                      }
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        wordWrap: 'on',
+                        padding: { top: 16, bottom: 16 },
+                        tabSize: 2,
+                        dragAndDrop: true,
+                        dropIntoEditor: { enabled: true },
+                      }}
+                    />
                   </div>
                 </div>
                 <p className="text-[10px] text-muted mt-1">
@@ -627,7 +640,7 @@ test.describe('navigation', () => {
                     </svg>
                     <span className="text-xs text-[var(--foreground)] truncate">
                       <span data-testid="playwright-node-zip-file-name">
-                      {config.zipFileName}
+                        {config.zipFileName}
                       </span>
                     </span>
                   </div>
@@ -663,7 +676,7 @@ test.describe('navigation', () => {
                     </ul>
                   </div>
 
-                  <div className="bg-[#18181b] border border-subtle rounded-md p-2 font-mono text-[10px] text-muted leading-relaxed">
+                  <div className="bg-surface-hover dark:bg-[#18181b] border border-subtle rounded-md p-2 font-mono text-[10px] text-muted leading-relaxed">
                     <p className="text-[var(--foreground)] mb-1.5 font-medium font-sans">
                       Expected ZIP Structure:
                     </p>
@@ -744,7 +757,7 @@ test.describe('navigation', () => {
                     {config.envVars.map((v: string) => (
                       <div
                         key={v}
-                        className="bg-[#18181b] border border-subtle rounded px-2 py-1 flex items-center gap-2 group/tag cursor-default"
+                        className="bg-surface-hover dark:bg-[#18181b] border border-subtle rounded px-2 py-1 flex items-center gap-2 group/tag cursor-default"
                       >
                         <span className="text-[10px] font-mono text-muted">
                           env.{v}

@@ -78,7 +78,7 @@ function setDragText(event: React.DragEvent, dragText: string) {
   const dragGhost = document.createElement('div');
   dragGhost.textContent = dragText;
   dragGhost.className =
-    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
   document.body.appendChild(dragGhost);
   event.dataTransfer.setDragImage(dragGhost, 10, 10);
 
@@ -586,7 +586,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                     document.createElement('div');
                                   dragGhost.textContent = dragText;
                                   dragGhost.className =
-                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                   document.body.appendChild(dragGhost);
                                   e.dataTransfer.setDragImage(
                                     dragGhost,
@@ -651,7 +651,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                     document.createElement('div');
                                   dragGhost.textContent = dragText;
                                   dragGhost.className =
-                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                   document.body.appendChild(dragGhost);
                                   e.dataTransfer.setDragImage(
                                     dragGhost,
@@ -713,7 +713,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                           document.createElement('div');
                                         dragGhost.textContent = dragText;
                                         dragGhost.className =
-                                          'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                          'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                         document.body.appendChild(dragGhost);
                                         e.dataTransfer.setDragImage(
                                           dragGhost,
@@ -786,7 +786,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                                   dragGhost.textContent =
                                                     dragText;
                                                   dragGhost.className =
-                                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                                   document.body.appendChild(
                                                     dragGhost,
                                                   );
@@ -1174,7 +1174,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                       Access directly in any node parameter using the curly
                       brace syntax:
                     </p>
-                    <div className="bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-blue-400 mt-1">
+                    <div className="bg-surface-hover dark:bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-blue-400 mt-1">
                       {'{ '}env.{config.variables?.[0]?.key || 'MY_VAR'}
                       {' }'}
                     </div>
@@ -1187,7 +1187,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                       Available as standard environment variables in your
                       runner's shell or code:
                     </p>
-                    <div className="bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-amber-400 mt-1">
+                    <div className="bg-surface-hover dark:bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-amber-400 mt-1">
                       process.env.{config.variables?.[0]?.key || 'MY_VAR'}
                     </div>
                   </div>

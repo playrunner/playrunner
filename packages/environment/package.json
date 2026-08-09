@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/environment",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Environment integration package for Playrunner.",
   "keywords": [
     "playrunner",

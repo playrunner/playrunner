@@ -490,7 +490,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-[#1c1c1c]/90 backdrop-blur-sm border-2 border-dashed border-[var(--accent)] flex items-center justify-center rounded-lg m-2">
+        <div className="absolute inset-0 z-50 bg-surface/90 dark:bg-[#1c1c1c]/90 backdrop-blur-sm border-2 border-dashed border-[var(--accent)] flex items-center justify-center rounded-lg m-2">
           <div className="flex flex-col items-center text-[var(--accent)]">
             <Upload className="w-10 h-10 mb-4 opacity-80" />
             <p className="text-sm font-medium">Drop .env file here to upload</p>
@@ -568,7 +568,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#1c1c1c] p-4">
+      <div className="flex-1 overflow-auto bg-surface dark:bg-[#1c1c1c] p-4">
         <VariablesTable
           variables={filteredVariables}
           onUpdateVar={updateVar}

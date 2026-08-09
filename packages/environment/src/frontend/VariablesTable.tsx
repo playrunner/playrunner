@@ -19,35 +19,35 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
   onConvertToSecret,
 }) => {
   return (
-    <div className="border border-[#2e2e2e] rounded-sm overflow-hidden bg-background flex flex-col">
+    <div className="border border-subtle dark:border-[#2e2e2e] rounded-sm overflow-hidden bg-background flex flex-col">
       <table className="w-full text-left text-sm whitespace-nowrap border-collapse">
         <thead>
-          <tr className="border-b border-[#2e2e2e] bg-background text-[#b3b3b3]">
-            <th className="px-3 py-2 w-[44px] border-r border-[#2e2e2e] text-center font-medium"></th>
-            <th className="px-4 py-2 border-r border-[#2e2e2e] font-medium text-xs">
+          <tr className="border-b border-subtle dark:border-[#2e2e2e] bg-background text-muted dark:text-[#b3b3b3]">
+            <th className="px-3 py-2 w-[44px] border-r border-subtle dark:border-[#2e2e2e] text-center font-medium"></th>
+            <th className="px-4 py-2 border-r border-subtle dark:border-[#2e2e2e] font-medium text-xs">
               Variable
             </th>
-            <th className="px-4 py-2 border-r border-[#2e2e2e] font-medium text-xs w-28">
+            <th className="px-4 py-2 border-r border-subtle dark:border-[#2e2e2e] font-medium text-xs w-28">
               Type
             </th>
-            <th className="px-4 py-2 border-r border-[#2e2e2e] font-medium text-xs">
+            <th className="px-4 py-2 border-r border-subtle dark:border-[#2e2e2e] font-medium text-xs">
               Initial value
             </th>
-            <th className="px-4 py-2 border-r border-[#2e2e2e] font-medium text-xs">
+            <th className="px-4 py-2 border-r border-subtle dark:border-[#2e2e2e] font-medium text-xs">
               Current value
             </th>
             <th className="px-3 py-2 w-[44px] text-center text-muted"></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#2e2e2e]">
+        <tbody className="divide-y divide-subtle dark:divide-[#2e2e2e]">
           {variables.map((v, index) => {
             const isEmpty = !v.key && !v.initialValue && !v.currentValue;
             return (
               <tr
                 key={v.id}
-                className="group hover:bg-[#2a2a2a] transition-colors bg-background relative h-[38px]"
+                className="group hover:bg-surface-hover dark:hover:bg-[#2a2a2a] transition-colors bg-background relative h-[38px]"
               >
-                <td className="p-0 border-r border-[#2e2e2e] text-center w-[44px]">
+                <td className="p-0 border-r border-subtle dark:border-[#2e2e2e] text-center w-[44px]">
                   {!isEmpty && (
                     <div
                       data-testid={`environment-node-variable-${index}-enabled`}
@@ -60,8 +60,8 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                         className={cn(
                           'w-4 h-4 rounded-[3px] flex items-center justify-center transition-colors',
                           v.enabled
-                            ? 'bg-white'
-                            : 'bg-transparent border border-[#b3b3b3]',
+                            ? 'bg-[var(--accent)] text-[var(--accent-foreground)] dark:bg-white dark:text-black'
+                            : 'bg-transparent border border-strong dark:border-[#b3b3b3]',
                         )}
                       >
                         {v.enabled && (
@@ -70,7 +70,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                             height="12"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="black"
+                            stroke="currentColor"
                             strokeWidth="3"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -82,20 +82,20 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                     </div>
                   )}
                 </td>
-                <td className="p-0 border-r border-[#2e2e2e] relative">
+                <td className="p-0 border-r border-subtle dark:border-[#2e2e2e] relative">
                   <input
                     data-testid={`environment-node-variable-${index}-name`}
                     aria-label={`Variable ${index + 1} name`}
                     value={v.key}
                     onChange={(e) => onUpdateVar(v.id, { key: e.target.value })}
                     placeholder=""
-                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-[#e1e1e1]"
+                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-[var(--foreground)] dark:text-[#e1e1e1]"
                   />
                   <div className="px-4 py-1.5 invisible text-xs font-mono">
                     {v.key || ' '}
                   </div>
                 </td>
-                <td className="p-0 border-r border-[#2e2e2e] relative">
+                <td className="p-0 border-r border-subtle dark:border-[#2e2e2e] relative">
                   {!isEmpty && (
                     <div className="absolute inset-0 flex items-center w-full h-full">
                       <select
@@ -116,12 +116,12 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                             onUpdateVar(v.id, { type: newType });
                           }
                         }}
-                        className="w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none text-xs text-[#b3b3b3] appearance-none cursor-pointer pr-8"
+                        className="w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none text-xs text-muted dark:text-[#b3b3b3] appearance-none cursor-pointer pr-8"
                       >
                         <option value="default">default</option>
                         <option value="secret">secret</option>
                       </select>
-                      <div className="absolute right-3 pointer-events-none text-[#b3b3b3]">
+                      <div className="absolute right-3 pointer-events-none text-muted dark:text-[#b3b3b3]">
                         <svg
                           width="12"
                           height="12"
@@ -138,7 +138,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                     </div>
                   )}
                 </td>
-                <td className="p-0 border-r border-[#2e2e2e] relative">
+                <td className="p-0 border-r border-subtle dark:border-[#2e2e2e] relative">
                   <input
                     data-testid={`environment-node-variable-${index}-initial`}
                     aria-label={`Variable ${index + 1} initial value`}
@@ -147,14 +147,14 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                       onUpdateVar(v.id, { initialValue: e.target.value })
                     }
                     disabled={v.type === 'secret'}
-                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-[#b3b3b3] truncate disabled:opacity-50"
+                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-muted dark:text-[#b3b3b3] truncate disabled:opacity-50"
                     placeholder=""
                   />
                   <div className="px-4 py-1.5 invisible text-xs font-mono truncate">
                     {v.initialValue || ' '}
                   </div>
                 </td>
-                <td className="p-0 border-r border-[#2e2e2e] relative">
+                <td className="p-0 border-r border-subtle dark:border-[#2e2e2e] relative">
                   <input
                     data-testid={`environment-node-variable-${index}-current`}
                     aria-label={`Variable ${index + 1} current value`}
@@ -163,7 +163,7 @@ export const VariablesTable: React.FC<VariablesTableProps> = ({
                       onUpdateVar(v.id, { currentValue: e.target.value })
                     }
                     disabled={v.type === 'secret'}
-                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-[#b3b3b3] truncate disabled:opacity-50"
+                    className="absolute inset-0 w-full h-full px-4 py-1.5 bg-transparent !border-0 !shadow-none outline-none focus:outline-none focus:ring-0 focus:!shadow-none placeholder:text-muted/50 font-mono text-xs text-muted dark:text-[#b3b3b3] truncate disabled:opacity-50"
                     placeholder=""
                   />
                   <div className="px-4 py-1.5 invisible text-xs font-mono truncate">

@@ -30,9 +30,7 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.field('repository')).toContainText(
           'playrunner/e2e-fixture',
         );
-        await pom
-          .field('repository')
-          .selectOption('playrunner/e2e-fixture');
+        await pom.field('repository').selectOption('playrunner/e2e-fixture');
         await expect(pom.field('branch')).toContainText('main');
         await pom.field('branch').selectOption('main');
         await pom.field('test-language').selectOption('python');
@@ -58,9 +56,7 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.field('folder')).toHaveValue(data.folder);
         await pom.field('tab-env').click();
         await expect(pom.field('version')).toHaveValue(version);
-        await expect(pom.field('env-vars')).toContainText(
-          'env.PLAYRUNNER_E2E',
-        );
+        await expect(pom.field('env-vars')).toContainText('env.PLAYRUNNER_E2E');
         await pom.field('tab-resources').click();
         await expect(pom.field('cpu')).toHaveValue('8');
         await expect(pom.field('memory')).toHaveValue('16');
