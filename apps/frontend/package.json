@@ -30,11 +30,11 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
-    "@playrunner/environment": "file:../../packages/environment",
+    "@playrunner/environment": "0.1.4",
     "@playrunner/gcp": "0.1.2",
     "@playrunner/github": "0.2.1",
     "@playrunner/huggingface": "^0.1.2",
-    "@playrunner/integration-sdk": "file:../../packages/integration-sdk",
+    "@playrunner/integration-sdk": "0.1.5",
     "@playrunner/javascript": "^0.1.1",
     "@playrunner/jira": "^0.1.2",
     "@playrunner/openai": "^0.1.3",
