@@ -6,6 +6,10 @@ import { Select } from './ui/Select';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import { openAuthenticatedOutput } from '../lib/output-links';
+import {
+  insertDroppedText,
+  normalizeConfigDropText,
+} from '../lib/config-template-drop';
 import { INTEGRATIONS } from '../integrations/registry';
 import {
   ChevronDown,
@@ -81,6 +85,23 @@ function setDragText(event: React.DragEvent, dragText: string) {
   setTimeout(() => {
     document.body.removeChild(dragGhost);
   }, 0);
+}
+
+function setNativeFieldValue(
+  field: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) {
+  const prototype =
+    field instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+
+  if (valueSetter) {
+    valueSetter.call(field, value);
+  } else {
+    field.value = value;
+  }
 }
 
 function outputVariablesFor(
@@ -213,6 +234,34 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const handleConfigFieldDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const field = event.target;
+    if (
+      !(
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    const droppedText = event.dataTransfer.getData('text/plain');
+    const normalizedText = normalizeConfigDropText(droppedText);
+    if (!droppedText || normalizedText === droppedText) return;
+
+    event.preventDefault();
+    const insertion = insertDroppedText(
+      field.value,
+      normalizedText,
+      field.selectionStart,
+      field.selectionEnd,
+    );
+    setNativeFieldValue(field, insertion.value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.focus();
+    field.setSelectionRange(insertion.caret, insertion.caret);
   };
 
   const currentIntegration = INTEGRATIONS.find((i) => i.id === nodeType);
@@ -905,7 +954,10 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             Configuration
           </h3>
         </div>
-        <div className="flex-1 overflow-y-auto w-full p-6 space-y-6">
+        <div
+          className="flex-1 overflow-y-auto w-full p-6 space-y-6"
+          onDropCapture={handleConfigFieldDrop}
+        >
           {showAuthenticationPanel && (
             <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-subtle pb-2">
