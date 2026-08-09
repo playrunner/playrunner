@@ -81,7 +81,7 @@
     "@google-cloud/run": "^3.2.1",
     "@google-cloud/storage": "^7.19.0",
     "express": "^5.2.1",
-    "google-auth-library": "^10.6.2"
+    "google-auth-library": "^11.0.0"
   },
   "peerDependencies": {
     "@playwright/test": "^1.61.0",
