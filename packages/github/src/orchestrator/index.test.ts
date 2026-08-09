@@ -65,6 +65,7 @@ test('creates a GitHub issue and returns reusable issue output', async () => {
     requestInit = init;
     return new Response(
       JSON.stringify({
+        id: 123456789,
         number: 42,
         title: 'Rendered title',
         body: 'rendered',
@@ -100,12 +101,19 @@ test('creates a GitHub issue and returns reusable issue output', async () => {
   assert.deepEqual(result, {
     outcome: 'success',
     output: {
-      number: 42,
-      title: 'Rendered title',
-      body: 'rendered',
-      state: 'open',
-      url: 'https://github.com/playrunner/playrunner/issues/42',
-      apiUrl: 'https://api.github.com/repos/playrunner/playrunner/issues/42',
+      result: {
+        status: 'success',
+        data: {
+          id: 123456789,
+          number: 42,
+          title: 'Rendered title',
+          body: 'rendered',
+          state: 'open',
+          url: 'https://github.com/playrunner/playrunner/issues/42',
+          apiUrl:
+            'https://api.github.com/repos/playrunner/playrunner/issues/42',
+        },
+      },
     },
   });
 });
@@ -138,9 +146,11 @@ test('reads a GitHub issue by number', async () => {
     requestUrl,
     'https://api.github.com/repos/playrunner/playrunner/issues/7',
   );
-  const output = result.output as { number?: unknown; state?: unknown };
-  assert.equal(output.number, 7);
-  assert.equal(output.state, 'closed');
+  const output = result.output as {
+    result?: { data?: { number?: unknown; state?: unknown } };
+  };
+  assert.equal(output.result?.data?.number, 7);
+  assert.equal(output.result?.data?.state, 'closed');
 });
 
 test('requires a numeric issue number for reads', async () => {
@@ -190,7 +200,14 @@ test('updates a GitHub issue title and closes it as not planned', async () => {
     state: 'closed',
     state_reason: 'not_planned',
   });
-  assert.equal((result.output as { state?: unknown }).state, 'closed');
+  assert.equal(
+    (
+      result.output as {
+        result?: { data?: { state?: unknown } };
+      }
+    ).result?.data?.state,
+    'closed',
+  );
 });
 
 test('adds a comment to an issue or pull request timeline', async () => {
@@ -230,12 +247,18 @@ test('adds a comment to an issue or pull request timeline', async () => {
     body: 'Status: rendered',
   });
   assert.deepEqual(result.output, {
-    id: 99,
-    body: 'Status: rendered',
-    url: 'https://github.com/playrunner/playrunner/issues/4#issuecomment-99',
-    apiUrl:
-      'https://api.github.com/repos/playrunner/playrunner/issues/comments/99',
-    issueApiUrl: 'https://api.github.com/repos/playrunner/playrunner/issues/4',
+    result: {
+      status: 'success',
+      data: {
+        id: 99,
+        body: 'Status: rendered',
+        url: 'https://github.com/playrunner/playrunner/issues/4#issuecomment-99',
+        apiUrl:
+          'https://api.github.com/repos/playrunner/playrunner/issues/comments/99',
+        issueApiUrl:
+          'https://api.github.com/repos/playrunner/playrunner/issues/4',
+      },
+    },
   });
 });
 
@@ -281,7 +304,14 @@ test('creates a pull request from selected branches', async () => {
     body: 'Ready',
     draft: true,
   });
-  assert.equal((result.output as { number?: unknown }).number, 27);
+  assert.equal(
+    (
+      result.output as {
+        result?: { data?: { number?: unknown } };
+      }
+    ).result?.data?.number,
+    27,
+  );
 });
 
 test('uses the current GitHub REST API version header', async () => {

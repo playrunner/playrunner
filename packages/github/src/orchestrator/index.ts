@@ -153,12 +153,22 @@ async function githubRequest(
 
 function issueOutput(issue: GithubResourceResponse) {
   return {
+    ...(issue.id !== undefined ? { id: issue.id } : {}),
     number: issue.number,
     title: issue.title,
     body: issue.body,
     state: issue.state,
     url: issue.html_url,
     apiUrl: issue.url,
+  };
+}
+
+function successfulOutput(data: Record<string, unknown>) {
+  return {
+    result: {
+      status: 'success',
+      data,
+    },
   };
 }
 
@@ -219,7 +229,7 @@ async function executeGithubCreate(
       `Successfully created GitHub issue #${String(issue.number)}.`,
       'info',
     );
-    return { outcome: 'success', output: issueOutput(issue) };
+    return { outcome: 'success', output: successfulOutput(issueOutput(issue)) };
   } catch (error) {
     throw actionFailure(context, error);
   }
@@ -252,7 +262,7 @@ async function executeGithubRead(
       `Successfully read GitHub issue #${issueNumber}.`,
       'info',
     );
-    return { outcome: 'success', output: issueOutput(issue) };
+    return { outcome: 'success', output: successfulOutput(issueOutput(issue)) };
   } catch (error) {
     throw actionFailure(context, error);
   }
@@ -312,7 +322,7 @@ async function executeGithubUpdate(
       `Successfully updated GitHub issue #${issueNumber}.`,
       'info',
     );
-    return { outcome: 'success', output: issueOutput(issue) };
+    return { outcome: 'success', output: successfulOutput(issueOutput(issue)) };
   } catch (error) {
     throw actionFailure(context, error);
   }
@@ -352,7 +362,10 @@ async function executeGithubComment(
       `Successfully added a GitHub comment to #${issueNumber}.`,
       'info',
     );
-    return { outcome: 'success', output: commentOutput(comment) };
+    return {
+      outcome: 'success',
+      output: successfulOutput(commentOutput(comment)),
+    };
   } catch (error) {
     throw actionFailure(context, error);
   }
@@ -398,7 +411,10 @@ async function executeGithubCreatePullRequest(
       `Successfully created GitHub pull request #${String(pullRequest.number)}.`,
       'info',
     );
-    return { outcome: 'success', output: issueOutput(pullRequest) };
+    return {
+      outcome: 'success',
+      output: successfulOutput(issueOutput(pullRequest)),
+    };
   } catch (error) {
     throw actionFailure(context, error);
   }
