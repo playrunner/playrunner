@@ -4,20 +4,23 @@ import { Modal } from '../components/ui/Modal';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 
+const integrationStore = {
+  getIntegration: DbAPI.getIntegration,
+  saveIntegration: DbAPI.saveIntegration,
+  deleteIntegration: DbAPI.deleteIntegration,
+  getCloudCredential: DbAPI.getCloudCredential,
+  saveCloudCredential: DbAPI.saveCloudCredential,
+  deleteCloudCredential: DbAPI.deleteCloudCredential,
+  getEnvironments: DbAPI.getEnvironments,
+  saveEnvironment: DbAPI.saveEnvironment,
+  deleteEnvironment: DbAPI.deleteEnvironment,
+  saveSecret: DbAPI.saveSecret,
+  getSecret: DbAPI.getSecret,
+};
+
 export const integrationSdkHost: IntegrationSdkHost = {
   auth,
-  store: {
-    getIntegration: DbAPI.getIntegration,
-    saveIntegration: DbAPI.saveIntegration,
-    deleteIntegration: DbAPI.deleteIntegration,
-    getCloudCredential: DbAPI.getCloudCredential,
-    saveCloudCredential: DbAPI.saveCloudCredential,
-    deleteCloudCredential: DbAPI.deleteCloudCredential,
-    getEnvironments: DbAPI.getEnvironments,
-    saveEnvironment: DbAPI.saveEnvironment,
-    deleteEnvironment: DbAPI.deleteEnvironment,
-    saveSecret: DbAPI.saveSecret,
-  },
+  store: integrationStore,
   ui: {
     Button,
     Input,

@@ -120,6 +120,7 @@ export interface IntegrationStore {
   ) => Promise<void>;
   deleteEnvironment?: (userId: string, environmentId: string) => Promise<void>;
   saveSecret?: (userId: string, secretKey: string, data: any) => Promise<void>;
+  getSecret?: (userId: string, secretKey: string) => Promise<any>;
 }
 
 export interface IntegrationModalProps {

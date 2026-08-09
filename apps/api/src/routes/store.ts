@@ -13,6 +13,10 @@ import {
   listPublicConnections,
   saveConnection,
 } from '../services/connections';
+import {
+  decodeEnvironmentSecret,
+  encodeEnvironmentSecret,
+} from '../services/environment-secrets';
 
 export const storeRouter = Router();
 
@@ -598,6 +602,13 @@ storeRouter.put(
   '/secrets/:secretKey',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const currentValue =
+      toOptionalString(req.body?.currentValue) ??
+      toOptionalString(req.body?.value) ??
+      '';
+    const initialValue =
+      toOptionalString(req.body?.initialValue) ?? currentValue;
+    const value = encodeEnvironmentSecret({ initialValue, currentValue });
     const secret = await prisma.environmentSecret.upsert({
       where: {
         userId_key: {
@@ -606,23 +617,60 @@ storeRouter.put(
         },
       },
       update: {
-        value: toOptionalString(req.body?.value) || '',
+        value,
         description: toNullableString(req.body?.description) ?? null,
       },
       create: {
         userId,
         key: req.params.secretKey,
-        value: toOptionalString(req.body?.value) || '',
+        value,
         description: toNullableString(req.body?.description) ?? null,
       },
     });
+
+    const values = decodeEnvironmentSecret(secret.value);
 
     res.json({
       secret: {
         id: secret.id,
         userId: secret.userId,
         secretKey: secret.key,
-        value: secret.value,
+        value: values.currentValue,
+        ...values,
+        description: secret.description,
+        createdAt: secret.createdAt,
+        updatedAt: secret.updatedAt,
+      },
+    });
+  }),
+);
+
+storeRouter.get(
+  '/secrets/:secretKey',
+  createRouteHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const secret = await prisma.environmentSecret.findUnique({
+      where: {
+        userId_key: {
+          userId,
+          key: req.params.secretKey,
+        },
+      },
+    });
+
+    if (!secret) {
+      res.status(404).json({ error: 'Environment secret not found.' });
+      return;
+    }
+
+    const values = decodeEnvironmentSecret(secret.value);
+    res.json({
+      secret: {
+        id: secret.id,
+        userId: secret.userId,
+        secretKey: secret.key,
+        value: values.currentValue,
+        ...values,
         description: secret.description,
         createdAt: secret.createdAt,
         updatedAt: secret.updatedAt,

@@ -77,6 +77,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const getEnvironments = store.getEnvironments;
   const saveEnvironment = store.saveEnvironment;
   const saveSecret = store.saveSecret;
+  const getSecret = store.getSecret;
   const latestConfigRef = useRef(config);
   const latestOnChangeRef = useRef(onChange);
 
@@ -189,6 +190,11 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   };
 
   const updateVar = (id: string, updates: Partial<EnvVar>) => {
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (updates.type === 'default' && variable?.type === 'secret') {
+      void convertToDefault(id);
+      return;
+    }
     setVariables((prev) => {
       const next = prev.map((v) => (v.id === id ? { ...v, ...updates } : v));
       if (linkedEnvId) syncToSavedEnvironment(next);
@@ -421,6 +427,8 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
     try {
       await saveSecret(auth.currentUser.uid, v.key, {
         value: v.currentValue,
+        initialValue: v.initialValue,
+        currentValue: v.currentValue,
         description: `Secret for ${v.key}`,
       });
 
@@ -440,6 +448,32 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       });
     } catch (err) {
       console.error('Failed to save secret:', err);
+    }
+  };
+
+  const convertToDefault = async (id: string) => {
+    if (!auth.currentUser || !getSecret) return;
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (!variable) return;
+
+    try {
+      const secret = await getSecret(auth.currentUser.uid, variable.key);
+      setVariables((prev) => {
+        const next: EnvVar[] = prev.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                type: 'default' as const,
+                initialValue: secret.initialValue ?? secret.value ?? '',
+                currentValue: secret.currentValue ?? secret.value ?? '',
+              }
+            : candidate,
+        );
+        if (linkedEnvId) syncToSavedEnvironment(next);
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to restore secret as text:', err);
     }
   };
 

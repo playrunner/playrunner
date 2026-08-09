@@ -30,6 +30,11 @@ import {
   resolveConnection,
 } from '../services/connections';
 import { preparePackageCredentials } from '../integrations/package-registry';
+import { prisma } from '../lib/prisma';
+import {
+  getEnvironmentSecretKeys,
+  hydrateEnvironmentSecretVariables,
+} from '../services/environment-secrets';
 
 const HOST_NODE_TYPES = new Set([
   'environment',
@@ -81,6 +86,25 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
   return settings;
 }
 
+async function resolveEnvironmentSecrets(request: WorkflowExecutionRequest) {
+  const userId = request.req.authUser?.providerUserId;
+  if (!userId) {
+    throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  }
+
+  const keys = getEnvironmentSecretKeys(request.body.nodes);
+  if (keys.length === 0) return;
+
+  const secrets = await prisma.environmentSecret.findMany({
+    where: { userId, key: { in: keys } },
+    select: { key: true, value: true },
+  });
+  request.body.nodes = hydrateEnvironmentSecretVariables(
+    request.body.nodes,
+    new Map(secrets.map((secret) => [secret.key, secret.value])),
+  );
+}
+
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
     private readonly providers = [{ id: 'LOCAL_RUNNER', label: 'Local Dev' }],
@@ -108,6 +132,7 @@ class WorkflowExecutionRegistry {
     // The browser is never authoritative for credentials. Rebuild the settings
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);
+    await resolveEnvironmentSecrets(request);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),

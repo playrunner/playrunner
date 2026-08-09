@@ -375,6 +375,13 @@ export const DbAPI = {
     });
   },
 
+  async getSecret(_userId: string, secretKey: string) {
+    const payload = await apiRequest<{ secret: any }>(
+      `/api/store/secrets/${encodeURIComponent(secretKey)}`,
+    );
+    return payload.secret;
+  },
+
   async getEnvironments(_userId: string) {
     const payload = await apiRequest<{ environments: any[] }>(
       '/api/store/environments',
