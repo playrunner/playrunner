@@ -29,7 +29,7 @@ export default function Pricing(): ReactNode {
   return (
     <Layout
       title="Pricing"
-      description="Use and self-host Playrunner for free under the Playrunner Sustainable Use License. Playrunner Cloud is coming soon."
+      description="Use and self-host Playrunner for free under the Playrunner Sustainable Use License, or join the free Playrunner Cloud beta."
     >
       <main className={styles.page}>
         <section className={styles.hero}>
@@ -64,10 +64,10 @@ export default function Pricing(): ReactNode {
           <div className="container">
             <div className={styles.sectionHeading}>
               <span className={styles.eyebrow}>Choose how you run</span>
-              <h2>Start self-hosted. Move to our cloud when it arrives.</h2>
+              <h2>Start self-hosted or use Playrunner Cloud.</h2>
               <p>
-                The product is available today for you to operate. A managed
-                option from the Playrunner team is now in development.
+                Run Playrunner on your own infrastructure, or use the managed
+                Playrunner Cloud beta free as a beta tester.
               </p>
             </div>
 
@@ -116,8 +116,8 @@ export default function Pricing(): ReactNode {
                 <div className={styles.cloudGlow} aria-hidden="true" />
                 <div className={styles.planHeader}>
                   <div>
-                    <span className={`${styles.status} ${styles.soonStatus}`}>
-                      Beta coming soon
+                    <span className={`${styles.status} ${styles.betaStatus}`}>
+                      Free beta
                     </span>
                     <h2>Playrunner Cloud</h2>
                     <p className={styles.planSummary}>
@@ -138,20 +138,16 @@ export default function Pricing(): ReactNode {
                     A faster path from setup to running workflows
                   </Feature>
                   <Feature>
-                    Beta access and pricing details to be announced
+                    Free access for beta testers during the beta
                   </Feature>
                 </ul>
 
-                <div className={styles.comingSoon}>
-                  <span className={styles.pulse} aria-hidden="true" />
-                  <div>
-                    <strong>In the works</strong>
-                    <p>
-                      We&apos;re building the hosted beta now. We&apos;ll share
-                      an update soon.
-                    </p>
-                  </div>
-                </div>
+                <a
+                  className={`button button--primary button--block button--lg ${styles.planAction}`}
+                  href="https://playrunner.cloud"
+                >
+                  Open Playrunner Cloud
+                </a>
               </article>
             </div>
           </div>
