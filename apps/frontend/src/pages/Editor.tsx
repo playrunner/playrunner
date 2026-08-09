@@ -2916,6 +2916,8 @@ export default function Editor() {
                         <div className="w-[40px] h-[2px] bg-[var(--node-border)]" />
                         <button
                           className="w-6 h-6 rounded-md bg-[var(--node-bg)] hover:bg-[#3f3f46] flex items-center justify-center transition-colors text-muted hover:text-[var(--foreground)] shadow-sm pointer-events-auto"
+                          aria-label="Add connected node"
+                          title="Add connected node"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPendingConnectionSource({

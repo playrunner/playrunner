@@ -572,6 +572,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                             {vars.map((v: any) => (
                               <div
                                 key={v.id}
+                                data-testid={`input-environment-variable-${v.key}`}
                                 className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
                                 draggable
                                 onDragStart={(e) => {

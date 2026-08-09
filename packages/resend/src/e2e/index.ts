@@ -35,7 +35,9 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.apiKeyInput).toHaveAttribute('type', 'password');
         await expect(pom.saveButton).toBeDisabled();
 
+        await pom.apiKeyInput.click();
         await pom.apiKeyInput.fill(data.apiKey);
+        await pom.receivingAddressInput.click();
         await pom.receivingAddressInput.fill(data.receivingAddress);
         await expect(pom.saveButton).toBeEnabled();
         await pom.saveButton.click();
@@ -51,6 +53,30 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           pom.integrationCard().getByRole('button', { name: 'Connect' }),
         ).toBeVisible();
+      },
+    },
+    {
+      id: 'drop-environment-variable-into-recipient',
+      mode: 'mock',
+      title: 'templates a dropped environment variable in the recipient field',
+      tags: ['@resend', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.createNodeWithEnvironmentVariable(
+          data.recipientVariableName,
+          data.receivingAddress,
+        );
+        await expect(pom.nodeDialog).toBeVisible();
+
+        await pom.dragEnvironmentVariableToRecipient(
+          data.recipientVariableName,
+        );
+        const template = `{{env.${data.recipientVariableName}}}`;
+        await expect(pom.recipientTextarea).toHaveValue(template);
+
+        await pom.closeNodeSettings();
+        await pom.saveAndReloadWorkflow();
+        await pom.reopenNodeSettings();
+        await expect(pom.recipientTextarea).toHaveValue(template);
       },
     },
   ],
