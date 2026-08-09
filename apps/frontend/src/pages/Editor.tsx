@@ -2850,7 +2850,7 @@ export default function Editor() {
                   >
                     <div
                       className={cn(
-                        'rounded-full border border-[var(--node-border)] bg-[#18181b] transition-all duration-200',
+                        'rounded-full border border-[var(--node-port-border)] bg-[var(--node-port-bg)] transition-all duration-200',
                         connected || port === 'right' || port === 'left'
                           ? 'opacity-100 w-6 h-6'
                           : 'opacity-0 w-6 h-6 group-hover:opacity-100',

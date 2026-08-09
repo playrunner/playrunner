@@ -37,6 +37,8 @@
   --control-bg: #ffffff;
   --node-bg: #ffffff;
   --node-border: #3e444d;
+  --node-port-bg: #ffffff;
+  --node-port-border: #71717a;
   --accent: #09090b; /* Sleek black for primary actions */
   --accent-hover: #27272a;
   --accent-foreground: #fafafa;
@@ -56,6 +58,8 @@
   --control-bg: #000000;
   --node-bg: #1b1e24;
   --node-border: #3e444d;
+  --node-port-bg: #18181b;
+  --node-port-border: #3e444d;
   --accent: #ffffff; /* Sleek white for primary actions */
   --accent-hover: #e4e4e7;
   --accent-foreground: #09090b;
