@@ -30,6 +30,13 @@ for (const entry of contributions) {
             selectedMode !== 'all' && scenario.mode !== selectedMode,
             `Scenario requires ${scenario.mode} provider mode.`,
           );
+          const missingEnvironment = (
+            scenario.requiredEnvironment ?? []
+          ).filter((name) => !process.env[name]?.trim());
+          test.skip(
+            missingEnvironment.length > 0,
+            `Scenario requires environment variables: ${missingEnvironment.join(', ')}.`,
+          );
 
           const runId = [
             testInfo.testId,

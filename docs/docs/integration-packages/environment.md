@@ -94,6 +94,26 @@ The API entrypoint default-exports `environmentApiContribution`, containing the
 empty `environmentRouter` and its `/api/environment` mount path. Environment
 persistence still uses the shared store routes under `/api/store/environments`.
 
+## End-to-end test
+
+From the repository root, run the Environment package scenarios with:
+
+```bash
+npm run test:e2e:mock -- --grep @environment
+```
+
+The node scenario creates a real project and workflow, adds an Environment
+node, saves a variable as a global environment through the normal API and
+dedicated E2E database schema, reloads and verifies the saved configuration,
+then executes the node through the local Orchestrator and Pub/Sub emulator. It
+does not require provider credentials.
+
+Open the generated HTML report from the repository root with:
+
+```bash
+npm run show:e2e-report
+```
+
 ## Assets
 
 Environment uses the `Settings` icon from `lucide-react`, so it does not need a packaged image asset.

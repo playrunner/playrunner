@@ -68,16 +68,41 @@ function getRepository(context: NodeExecutionContext): string {
   return repository;
 }
 
-function repositoryApiUrl(repository: string, path: string): string {
-  const [owner, repo] = repository.split('/');
-  return `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${path}`;
+function githubApiBaseUrl(context: NodeExecutionContext): string {
+  const configured = optionalString(context.settings.apiBaseUrl);
+  if (!configured) return 'https://api.github.com';
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw new GithubExecutionError('GitHub API base URL is invalid.');
+  }
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new GithubExecutionError(
+      'GitHub API base URL must use HTTP or HTTPS.',
+    );
+  }
+  return configured.replace(/\/+$/, '');
 }
 
-function issueApiUrl(repository: string, issueNumber?: string): string {
+function repositoryApiUrl(
+  context: NodeExecutionContext,
+  repository: string,
+  path: string,
+): string {
+  const [owner, repo] = repository.split('/');
+  return `${githubApiBaseUrl(context)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${path}`;
+}
+
+function issueApiUrl(
+  context: NodeExecutionContext,
+  repository: string,
+  issueNumber?: string,
+): string {
   const path = issueNumber
     ? `issues/${encodeURIComponent(issueNumber)}`
     : 'issues';
-  return repositoryApiUrl(repository, path);
+  return repositoryApiUrl(context, repository, path);
 }
 
 function getIssueNumber(context: NodeExecutionContext): string {
@@ -177,7 +202,7 @@ async function executeGithubCreate(
     await context.log(`Creating GitHub issue in ${repository}...`, 'info');
     const issue = await githubRequest(
       context,
-      issueApiUrl(repository),
+      issueApiUrl(context, repository),
       {
         method: 'POST',
         headers: requestHeaders(accessToken),
@@ -214,7 +239,7 @@ async function executeGithubRead(
     );
     const issue = await githubRequest(
       context,
-      issueApiUrl(repository, issueNumber),
+      issueApiUrl(context, repository, issueNumber),
       { method: 'GET', headers: requestHeaders(accessToken) },
       'Issues',
     );
@@ -270,7 +295,7 @@ async function executeGithubUpdate(
     );
     const issue = await githubRequest(
       context,
-      issueApiUrl(repository, issueNumber),
+      issueApiUrl(context, repository, issueNumber),
       {
         method: 'PATCH',
         headers: requestHeaders(accessToken),
@@ -312,6 +337,7 @@ async function executeGithubComment(
     const comment = await githubRequest(
       context,
       repositoryApiUrl(
+        context,
         repository,
         `issues/${encodeURIComponent(issueNumber)}/comments`,
       ),
@@ -354,7 +380,7 @@ async function executeGithubCreatePullRequest(
     );
     const pullRequest = await githubRequest(
       context,
-      repositoryApiUrl(repository, 'pulls'),
+      repositoryApiUrl(context, repository, 'pulls'),
       {
         method: 'POST',
         headers: requestHeaders(accessToken),

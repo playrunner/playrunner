@@ -10,8 +10,15 @@ export interface PlayrunnerE2EDataContext {
 }
 
 export interface PlayrunnerE2EHost {
+  addNode(nodeType: string): Promise<void>;
+  closeNodeSettings(): Promise<void>;
   gotoIntegrations(): Promise<void>;
+  openNewWorkflow(): Promise<void>;
   openIntegration(input: { id: string; name: string }): Promise<void>;
+  openNodeSettings(nodeType: string): Promise<void>;
+  reloadWorkflow(): Promise<void>;
+  runWorkflowNode(nodeType: string): Promise<'error' | 'success'>;
+  saveWorkflow(): Promise<void>;
 }
 
 export interface PlayrunnerE2EPomContext {
@@ -30,6 +37,7 @@ export interface PlayrunnerE2EScenarioContext<TPom, TData> {
 export interface PlayrunnerE2EScenario<TPom, TData> {
   id: string;
   mode: PlayrunnerE2EMode;
+  requiredEnvironment?: readonly string[];
   title: string;
   tags?: readonly string[];
   run(context: PlayrunnerE2EScenarioContext<TPom, TData>): Promise<void>;

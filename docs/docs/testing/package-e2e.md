@@ -181,6 +181,36 @@ Keep live-provider credentials out of package datasets and browser fields when
 failure artifacts could capture them. Live scenarios must use dedicated test
 tenants, least-privilege access, safe operations, and remote cleanup.
 
+Declare `requiredEnvironment` on a live scenario when it cannot run without
+protected configuration. The core harness skips the scenario before creating
+its data or POM when a required value is absent:
+
+```ts
+{
+  id: 'create-resource-live',
+  mode: 'live',
+  requiredEnvironment: [
+    'PLAYRUNNER_E2E_EXAMPLE_TOKEN',
+    'PLAYRUNNER_E2E_EXAMPLE_RESOURCE',
+  ],
+  title: 'creates and removes a real provider resource',
+  tags: ['@example', '@live-provider'],
+  async run({ data, expect, pom }) {
+    const resource = await pom.createResource(data);
+
+    try {
+      expect(resource.status).toBe('created');
+    } finally {
+      await pom.removeResource(resource);
+    }
+  },
+}
+```
+
+Read provider secrets only in Node-side setup or verification code. Do not pass
+them to the browser, include them in `createData`, or interpolate them into test
+titles and logs.
+
 ## Verify a package
 
 Run the package checks, composition tests, filtered browser suite, and affected

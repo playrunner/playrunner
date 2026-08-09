@@ -25,6 +25,17 @@ process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS = JSON.stringify({
 });
 process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET =
   'playrunner-e2e-jwt-secret-with-at-least-32-bytes';
+process.env.LOCAL_PUBSUB_PROJECT_ID =
+  process.env.LOCAL_PUBSUB_PROJECT_ID ?? 'playrunner-local';
+process.env.PUBSUB_EMULATOR_HOST =
+  process.env.PUBSUB_EMULATOR_HOST ?? '127.0.0.1:8084';
+process.env.PUBSUB_EMULATOR_HOST_DOCKER =
+  process.env.PUBSUB_EMULATOR_HOST_DOCKER ?? 'host.docker.internal:8084';
+
+const e2eMode = process.env.PLAYRUNNER_E2E_MODE ?? 'mock';
+if (e2eMode === 'mock') {
+  process.env.PLAYRUNNER_GITHUB_API_BASE_URL = 'http://127.0.0.1:4010';
+}
 
 const prismaBin = path.join(
   apiDirectory,
@@ -32,7 +43,7 @@ const prismaBin = path.join(
   '.bin',
   process.platform === 'win32' ? 'prisma.cmd' : 'prisma',
 );
-const pushResult = spawnSync(prismaBin, ['db', 'push', '--accept-data-loss'], {
+const pushResult = spawnSync(prismaBin, ['db', 'push'], {
   cwd: apiDirectory,
   encoding: 'utf8',
   env: process.env,
@@ -76,6 +87,32 @@ async function startE2EApi() {
     password: 'playrunner-e2e-password',
     username: 'e2e@playrunner.dev',
   });
+
+  const { saveConnection } = await import('../services/connections');
+  const liveGithubToken = process.env.PLAYRUNNER_E2E_GITHUB_TOKEN?.trim();
+  const liveGithubRepository =
+    process.env.PLAYRUNNER_E2E_GITHUB_REPOSITORY?.trim();
+  if (e2eMode === 'mock') {
+    await saveConnection('local-admin', 'integration', 'github', {
+      config: {
+        apiBaseUrl: 'http://host.docker.internal:4010',
+        appName: 'playrunner-e2e',
+        appSlug: 'playrunner-e2e',
+        installationId: '1',
+        repository: 'playrunner/e2e-fixture',
+      },
+      secrets: { accessToken: 'github-e2e-fake-token' },
+    });
+  } else if (liveGithubToken && liveGithubRepository) {
+    await saveConnection('local-admin', 'integration', 'github', {
+      config: {
+        appName: 'playrunner-e2e-live',
+        appSlug: 'playrunner-e2e-live',
+        repository: liveGithubRepository,
+      },
+      secrets: { accessToken: liveGithubToken },
+    });
+  }
 
   await import('../index');
 }

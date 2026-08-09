@@ -145,6 +145,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     <div className="space-y-4">
       <IntegrationConfigField label="Action">
         <Select
+          aria-label="Action"
           value={action}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ action: event.target.value });
@@ -168,6 +169,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         }
       >
         <Select
+          aria-label="Repository"
           value={config.repository || ''}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ repository: event.target.value });
@@ -196,6 +198,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="You can use {{variables}} here."
           >
             <Input
+              aria-label="Title"
               value={config.title || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ title: event.target.value });
@@ -209,6 +212,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="GitHub Markdown and {{variables}} are supported."
           >
             <Textarea
+              aria-label="Body"
               value={config.body || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 updateConfig({ body: event.target.value });
@@ -223,6 +227,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Optional. Separate label names with commas."
           >
             <Input
+              aria-label="Labels"
               value={config.labels || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ labels: event.target.value });
@@ -236,6 +241,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             hint="Optional. Separate GitHub usernames with commas."
           >
             <Input
+              aria-label="Assignees"
               value={config.assignees || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 updateConfig({ assignees: event.target.value });

@@ -11,12 +11,13 @@ afterEach(() => {
 
 function executionContext(
   config: Record<string, unknown>,
+  settings: Record<string, unknown> = { accessToken: 'github-token' },
 ): NodeExecutionContext {
   return {
     executionId: 'execution-1',
     workflowId: 'workflow-1',
     node: { id: 'github-1', nodeType: 'github', config },
-    settings: { accessToken: 'github-token' },
+    settings,
     env: {},
     workflow: {},
     renderTemplate: (value) => value.replace('{{value}}', 'rendered'),
@@ -24,6 +25,29 @@ function executionContext(
     signal: new AbortController().signal,
   };
 }
+
+test('uses an injected GitHub API base URL for deterministic E2E', async () => {
+  let requestUrl = '';
+  globalThis.fetch = async (input) => {
+    requestUrl = String(input);
+    return Response.json({ number: 1, state: 'open', title: 'E2E issue' });
+  };
+
+  await executor('create').execute(
+    executionContext(
+      { repository: 'playrunner/e2e-fixture', title: 'E2E issue' },
+      {
+        accessToken: 'github-token',
+        apiBaseUrl: 'http://host.docker.internal:4010/',
+      },
+    ),
+  );
+
+  assert.equal(
+    requestUrl,
+    'http://host.docker.internal:4010/repos/playrunner/e2e-fixture/issues',
+  );
+});
 
 function executor(action: string) {
   const match = githubOrchestratorContribution.executors.find(
