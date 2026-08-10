@@ -261,26 +261,5 @@ Until those issues are implemented, teams that need suite-level sharding must
 configure Playwright shards and report merging themselves, or manually model
 independent test branches as separate Playrunner nodes.
 
-## GitHub Actions is still part of the solution
-
-This is not about replacing GitHub Actions.
-
-GitHub remains an ideal place to coordinate pull requests, builds, deployments,
-and release gates. Playrunner complements it by taking ownership of test
-orchestration and, where appropriate, moving heavy browser execution onto the
-compute best suited to the workload.
-
-For a small suite, that may still be a single runner.
-
-For a large regression suite today, teams can manually model independent
-branches or configure more resources for a Playwright node. In the planned
-elastic model, Playrunner could instead distribute one suite across many runner
-executions and combine their reports.
-
-The goal is that **the CI pipeline should not need to care** about that
-topology.
-
-It should simply ask Playrunner to run the workflow and return the result.
-
 If you want to use Playrunner as a GitHub Actions quality gate today, see
 [Use Playrunner as a CI/CD quality gate](/blog/playrunner-ci-cd-pipeline).
