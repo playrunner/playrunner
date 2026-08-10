@@ -1,7 +1,7 @@
 ---
 slug: running-heavy-playwright-workloads
 title: 'When Playwright outgrows your GitHub Actions runner'
-description: 'Large Playwright suites can overwhelm standard CI runners. Learn why browser workloads become slow or flaky, how sharding helps, and how Playrunner can move heavy test execution onto elastic compute.'
+description: 'Large Playwright suites can overwhelm standard CI runners. Learn how Playrunner separates CI orchestration from Playwright execution today, and see the roadmap for elastic sharding.'
 authors: [playrunner]
 tags: [playwright, ci-cd]
 ---
@@ -114,7 +114,7 @@ that topology still makes sense as the suite grows.
 A 50-test smoke suite and a 4,000-test regression suite have very different
 compute requirements.
 
-That is the problem Playrunner is designed to help solve.
+That is the problem behind Playrunner's elastic execution roadmap.
 
 ## Let GitHub trigger the test workload, not necessarily host it
 
@@ -128,8 +128,9 @@ GitHub Actions is excellent at answering **when** a test workflow should run:
 It does not mean all browser compute has to execute inside the same GitHub
 runner.
 
-With Playrunner, GitHub can remain the CI trigger and quality gate while the
-actual Playwright workload runs elsewhere:
+With Playrunner today, GitHub can remain the CI trigger and quality gate while
+a Playwright workflow runs on a local runner, on user-managed GCP
+infrastructure, or on Playrunner Cloud:
 
 ```text
 GitHub Actions
@@ -138,38 +139,36 @@ GitHub Actions
       ▼
   Playrunner
       │
-      ├────────┬────────┬────────┬────────┐
-      ▼        ▼        ▼        ▼        ▼
-   Runner 1 Runner 2 Runner 3 Runner 4 Runner 5
-      │        │        │        │        │
-      └────────┴────────┴────────┴────────┘
-                        │
-                        ▼
-               Combined test result
-                        │
-                        ▼
-                  GitHub Actions
-                   pass / fail
+      ▼
+Selected local or GCP runner
+      │
+      ▼
+Playwright workflow result
+      │
+      ▼
+GitHub Actions
+ pass / fail
 ```
 
 The pipeline keeps a simple responsibility: start the workflow and react to its
 result.
 
-Playrunner owns the execution workflow.
+Playrunner owns the execution workflow. A workflow can also run manually
+modelled sibling branches in parallel, but Playrunner does not yet divide one
+Playwright suite into shards automatically.
 
 ## Run the compute where it makes sense
 
-A Playrunner workflow does not need to be tied to one CI provider or one cloud.
-The test workload can run using Playrunner-managed infrastructure or on
-infrastructure controlled by your team.
+The CI provider that triggers a Playrunner workflow does not have to host the
+browser workload. Today, the workflow can use:
 
-That opens up several useful patterns:
+- a local runner on infrastructure controlled by your team;
+- a GCP runner in your own Google Cloud project; or
+- Playrunner Cloud's hosted GCP execution.
 
-- trigger a test from GitHub Actions but run it on AWS;
-- run high-memory browser workloads on GCP;
-- use infrastructure inside your own network for protected environments;
-- keep specialist self-hosted hardware available for particular test suites;
-- combine cloud and local execution in the same broader test workflow.
+CPU, memory, and Playwright worker settings can be configured for a Playwright
+node. Runner selection currently applies to the workflow as a whole, so a
+single workflow cannot yet mix local and cloud execution targets.
 
 This separation becomes increasingly useful as test suites grow because CI and
 compute stop being the same decision.
@@ -216,6 +215,23 @@ platform decide how to achieve it.
 That is where we see Playrunner heading: not just orchestrating tests, but
 making **elastic compute for Playwright** a normal part of the testing workflow.
 
+### Roadmap status at the time of writing
+
+As of August 10, 2026, the elastic execution model above is a roadmap, not a
+description of the current product. We have opened the following implementation
+issues so progress and design decisions are visible:
+
+- [Distribute one Playwright suite across multiple runner shards](https://github.com/playrunner/playrunner/issues/70)
+- [Merge Playwright shard reports into one execution result](https://github.com/playrunner/playrunner/issues/71)
+- [Plan elastic Playwright execution from workload and target duration](https://github.com/playrunner/playrunner/issues/72)
+- [Add an AWS Playwright runner provider](https://github.com/playrunner/playrunner/issues/73)
+- [Add an Azure Playwright runner provider](https://github.com/playrunner/playrunner/issues/74)
+- [Select runner providers and execution targets per workflow node](https://github.com/playrunner/playrunner/issues/75)
+
+Until those issues are implemented, teams that need suite-level sharding must
+configure Playwright shards and report merging themselves, or manually model
+independent test branches as separate Playrunner nodes.
+
 ## GitHub Actions is still part of the solution
 
 This is not about replacing GitHub Actions.
@@ -227,9 +243,13 @@ compute best suited to the workload.
 
 For a small suite, that may still be a single runner.
 
-For a large regression suite, it may be dozens of parallel workers.
+For a large regression suite today, teams can manually model independent
+branches or configure more resources for a Playwright node. In the planned
+elastic model, Playrunner could instead distribute one suite across many runner
+executions and combine their reports.
 
-**The CI pipeline should not need to care.**
+The goal is that **the CI pipeline should not need to care** about that
+topology.
 
 It should simply ask Playrunner to run the workflow and return the result.
 
