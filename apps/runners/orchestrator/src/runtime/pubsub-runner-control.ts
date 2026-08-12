@@ -20,6 +20,10 @@ export type PubSubRunnerControl = {
   publishCancel: () => Promise<void>;
   publishStart: () => Promise<void>;
   startWithRetry: () => Promise<void>;
+  waitForCompletion: () => Promise<{
+    outcome: 'success' | 'error';
+    output: Record<string, unknown>;
+  }>;
   statusSubscriptionName: string;
   waitUntilReady: () => Promise<void>;
 };
@@ -32,6 +36,7 @@ const RUNNER_CONTROL_ACK_DEADLINE_SECONDS = 60;
 // GCP Pub/Sub minimum subscription expiration TTL is 24 hours.
 const RUNNER_CONTROL_RETENTION_SECONDS = 24 * 60 * 60;
 const RUNNER_READY_TIMEOUT_MS = 30 * 60 * 1000;
+const RUNNER_COMPLETION_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 const RUNNER_START_CONFIRM_TIMEOUT_MS = 30 * 60 * 1000;
 const RUNNER_START_RETRY_INTERVAL_MS = 3000;
 const RUNNER_STATUS_POLL_INTERVAL_MS = 1000;
@@ -82,6 +87,16 @@ function getRunnerStatusSubscriptionName(args: {
   return sanitizePubSubId(
     `playrunner-runner-status-${args.executionId}-${args.nodeId}`,
     `playrunner-runner-status-${Date.now()}`,
+  );
+}
+
+function getRunnerResultSubscriptionName(args: {
+  executionId: string;
+  nodeId: string;
+}) {
+  return sanitizePubSubId(
+    `playrunner-runner-result-${args.executionId}-${args.nodeId}`,
+    `playrunner-runner-result-${Date.now()}`,
   );
 }
 
@@ -432,6 +447,57 @@ async function waitForRunnerStarted(args: {
   );
 }
 
+async function waitForRunnerCompletion(args: {
+  accessToken?: string;
+  executionId: string;
+  nodeId: string;
+  projectId: string;
+  subscriptionName: string;
+}): Promise<{
+  outcome: 'success' | 'error';
+  output: Record<string, unknown>;
+}> {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < RUNNER_COMPLETION_TIMEOUT_MS) {
+    const response = await pullRunnerStatusMessages(args);
+    const messages = response.receivedMessages || [];
+    const ackIds = messages.map((message) => message.ackId);
+
+    try {
+      for (const message of messages) {
+        const payload = decodePubSubPayload(message.message);
+        if (
+          payload.executionId !== args.executionId ||
+          payload.nodeId !== args.nodeId ||
+          payload.status !== 'completed'
+        ) {
+          continue;
+        }
+
+        return {
+          outcome: payload.error ? 'error' : 'success',
+          output:
+            payload.output && typeof payload.output === 'object'
+              ? payload.output
+              : {},
+        };
+      }
+    } finally {
+      await acknowledgeRunnerStatusMessages({
+        ...args,
+        ackIds,
+      });
+    }
+
+    await sleep(RUNNER_STATUS_POLL_INTERVAL_MS);
+  }
+
+  throw new Error(
+    `Timed out waiting for prepared Playwright runner ${args.nodeId} to report completion.`,
+  );
+}
+
 export function resolveWorkflowEventsTopicName(value: unknown): string {
   return sanitizePubSubId(
     typeof value === 'string' && value.trim()
@@ -451,6 +517,7 @@ export async function createPubSubRunnerControl(args: {
 }): Promise<PubSubRunnerControl> {
   const controlSubscriptionName = getRunnerControlSubscriptionName(args);
   const statusSubscriptionName = getRunnerStatusSubscriptionName(args);
+  const resultSubscriptionName = getRunnerResultSubscriptionName(args);
 
   await ensurePubSubTopic(args);
   await Promise.all([
@@ -468,12 +535,20 @@ export async function createPubSubRunnerControl(args: {
       subscriptionName: statusSubscriptionName,
       topicName: args.topicName,
     }),
+    ensureRunnerSubscription({
+      accessToken: args.accessToken,
+      filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_result"`,
+      projectId: args.projectId,
+      subscriptionName: resultSubscriptionName,
+      topicName: args.topicName,
+    }),
   ]);
 
   return createPubSubRunnerControlFromSubscriptions({
     ...args,
     controlSubscriptionName,
     statusSubscriptionName,
+    resultSubscriptionName,
   });
 }
 
@@ -484,10 +559,12 @@ export function createPubSubRunnerControlFromSubscriptions(args: {
   nodeId: string;
   projectId: string;
   statusSubscriptionName: string;
+  resultSubscriptionName: string;
   topicName: string;
 }): PubSubRunnerControl {
   const controlSubscriptionName = args.controlSubscriptionName;
   const statusSubscriptionName = args.statusSubscriptionName;
+  const resultSubscriptionName = args.resultSubscriptionName;
 
   const publishStart = async () => {
     await publishRunnerControlMessage({
@@ -512,6 +589,11 @@ export function createPubSubRunnerControlFromSubscriptions(args: {
           accessToken: args.accessToken,
           projectId: args.projectId,
           subscriptionName: statusSubscriptionName,
+        }),
+        deleteRunnerSubscription({
+          accessToken: args.accessToken,
+          projectId: args.projectId,
+          subscriptionName: resultSubscriptionName,
         }),
       ]);
     },
@@ -544,6 +626,14 @@ export function createPubSubRunnerControlFromSubscriptions(args: {
         subscriptionName: statusSubscriptionName,
       });
     },
+    waitForCompletion: async () =>
+      waitForRunnerCompletion({
+        accessToken: args.accessToken,
+        executionId: args.executionId,
+        nodeId: args.nodeId,
+        projectId: args.projectId,
+        subscriptionName: resultSubscriptionName,
+      }),
     statusSubscriptionName,
     waitUntilReady: async () => {
       await waitForRunnerReady({

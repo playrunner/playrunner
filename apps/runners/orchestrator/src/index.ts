@@ -773,7 +773,9 @@ export async function executeWorkflow(reqBody: any) {
                 `Playwright Runner for ${node.id} acknowledged start signal.`,
                 'info',
               );
-              await preparedRunner.waitForCompletion();
+              const result = await preparedRunner.waitForCompletion();
+              nodeTemplateOutputs[`node_${node.id}`] = result.output;
+              finalState = result.outcome;
             } catch (error) {
               throw new Error(
                 `Playwright Runner failed: ${getErrorMessage(error)}`,

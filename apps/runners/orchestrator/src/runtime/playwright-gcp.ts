@@ -66,6 +66,7 @@ type PrewarmedGcpPlaywrightRunner = {
   jobPath?: string;
   projectId?: string;
   runRequestedAt?: number;
+  resultSubscriptionName?: string;
   statusSubscriptionName?: string;
   topicName?: string;
   type?: 'gcp_pubsub_cloud_run_job';
@@ -674,6 +675,7 @@ function resolvePrewarmedRunner(
     runner.projectId !== settings.projectId ||
     runner.topicName !== settings.topicName ||
     !runner.controlSubscriptionName ||
+    !runner.resultSubscriptionName ||
     !runner.statusSubscriptionName
   ) {
     return null;
@@ -716,6 +718,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
           executionId,
           nodeId,
           projectId: settings.projectId,
+          resultSubscriptionName: prewarmedRunner.resultSubscriptionName!,
           statusSubscriptionName: prewarmedRunner.statusSubscriptionName!,
           topicName: settings.topicName,
         })
@@ -799,11 +802,13 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       },
       waitForCompletion: async () => {
         await waitForExecution(executionName, settings.accessToken);
+        const result = await runnerControl.waitForCompletion();
         completed = true;
         await publishLog(
           `Playwright Cloud Run Job (${executionName}) finished successfully.`,
           'info',
         );
+        return result;
       },
       waitUntilReady: async () => {
         if (ready) {

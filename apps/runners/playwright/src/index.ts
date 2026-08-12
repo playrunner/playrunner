@@ -3,6 +3,7 @@ import path from 'path';
 import crypto from 'crypto';
 
 import fs from 'fs';
+import { readPlaywrightReportData } from './report-data';
 
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
@@ -237,8 +238,15 @@ async function pubSubRequest<T>(
 
 async function publishRunnerStatus(
   control: RunnerControlConfig | undefined,
-  status: 'cancelled' | 'failed' | 'prepare_failed' | 'ready' | 'started',
+  status:
+    | 'cancelled'
+    | 'completed'
+    | 'failed'
+    | 'prepare_failed'
+    | 'ready'
+    | 'started',
   error?: string,
+  output?: Record<string, unknown>,
 ) {
   if (!control || !runnerEventContext?.testId || !runnerEventContext.nodeId) {
     return;
@@ -252,6 +260,7 @@ async function publishRunnerStatus(
     executionId: runnerEventContext.testId,
     nodeId: runnerEventContext.nodeId,
     status,
+    ...(output ? { output } : {}),
     testId: runnerEventContext.testId,
     timestamp: new Date().toISOString(),
     type: 'runner_status',
@@ -267,7 +276,8 @@ async function publishRunnerStatus(
               eventId,
               eventType: 'runner_status',
               executionId: runnerEventContext.testId,
-              messageKind: 'runner_status',
+              messageKind:
+                status === 'completed' ? 'runner_result' : 'runner_status',
               nodeId: runnerEventContext.nodeId,
             },
             data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
@@ -478,13 +488,25 @@ async function runTypescriptTest(
     args.push('--config', 'playwright.service.config.ts');
     configMsg = 'playwright.service.config.ts';
   }
+  args.push('--reporter=html,json');
   args.push('--workers', String(workers));
 
   await publishLog(
     `Running Playwright test using ${configMsg} with ${workers} worker${workers === 1 ? '' : 's'}...`,
   );
   await new Promise<void>((resolve, reject) => {
-    const testProc = spawn(command.command, args, { cwd: workingDir });
+    const testProc = spawn(command.command, args, {
+      cwd: workingDir,
+      env: {
+        ...process.env,
+        PLAYWRIGHT_HTML_OPEN: 'never',
+        PLAYWRIGHT_HTML_OUTPUT_DIR: 'playwright-report',
+        PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(
+          'playwright-report',
+          'report.json',
+        ),
+      },
+    });
     testProc.stdout.on('data', (data) =>
       console.log(`[playwright]: ${data.toString().trim()}`),
     );
@@ -529,10 +551,10 @@ async function uploadOutputs(
   accessToken?: string,
   gcpProject?: string,
   cloudProvider: string = 'LOCAL_RUNNER',
-) {
+): Promise<Record<string, unknown>> {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
-    return;
+    return {};
   }
 
   await publishLog(`Preparing test outputs for node ${nodeId}...`);
@@ -546,12 +568,35 @@ async function uploadOutputs(
     await publishLog(
       'No playwright-report or test-results directory found. Skipping output upload.',
     );
-    return;
+    return {};
   }
 
   try {
+    const reportPath = path.join(
+      workingDir,
+      'playwright-report',
+      'report.json',
+    );
+    const reportOutput: Record<string, unknown> = {};
+    if (hasPlaywrightReport && fs.existsSync(reportPath)) {
+      const report = readPlaywrightReportData({
+        nodeId,
+        reportPath,
+        testId,
+        workingDir,
+      });
+      reportOutput.reportDataUrl = `/outputs/${testId}/${nodeId}/playwright-report/report.json`;
+      reportOutput.report = report;
+      if (report) {
+        fs.writeFileSync(
+          path.join(workingDir, 'playwright-report', 'report-summary.json'),
+          JSON.stringify(report),
+        );
+      }
+    }
+
     if (cloudProvider === 'GCP' && bucketName && accessToken && gcpProject) {
-      const outputData: any = {};
+      const outputData: Record<string, unknown> = { ...reportOutput };
 
       if (hasPlaywrightReport) {
         outputData.reportUrl = `/outputs/${testId}/${nodeId}/playwright-report/index.html`;
@@ -665,6 +710,8 @@ async function uploadOutputs(
         timestamp: new Date().toISOString(),
         type: 'node_output',
       });
+      await publishLog('Outputs processed successfully.');
+      return outputData;
     } else {
       if (!executionAuthToken) {
         throw new Error('Missing executionAuthToken for local output upload.');
@@ -719,17 +766,22 @@ async function uploadOutputs(
       const uploadResult = (await response.json().catch(() => null)) as {
         output?: Record<string, unknown>;
       } | null;
+      const output = {
+        ...(uploadResult?.output || {}),
+        ...reportOutput,
+      };
       await publishEvent({
         nodeId,
-        output: uploadResult?.output || {},
+        output,
         timestamp: new Date().toISOString(),
         type: 'node_output',
       });
+      await publishLog('Outputs processed successfully.');
+      return output;
     }
-
-    await publishLog('Outputs processed successfully.');
   } catch (err: any) {
     await publishLog(`Failed to process outputs: ${err.message}`, 'error');
+    return {};
   }
 }
 
@@ -918,7 +970,7 @@ async function run() {
     await publishLog(`Playwright Error: ${err.message}`, 'error');
   }
 
-  await uploadOutputs(
+  const output = await uploadOutputs(
     prepared.workingDir,
     payload?.data?.nodeId,
     testId,
@@ -929,8 +981,14 @@ async function run() {
     payload?.settings?.gcp?.selectedProject,
     cloudProvider,
   );
+  await publishRunnerStatus(
+    runnerControl,
+    'completed',
+    testFailed ? 'Playwright tests failed.' : undefined,
+    output,
+  );
 
-  process.exit(testFailed ? 1 : 0);
+  process.exit(0);
 }
 
 run();

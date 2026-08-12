@@ -138,11 +138,9 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
     completion.then(
       () => {
         completed = true;
-        void runnerControl.cleanup();
       },
       () => {
         completed = true;
-        void runnerControl.cleanup();
       },
     );
 
@@ -164,7 +162,9 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
       },
       waitForCompletion: async () => {
         await completion;
+        const result = await runnerControl.waitForCompletion();
         await publishLog('Playwright Runner finished and shut down.', 'info');
+        return result;
       },
       waitUntilReady: async () => {
         await runnerControl.waitUntilReady();

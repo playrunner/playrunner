@@ -636,6 +636,26 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                         </button>
                         {!isCollapsed && (
                           <div className="space-y-2 mt-2">
+                            {inNode.output?.report && (
+                              <div
+                                className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                                draggable
+                                onDragStart={(event) =>
+                                  setDragText(
+                                    event,
+                                    `{{node_${inNode.id}.report}}`,
+                                  )
+                                }
+                                title="Drag the machine-readable report into this node"
+                              >
+                                <span className="text-xs font-mono text-blue-400">
+                                  report
+                                </span>
+                                <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                                  object
+                                </span>
+                              </div>
+                            )}
                             {inNode.output?.reportUrl && (
                               <div
                                 className="flex flex-col gap-2 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
@@ -1200,6 +1220,20 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 Provides
               </h4>
               <div className="space-y-2">
+                <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-green-400">
+                      output.report
+                    </span>
+                    <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                      object
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted">
+                    Machine-readable failures, errors, steps, logs, and
+                    attachments
+                  </span>
+                </div>
                 <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-green-400">

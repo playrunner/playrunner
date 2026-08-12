@@ -77,6 +77,31 @@ outputsRouter.post(
     ) {
       outputData.reportUrl = `/outputs/${testId}/${nodeId}/playwright-report/index.html`;
     }
+    const reportDataPath = path.join(
+      outputsDir,
+      'playwright-report',
+      'report.json',
+    );
+    const reportSummaryPath = path.join(
+      outputsDir,
+      'playwright-report',
+      'report-summary.json',
+    );
+    if (fs.existsSync(reportDataPath)) {
+      outputData.reportDataUrl = `/outputs/${testId}/${nodeId}/playwright-report/report.json`;
+    }
+    if (fs.existsSync(reportSummaryPath)) {
+      try {
+        outputData.report = JSON.parse(
+          fs.readFileSync(reportSummaryPath, 'utf8'),
+        );
+      } catch (err) {
+        console.error(
+          `Failed to parse report summary for ${testId}/${nodeId}:`,
+          err,
+        );
+      }
+    }
 
     const testResultsDir = path.join(outputsDir, 'test-results');
     if (fs.existsSync(testResultsDir)) {

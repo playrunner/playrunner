@@ -18,8 +18,13 @@ export interface PlaywrightExecutionRequest {
 export interface PreparedPlaywrightRunner {
   cleanup?: () => Promise<void>;
   start: () => Promise<void>;
-  waitForCompletion: () => Promise<void>;
+  waitForCompletion: () => Promise<PlaywrightExecutionResult>;
   waitUntilReady: () => Promise<void>;
+}
+
+export interface PlaywrightExecutionResult {
+  outcome: 'success' | 'error';
+  output: Record<string, unknown>;
 }
 
 export interface PlaywrightExecutionBackend {
