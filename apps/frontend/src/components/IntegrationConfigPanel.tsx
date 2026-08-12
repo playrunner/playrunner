@@ -636,63 +636,44 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                         </button>
                         {!isCollapsed && (
                           <div className="space-y-2 mt-2">
-                            {inNode.output?.report && (
-                              <div
-                                className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
-                                draggable
-                                onDragStart={(event) =>
-                                  setDragText(
-                                    event,
-                                    `{{node_${inNode.id}.report}}`,
-                                  )
-                                }
-                                title="Drag the machine-readable report into this node"
-                              >
+                            <div
+                              className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                              draggable
+                              onDragStart={(event) =>
+                                setDragText(
+                                  event,
+                                  `{{node_${inNode.id}.report}}`,
+                                )
+                              }
+                              title="Drag the machine-readable report into this node"
+                            >
+                              <span className="text-xs font-mono text-blue-400">
+                                report
+                              </span>
+                              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                                object
+                              </span>
+                            </div>
+                            <div
+                              className="flex flex-col gap-2 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                              draggable
+                              onDragStart={(event) =>
+                                setDragText(
+                                  event,
+                                  `{{node_${inNode.id}.reportUrl}}`,
+                                )
+                              }
+                              title="Drag to inject this value"
+                            >
+                              <div className="flex items-center justify-between pointer-events-none">
                                 <span className="text-xs font-mono text-blue-400">
-                                  report
+                                  reportUrl
                                 </span>
                                 <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                                  object
+                                  url
                                 </span>
                               </div>
-                            )}
-                            {inNode.output?.reportUrl && (
-                              <div
-                                className="flex flex-col gap-2 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
-                                draggable
-                                onDragStart={(e) => {
-                                  const dragText = `{{node_${inNode.id}.reportUrl}}`;
-                                  e.dataTransfer.setData(
-                                    'text/plain',
-                                    dragText,
-                                  );
-
-                                  const dragGhost =
-                                    document.createElement('div');
-                                  dragGhost.textContent = dragText;
-                                  dragGhost.className =
-                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
-                                  document.body.appendChild(dragGhost);
-                                  e.dataTransfer.setDragImage(
-                                    dragGhost,
-                                    10,
-                                    10,
-                                  );
-
-                                  setTimeout(() => {
-                                    document.body.removeChild(dragGhost);
-                                  }, 0);
-                                }}
-                                title="Drag to inject this value"
-                              >
-                                <div className="flex items-center justify-between pointer-events-none">
-                                  <span className="text-xs font-mono text-blue-400">
-                                    reportUrl
-                                  </span>
-                                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                                    url
-                                  </span>
-                                </div>
+                              {inNode.output?.reportUrl && (
                                 <a
                                   href={inNode.output.reportUrl}
                                   target="_blank"
@@ -709,8 +690,8 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                 >
                                   Open HTML Report
                                 </a>
-                              </div>
-                            )}
+                              )}
+                            </div>
                             {inNode.output?.media &&
                               inNode.output.media.length > 0 &&
                               (() => {
@@ -889,15 +870,6 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                   </>
                                 );
                               })()}
-                            {!inNode.output?.reportUrl &&
-                              (!inNode.output?.media ||
-                                inNode.output.media.length === 0) && (
-                                <div className="p-2 rounded border border-dashed border-subtle bg-surface/50 text-center">
-                                  <span className="text-xs text-muted">
-                                    Run node to fetch outputs
-                                  </span>
-                                </div>
-                              )}
                           </div>
                         )}
                       </div>
