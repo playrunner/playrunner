@@ -197,6 +197,23 @@ function formatTemplateValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function withNodeDiagnosticLogs(
+  output: unknown,
+  logs: WorkflowDiagnosticLogs,
+): Record<string, unknown> {
+  if (output && typeof output === 'object' && !Array.isArray(output)) {
+    return {
+      ...(output as Record<string, unknown>),
+      logs,
+    };
+  }
+
+  return {
+    ...(output === undefined ? {} : { result: output }),
+    logs,
+  };
+}
+
 function getDurationMs(startedAt: string, finishedAt: Date): number {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) {
@@ -453,6 +470,7 @@ function createWorkflowEventPublisher(
     level: WorkflowEventLevel;
     message: string;
     nodeId?: string;
+    parentNodeId?: string;
     timestamp: string;
   }) => void,
 ): WorkflowEventPublisher {
@@ -515,10 +533,12 @@ function createWorkflowEventPublisher(
       writeWorkflowLogToConsole(executionId, message, level);
       const timestamp = new Date().toISOString();
       const nodeId = getString(extra.nodeId);
+      const parentNodeId = getString(extra.parentNodeId);
       onLog?.({
         level,
         message,
         ...(nodeId ? { nodeId } : {}),
+        ...(parentNodeId ? { parentNodeId } : {}),
         timestamp,
       });
       await publishEvent({
@@ -547,8 +567,30 @@ export async function executeWorkflow(reqBody: any) {
     getString(reqBody.testId),
     new Date(),
   );
-  const eventPublisher = createWorkflowEventPublisher(reqBody, (entry) => {
+  const nodeDiagnosticLogs = new Map<string, WorkflowDiagnosticLogs>();
+  const getNodeDiagnosticLogs = (nodeId: string) => {
+    const existing = nodeDiagnosticLogs.get(nodeId);
+    if (existing) return existing;
+
+    const logs = createWorkflowDiagnosticLogs();
+    nodeDiagnosticLogs.set(nodeId, logs);
+    return logs;
+  };
+  const captureDiagnosticLog = (
+    entry: Parameters<typeof appendWorkflowDiagnosticLog>[1] & {
+      parentNodeId?: string;
+    },
+  ) => {
     appendWorkflowDiagnosticLog(workflowContext.run.logs, entry);
+    const nodeIds = new Set(
+      [entry.nodeId, entry.parentNodeId].filter(Boolean) as string[],
+    );
+    for (const nodeId of nodeIds) {
+      appendWorkflowDiagnosticLog(getNodeDiagnosticLogs(nodeId), entry);
+    }
+  };
+  const eventPublisher = createWorkflowEventPublisher(reqBody, (entry) => {
+    captureDiagnosticLog(entry);
   });
   const { publishEvent, publishLog, publishNodeState } = eventPublisher;
   let terminalEventPublished = false;
@@ -741,7 +783,10 @@ export async function executeWorkflow(reqBody: any) {
             nodeId: runtimeNodeId,
             payloadData,
             publishLog: (message, level) =>
-              publishLog(message, level, { nodeId: runtimeNodeId }),
+              publishLog(message, level, {
+                nodeId: runtimeNodeId,
+                ...(runtimeNodeId === node.id ? {} : { parentNodeId: node.id }),
+              }),
             registerActiveProcess: (activeNodeId, process) => {
               registerActiveProcessForNode(
                 activeNodeId,
@@ -826,7 +871,12 @@ export async function executeWorkflow(reqBody: any) {
           await runner.start();
           const result = await runner.waitForCompletion();
           for (const entry of result.diagnosticLogs || []) {
-            appendWorkflowDiagnosticLog(workflowContext.run.logs, entry);
+            captureDiagnosticLog({
+              ...entry,
+              ...(logicalNodeId === entry.nodeId
+                ? {}
+                : { parentNodeId: logicalNodeId }),
+            });
           }
           return result;
         } finally {
@@ -1121,6 +1171,7 @@ export async function executeWorkflow(reqBody: any) {
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,
               'info',
+              { nodeId: node.id },
             );
           } else if (type === 'playwright') {
             const { cpu, injectedEnv, memory, request, workers } =
@@ -1132,15 +1183,18 @@ export async function executeWorkflow(reqBody: any) {
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,
               'info',
+              { nodeId: node.id },
             );
             await publishLog(
               `Waiting for prepared Playwright Runner with resources: CPU ${cpu}, Memory ${memory}GB, Workers ${workers}`,
               'build',
+              { nodeId: node.id },
             );
             if (injectedEnv) {
               await publishLog(
                 `Injecting Environment Variables: ${injectedEnv}`,
                 'info',
+                { nodeId: node.id },
               );
             }
 
@@ -1200,6 +1254,7 @@ export async function executeWorkflow(reqBody: any) {
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,
               'info',
+              { nodeId: node.id },
             );
             const result = await packageExecutorRuntime.execute({
               executionId: testId,
@@ -1232,7 +1287,9 @@ export async function executeWorkflow(reqBody: any) {
           }
         } catch (error) {
           finalState = 'error';
-          await publishLog(getErrorMessage(error), 'error');
+          await publishLog(getErrorMessage(error), 'error', {
+            nodeId: node.id,
+          });
         } finally {
           try {
             await publishNodeState(node.id, finalState);
@@ -1246,6 +1303,11 @@ export async function executeWorkflow(reqBody: any) {
               finalizationError,
             );
           } finally {
+            const outputKey = `node_${node.id}`;
+            nodeTemplateOutputs[outputKey] = withNodeDiagnosticLogs(
+              nodeTemplateOutputs[outputKey],
+              getNodeDiagnosticLogs(node.id),
+            );
             nodeIsRunning[nodeId] = false;
             nodeHasRun[nodeId] = true;
             activeNodeCount--;

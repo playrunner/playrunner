@@ -90,6 +90,16 @@ const DEFAULT_OUTPUT_VARIABLES: readonly OutputVariable[] = [
   { path: 'error.message', type: 'string' },
 ];
 
+const NODE_DIAGNOSTIC_OUTPUT_VARIABLES: readonly OutputVariable[] = [
+  { path: 'logs', type: 'object', description: 'Logs from this node' },
+  { path: 'logs.all', type: 'array' },
+  { path: 'logs.error', type: 'array' },
+  { path: 'logs.warn', type: 'array' },
+  { path: 'logs.info', type: 'array' },
+  { path: 'logs.build', type: 'array' },
+  { path: 'logs.debug', type: 'array' },
+];
+
 function setDragText(event: React.DragEvent, dragText: string) {
   event.dataTransfer.setData('text/plain', dragText);
 
@@ -128,12 +138,22 @@ function outputVariablesFor(
   output?: unknown,
 ): readonly OutputVariable[] {
   const declaredVariables = integration?.getOutputVariables?.(config ?? {});
-  if (declaredVariables) return declaredVariables;
-
   const inferredVariables = inferOutputVariables(output);
-  return inferredVariables.length > 0
-    ? inferredVariables
-    : DEFAULT_OUTPUT_VARIABLES;
+  const outputVariables = declaredVariables
+    ? [...declaredVariables]
+    : inferredVariables.length > 0
+      ? inferredVariables
+      : [...DEFAULT_OUTPUT_VARIABLES];
+  const existingPaths = new Set(
+    outputVariables.map((variable) => variable.path),
+  );
+
+  return [
+    ...outputVariables,
+    ...NODE_DIAGNOSTIC_OUTPUT_VARIABLES.filter(
+      (variable) => !existingPaths.has(variable.path),
+    ),
+  ];
 }
 
 function inferOutputVariables(

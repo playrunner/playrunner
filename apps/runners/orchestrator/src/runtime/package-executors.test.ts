@@ -665,7 +665,7 @@ describe('package orchestrator integration', { concurrency: false }, () => {
             {
               config: {
                 prompt:
-                  'Use {{node_openai-first.result.data}} downstream. Current: {{workflow.run.logs.info}} Previous: {{workflow.history.logs.error}}',
+                  'Use {{node_openai-first.result.data}} downstream. Node: {{node_openai-first.logs.info}} Current: {{workflow.run.logs.info}} Previous: {{workflow.history.logs.error}}',
               },
               id: 'openai-second',
               label: 'Second OpenAI action',
@@ -709,9 +709,86 @@ describe('package orchestrator integration', { concurrency: false }, () => {
         String(openAIRequests[1]?.input),
         /Processing node: First OpenAI action/,
       );
+      assert.match(String(openAIRequests[1]?.input), /"nodeId":"openai-first"/);
       assert.match(
         String(openAIRequests[1]?.input),
         /Historical shard failure/,
+      );
+    });
+
+    test('makes failed node logs available to a failure-connected analysis node', async () => {
+      const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
+      const openAIRequests: Record<string, unknown>[] = [];
+
+      process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
+      globalThis.fetch = async (input, init) => {
+        if (String(input) === 'https://api.openai.com/v1/responses') {
+          openAIRequests.push(JSON.parse(String(init?.body)));
+          return new Response(JSON.stringify({ output_text: 'Diagnosis' }), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 200,
+          });
+        }
+
+        return new Response('{}', { status: 200 });
+      };
+
+      try {
+        const { executeWorkflow } = await import('../index');
+        await executeWorkflow({
+          cloudProvider: 'GCP',
+          connections: [
+            {
+              sourceId: 'slack-failure',
+              targetId: 'openai-diagnosis',
+              type: 'failure',
+            },
+          ],
+          eventTransport: {
+            projectId: 'test-project',
+            topicName: 'workflow-events',
+            type: 'gcp_pubsub',
+          },
+          executionAuthToken: 'execution-token',
+          nodes: [
+            {
+              config: {},
+              id: 'slack-failure',
+              label: 'Failing Slack action',
+              nodeType: 'slack',
+            },
+            {
+              config: {
+                prompt: 'Diagnose {{node_slack-failure.logs.error}}',
+              },
+              id: 'openai-diagnosis',
+              label: 'OpenAI diagnosis',
+              nodeType: 'openai',
+            },
+          ],
+          settings: { openai: { apiKey: 'sk-test-secret' } },
+          testId: 'execution-failed-node-logs',
+          workflow: {
+            definition: { id: 'workflow-1', name: 'Failure diagnostics' },
+          },
+          workflowId: 'workflow-1',
+        });
+      } finally {
+        if (previousPubSubEmulator === undefined) {
+          delete process.env.PUBSUB_EMULATOR_HOST;
+        } else {
+          process.env.PUBSUB_EMULATOR_HOST = previousPubSubEmulator;
+        }
+      }
+
+      assert.equal(openAIRequests.length, 1);
+      assert.match(
+        String(openAIRequests[0]?.input),
+        /Slack credentials missing/,
+      );
+      assert.match(
+        String(openAIRequests[0]?.input),
+        /"nodeId":"slack-failure"/,
       );
     });
 
