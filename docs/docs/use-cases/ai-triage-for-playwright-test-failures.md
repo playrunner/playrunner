@@ -27,7 +27,7 @@ regression. That summary is a node on the canvas.
   [OpenAI](/docs/integration-packages/openai/) or
   [Hugging Face](/docs/integration-packages/huggingface/).
 
-:::note Available AI nodes
+:::note[Available AI nodes]
 Playrunner ships two AI integrations: **OpenAI** and **Hugging Face**. There is
 no Gemini node. See the
 [integration reference](/docs/integration-packages/) for the full list.

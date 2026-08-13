@@ -55,7 +55,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::warning Current execution status
+:::warning[Current execution status]
 
 `@playrunner/javascript` currently contributes configuration UI and an empty API
 router only. Its manifest does not declare an `./orchestrator` surface, and the

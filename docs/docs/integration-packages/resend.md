@@ -52,7 +52,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 Resend declares frontend, API, Orchestrator, and E2E surfaces in its package
 manifest. It must be a direct production dependency of each Playrunner app or

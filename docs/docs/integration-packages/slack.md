@@ -54,7 +54,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 The install command on this page is for building a Playrunner deployment. Slack
 declares its frontend, API, and Orchestrator surfaces in its own package

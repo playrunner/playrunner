@@ -49,7 +49,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 The install command on this page is for building a Playrunner deployment. The
 Hugging Face package declares frontend and Orchestrator surfaces in its own
