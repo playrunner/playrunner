@@ -111,10 +111,7 @@ test.describe('navigation', () => {
     if (!config.shardingMode) {
       updates.shardingMode = 'off';
       shouldUpdate = true;
-    } else if (
-      inferredRuntime === 'python' &&
-      config.shardingMode !== 'off'
-    ) {
+    } else if (inferredRuntime === 'python' && config.shardingMode !== 'off') {
       updates.shardingMode = 'off';
       shouldUpdate = true;
     }
@@ -819,68 +816,73 @@ test.describe('navigation', () => {
           <div className="space-y-5">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                CPU
-              </label>
-              <Select
-                data-testid="playwright-node-cpu"
-                value={config.cpu || DEFAULT_CPU}
-                onChange={(e) =>
-                  onChange(nodeId, { ...config, cpu: parseInt(e.target.value) })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              >
-                <option value={1}>1 CPU</option>
-                <option value={2}>2 CPUs</option>
-                <option value={4}>4 CPUs</option>
-                <option value={8}>8 CPUs</option>
-              </Select>
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  CPU
+                </label>
+                <Select
+                  data-testid="playwright-node-cpu"
+                  value={config.cpu || DEFAULT_CPU}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      cpu: parseInt(e.target.value),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value={1}>1 CPU</option>
+                  <option value={2}>2 CPUs</option>
+                  <option value={4}>4 CPUs</option>
+                  <option value={8}>8 CPUs</option>
+                </Select>
               </div>
               <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                Memory
-              </label>
-              <Select
-                data-testid="playwright-node-memory"
-                value={config.memory || DEFAULT_MEMORY}
-                onChange={(e) =>
-                  onChange(nodeId, {
-                    ...config,
-                    memory: parseFloat(e.target.value),
-                  })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              >
-                <option value={0.5}>512 MB</option>
-                <option value={1}>1 GB</option>
-                <option value={2}>2 GB</option>
-                <option value={4}>4 GB</option>
-                <option value={8}>8 GB</option>
-                <option value={16}>16 GB</option>
-                <option value={32}>32 GB</option>
-              </Select>
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  Memory
+                </label>
+                <Select
+                  data-testid="playwright-node-memory"
+                  value={config.memory || DEFAULT_MEMORY}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      memory: parseFloat(e.target.value),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value={0.5}>512 MB</option>
+                  <option value={1}>1 GB</option>
+                  <option value={2}>2 GB</option>
+                  <option value={4}>4 GB</option>
+                  <option value={8}>8 GB</option>
+                  <option value={16}>16 GB</option>
+                  <option value={32}>32 GB</option>
+                </Select>
               </div>
               <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                Workers (Max 100)
-              </label>
-              <Input
-                data-testid="playwright-node-workers"
-                type="number"
-                min={1}
-                max={100}
-                value={config.workers || 1}
-                onChange={(e) =>
-                  onChange(nodeId, {
-                    ...config,
-                    workers: Math.min(
-                      100,
-                      Math.max(1, parseInt(e.target.value) || 1),
-                    ),
-                  })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              />
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  {config.shardingMode === 'auto'
+                    ? 'Maximum workers per shard'
+                    : 'Workers (Max 100)'}
+                </label>
+                <Input
+                  data-testid="playwright-node-workers"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={config.workers || 1}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      workers: Math.min(
+                        100,
+                        Math.max(1, parseInt(e.target.value) || 1),
+                      ),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                />
               </div>
             </div>
 
@@ -974,6 +976,8 @@ test.describe('navigation', () => {
                   <p className="text-[10px] text-muted">
                     Playrunner discovers the suite first, then reduces this
                     maximum for useful test/file units and available capacity.
+                    It may also reduce workers per shard to create a wider
+                    feasible topology.
                   </p>
                 </div>
               ) : null}
@@ -987,19 +991,20 @@ test.describe('navigation', () => {
                       : config.maxShards || DEFAULT_MAX_SHARDS}{' '}
                     shards
                   </span>{' '}
-                  · {(config.cpu || DEFAULT_CPU) *
+                  ·{' '}
+                  {(config.cpu || DEFAULT_CPU) *
                     (config.shardingMode === 'manual'
                       ? config.shardCount || 2
                       : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
-                  CPUs · {(config.memory || DEFAULT_MEMORY) *
+                  CPUs ·{' '}
+                  {(config.memory || DEFAULT_MEMORY) *
                     (config.shardingMode === 'manual'
                       ? config.shardCount || 2
                       : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
-                  GB · {(config.workers || 1) *
-                    (config.shardingMode === 'manual'
-                      ? config.shardCount || 2
-                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
-                  workers maximum
+                  GB ·{' '}
+                  {config.shardingMode === 'manual'
+                    ? `${(config.workers || 1) * (config.shardCount || 2)} workers`
+                    : `${config.workers || 1} workers per shard maximum; final allocation is planned after discovery`}
                 </div>
               ) : null}
             </div>

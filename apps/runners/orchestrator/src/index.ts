@@ -598,6 +598,7 @@ export async function executeWorkflow(reqBody: any) {
           shardIndex?: number;
           shardTotal?: number;
           sourceRevision?: string;
+          workers?: number;
         } = {},
       ): {
         cpu: number;
@@ -611,7 +612,7 @@ export async function executeWorkflow(reqBody: any) {
         const runtime = resolvePlaywrightRuntime(config);
         const cpu = config.cpu || 2;
         const memory = config.memory || 4;
-        const workers = config.workers || 1;
+        const workers = overrides.workers || config.workers || 1;
         const envKeys = config.envVars || [];
         const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
         const runtimeNodeId = overrides.runtimeNodeId || node.id;
@@ -661,7 +662,7 @@ export async function executeWorkflow(reqBody: any) {
           injectedEnv: envKeys.map((key: string) => `${key}=***`).join(', '),
           memory,
           request: {
-            config,
+            config: { ...config, workers },
             envKeys,
             globalEnvVars,
             nodeId: runtimeNodeId,
@@ -847,6 +848,7 @@ export async function executeWorkflow(reqBody: any) {
               shardIndex: child.shardIndex,
               shardTotal: child.shardTotal,
               sourceRevision: discovery.sourceRevision,
+              workers: plan.workersPerShard,
             }).request;
             return runPreparedPlaywrightRequest(request);
           }),

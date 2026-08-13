@@ -58,6 +58,33 @@ test('auto sharding accounts for workers inside each shard', () => {
 
   assert.equal(plan.count, 1);
   assert.equal(plan.aggregateWorkers, 4);
+  assert.equal(plan.workersPerShard, 4);
+});
+
+test('auto sharding reduces workers per shard to preserve a wider topology', () => {
+  const plan = planPlaywrightShards({
+    capacity: {
+      maxConcurrentShards: 4,
+      maxShards: 16,
+      maxTotalCpu: 10,
+      maxTotalMemoryGb: 8,
+      maxTotalWorkers: 10,
+    },
+    config: {
+      cpu: 1,
+      maxShards: 16,
+      memory: 0.5,
+      shardingMode: 'auto',
+      workers: 10,
+    },
+    discovery: { ...discovery, shardableUnits: 128, testCount: 128 },
+  });
+
+  assert.equal(plan.count, 4);
+  assert.equal(plan.workersPerShard, 2);
+  assert.equal(plan.aggregateWorkers, 8);
+  assert.equal(plan.limits.useful, 4);
+  assert.match(plan.reason, /2 workers selected per shard/);
 });
 
 test('local capacity is bounded by host resources and a safe concurrency cap', () => {
@@ -86,6 +113,18 @@ test('manual sharding rejects a request above capacity', () => {
       }),
     /exceed the current capacity limit of 2/,
   );
+});
+
+test('manual sharding preserves the configured workers per shard', () => {
+  const plan = planPlaywrightShards({
+    capacity: { maxTotalWorkers: 12 },
+    config: { shardCount: 3, shardingMode: 'manual', workers: 4 },
+    discovery,
+  });
+
+  assert.equal(plan.count, 3);
+  assert.equal(plan.workersPerShard, 4);
+  assert.equal(plan.aggregateWorkers, 12);
 });
 
 test('runtime child ids are stable and collision-free', () => {

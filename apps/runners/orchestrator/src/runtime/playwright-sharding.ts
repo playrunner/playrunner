@@ -30,6 +30,7 @@ export type PlaywrightShardPlan = {
   };
   mode: Exclude<PlaywrightShardingMode, 'off'>;
   reason: string;
+  workersPerShard: number;
 };
 
 const DEFAULT_CAPACITY: PlaywrightShardCapacity = {
@@ -155,7 +156,7 @@ export function planPlaywrightShards(args: {
 
   const cpu = positiveNumber(args.config.cpu, 2);
   const memory = positiveNumber(args.config.memory, 4);
-  const workers = positiveInteger(args.config.workers, 1);
+  const configuredWorkers = positiveInteger(args.config.workers, 1);
   const capacity = resolvePlaywrightShardCapacity(args.capacity);
   const configured = positiveInteger(
     mode === 'manual' ? args.config.shardCount : args.config.maxShards,
@@ -171,7 +172,10 @@ export function planPlaywrightShards(args: {
   );
   const useful =
     mode === 'auto'
-      ? Math.max(1, Math.ceil(shardableUnits / (workers * autoUnitsPerWorker)))
+      ? Math.max(
+          1,
+          Math.ceil(shardableUnits / (configuredWorkers * autoUnitsPerWorker)),
+        )
       : shardableUnits;
   const capacityLimit = Math.max(
     1,
@@ -180,7 +184,9 @@ export function planPlaywrightShards(args: {
       capacity.maxConcurrentShards,
       Math.floor(capacity.maxTotalCpu / cpu),
       Math.floor(capacity.maxTotalMemoryGb / memory),
-      Math.floor(capacity.maxTotalWorkers / workers),
+      mode === 'auto'
+        ? capacity.maxTotalWorkers
+        : Math.floor(capacity.maxTotalWorkers / configuredWorkers),
     ),
   );
 
@@ -191,21 +197,33 @@ export function planPlaywrightShards(args: {
   }
 
   const count = Math.max(1, Math.min(configured, useful, capacityLimit));
+  const workersPerShard =
+    mode === 'auto'
+      ? Math.max(
+          1,
+          Math.min(
+            configuredWorkers,
+            Math.floor(capacity.maxTotalWorkers / count),
+          ),
+        )
+      : configuredWorkers;
   const reason = [
     `${configured} configured`,
-    `${useful} useful shard${useful === 1 ? '' : 's'} for ${shardableUnits} ${args.discovery.fullyParallel ? 'test' : 'file/project'} unit${shardableUnits === 1 ? '' : 's'} at ${workers} worker${workers === 1 ? '' : 's'} each${mode === 'auto' ? ` and ${autoUnitsPerWorker} units per worker` : ''}`,
+    `${useful} useful shard${useful === 1 ? '' : 's'} for ${shardableUnits} ${args.discovery.fullyParallel ? 'test' : 'file/project'} unit${shardableUnits === 1 ? '' : 's'} at up to ${configuredWorkers} worker${configuredWorkers === 1 ? '' : 's'} each${mode === 'auto' ? ` and ${autoUnitsPerWorker} units per worker` : ''}`,
     `${capacityLimit} allowed by capacity`,
+    `${workersPerShard} worker${workersPerShard === 1 ? '' : 's'} selected per shard`,
   ].join(' · ');
 
   return {
     aggregateCpu: count * cpu,
     aggregateMemoryGb: count * memory,
-    aggregateWorkers: count * workers,
+    aggregateWorkers: count * workersPerShard,
     count,
     discovery: args.discovery,
     limits: { capacity: capacityLimit, configured, useful },
     mode,
     reason,
+    workersPerShard,
   };
 }
 import os from 'node:os';
