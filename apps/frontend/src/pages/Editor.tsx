@@ -97,6 +97,28 @@ type RuntimePlaywrightChild = {
   status: NodeExecutionStatus;
 };
 
+type RuntimePlaywrightPlan = {
+  aggregateCpu: number;
+  aggregateMemoryGb: number;
+  aggregateWorkers: number;
+  count: number;
+  discovery: {
+    fileCount: number;
+    fullyParallel: boolean;
+    projectCount: number;
+    shardableUnits: number;
+    testCount: number;
+  };
+  limits: {
+    capacity: number;
+    configured: number;
+    useful: number;
+  };
+  mode: 'auto' | 'manual';
+  reason: string;
+  workersPerShard: number;
+};
+
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
     value === 'idle' ||
@@ -840,6 +862,12 @@ export default function Editor() {
       }
 
       if (data.type === 'shard_plan' && typeof data.nodeId === 'string') {
+        if (data.plan && typeof data.plan === 'object') {
+          setRuntimePlaywrightPlans((previous) => ({
+            ...previous,
+            [data.nodeId]: data.plan as RuntimePlaywrightPlan,
+          }));
+        }
         const runtimeChildren: RuntimePlaywrightChild[] = [
           {
             childKind: 'discovery' as const,
@@ -1302,6 +1330,9 @@ export default function Editor() {
   const [runtimePlaywrightChildren, setRuntimePlaywrightChildren] = useState<
     Record<string, Record<string, RuntimePlaywrightChild>>
   >({});
+  const [runtimePlaywrightPlans, setRuntimePlaywrightPlans] = useState<
+    Record<string, RuntimePlaywrightPlan>
+  >({});
   const [expandedRuntimeNodes, setExpandedRuntimeNodes] = useState<
     Record<string, boolean>
   >({});
@@ -1553,6 +1584,7 @@ export default function Editor() {
     setSimulationState('running');
     setNodeStatus({});
     setRuntimePlaywrightChildren({});
+    setRuntimePlaywrightPlans({});
     setExpandedRuntimeNodes({});
     setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
@@ -1579,6 +1611,7 @@ export default function Editor() {
     setSimulationState('running');
     setNodeStatus({});
     setRuntimePlaywrightChildren({});
+    setRuntimePlaywrightPlans({});
     setExpandedRuntimeNodes({});
     setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
@@ -3019,6 +3052,16 @@ export default function Editor() {
                   ? kindDifference
                   : (left.shardIndex || 0) - (right.shardIndex || 0);
               });
+              const runtimePlan = runtimePlaywrightPlans[node.id];
+              const runtimePlanLimit = runtimePlan
+                ? runtimePlan.limits.capacity <=
+                    runtimePlan.limits.configured &&
+                  runtimePlan.limits.capacity <= runtimePlan.limits.useful
+                  ? 'runner capacity'
+                  : runtimePlan.limits.useful <= runtimePlan.limits.configured
+                    ? 'suite size'
+                    : 'your maximum'
+                : null;
               const isRuntimeExpanded = !!expandedRuntimeNodes[node.id];
 
               const isNodeConfigured = (n: NodeData) => {
@@ -3139,12 +3182,14 @@ export default function Editor() {
                           ) : (
                             <ChevronRight className="h-3 w-3" />
                           )}
-                          {
+                          {runtimePlan?.mode === 'auto' && 'Auto · '}
+                          {runtimePlan?.count ??
                             runtimeChildren.filter(
                               (child) => child.childKind === 'shard',
-                            ).length
-                          }{' '}
+                            ).length}{' '}
                           shards
+                          {runtimePlan &&
+                            ` · ${runtimePlan.workersPerShard}w each`}
                         </button>
 
                         {isRuntimeExpanded && (
@@ -3153,6 +3198,54 @@ export default function Editor() {
                             onPointerDown={(event) => event.stopPropagation()}
                           >
                             <div className="absolute -left-8 top-8 h-px w-8 bg-[var(--node-border)]" />
+                            {runtimePlan && (
+                              <div
+                                className="guard-node rounded-lg border border-blue-500/40 bg-[var(--node-bg)] p-3 text-left shadow-md"
+                                title={runtimePlan.reason}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-400">
+                                    {runtimePlan.mode === 'auto'
+                                      ? 'Auto plan selected'
+                                      : 'Execution plan'}
+                                  </span>
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                                </div>
+                                <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                                  {runtimePlan.count} shards ×{' '}
+                                  {runtimePlan.workersPerShard} workers each
+                                </p>
+                                <p className="mt-1 text-[10px] leading-4 text-muted">
+                                  Per shard:{' '}
+                                  {runtimePlan.aggregateCpu / runtimePlan.count}{' '}
+                                  CPU ·{' '}
+                                  {runtimePlan.aggregateMemoryGb /
+                                    runtimePlan.count <
+                                  1
+                                    ? `${(runtimePlan.aggregateMemoryGb / runtimePlan.count) * 1024} MB`
+                                    : `${runtimePlan.aggregateMemoryGb / runtimePlan.count} GB`}
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Total: {runtimePlan.aggregateCpu} CPUs ·{' '}
+                                  {runtimePlan.aggregateMemoryGb} GB ·{' '}
+                                  {runtimePlan.aggregateWorkers} workers
+                                </p>
+                                <div className="my-2 h-px bg-[var(--node-border)]" />
+                                <p className="text-[10px] leading-4 text-muted">
+                                  {runtimePlan.discovery.testCount} tests in{' '}
+                                  {runtimePlan.discovery.fileCount} files
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Limited by {runtimePlanLimit} (
+                                  {runtimePlan.count}).
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Limits: max {runtimePlan.limits.configured} ·
+                                  suite {runtimePlan.limits.useful} · capacity{' '}
+                                  {runtimePlan.limits.capacity}
+                                </p>
+                              </div>
+                            )}
                             {runtimeChildren.map((child) => {
                               const label =
                                 child.childKind === 'shard'
