@@ -56,10 +56,9 @@ const googleSiteVerification = process.env.GOOGLE_SITE_VERIFICATION;
 // Docusaurus throws if `gtag` appears in themeConfig.
 const gaMeasurementId = process.env.GA_MEASUREMENT_ID || 'G-38TB3C8Z1E';
 
-// TODO(seo): confirm the X/Twitter handle before enabling. A wrong handle on
-// twitter:site attributes every share to someone else's account, which is
-// worse than shipping no tag at all — so this stays off until verified.
-const twitterHandle: string | undefined = undefined;
+// Confirmed 2026-08-14: the project owns https://x.com/playrunner_ (note the
+// trailing underscore — plain @playrunner belongs to someone else).
+const twitterHandle: string | undefined = '@playrunner_';
 
 const config: Config = {
   title: 'Playrunner',
