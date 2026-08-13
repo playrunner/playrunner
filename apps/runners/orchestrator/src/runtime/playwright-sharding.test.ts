@@ -16,7 +16,7 @@ const discovery = {
   testCount: 100,
 };
 
-test('auto sharding is bounded by useful work and aggregate capacity', () => {
+test('auto sharding jointly selects runner resources within aggregate capacity', () => {
   const plan = planPlaywrightShards({
     capacity: {
       maxConcurrentShards: 8,
@@ -35,10 +35,12 @@ test('auto sharding is bounded by useful work and aggregate capacity', () => {
     discovery,
   });
 
-  assert.equal(plan.count, 3);
+  assert.equal(plan.count, 6);
   assert.equal(plan.aggregateCpu, 6);
-  assert.equal(plan.aggregateMemoryGb, 12);
+  assert.equal(plan.aggregateMemoryGb, 24);
   assert.equal(plan.aggregateWorkers, 6);
+  assert.equal(plan.cpuPerShard, 1);
+  assert.equal(plan.memoryGbPerShard, 4);
 });
 
 test('auto sharding avoids runners with too little useful work', () => {
@@ -87,6 +89,83 @@ test('auto sharding reduces workers per shard to preserve a wider topology', () 
   assert.match(plan.reason, /2 workers selected per shard/);
 });
 
+test('auto planning uses comparable history to select memory and meet a duration target', () => {
+  const plan = planPlaywrightShards({
+    capacity: {
+      maxConcurrentShards: 4,
+      maxShards: 4,
+      maxTotalCpu: 8,
+      maxTotalMemoryGb: 16,
+      maxTotalWorkers: 8,
+    },
+    config: {
+      cpu: 4,
+      maxShards: 4,
+      memory: 8,
+      shardingMode: 'auto',
+      targetDurationMinutes: 6,
+      workers: 2,
+    },
+    discovery,
+    history: [
+      {
+        completed: true,
+        cpuPerShard: 2,
+        discovery,
+        durationMs: 10 * 60_000,
+        memoryGbPerShard: 2,
+        shardCount: 2,
+        workersPerShard: 2,
+      },
+    ],
+  });
+
+  assert.equal(plan.count, 4);
+  assert.equal(plan.cpuPerShard, 2);
+  assert.equal(plan.memoryGbPerShard, 2);
+  assert.equal(plan.estimate.durationMs, 5 * 60_000);
+  assert.equal(plan.estimate.historySamples, 1);
+  assert.equal(plan.estimate.source, 'history');
+});
+
+test('auto planning ignores incomplete and dissimilar history', () => {
+  const plan = planPlaywrightShards({
+    config: {
+      cpu: 2,
+      maxShards: 4,
+      memory: 4,
+      shardingMode: 'auto',
+      workers: 2,
+    },
+    discovery,
+    history: [
+      {
+        completed: false,
+        cpuPerShard: 1,
+        discovery,
+        durationMs: 1_000,
+        memoryGbPerShard: 0.5,
+        shardCount: 4,
+        workersPerShard: 2,
+      },
+      {
+        completed: true,
+        cpuPerShard: 1,
+        discovery: { ...discovery, shardableUnits: 1, testCount: 1 },
+        durationMs: 1_000,
+        memoryGbPerShard: 0.5,
+        shardCount: 1,
+        workersPerShard: 1,
+      },
+    ],
+  });
+
+  assert.equal(plan.estimate.durationMs, null);
+  assert.equal(plan.estimate.historySamples, 0);
+  assert.equal(plan.estimate.source, 'discovery');
+  assert.equal(plan.memoryGbPerShard, 4);
+});
+
 test('local capacity is bounded by host resources and a safe concurrency cap', () => {
   assert.deepEqual(
     resolveLocalPlaywrightShardCapacity({
@@ -118,11 +197,19 @@ test('manual sharding rejects a request above capacity', () => {
 test('manual sharding preserves the configured workers per shard', () => {
   const plan = planPlaywrightShards({
     capacity: { maxTotalWorkers: 12 },
-    config: { shardCount: 3, shardingMode: 'manual', workers: 4 },
+    config: {
+      cpu: 4,
+      memory: 8,
+      shardCount: 3,
+      shardingMode: 'manual',
+      workers: 4,
+    },
     discovery,
   });
 
   assert.equal(plan.count, 3);
+  assert.equal(plan.cpuPerShard, 4);
+  assert.equal(plan.memoryGbPerShard, 8);
   assert.equal(plan.workersPerShard, 4);
   assert.equal(plan.aggregateWorkers, 12);
 });

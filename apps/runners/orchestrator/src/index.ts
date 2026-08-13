@@ -12,6 +12,7 @@ import {
   planPlaywrightShards,
   resolveLocalPlaywrightShardCapacity,
   resolvePlaywrightShardingMode,
+  type PlaywrightExecutionObservation,
   type PlaywrightShardDiscovery,
 } from './runtime/playwright-sharding';
 
@@ -592,7 +593,9 @@ export async function executeWorkflow(reqBody: any) {
         node: any,
         overrides: {
           blobArtifacts?: unknown[];
+          cpu?: number;
           executionMode?: 'aggregate' | 'discovery' | 'shard' | 'test';
+          memory?: number;
           outputNodeId?: string;
           runtimeNodeId?: string;
           shardIndex?: number;
@@ -610,8 +613,8 @@ export async function executeWorkflow(reqBody: any) {
       } => {
         const config = node.config || {};
         const runtime = resolvePlaywrightRuntime(config);
-        const cpu = config.cpu || 2;
-        const memory = config.memory || 4;
+        const cpu = overrides.cpu || config.cpu || 2;
+        const memory = overrides.memory || config.memory || 4;
         const workers = overrides.workers || config.workers || 1;
         const envKeys = config.envVars || [];
         const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
@@ -662,7 +665,7 @@ export async function executeWorkflow(reqBody: any) {
           injectedEnv: envKeys.map((key: string) => `${key}=***`).join(', '),
           memory,
           request: {
-            config: { ...config, workers },
+            config: { ...config, cpu, memory, workers },
             envKeys,
             globalEnvVars,
             nodeId: runtimeNodeId,
@@ -799,6 +802,11 @@ export async function executeWorkflow(reqBody: any) {
               : getRecord(reqBody.shardCapacity),
           config,
           discovery,
+          history: Array.isArray(reqBody.playwrightHistory?.[node.id])
+            ? (reqBody.playwrightHistory[
+                node.id
+              ] as PlaywrightExecutionObservation[])
+            : [],
         });
         const shardChildren = Array.from(
           { length: plan.count },
@@ -843,14 +851,18 @@ export async function executeWorkflow(reqBody: any) {
               parentNodeId: node.id,
             });
             const request = createPlaywrightExecutionRequest(node, {
+              cpu: plan.cpuPerShard,
               executionMode: 'shard',
+              memory: plan.memoryGbPerShard,
               runtimeNodeId: child.nodeId,
               shardIndex: child.shardIndex,
               shardTotal: child.shardTotal,
               sourceRevision: discovery.sourceRevision,
               workers: plan.workersPerShard,
             }).request;
-            return runPreparedPlaywrightRequest(request);
+            const startedAt = Date.now();
+            const result = await runPreparedPlaywrightRequest(request);
+            return { ...result, durationMs: Date.now() - startedAt };
           }),
         );
         const shardResults = shardSettled.map((settled, index) => {
@@ -863,6 +875,25 @@ export async function executeWorkflow(reqBody: any) {
             };
           }
           return { child: shardChildren[index], ...settled.value };
+        });
+        await publishEvent({
+          completed: shardSettled.every(
+            (settled) => settled.status === 'fulfilled',
+          ),
+          cpuPerShard: plan.cpuPerShard,
+          discovery,
+          durationMs: Math.max(
+            0,
+            ...shardResults.map((result) =>
+              'durationMs' in result ? result.durationMs : 0,
+            ),
+          ),
+          memoryGbPerShard: plan.memoryGbPerShard,
+          nodeId: node.id,
+          shardCount: plan.count,
+          timestamp: new Date().toISOString(),
+          type: 'playwright_execution_observation',
+          workersPerShard: plan.workersPerShard,
         });
         await Promise.all(
           shardResults

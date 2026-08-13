@@ -817,7 +817,9 @@ test.describe('navigation', () => {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                  CPU
+                  {config.shardingMode === 'auto'
+                    ? 'Maximum CPU per shard'
+                    : 'CPU'}
                 </label>
                 <Select
                   data-testid="playwright-node-cpu"
@@ -838,7 +840,9 @@ test.describe('navigation', () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                  Memory
+                  {config.shardingMode === 'auto'
+                    ? 'Maximum memory per shard'
+                    : 'Memory'}
                 </label>
                 <Select
                   data-testid="playwright-node-memory"
@@ -976,9 +980,34 @@ test.describe('navigation', () => {
                   <p className="text-[10px] text-muted">
                     Playrunner discovers the suite first, then reduces this
                     maximum for useful test/file units and available capacity.
-                    It may also reduce workers per shard to create a wider
-                    feasible topology.
+                    CPU, memory, and workers are selected within the maximums
+                    above. Comparable previous runs improve the estimate; the
+                    first run uses a safe discovery-based fallback.
                   </p>
+                  <div className="space-y-1.5 pt-2">
+                    <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                      Target duration in minutes (optional)
+                    </label>
+                    <Input
+                      data-testid="playwright-node-target-duration"
+                      type="number"
+                      min={1}
+                      value={config.targetDurationMinutes || ''}
+                      placeholder="No target"
+                      onChange={(event) =>
+                        onChange(nodeId, {
+                          ...config,
+                          targetDurationMinutes: event.target.value
+                            ? Math.max(1, parseInt(event.target.value) || 1)
+                            : undefined,
+                        })
+                      }
+                    />
+                    <p className="text-[10px] text-muted">
+                      When history is available, Playrunner selects the smallest
+                      CPU shape estimated to meet this target.
+                    </p>
+                  </div>
                 </div>
               ) : null}
 
@@ -1004,7 +1033,7 @@ test.describe('navigation', () => {
                   GB ·{' '}
                   {config.shardingMode === 'manual'
                     ? `${(config.workers || 1) * (config.shardCount || 2)} workers`
-                    : `${config.workers || 1} workers per shard maximum; final allocation is planned after discovery`}
+                    : `${config.workers || 1} workers per shard maximum; CPU, memory, workers, and shards are planned after discovery`}
                 </div>
               ) : null}
             </div>

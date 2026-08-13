@@ -102,6 +102,7 @@ type RuntimePlaywrightPlan = {
   aggregateMemoryGb: number;
   aggregateWorkers: number;
   count: number;
+  cpuPerShard?: number;
   discovery: {
     fileCount: number;
     fullyParallel: boolean;
@@ -109,15 +110,28 @@ type RuntimePlaywrightPlan = {
     shardableUnits: number;
     testCount: number;
   };
+  estimate?: {
+    durationMs: number | null;
+    historySamples: number;
+    source: 'discovery' | 'history';
+  };
   limits: {
     capacity: number;
     configured: number;
     useful: number;
   };
   mode: 'auto' | 'manual';
+  memoryGbPerShard?: number;
   reason: string;
   workersPerShard: number;
 };
+
+function formatPlannedDuration(durationMs: number) {
+  const totalSeconds = Math.max(1, Math.round(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
 
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
@@ -3053,6 +3067,14 @@ export default function Editor() {
                   : (left.shardIndex || 0) - (right.shardIndex || 0);
               });
               const runtimePlan = runtimePlaywrightPlans[node.id];
+              const runtimeCpuPerShard = runtimePlan
+                ? (runtimePlan.cpuPerShard ??
+                  runtimePlan.aggregateCpu / runtimePlan.count)
+                : null;
+              const runtimeMemoryPerShard = runtimePlan
+                ? (runtimePlan.memoryGbPerShard ??
+                  runtimePlan.aggregateMemoryGb / runtimePlan.count)
+                : null;
               const runtimePlanLimit = runtimePlan
                 ? runtimePlan.limits.capacity <=
                     runtimePlan.limits.configured &&
@@ -3216,14 +3238,11 @@ export default function Editor() {
                                   {runtimePlan.workersPerShard} workers each
                                 </p>
                                 <p className="mt-1 text-[10px] leading-4 text-muted">
-                                  Per shard:{' '}
-                                  {runtimePlan.aggregateCpu / runtimePlan.count}{' '}
-                                  CPU ·{' '}
-                                  {runtimePlan.aggregateMemoryGb /
-                                    runtimePlan.count <
-                                  1
-                                    ? `${(runtimePlan.aggregateMemoryGb / runtimePlan.count) * 1024} MB`
-                                    : `${runtimePlan.aggregateMemoryGb / runtimePlan.count} GB`}
+                                  Per shard: {runtimeCpuPerShard} CPU ·{' '}
+                                  {runtimeMemoryPerShard !== null &&
+                                  runtimeMemoryPerShard < 1
+                                    ? `${runtimeMemoryPerShard * 1024} MB`
+                                    : `${runtimeMemoryPerShard} GB`}
                                 </p>
                                 <p className="text-[10px] leading-4 text-muted">
                                   Total: {runtimePlan.aggregateCpu} CPUs ·{' '}
@@ -3234,6 +3253,14 @@ export default function Editor() {
                                 <p className="text-[10px] leading-4 text-muted">
                                   {runtimePlan.discovery.testCount} tests in{' '}
                                   {runtimePlan.discovery.fileCount} files
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  {runtimePlan.estimate?.source === 'history'
+                                    ? `Based on ${runtimePlan.estimate.historySamples} comparable previous run${runtimePlan.estimate.historySamples === 1 ? '' : 's'}`
+                                    : 'First run: safe discovery-based estimate'}
+                                  {runtimePlan.estimate?.durationMs != null
+                                    ? ` · expected ${formatPlannedDuration(runtimePlan.estimate.durationMs)}`
+                                    : ''}
                                 </p>
                                 <p className="text-[10px] leading-4 text-muted">
                                   Limited by {runtimePlanLimit} (

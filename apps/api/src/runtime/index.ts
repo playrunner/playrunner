@@ -105,6 +105,50 @@ async function resolveEnvironmentSecrets(request: WorkflowExecutionRequest) {
   );
 }
 
+async function resolvePlaywrightHistory(request: WorkflowExecutionRequest) {
+  const userId = request.req.authUser?.providerUserId;
+  const workflowId =
+    typeof request.body.workflowId === 'string'
+      ? request.body.workflowId
+      : null;
+  const nodes = Array.isArray(request.body.nodes) ? request.body.nodes : [];
+  const nodeIds = nodes
+    .filter(
+      (node) =>
+        node &&
+        typeof node === 'object' &&
+        node.nodeType === 'playwright' &&
+        typeof node.id === 'string',
+    )
+    .map((node) => node.id as string);
+
+  if (!userId || !workflowId || nodeIds.length === 0) {
+    request.body.playwrightHistory = {};
+    return;
+  }
+
+  const events = await prisma.workflowEvent.findMany({
+    orderBy: { occurredAt: 'desc' },
+    select: { nodeId: true, payload: true },
+    take: Math.min(100, nodeIds.length * 10),
+    where: {
+      nodeId: { in: nodeIds },
+      type: 'playwright_execution_observation',
+      userId,
+      workflowId,
+    },
+  });
+  const history: Record<string, unknown[]> = Object.fromEntries(
+    nodeIds.map((nodeId) => [nodeId, []]),
+  );
+  for (const event of events) {
+    if (event.nodeId && history[event.nodeId]?.length < 10) {
+      history[event.nodeId].push(event.payload);
+    }
+  }
+  request.body.playwrightHistory = history;
+}
+
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
     private readonly providers = [{ id: 'LOCAL_RUNNER', label: 'Local Dev' }],
@@ -133,6 +177,7 @@ class WorkflowExecutionRegistry {
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);
     await resolveEnvironmentSecrets(request);
+    await resolvePlaywrightHistory(request);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),
