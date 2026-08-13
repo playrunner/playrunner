@@ -66,4 +66,3 @@ execution off your machine:
 - [Use cases](/docs/use-cases/) — Slack alerts, Jira bugs, AI failure triage,
   schedules, and webhook triggers.
 - [Integration reference](/docs/integration-packages/) — every available node.
-- [How Playrunner compares](/compare/) to CI pipelines and managed grids.

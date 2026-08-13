@@ -38,4 +38,3 @@ condition inside a script.
 ## Related
 
 - [Integration reference](/docs/integration-packages/) — every available node.
-- [How Playrunner compares](/compare/) to CI pipelines and managed grids.
