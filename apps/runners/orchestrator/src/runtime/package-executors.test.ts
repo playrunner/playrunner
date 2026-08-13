@@ -618,7 +618,7 @@ describe('package orchestrator integration', { concurrency: false }, () => {
       );
     });
 
-    test('renders completed package output into downstream node templates', async () => {
+    test('renders output and workflow diagnostics into downstream node templates', async () => {
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
       const openAIRequests: Record<string, unknown>[] = [];
 
@@ -664,7 +664,8 @@ describe('package orchestrator integration', { concurrency: false }, () => {
             },
             {
               config: {
-                prompt: 'Use {{node_openai-first.result.data}} downstream.',
+                prompt:
+                  'Use {{node_openai-first.result.data}} downstream. Current: {{workflow.run.logs.info}} Previous: {{workflow.history.logs.error}}',
               },
               id: 'openai-second',
               label: 'Second OpenAI action',
@@ -675,6 +676,19 @@ describe('package orchestrator integration', { concurrency: false }, () => {
           testId: 'execution-upstream-output',
           workflow: {
             definition: { id: 'workflow-1', name: 'Output template test' },
+          },
+          workflowHistory: {
+            logs: {
+              error: [
+                {
+                  executionId: 'previous-run',
+                  level: 'error',
+                  message: 'Historical shard failure.',
+                  timestamp: '2026-08-13T00:00:00.000Z',
+                },
+              ],
+            },
+            runs: [],
           },
           workflowId: 'workflow-1',
         });
@@ -687,9 +701,17 @@ describe('package orchestrator integration', { concurrency: false }, () => {
       }
 
       assert.equal(openAIRequests.length, 2);
-      assert.equal(
-        openAIRequests[1]?.input,
-        'Use {"text":"First result"} downstream.',
+      assert.match(
+        String(openAIRequests[1]?.input),
+        /^Use {"text":"First result"} downstream\./,
+      );
+      assert.match(
+        String(openAIRequests[1]?.input),
+        /Processing node: First OpenAI action/,
+      );
+      assert.match(
+        String(openAIRequests[1]?.input),
+        /Historical shard failure/,
       );
     });
 

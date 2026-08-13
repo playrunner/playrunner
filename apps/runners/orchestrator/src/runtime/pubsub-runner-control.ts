@@ -21,6 +21,12 @@ export type PubSubRunnerControl = {
   publishStart: () => Promise<void>;
   startWithRetry: () => Promise<void>;
   waitForCompletion: () => Promise<{
+    diagnosticLogs?: Array<{
+      level: 'info' | 'error';
+      message: string;
+      nodeId?: string;
+      timestamp: string;
+    }>;
     outcome: 'success' | 'error';
     output: Record<string, unknown>;
   }>;
@@ -454,6 +460,12 @@ async function waitForRunnerCompletion(args: {
   projectId: string;
   subscriptionName: string;
 }): Promise<{
+  diagnosticLogs?: Array<{
+    level: 'info' | 'error';
+    message: string;
+    nodeId?: string;
+    timestamp: string;
+  }>;
   outcome: 'success' | 'error';
   output: Record<string, unknown>;
 }> {
@@ -476,6 +488,9 @@ async function waitForRunnerCompletion(args: {
         }
 
         return {
+          diagnosticLogs: Array.isArray(payload.diagnosticLogs)
+            ? payload.diagnosticLogs
+            : undefined,
           outcome: payload.error ? 'error' : 'success',
           output:
             payload.output && typeof payload.output === 'object'

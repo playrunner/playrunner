@@ -8,6 +8,11 @@ import type {
 } from './runtime/contracts';
 import { packageExecutorRuntime } from './runtime/package-executors';
 import {
+  appendWorkflowDiagnosticLog,
+  createWorkflowDiagnosticLogs,
+  type WorkflowDiagnosticLogs,
+} from './runtime/workflow-diagnostics';
+import {
   createPlaywrightRuntimeNodeId,
   planPlaywrightShards,
   resolveLocalPlaywrightShardCapacity,
@@ -47,6 +52,21 @@ type WorkflowEventPublisher = {
   ) => Promise<void>;
 };
 
+type WorkflowShardingDiagnostic = Record<string, unknown>;
+
+type WorkflowHistoryRun = {
+  diagnostics: {
+    sharding: WorkflowShardingDiagnostic[];
+  };
+  durationMs: number | null;
+  finishedAt: string;
+  id: string;
+  logs: WorkflowDiagnosticLogs;
+  runner: string;
+  startedAt: string;
+  status: string;
+};
+
 type GcpPubSubEventTransport = {
   projectId?: string;
   topicName?: string;
@@ -59,6 +79,9 @@ type WorkflowTemplateContext = {
     name: string;
   };
   run: {
+    diagnostics: {
+      sharding: WorkflowShardingDiagnostic[];
+    };
     durationMs: number | '';
     failedNode: {
       id: string;
@@ -66,11 +89,16 @@ type WorkflowTemplateContext = {
     };
     finishedAt: string;
     id: string;
+    logs: WorkflowDiagnosticLogs;
     runner: string;
     startedAt: string;
     status: 'running' | 'completed' | 'failed' | 'cancelled';
     trigger: string;
     url: string;
+  };
+  history: {
+    logs: WorkflowDiagnosticLogs;
+    runs: WorkflowHistoryRun[];
   };
 };
 
@@ -187,6 +215,7 @@ function createWorkflowTemplateContext(
   const definition = getRecord(workflow.definition);
   const run = getRecord(workflow.run);
   const failedNode = getRecord(run.failedNode);
+  const history = getRecord(reqBody.workflowHistory);
   const workflowId = getString(definition.id) || getString(reqBody.workflowId);
 
   return {
@@ -199,6 +228,9 @@ function createWorkflowTemplateContext(
         'Untitled Workflow',
     },
     run: {
+      diagnostics: {
+        sharding: [],
+      },
       durationMs: '',
       failedNode: {
         id: getString(failedNode.id),
@@ -206,6 +238,7 @@ function createWorkflowTemplateContext(
       },
       finishedAt: '',
       id: testId,
+      logs: createWorkflowDiagnosticLogs(),
       runner:
         getString(run.runner) ||
         getString(reqBody.cloudProvider) ||
@@ -216,7 +249,28 @@ function createWorkflowTemplateContext(
         getString(run.trigger) || (reqBody.scheduler ? 'schedule' : 'manual'),
       url: getString(run.url),
     },
+    history: {
+      logs: normalizeDiagnosticLogs(history.logs),
+      runs: Array.isArray(history.runs)
+        ? (history.runs as WorkflowHistoryRun[])
+        : [],
+    },
   };
+}
+
+function normalizeDiagnosticLogs(value: unknown): WorkflowDiagnosticLogs {
+  const logs = getRecord(value);
+  const normalized = createWorkflowDiagnosticLogs();
+
+  for (const level of ['all', 'build', 'debug', 'error', 'info', 'warn']) {
+    if (Array.isArray(logs[level])) {
+      normalized[level as keyof WorkflowDiagnosticLogs] = logs[
+        level
+      ] as WorkflowDiagnosticLogs[keyof WorkflowDiagnosticLogs];
+    }
+  }
+
+  return normalized;
 }
 
 function finishWorkflowRun(
@@ -395,6 +449,12 @@ async function publishGcpPubSubEvent(args: {
 
 function createWorkflowEventPublisher(
   reqBody: Record<string, any>,
+  onLog?: (entry: {
+    level: WorkflowEventLevel;
+    message: string;
+    nodeId?: string;
+    timestamp: string;
+  }) => void,
 ): WorkflowEventPublisher {
   const executionId = typeof reqBody.testId === 'string' ? reqBody.testId : '';
   const executionToken =
@@ -453,11 +513,19 @@ function createWorkflowEventPublisher(
     publishEvent,
     publishLog: async (message, level = 'info', extra = {}) => {
       writeWorkflowLogToConsole(executionId, message, level);
+      const timestamp = new Date().toISOString();
+      const nodeId = getString(extra.nodeId);
+      onLog?.({
+        level,
+        message,
+        ...(nodeId ? { nodeId } : {}),
+        timestamp,
+      });
       await publishEvent({
         ...extra,
         level,
         message,
-        timestamp: new Date().toISOString(),
+        timestamp,
         type: 'log',
       });
     },
@@ -474,13 +542,15 @@ function createWorkflowEventPublisher(
 }
 
 export async function executeWorkflow(reqBody: any) {
-  const eventPublisher = createWorkflowEventPublisher(reqBody);
-  const { publishEvent, publishLog, publishNodeState } = eventPublisher;
   const workflowContext = createWorkflowTemplateContext(
     reqBody,
     getString(reqBody.testId),
     new Date(),
   );
+  const eventPublisher = createWorkflowEventPublisher(reqBody, (entry) => {
+    appendWorkflowDiagnosticLog(workflowContext.run.logs, entry);
+  });
+  const { publishEvent, publishLog, publishNodeState } = eventPublisher;
   let terminalEventPublished = false;
   let workflowFailed = false;
 
@@ -670,7 +740,8 @@ export async function executeWorkflow(reqBody: any) {
             globalEnvVars,
             nodeId: runtimeNodeId,
             payloadData,
-            publishLog,
+            publishLog: (message, level) =>
+              publishLog(message, level, { nodeId: runtimeNodeId }),
             registerActiveProcess: (activeNodeId, process) => {
               registerActiveProcessForNode(
                 activeNodeId,
@@ -753,7 +824,11 @@ export async function executeWorkflow(reqBody: any) {
             throw new Error('Playwright runner was cancelled.');
           }
           await runner.start();
-          return await runner.waitForCompletion();
+          const result = await runner.waitForCompletion();
+          for (const entry of result.diagnosticLogs || []) {
+            appendWorkflowDiagnosticLog(workflowContext.run.logs, entry);
+          }
+          return result;
         } finally {
           activePreparedPlaywrightRunners.delete(activeKey);
           await runner.cleanup?.();
@@ -829,13 +904,22 @@ export async function executeWorkflow(reqBody: any) {
           node.id,
           'aggregate',
         );
+        const planTimestamp = new Date().toISOString();
+        workflowContext.run.diagnostics.sharding.push({
+          discovery,
+          nodeId: node.id,
+          nodeName: getString(node.label) || node.id,
+          plan,
+          timestamp: planTimestamp,
+          type: 'shard_plan',
+        });
         await publishEvent({
           aggregateNodeId,
           children: shardChildren,
           discovery,
           nodeId: node.id,
           plan,
-          timestamp: new Date().toISOString(),
+          timestamp: planTimestamp,
           type: 'shard_plan',
         });
         await publishLog(
@@ -880,7 +964,8 @@ export async function executeWorkflow(reqBody: any) {
           const artifact = getRecord(getRecord(result.output).blobArtifact);
           return Boolean(artifact.fileName && artifact.checksum);
         });
-        await publishEvent({
+        const observationTimestamp = new Date().toISOString();
+        const observation = {
           blobReportsComplete,
           completed:
             shardSettled.every((settled) => settled.status === 'fulfilled') &&
@@ -896,10 +981,12 @@ export async function executeWorkflow(reqBody: any) {
           memoryGbPerShard: plan.memoryGbPerShard,
           nodeId: node.id,
           shardCount: plan.count,
-          timestamp: new Date().toISOString(),
+          timestamp: observationTimestamp,
           type: 'playwright_execution_observation',
           workersPerShard: plan.workersPerShard,
-        });
+        };
+        workflowContext.run.diagnostics.sharding.push(observation);
+        await publishEvent(observation);
         await Promise.all(
           shardResults
             .filter((result) => 'error' in result)
@@ -1128,7 +1215,8 @@ export async function executeWorkflow(reqBody: any) {
                   nodeOutputs: nodeTemplateOutputs,
                   workflow: workflowContext,
                 }),
-              log: publishLog,
+              log: (message, level) =>
+                publishLog(message, level, { nodeId: node.id }),
             });
             finalState = result.outcome;
 

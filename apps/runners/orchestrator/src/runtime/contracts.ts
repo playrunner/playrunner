@@ -24,6 +24,12 @@ export interface PreparedPlaywrightRunner {
 }
 
 export interface PlaywrightExecutionResult {
+  diagnosticLogs?: Array<{
+    level: 'info' | 'error';
+    message: string;
+    nodeId?: string;
+    timestamp: string;
+  }>;
   outcome: 'success' | 'error';
   output: Record<string, unknown>;
 }

@@ -35,6 +35,7 @@ import {
   getEnvironmentSecretKeys,
   hydrateEnvironmentSecretVariables,
 } from '../services/environment-secrets';
+import { buildWorkflowHistory } from '../services/workflow-history';
 
 const HOST_NODE_TYPES = new Set([
   'environment',
@@ -149,6 +150,54 @@ async function resolvePlaywrightHistory(request: WorkflowExecutionRequest) {
   request.body.playwrightHistory = history;
 }
 
+async function resolveWorkflowDiagnosticHistory(
+  request: WorkflowExecutionRequest,
+) {
+  const userId = request.req.authUser?.providerUserId;
+  const workflowId =
+    typeof request.body.workflowId === 'string'
+      ? request.body.workflowId
+      : null;
+
+  if (!userId || !workflowId) {
+    request.body.workflowHistory = buildWorkflowHistory([]);
+    return;
+  }
+
+  const executions = await prisma.workflowExecution.findMany({
+    orderBy: { startedAt: 'desc' },
+    select: {
+      cloudProvider: true,
+      completedAt: true,
+      events: {
+        orderBy: { id: 'asc' },
+        select: {
+          executionId: true,
+          level: true,
+          message: true,
+          nodeId: true,
+          occurredAt: true,
+          payload: true,
+          type: true,
+        },
+        take: 500,
+        where: {
+          type: {
+            in: ['log', 'shard_plan', 'playwright_execution_observation'],
+          },
+        },
+      },
+      id: true,
+      startedAt: true,
+      status: true,
+    },
+    take: 10,
+    where: { userId, workflowId },
+  });
+
+  request.body.workflowHistory = buildWorkflowHistory(executions);
+}
+
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
     private readonly providers = [{ id: 'LOCAL_RUNNER', label: 'Local Dev' }],
@@ -177,7 +226,10 @@ class WorkflowExecutionRegistry {
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);
     await resolveEnvironmentSecrets(request);
-    await resolvePlaywrightHistory(request);
+    await Promise.all([
+      resolvePlaywrightHistory(request),
+      resolveWorkflowDiagnosticHistory(request),
+    ]);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),

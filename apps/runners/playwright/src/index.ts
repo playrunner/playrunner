@@ -11,6 +11,7 @@ import {
   verifyBlobArtifact,
   type PlaywrightBlobArtifact,
 } from './sharding';
+import { describePlaywrightProcessExit } from './process-exit';
 
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
@@ -47,6 +48,12 @@ type PreparedWorkingDirectory = {
 
 let runnerEventContext: RunnerEventContext | null = null;
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
+const runnerDiagnosticLogs: Array<{
+  level: 'info' | 'error';
+  message: string;
+  nodeId?: string;
+  timestamp: string;
+}> = [];
 const CONTROL_POLL_INTERVAL_MS = 1000;
 const CONTROL_SIGNAL_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
@@ -199,6 +206,15 @@ async function publishEvent(payload: Record<string, unknown>) {
 
 async function publishLog(message: string, level: 'info' | 'error' = 'info') {
   const formattedMessage = `[Playwright Runner] ${message}`;
+  const timestamp = new Date().toISOString();
+  runnerDiagnosticLogs.push({
+    level,
+    message: formattedMessage,
+    ...(runnerEventContext?.nodeId
+      ? { nodeId: runnerEventContext.nodeId }
+      : {}),
+    timestamp,
+  });
   if (level === 'error') {
     console.error(formattedMessage);
   } else {
@@ -208,7 +224,7 @@ async function publishLog(message: string, level: 'info' | 'error' = 'info') {
   await publishEvent({
     level,
     message: formattedMessage,
-    timestamp: new Date().toISOString(),
+    timestamp,
     type: 'log',
   });
 }
@@ -279,6 +295,7 @@ async function publishRunnerStatus(
   const accessToken = runnerEventContext.gcpAccessToken;
   const eventId = crypto.randomUUID();
   const payload = {
+    ...(status === 'completed' ? { diagnosticLogs: runnerDiagnosticLogs } : {}),
     error,
     eventId,
     executionId: runnerEventContext.testId,
@@ -549,10 +566,18 @@ async function runTypescriptTest(
     testProc.stderr.on('data', (data) =>
       console.error(`[playwright error]: ${data.toString().trim()}`),
     );
-    testProc.on('close', (code) =>
+    testProc.on('close', (code, signal) =>
       code === 0
         ? resolve()
-        : reject(new Error(`Tests failed with code ${code}`)),
+        : reject(
+            new Error(
+              describePlaywrightProcessExit({
+                code,
+                sharded: Boolean(shard),
+                signal,
+              }),
+            ),
+          ),
     );
   });
 }
