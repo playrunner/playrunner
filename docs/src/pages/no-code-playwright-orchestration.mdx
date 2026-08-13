@@ -12,7 +12,11 @@ keywords:
 image: /img/og/og-compare.png
 ---
 
-import { JsonLd, faqPage, breadcrumbs } from '@site/src/components/StructuredData';
+import {
+  JsonLd,
+  faqPage,
+  breadcrumbs,
+} from '@site/src/components/StructuredData';
 
 export const faq = [
   {
@@ -31,7 +35,8 @@ export const faq = [
       'They can build and change the workflow around the tests — adjusting a schedule, adding a Slack notification, or routing failures to Jira — because those are nodes and connections on a canvas. Writing the tests themselves still requires someone who can write Playwright.',
   },
   {
-    question: 'How is this different from a no-code automation tool like n8n or Zapier?',
+    question:
+      'How is this different from a no-code automation tool like n8n or Zapier?',
     answer:
       'The interaction model is deliberately familiar, but the domain is different. General automation tools move data between SaaS APIs. Playrunner understands test runs specifically: provisioning runners, streaming live node state, collecting Playwright reports and traces, and branching on whether a suite passed.',
   },
@@ -46,7 +51,10 @@ export const faq = [
 <JsonLd
   data={breadcrumbs([
     { name: 'Playrunner', url: '/' },
-    { name: 'No-code Playwright orchestration', url: '/no-code-playwright-orchestration/' },
+    {
+      name: 'No-code Playwright orchestration',
+      url: '/no-code-playwright-orchestration/',
+    },
   ])}
 />
 
@@ -124,6 +132,7 @@ stops needing engineering judgement.
 ## Frequently asked questions
 
 {faq.map(({ question, answer }) => (
+
   <div key={question}>
     <h3>{question}</h3>
     <p>{answer}</p>
