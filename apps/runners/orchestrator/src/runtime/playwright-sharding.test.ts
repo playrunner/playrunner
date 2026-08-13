@@ -52,18 +52,18 @@ test('auto sharding avoids runners with too little useful work', () => {
   assert.equal(plan.count, 1);
 });
 
-test('auto sharding accounts for workers inside each shard', () => {
+test('auto sharding caps workers at the selected CPU shape', () => {
   const plan = planPlaywrightShards({
     config: { maxShards: 8, shardingMode: 'auto', workers: 4 },
     discovery: { ...discovery, shardableUnits: 8, testCount: 8 },
   });
 
   assert.equal(plan.count, 1);
-  assert.equal(plan.aggregateWorkers, 4);
-  assert.equal(plan.workersPerShard, 4);
+  assert.equal(plan.aggregateWorkers, 2);
+  assert.equal(plan.workersPerShard, 2);
 });
 
-test('auto sharding reduces workers per shard to preserve a wider topology', () => {
+test('auto sharding does not oversubscribe CPU or memory per shard', () => {
   const plan = planPlaywrightShards({
     capacity: {
       maxConcurrentShards: 4,
@@ -83,10 +83,12 @@ test('auto sharding reduces workers per shard to preserve a wider topology', () 
   });
 
   assert.equal(plan.count, 4);
-  assert.equal(plan.workersPerShard, 2);
-  assert.equal(plan.aggregateWorkers, 8);
+  assert.equal(plan.cpuPerShard, 1);
+  assert.equal(plan.memoryGbPerShard, 0.5);
+  assert.equal(plan.workersPerShard, 1);
+  assert.equal(plan.aggregateWorkers, 4);
   assert.equal(plan.limits.useful, 4);
-  assert.match(plan.reason, /2 workers selected per shard/);
+  assert.match(plan.reason, /1 worker selected per shard/);
 });
 
 test('auto planning uses comparable history to select memory and meet a duration target', () => {
@@ -109,6 +111,7 @@ test('auto planning uses comparable history to select memory and meet a duration
     discovery,
     history: [
       {
+        blobReportsComplete: true,
         completed: true,
         cpuPerShard: 2,
         discovery,
@@ -140,6 +143,7 @@ test('auto planning ignores incomplete and dissimilar history', () => {
     discovery,
     history: [
       {
+        blobReportsComplete: false,
         completed: false,
         cpuPerShard: 1,
         discovery,
@@ -149,6 +153,7 @@ test('auto planning ignores incomplete and dissimilar history', () => {
         workersPerShard: 2,
       },
       {
+        blobReportsComplete: true,
         completed: true,
         cpuPerShard: 1,
         discovery: { ...discovery, shardableUnits: 1, testCount: 1 },

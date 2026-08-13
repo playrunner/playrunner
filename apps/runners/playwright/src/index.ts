@@ -934,12 +934,17 @@ async function prepareWorkingDirectory(
             console.log(`[Git]: ${data.toString().trim()}`),
           );
           gitProcess.stderr.on('data', (data) =>
-            console.error(`[Git Error]: ${data.toString().trim()}`),
+            console.log(`[Git]: ${data.toString().trim()}`),
           );
 
           gitProcess.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Git clone failed with code ${code}`));
+            if (code === 0) {
+              resolve();
+              return;
+            }
+            const message = `Git clone failed with code ${code}`;
+            console.error(`[Git Error]: ${message}`);
+            reject(new Error(message));
           });
         });
         if (sourceRevision) {

@@ -18,6 +18,7 @@ export type PlaywrightShardCapacity = {
 };
 
 export type PlaywrightExecutionObservation = {
+  blobReportsComplete: boolean;
   completed: boolean;
   cpuPerShard: number;
   discovery: PlaywrightShardDiscovery;
@@ -60,6 +61,7 @@ const DEFAULT_CAPACITY: PlaywrightShardCapacity = {
 
 const DEFAULT_LOCAL_MAX_CONCURRENT_SHARDS = 4;
 const DEFAULT_AUTO_UNITS_PER_WORKER = 4;
+const MIN_MEMORY_GB_PER_WORKER = 0.5;
 const CPU_SIZES = [1, 2, 4, 8];
 const MEMORY_SIZES_GB = [0.5, 1, 2, 4, 8, 16, 32];
 
@@ -107,6 +109,7 @@ function relevantHistory(
   return history.filter((observation) => {
     if (
       !observation ||
+      !observation.blobReportsComplete ||
       !observation.completed ||
       !observation.discovery ||
       !Number.isFinite(observation.durationMs) ||
@@ -306,16 +309,6 @@ export function planPlaywrightShards(args: {
   }
 
   const count = Math.max(1, Math.min(configured, useful, capacityLimit));
-  const workersPerShard =
-    mode === 'auto'
-      ? Math.max(
-          1,
-          Math.min(
-            configuredWorkers,
-            Math.floor(capacity.maxTotalWorkers / count),
-          ),
-        )
-      : configuredWorkers;
   const cpuSizes = availableSizes(
     CPU_SIZES,
     configuredCpu,
@@ -340,18 +333,32 @@ export function planPlaywrightShards(args: {
           historicalMemory ?? memorySizes[memorySizes.length - 1],
         )
       : configuredMemory;
+  const workersPerShard =
+    mode === 'auto'
+      ? Math.max(
+          1,
+          Math.min(
+            configuredWorkers,
+            Math.floor(capacity.maxTotalWorkers / count),
+            Math.floor(cpuSizes[cpuSizes.length - 1]),
+            Math.floor(memoryGbPerShard / MIN_MEMORY_GB_PER_WORKER),
+          ),
+        )
+      : configuredWorkers;
   const targetDurationMs =
     positiveNumber(args.config.targetDurationMinutes, 0) * 60_000;
-  const cpuEstimates = cpuSizes.map((cpuPerShard) => ({
-    cpuPerShard,
-    durationMs: estimateDurationMs({
+  const cpuEstimates = cpuSizes
+    .filter((cpuPerShard) => cpuPerShard >= workersPerShard)
+    .map((cpuPerShard) => ({
       cpuPerShard,
-      discovery: args.discovery,
-      history,
-      shardCount: count,
-      workersPerShard,
-    }),
-  }));
+      durationMs: estimateDurationMs({
+        cpuPerShard,
+        discovery: args.discovery,
+        history,
+        shardCount: count,
+        workersPerShard,
+      }),
+    }));
   const cpuPerShard =
     mode === 'auto'
       ? ((targetDurationMs > 0

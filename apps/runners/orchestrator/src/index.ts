@@ -876,10 +876,15 @@ export async function executeWorkflow(reqBody: any) {
           }
           return { child: shardChildren[index], ...settled.value };
         });
+        const blobReportsComplete = shardResults.every((result) => {
+          const artifact = getRecord(getRecord(result.output).blobArtifact);
+          return Boolean(artifact.fileName && artifact.checksum);
+        });
         await publishEvent({
-          completed: shardSettled.every(
-            (settled) => settled.status === 'fulfilled',
-          ),
+          blobReportsComplete,
+          completed:
+            shardSettled.every((settled) => settled.status === 'fulfilled') &&
+            blobReportsComplete,
           cpuPerShard: plan.cpuPerShard,
           discovery,
           durationMs: Math.max(
@@ -921,6 +926,15 @@ export async function executeWorkflow(reqBody: any) {
             childKind: 'aggregate',
             parentNodeId: node.id,
           });
+          await publishLog(
+            `Merge reports could not start: ${getErrorMessage(error)}`,
+            'error',
+            {
+              childKind: 'aggregate',
+              nodeId: aggregateNodeId,
+              parentNodeId: node.id,
+            },
+          );
           throw error;
         }
 
