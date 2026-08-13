@@ -7,6 +7,13 @@ import type {
   PreparedPlaywrightRunner,
 } from './runtime/contracts';
 import { packageExecutorRuntime } from './runtime/package-executors';
+import {
+  createPlaywrightRuntimeNodeId,
+  planPlaywrightShards,
+  resolveLocalPlaywrightShardCapacity,
+  resolvePlaywrightShardingMode,
+  type PlaywrightShardDiscovery,
+} from './runtime/playwright-sharding';
 
 const app = express();
 app.use(express.json());
@@ -32,7 +39,11 @@ type WorkflowEventPublisher = {
     level?: WorkflowEventLevel,
     extra?: Record<string, unknown>,
   ) => Promise<void>;
-  publishNodeState: (nodeId: string, state: WorkflowNodeState) => Promise<void>;
+  publishNodeState: (
+    nodeId: string,
+    state: WorkflowNodeState,
+    extra?: Record<string, unknown>,
+  ) => Promise<void>;
 };
 
 type GcpPubSubEventTransport = {
@@ -95,9 +106,21 @@ type ActiveProcess = {
   nodeId: string;
   process: ReturnType<typeof spawn>;
   publisher: WorkflowEventPublisher;
+  runtimeNodeId: string;
+};
+
+type ActivePreparedPlaywrightRunner = {
+  cancel: () => Promise<void>;
+  executionId: string;
+  nodeId: string;
+  runtimeNodeId: string;
 };
 
 const activeProcesses = new Map<string, ActiveProcess>();
+const activePreparedPlaywrightRunners = new Map<
+  string,
+  ActivePreparedPlaywrightRunner
+>();
 
 function activeExecutionKey(executionId: string, nodeId: string): string {
   return JSON.stringify([executionId, nodeId]);
@@ -437,8 +460,9 @@ function createWorkflowEventPublisher(
         type: 'log',
       });
     },
-    publishNodeState: async (nodeId, state) => {
+    publishNodeState: async (nodeId, state, extra = {}) => {
       await publishEvent({
+        ...extra,
         nodeId,
         state,
         timestamp: new Date().toISOString(),
@@ -541,15 +565,17 @@ export async function executeWorkflow(reqBody: any) {
       }
 
       const registerActiveProcessForNode = (
-        activeNodeId: string,
+        runtimeNodeId: string,
         process: ReturnType<typeof spawn>,
+        logicalNodeId = runtimeNodeId,
       ) => {
-        const key = activeExecutionKey(testId, activeNodeId);
+        const key = activeExecutionKey(testId, runtimeNodeId);
         const activeProcess: ActiveProcess = {
           executionId: testId,
-          nodeId: activeNodeId,
+          nodeId: logicalNodeId,
           process,
           publisher: eventPublisher,
+          runtimeNodeId,
         };
         activeProcesses.set(key, activeProcess);
 
@@ -564,6 +590,15 @@ export async function executeWorkflow(reqBody: any) {
 
       const createPlaywrightExecutionRequest = (
         node: any,
+        overrides: {
+          blobArtifacts?: unknown[];
+          executionMode?: 'aggregate' | 'discovery' | 'shard' | 'test';
+          outputNodeId?: string;
+          runtimeNodeId?: string;
+          shardIndex?: number;
+          shardTotal?: number;
+          sourceRevision?: string;
+        } = {},
       ): {
         cpu: number;
         envKeys: string[];
@@ -579,6 +614,7 @@ export async function executeWorkflow(reqBody: any) {
         const workers = config.workers || 1;
         const envKeys = config.envVars || [];
         const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
+        const runtimeNodeId = overrides.runtimeNodeId || node.id;
         const payloadData = {
           data: {
             repository: config.repository,
@@ -587,7 +623,24 @@ export async function executeWorkflow(reqBody: any) {
             action: config.action,
             executionAuthToken: reqBody.executionAuthToken,
             testScript: config.testScript,
-            nodeId: node.id,
+            nodeId: runtimeNodeId,
+            logicalNodeId: node.id,
+            executionMode: overrides.executionMode || 'test',
+            ...(overrides.outputNodeId
+              ? { outputNodeId: overrides.outputNodeId }
+              : {}),
+            ...(overrides.shardIndex
+              ? { shardIndex: overrides.shardIndex }
+              : {}),
+            ...(overrides.shardTotal
+              ? { shardTotal: overrides.shardTotal }
+              : {}),
+            ...(overrides.sourceRevision
+              ? { sourceRevision: overrides.sourceRevision }
+              : {}),
+            ...(overrides.blobArtifacts
+              ? { blobArtifacts: overrides.blobArtifacts }
+              : {}),
             testId,
             testLanguage: runtime,
             playwrightVersion: config.playwrightVersion || 'latest',
@@ -611,13 +664,14 @@ export async function executeWorkflow(reqBody: any) {
             config,
             envKeys,
             globalEnvVars,
-            nodeId: node.id,
+            nodeId: runtimeNodeId,
             payloadData,
             publishLog,
             registerActiveProcess: (activeNodeId, process) => {
               registerActiveProcessForNode(
                 activeNodeId,
                 process as ReturnType<typeof spawn>,
+                node.id,
               );
             },
             reqBody,
@@ -634,14 +688,18 @@ export async function executeWorkflow(reqBody: any) {
       const playwrightNodes = nodes.filter(
         (node: any) => packageExecutorRuntime.nodeType(node) === 'playwright',
       );
+      const prewarmPlaywrightNodes = playwrightNodes.filter(
+        (node: any) =>
+          resolvePlaywrightShardingMode(getRecord(node.config)) === 'off',
+      );
 
-      if (playwrightNodes.length > 0) {
+      if (prewarmPlaywrightNodes.length > 0) {
         void publishLog(
-          `Preparing ${playwrightNodes.length} Playwright runner${playwrightNodes.length === 1 ? '' : 's'} before workflow execution reaches them...`,
+          `Preparing ${prewarmPlaywrightNodes.length} Playwright runner${prewarmPlaywrightNodes.length === 1 ? '' : 's'} before workflow execution reaches them...`,
           'info',
         );
 
-        for (const node of playwrightNodes) {
+        for (const node of prewarmPlaywrightNodes) {
           const { request } = createPlaywrightExecutionRequest(node);
           void publishNodeState(node.id, 'pending');
           void publishLog(
@@ -660,6 +718,213 @@ export async function executeWorkflow(reqBody: any) {
               });
         }
       }
+
+      const runPreparedPlaywrightRequest = async (
+        request: PlaywrightExecutionRequest,
+      ) => {
+        const runner =
+          await orchestratorRuntime.playwrightExecution.prepare(request);
+        const runtimeNodeId =
+          getString(request.payloadData?.data?.nodeId) || request.nodeId;
+        const logicalNodeId =
+          getString(request.payloadData?.data?.logicalNodeId) || request.nodeId;
+        const activeKey = activeExecutionKey(testId, runtimeNodeId);
+        let cancellationRequested = false;
+        activePreparedPlaywrightRunners.set(activeKey, {
+          cancel: async () => {
+            cancellationRequested = true;
+            await (
+              runner.cancel ||
+              runner.cleanup ||
+              (async () => undefined)
+            )();
+          },
+          executionId: testId,
+          nodeId: logicalNodeId,
+          runtimeNodeId,
+        });
+        try {
+          await runner.waitUntilReady();
+          if (cancellationRequested) {
+            throw new Error('Playwright runner was cancelled.');
+          }
+          await runner.start();
+          return await runner.waitForCompletion();
+        } finally {
+          activePreparedPlaywrightRunners.delete(activeKey);
+          await runner.cleanup?.();
+        }
+      };
+
+      const executeShardedPlaywrightNode = async (node: any) => {
+        const config = getRecord(node.config);
+        if (resolvePlaywrightRuntime(config) !== 'typescript') {
+          throw new Error(
+            'Playwright sharding is currently supported only for TypeScript.',
+          );
+        }
+
+        const discoveryNodeId = createPlaywrightRuntimeNodeId(
+          node.id,
+          'discovery',
+        );
+        await publishNodeState(discoveryNodeId, 'pending', {
+          childKind: 'discovery',
+          parentNodeId: node.id,
+        });
+        const discoveryRequest = createPlaywrightExecutionRequest(node, {
+          executionMode: 'discovery',
+          runtimeNodeId: discoveryNodeId,
+        }).request;
+        const discoveryResult =
+          await runPreparedPlaywrightRequest(discoveryRequest);
+        if (discoveryResult.outcome === 'error') {
+          throw new Error('Playwright suite discovery failed.');
+        }
+        const discovery = getRecord(
+          discoveryResult.output.discovery,
+        ) as PlaywrightShardDiscovery;
+        if (!Number.isFinite(discovery.testCount)) {
+          throw new Error('Playwright suite discovery returned no test plan.');
+        }
+
+        const plan = planPlaywrightShards({
+          capacity:
+            reqBody.cloudProvider === 'LOCAL_RUNNER'
+              ? {
+                  ...resolveLocalPlaywrightShardCapacity(),
+                  ...getRecord(reqBody.shardCapacity),
+                }
+              : getRecord(reqBody.shardCapacity),
+          config,
+          discovery,
+        });
+        const shardChildren = Array.from(
+          { length: plan.count },
+          (_, offset) => {
+            const shardIndex = offset + 1;
+            return {
+              childKind: 'shard',
+              nodeId: createPlaywrightRuntimeNodeId(
+                node.id,
+                'shard',
+                shardIndex,
+                plan.count,
+              ),
+              shardIndex,
+              shardTotal: plan.count,
+            };
+          },
+        );
+        const aggregateNodeId = createPlaywrightRuntimeNodeId(
+          node.id,
+          'aggregate',
+        );
+        await publishEvent({
+          aggregateNodeId,
+          children: shardChildren,
+          discovery,
+          nodeId: node.id,
+          plan,
+          timestamp: new Date().toISOString(),
+          type: 'shard_plan',
+        });
+        await publishLog(
+          `Shard plan for ${node.label || node.id}: ${plan.count} runners (${plan.reason}); aggregate CPU ${plan.aggregateCpu}, memory ${plan.aggregateMemoryGb}GB, workers ${plan.aggregateWorkers}.`,
+          'info',
+          { nodeId: node.id, plan, type: 'shard_plan_log' },
+        );
+
+        const shardSettled = await Promise.allSettled(
+          shardChildren.map(async (child) => {
+            await publishNodeState(child.nodeId, 'pending', {
+              ...child,
+              parentNodeId: node.id,
+            });
+            const request = createPlaywrightExecutionRequest(node, {
+              executionMode: 'shard',
+              runtimeNodeId: child.nodeId,
+              shardIndex: child.shardIndex,
+              shardTotal: child.shardTotal,
+              sourceRevision: discovery.sourceRevision,
+            }).request;
+            return runPreparedPlaywrightRequest(request);
+          }),
+        );
+        const shardResults = shardSettled.map((settled, index) => {
+          if (settled.status === 'rejected') {
+            return {
+              child: shardChildren[index],
+              error: getErrorMessage(settled.reason),
+              outcome: 'error' as const,
+              output: {},
+            };
+          }
+          return { child: shardChildren[index], ...settled.value };
+        });
+        await Promise.all(
+          shardResults
+            .filter((result) => 'error' in result)
+            .map((result) =>
+              publishNodeState(result.child.nodeId, 'error', {
+                ...result.child,
+                parentNodeId: node.id,
+              }),
+            ),
+        );
+        let blobArtifacts: Record<string, any>[];
+        try {
+          blobArtifacts = shardResults.map((result) => {
+            const artifact = getRecord(getRecord(result.output).blobArtifact);
+            if (!artifact.fileName || !artifact.checksum) {
+              throw new Error(
+                `Shard ${result.child.shardIndex}/${plan.count} did not produce a valid blob report.`,
+              );
+            }
+            return artifact;
+          });
+        } catch (error) {
+          await publishNodeState(aggregateNodeId, 'error', {
+            childKind: 'aggregate',
+            parentNodeId: node.id,
+          });
+          throw error;
+        }
+
+        await publishNodeState(aggregateNodeId, 'pending', {
+          childKind: 'aggregate',
+          parentNodeId: node.id,
+        });
+        const aggregateRequest = createPlaywrightExecutionRequest(node, {
+          blobArtifacts,
+          executionMode: 'aggregate',
+          outputNodeId: node.id,
+          runtimeNodeId: aggregateNodeId,
+          sourceRevision: discovery.sourceRevision,
+        }).request;
+        const aggregateResult =
+          await runPreparedPlaywrightRequest(aggregateRequest);
+        const shardFailed = shardResults.some(
+          (result) => result.outcome === 'error',
+        );
+        return {
+          outcome:
+            shardFailed || aggregateResult.outcome === 'error'
+              ? ('error' as const)
+              : ('success' as const),
+          output: {
+            ...aggregateResult.output,
+            discovery,
+            plan,
+            shards: shardResults.map((result) => ({
+              ...result.child,
+              outcome: result.outcome,
+              output: result.output,
+              ...('error' in result ? { error: result.error } : {}),
+            })),
+          },
+        };
+      };
 
       const nodeHasRun: Record<string, boolean> = {};
       const nodeIsRunning: Record<string, boolean> = {};
@@ -726,6 +991,9 @@ export async function executeWorkflow(reqBody: any) {
           } else if (type === 'playwright') {
             const { cpu, injectedEnv, memory, request, workers } =
               createPlaywrightExecutionRequest(node);
+            const shardingMode = resolvePlaywrightShardingMode(
+              getRecord(node.config),
+            );
 
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,
@@ -758,24 +1026,37 @@ export async function executeWorkflow(reqBody: any) {
             }
 
             try {
-              const preparedRunner =
-                (await preparedPlaywrightRunners[node.id]) ||
-                (await orchestratorRuntime.playwrightExecution.prepare(
-                  request,
-                ));
-              await preparedRunner.waitUntilReady();
-              await publishLog(
-                `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
-                'info',
-              );
-              await preparedRunner.start();
-              await publishLog(
-                `Playwright Runner for ${node.id} acknowledged start signal.`,
-                'info',
-              );
-              const result = await preparedRunner.waitForCompletion();
-              nodeTemplateOutputs[`node_${node.id}`] = result.output;
-              finalState = result.outcome;
+              if (shardingMode !== 'off') {
+                await publishNodeState(node.id, 'running');
+                const result = await executeShardedPlaywrightNode(node);
+                nodeTemplateOutputs[`node_${node.id}`] = result.output;
+                await publishEvent({
+                  nodeId: node.id,
+                  output: result.output,
+                  timestamp: new Date().toISOString(),
+                  type: 'node_output',
+                });
+                finalState = result.outcome;
+              } else {
+                const preparedRunner =
+                  (await preparedPlaywrightRunners[node.id]) ||
+                  (await orchestratorRuntime.playwrightExecution.prepare(
+                    request,
+                  ));
+                await preparedRunner.waitUntilReady();
+                await publishLog(
+                  `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
+                  'info',
+                );
+                await preparedRunner.start();
+                await publishLog(
+                  `Playwright Runner for ${node.id} acknowledged start signal.`,
+                  'info',
+                );
+                const result = await preparedRunner.waitForCompletion();
+                nodeTemplateOutputs[`node_${node.id}`] = result.output;
+                finalState = result.outcome;
+              }
             } catch (error) {
               throw new Error(
                 `Playwright Runner failed: ${getErrorMessage(error)}`,
@@ -971,9 +1252,17 @@ app.post('/stop', async (req, res) => {
       active.nodeId === nodeId &&
       (!requestedExecutionId || active.executionId === requestedExecutionId),
   );
+  const preparedRunnerMatches = Array.from(
+    activePreparedPlaywrightRunners.values(),
+  ).filter(
+    (active) =>
+      active.nodeId === nodeId &&
+      (!requestedExecutionId || active.executionId === requestedExecutionId),
+  );
   const matchingExecutionIds = new Set([
     ...packageMatches.map((active) => active.executionId),
     ...processMatches.map((active) => active.executionId),
+    ...preparedRunnerMatches.map((active) => active.executionId),
   ]);
 
   if (!requestedExecutionId && matchingExecutionIds.size > 1) {
@@ -1007,7 +1296,19 @@ app.post('/stop', async (req, res) => {
     stoppedProcesses++;
   }
 
-  if (cancelledExecutors === 0 && stoppedProcesses === 0) {
+  const cancelledPreparedRunners = (
+    await Promise.allSettled(
+      preparedRunnerMatches
+        .filter((active) => active.executionId === executionId)
+        .map((active) => active.cancel()),
+    )
+  ).filter((result) => result.status === 'fulfilled').length;
+
+  if (
+    cancelledExecutors === 0 &&
+    stoppedProcesses === 0 &&
+    cancelledPreparedRunners === 0
+  ) {
     return res.status(404).json({ error: 'Node not running' });
   }
 

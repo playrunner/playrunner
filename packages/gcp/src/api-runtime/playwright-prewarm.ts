@@ -877,7 +877,9 @@ export async function prewarmGcpPlaywrightRunners(args: {
   const nodes = Array.isArray(args.body.nodes) ? args.body.nodes : [];
   const playwrightNodes = nodes.filter(
     (node: Record<string, any>) =>
-      String(node.nodeType || node.label || '').toLowerCase() === 'playwright',
+      String(node.nodeType || node.label || '').toLowerCase() === 'playwright' &&
+      node.config?.shardingMode !== 'auto' &&
+      node.config?.shardingMode !== 'manual',
   );
 
   if (playwrightNodes.length === 0) {

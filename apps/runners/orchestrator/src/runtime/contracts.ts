@@ -16,6 +16,7 @@ export interface PlaywrightExecutionRequest {
 }
 
 export interface PreparedPlaywrightRunner {
+  cancel?: () => Promise<void>;
   cleanup?: () => Promise<void>;
   start: () => Promise<void>;
   waitForCompletion: () => Promise<PlaywrightExecutionResult>;

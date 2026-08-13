@@ -786,6 +786,23 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
     let completed = false;
 
     return {
+      cancel: async () => {
+        if (!completed) {
+          if (!started) {
+            await runnerControl.publishCancel().catch((error) => {
+              console.warn(
+                `[GCP] Failed to signal cancellation for prepared Playwright runner ${nodeId}: ${error.message}`,
+              );
+            });
+          } else {
+            await cloudRunRequest<CloudRunOperation>(
+              `${executionName}:cancel`,
+              settings.accessToken,
+              { body: '{}', method: 'POST' },
+            );
+          }
+        }
+      },
       cleanup: async () => {
         if (!started && !completed) {
           await runnerControl.publishCancel().catch((error) => {

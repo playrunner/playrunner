@@ -4,10 +4,18 @@ import crypto from 'crypto';
 
 import fs from 'fs';
 import { readPlaywrightReportData } from './report-data';
+import {
+  createBlobArtifact,
+  readPlaywrightDiscoveryReport,
+  validateBlobArtifacts,
+  verifyBlobArtifact,
+  type PlaywrightBlobArtifact,
+} from './sharding';
 
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
 type RunnerEventContext = {
+  childKind?: 'aggregate' | 'discovery' | 'shard';
   cloudProvider: string;
   editorApiUrl: string;
   executionToken: string;
@@ -17,7 +25,10 @@ type RunnerEventContext = {
     type?: 'gcp_pubsub';
   };
   gcpAccessToken?: string;
+  logicalNodeId?: string;
   nodeId?: string;
+  shardIndex?: number;
+  shardTotal?: number;
   testId: string;
 };
 
@@ -29,6 +40,7 @@ type RunnerControlConfig = {
 };
 
 type PreparedWorkingDirectory = {
+  sourceRevision?: string;
   testLanguage: string;
   workingDir: string;
 };
@@ -114,9 +126,21 @@ async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
 
   const eventId = getString(payload.eventId) || crypto.randomUUID();
   const eventPayload: Record<string, unknown> = {
+    ...(runnerEventContext.childKind
+      ? { childKind: runnerEventContext.childKind }
+      : {}),
     executionAuthToken: runnerEventContext.executionToken,
     executionId: runnerEventContext.testId,
+    ...(runnerEventContext.logicalNodeId
+      ? { parentNodeId: runnerEventContext.logicalNodeId }
+      : {}),
     nodeId: runnerEventContext.nodeId,
+    ...(runnerEventContext.shardIndex
+      ? { shardIndex: runnerEventContext.shardIndex }
+      : {}),
+    ...(runnerEventContext.shardTotal
+      ? { shardTotal: runnerEventContext.shardTotal }
+      : {}),
     testId: runnerEventContext.testId,
     ...payload,
     eventId,
@@ -478,6 +502,7 @@ function prepareInlineTypescriptTest(
 async function runTypescriptTest(
   workingDir: string,
   workers: number,
+  shard?: { index: number; total: number },
 ): Promise<void> {
   await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
 
@@ -488,7 +513,12 @@ async function runTypescriptTest(
     args.push('--config', 'playwright.service.config.ts');
     configMsg = 'playwright.service.config.ts';
   }
-  args.push('--reporter=html,json');
+  if (shard) {
+    args.push(`--shard=${shard.index}/${shard.total}`);
+    args.push('--reporter=blob');
+  } else {
+    args.push('--reporter=html,json');
+  }
   args.push('--workers', String(workers));
 
   await publishLog(
@@ -499,6 +529,12 @@ async function runTypescriptTest(
       cwd: workingDir,
       env: {
         ...process.env,
+        ...(shard
+          ? {
+              CI: 'true',
+              PLAYWRIGHT_BLOB_OUTPUT_DIR: 'blob-report',
+            }
+          : {}),
         PLAYWRIGHT_HTML_OPEN: 'never',
         PLAYWRIGHT_HTML_OUTPUT_DIR: 'playwright-report',
         PLAYWRIGHT_JSON_OUTPUT_NAME: path.join(
@@ -521,6 +557,46 @@ async function runTypescriptTest(
   });
 }
 
+async function discoverTypescriptTests(
+  workingDir: string,
+  sourceRevision?: string,
+) {
+  const discoveryDirectory = path.join(workingDir, 'playwright-discovery');
+  fs.rmSync(discoveryDirectory, { force: true, recursive: true });
+  fs.mkdirSync(discoveryDirectory, { recursive: true });
+  const reportPath = path.join(discoveryDirectory, 'report.json');
+  const command = resolvePlaywrightCommand(workingDir);
+  const args = [...command.args];
+  if (fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))) {
+    args.push('--config', 'playwright.service.config.ts');
+  }
+  args.push('--list', '--reporter=json');
+
+  await publishLog('Collecting the Playwright suite without running tests...');
+  await new Promise<void>((resolve, reject) => {
+    const discoveryProcess = spawn(command.command, args, {
+      cwd: workingDir,
+      env: {
+        ...process.env,
+        PLAYWRIGHT_JSON_OUTPUT_FILE: reportPath,
+      },
+    });
+    discoveryProcess.stdout.on('data', (data) =>
+      console.log(`[playwright discovery]: ${data.toString().trim()}`),
+    );
+    discoveryProcess.stderr.on('data', (data) =>
+      console.error(`[playwright discovery error]: ${data.toString().trim()}`),
+    );
+    discoveryProcess.on('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Playwright discovery failed with code ${code}`)),
+    );
+  });
+
+  return readPlaywrightDiscoveryReport({ reportPath, sourceRevision });
+}
+
 async function runPythonTest(workingDir: string): Promise<void> {
   await publishLog(`Executing Python Playwright flow in ${workingDir}...`);
 
@@ -541,6 +617,54 @@ async function runPythonTest(workingDir: string): Promise<void> {
   });
 }
 
+async function createAuthenticatedStorage(
+  projectId: string,
+  accessToken: string,
+) {
+  const [{ Storage }, { OAuth2Client }] = await Promise.all([
+    import('@google-cloud/storage'),
+    import('google-auth-library'),
+  ]);
+  const oauth2Client = new OAuth2Client();
+  oauth2Client.setCredentials({ access_token: accessToken });
+  const authClient = {
+    getRequestHeaders: async (url?: string) => {
+      const headers = await oauth2Client.getRequestHeaders(url);
+      const plainHeaders: Record<string, string> = {};
+      if (headers && typeof (headers as any).forEach === 'function') {
+        (headers as any).forEach((value: string, key: string) => {
+          plainHeaders[key] = value;
+        });
+      } else if (headers) {
+        Object.assign(plainHeaders, headers);
+      }
+      return plainHeaders;
+    },
+    request: async (opts: any) => {
+      if (opts.uri && !opts.url) opts.url = opts.uri;
+      const response = await oauth2Client.request(opts);
+      if (
+        response?.headers &&
+        typeof (response.headers as any).forEach === 'function'
+      ) {
+        const plainHeaders: Record<string, string> = {};
+        (response.headers as any).forEach((value: string, key: string) => {
+          plainHeaders[key] = value;
+        });
+        return new Proxy(response, {
+          get(target, prop) {
+            if (prop === 'headers') return plainHeaders;
+            const value = target[prop as keyof typeof target];
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+        });
+      }
+      return response;
+    },
+  };
+  return new Storage({ projectId, authClient: authClient as any });
+}
+
 async function uploadOutputs(
   workingDir: string,
   nodeId: string,
@@ -551,6 +675,7 @@ async function uploadOutputs(
   accessToken?: string,
   gcpProject?: string,
   cloudProvider: string = 'LOCAL_RUNNER',
+  blobArtifact?: PlaywrightBlobArtifact,
 ): Promise<Record<string, unknown>> {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
@@ -563,10 +688,11 @@ async function uploadOutputs(
     path.join(workingDir, 'playwright-report'),
   );
   const hasTestResults = fs.existsSync(path.join(workingDir, 'test-results'));
+  const hasBlobReport = fs.existsSync(path.join(workingDir, 'blob-report'));
 
-  if (!hasPlaywrightReport && !hasTestResults) {
+  if (!hasPlaywrightReport && !hasTestResults && !hasBlobReport) {
     await publishLog(
-      'No playwright-report or test-results directory found. Skipping output upload.',
+      'No Playwright report, blob report, or test results found. Skipping output upload.',
     );
     return {};
   }
@@ -577,7 +703,9 @@ async function uploadOutputs(
       'playwright-report',
       'report.json',
     );
-    const reportOutput: Record<string, unknown> = {};
+    const reportOutput: Record<string, unknown> = {
+      ...(blobArtifact ? { blobArtifact } : {}),
+    };
     if (hasPlaywrightReport && fs.existsSync(reportPath)) {
       const report = readPlaywrightReportData({
         nodeId,
@@ -629,55 +757,7 @@ async function uploadOutputs(
       await publishLog(
         `Uploading outputs directly to GCS bucket ${bucketName}...`,
       );
-      const [{ Storage }, { OAuth2Client }] = await Promise.all([
-        import('@google-cloud/storage'),
-        import('google-auth-library'),
-      ]);
-      const oauth2Client = new OAuth2Client();
-      oauth2Client.setCredentials({ access_token: accessToken });
-
-      const authClient = {
-        getRequestHeaders: async (url?: string) => {
-          const headers = await oauth2Client.getRequestHeaders(url);
-          const plainHeaders: Record<string, string> = {};
-          if (headers && typeof (headers as any).forEach === 'function') {
-            (headers as any).forEach((value: string, key: string) => {
-              plainHeaders[key] = value;
-            });
-          } else if (headers) {
-            Object.assign(plainHeaders, headers);
-          }
-          return plainHeaders;
-        },
-        request: async (opts: any) => {
-          if (opts.uri && !opts.url) opts.url = opts.uri;
-          const res = await oauth2Client.request(opts);
-          if (
-            res &&
-            res.headers &&
-            typeof (res.headers as any).forEach === 'function'
-          ) {
-            const plainHeaders: Record<string, string> = {};
-            (res.headers as any).forEach((value: string, key: string) => {
-              plainHeaders[key] = value;
-            });
-            return new Proxy(res, {
-              get(target, prop) {
-                if (prop === 'headers') return plainHeaders;
-                const value = target[prop as keyof typeof target];
-                if (typeof value === 'function') return value.bind(target);
-                return value;
-              },
-            });
-          }
-          return res;
-        },
-      };
-
-      const storage = new Storage({
-        projectId: gcpProject,
-        authClient: authClient as any,
-      });
+      const storage = await createAuthenticatedStorage(gcpProject, accessToken);
       const bucket = storage.bucket(bucketName);
 
       const uploadDirToGcs = async (localDir: string, gcsPrefix: string) => {
@@ -703,9 +783,14 @@ async function uploadOutputs(
           path.join(workingDir, 'test-results'),
           `${testId}/${nodeId}/test-results`,
         );
+      if (hasBlobReport)
+        await uploadDirToGcs(
+          path.join(workingDir, 'blob-report'),
+          `${testId}/${nodeId}/blob-report`,
+        );
 
       await publishEvent({
-        nodeId,
+        nodeId: runnerEventContext?.nodeId || nodeId,
         output: outputData,
         timestamp: new Date().toISOString(),
         type: 'node_output',
@@ -723,6 +808,7 @@ async function uploadOutputs(
       const outputDirs = [];
       if (hasPlaywrightReport) outputDirs.push('playwright-report');
       if (hasTestResults) outputDirs.push('test-results');
+      if (hasBlobReport) outputDirs.push('blob-report');
 
       const archiveBuffer = await new Promise<Buffer>((resolve, reject) => {
         const tarProcess = spawn('tar', ['-czf', '-', ...outputDirs], {
@@ -771,7 +857,7 @@ async function uploadOutputs(
         ...reportOutput,
       };
       await publishEvent({
-        nodeId,
+        nodeId: runnerEventContext?.nodeId || nodeId,
         output,
         timestamp: new Date().toISOString(),
         type: 'node_output',
@@ -788,8 +874,23 @@ async function uploadOutputs(
 async function prepareWorkingDirectory(
   payload: any,
 ): Promise<PreparedWorkingDirectory> {
+  if (payload?.data?.executionMode === 'aggregate') {
+    const workingDir = path.join(
+      process.cwd(),
+      'aggregate-reports',
+      String(payload?.data?.nodeId || 'default').replace(
+        /[^a-zA-Z0-9_-]/g,
+        '-',
+      ),
+    );
+    fs.rmSync(workingDir, { force: true, recursive: true });
+    fs.mkdirSync(workingDir, { recursive: true });
+    return { testLanguage: 'typescript', workingDir };
+  }
+
   let workingDir = __dirname;
   let isCloned = false;
+  let sourceRevision = getString(payload?.data?.sourceRevision);
 
   if (
     payload?.data?.action === 'clone' ||
@@ -807,17 +908,27 @@ async function prepareWorkingDirectory(
         : `https://github.com/${repo}.git`;
 
       try {
+        fs.rmSync('/app/repo', { force: true, recursive: true });
         await new Promise<void>((resolve, reject) => {
-          const gitProcess = spawn('git', [
-            'clone',
-            '--depth',
-            '1',
-            '-b',
-            branch,
-            '--single-branch',
-            cloneUrl,
-            '/app/repo',
-          ]);
+          const gitArgs = sourceRevision
+            ? [
+                'clone',
+                '--no-checkout',
+                '--filter=blob:none',
+                cloneUrl,
+                '/app/repo',
+              ]
+            : [
+                'clone',
+                '--depth',
+                '1',
+                '-b',
+                branch,
+                '--single-branch',
+                cloneUrl,
+                '/app/repo',
+              ];
+          const gitProcess = spawn('git', gitArgs);
 
           gitProcess.stdout.on('data', (data) =>
             console.log(`[Git]: ${data.toString().trim()}`),
@@ -830,6 +941,63 @@ async function prepareWorkingDirectory(
             if (code === 0) resolve();
             else reject(new Error(`Git clone failed with code ${code}`));
           });
+        });
+        if (sourceRevision) {
+          await new Promise<void>((resolve, reject) => {
+            const checkout = spawn(
+              'git',
+              [
+                '-C',
+                '/app/repo',
+                'fetch',
+                '--depth',
+                '1',
+                'origin',
+                sourceRevision,
+              ],
+              { stdio: 'inherit' },
+            );
+            checkout.on('close', (code) =>
+              code === 0
+                ? resolve()
+                : reject(
+                    new Error(
+                      `git fetch pinned revision failed with code ${code}`,
+                    ),
+                  ),
+            );
+          });
+          await new Promise<void>((resolve, reject) => {
+            const checkout = spawn(
+              'git',
+              ['-C', '/app/repo', 'checkout', '--detach', 'FETCH_HEAD'],
+              { stdio: 'inherit' },
+            );
+            checkout.on('close', (code) =>
+              code === 0
+                ? resolve()
+                : reject(
+                    new Error(
+                      `git checkout pinned revision failed with code ${code}`,
+                    ),
+                  ),
+            );
+          });
+        }
+        sourceRevision = await new Promise<string>((resolve, reject) => {
+          const revision = spawn('git', [
+            '-C',
+            '/app/repo',
+            'rev-parse',
+            'HEAD',
+          ]);
+          const chunks: Buffer[] = [];
+          revision.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+          revision.on('close', (code) =>
+            code === 0
+              ? resolve(Buffer.concat(chunks).toString('utf8').trim())
+              : reject(new Error(`git rev-parse failed with code ${code}`)),
+          );
         });
         await publishLog('Repository cloned successfully.');
         workingDir = path.join('/app/repo', payload?.data?.folder || '/');
@@ -874,7 +1042,11 @@ async function prepareWorkingDirectory(
     await installTypescriptDependencies(workingDir);
   }
 
-  return { testLanguage, workingDir };
+  return {
+    ...(sourceRevision ? { sourceRevision } : {}),
+    testLanguage,
+    workingDir,
+  };
 }
 
 async function parsePayload() {
@@ -887,6 +1059,89 @@ async function parsePayload() {
   } catch {
     return null;
   }
+}
+
+async function aggregateBlobReports(payload: any, workingDir: string) {
+  const artifacts = validateBlobArtifacts(payload?.data?.blobArtifacts);
+  const blobDirectory = path.join(workingDir, 'all-blob-reports');
+  fs.mkdirSync(blobDirectory, { recursive: true });
+  const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
+  const bucketName = getString(payload?.data?.bucketName);
+  const gcpProject = getString(payload?.settings?.gcp?.selectedProject);
+  const accessToken = getString(payload?.settings?.gcp?.accessToken);
+  const storage =
+    cloudProvider === 'GCP' && bucketName && gcpProject && accessToken
+      ? await createAuthenticatedStorage(gcpProject, accessToken)
+      : null;
+
+  for (const artifact of artifacts) {
+    const destination = path.join(
+      blobDirectory,
+      `${artifact.shardIndex}-${path.basename(artifact.fileName)}`,
+    );
+    if (storage) {
+      if (!artifact.objectPath) {
+        throw new Error(`Shard ${artifact.shardIndex} has no GCS object path.`);
+      }
+      await storage
+        .bucket(bucketName)
+        .file(artifact.objectPath)
+        .download({ destination });
+    } else {
+      const url = new URL(
+        `/api/outputs/${payload.data.testId}/${artifact.runtimeNodeId}/blob-report/${encodeURIComponent(artifact.fileName)}`,
+        requiredEditorApiUrl(payload?.data?.editorApiUrl),
+      );
+      const response = await fetch(url, {
+        headers: {
+          [EXECUTION_TOKEN_HEADER]: payload?.data?.executionAuthToken || '',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download shard ${artifact.shardIndex} blob (${response.status}).`,
+        );
+      }
+      fs.writeFileSync(destination, Buffer.from(await response.arrayBuffer()));
+    }
+    verifyBlobArtifact(artifact, destination);
+  }
+
+  const command = resolvePlaywrightCommand(workingDir);
+  const args = [
+    ...command.args.slice(0, -1),
+    'merge-reports',
+    '--reporter=html,json',
+    blobDirectory,
+  ];
+  await publishLog(`Merging ${artifacts.length} Playwright blob reports...`);
+  await new Promise<void>((resolve, reject) => {
+    const mergeProcess = spawn(command.command, args, {
+      cwd: workingDir,
+      env: {
+        ...process.env,
+        PLAYWRIGHT_HTML_OPEN: 'never',
+        PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(workingDir, 'playwright-report'),
+        PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(
+          workingDir,
+          'playwright-report',
+          'report.json',
+        ),
+      },
+    });
+    mergeProcess.stdout.on('data', (data) =>
+      console.log(`[playwright merge]: ${data.toString().trim()}`),
+    );
+    mergeProcess.stderr.on('data', (data) =>
+      console.error(`[playwright merge error]: ${data.toString().trim()}`),
+    );
+    mergeProcess.on('close', (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`Playwright report merge failed with code ${code}`)),
+    );
+  });
+  return artifacts;
 }
 
 function requiredEditorApiUrl(value: unknown): string {
@@ -903,16 +1158,25 @@ async function run() {
   const payload = await parsePayload();
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
+  const executionMode = getString(payload?.data?.executionMode) || 'test';
   const runnerControl = payload?.data?.runnerControl as
     | RunnerControlConfig
     | undefined;
   runnerEventContext = {
+    ...(executionMode === 'aggregate' ||
+    executionMode === 'discovery' ||
+    executionMode === 'shard'
+      ? { childKind: executionMode }
+      : {}),
     cloudProvider,
     editorApiUrl: requiredEditorApiUrl(payload?.data?.editorApiUrl),
     executionToken: payload?.data?.executionAuthToken || '',
     eventTransport: payload?.data?.eventTransport,
     gcpAccessToken: payload?.settings?.gcp?.accessToken,
+    logicalNodeId: payload?.data?.logicalNodeId,
     nodeId: payload?.data?.nodeId,
+    shardIndex: payload?.data?.shardIndex,
+    shardTotal: payload?.data?.shardTotal,
     testId,
   };
 
@@ -951,7 +1215,68 @@ async function run() {
 
   await publishRunnerStatus(runnerControl, 'started');
   await publishNodeState('running');
-  await publishLog('Start signal received. Running Playwright test.');
+  await publishLog(`Start signal received. Running ${executionMode}.`);
+
+  if (executionMode === 'discovery') {
+    try {
+      if (prepared.testLanguage !== 'typescript') {
+        throw new Error(
+          'Sharding is only supported by the TypeScript runtime.',
+        );
+      }
+      const discovery = await discoverTypescriptTests(
+        prepared.workingDir,
+        prepared.sourceRevision,
+      );
+      await publishNodeState('success');
+      await publishRunnerStatus(runnerControl, 'completed', undefined, {
+        discovery,
+      });
+      process.exit(0);
+    } catch (error: any) {
+      await publishLog(`Playwright Discovery Error: ${error.message}`, 'error');
+      await publishNodeState('error');
+      await publishRunnerStatus(runnerControl, 'completed', error.message, {});
+      process.exit(0);
+    }
+  }
+
+  if (executionMode === 'aggregate') {
+    try {
+      const artifacts = await aggregateBlobReports(
+        payload,
+        prepared.workingDir,
+      );
+      const output = await uploadOutputs(
+        prepared.workingDir,
+        payload?.data?.outputNodeId || payload?.data?.logicalNodeId,
+        testId,
+        payload?.data?.editorApiUrl,
+        payload?.data?.executionAuthToken,
+        payload?.data?.bucketName,
+        payload?.settings?.gcp?.accessToken,
+        payload?.settings?.gcp?.selectedProject,
+        cloudProvider,
+      );
+      const aggregateOutput = { ...output, shards: artifacts };
+      await publishNodeState('success');
+      await publishRunnerStatus(
+        runnerControl,
+        'completed',
+        undefined,
+        aggregateOutput,
+      );
+      process.exit(0);
+    } catch (error: any) {
+      await publishLog(
+        `Playwright Aggregation Error: ${error.message}`,
+        'error',
+      );
+      await publishNodeState('error');
+      await publishRunnerStatus(runnerControl, 'completed', error.message, {});
+      process.exit(0);
+    }
+  }
 
   const workers = normalizeWorkers(
     payload?.data?.workers || process.env.PLAYWRIGHT_WORKERS,
@@ -961,13 +1286,41 @@ async function run() {
     if (prepared.testLanguage === 'python') {
       await runPythonTest(prepared.workingDir);
     } else {
-      await runTypescriptTest(prepared.workingDir, workers);
+      await runTypescriptTest(
+        prepared.workingDir,
+        workers,
+        executionMode === 'shard'
+          ? {
+              index: Number(payload?.data?.shardIndex),
+              total: Number(payload?.data?.shardTotal),
+            }
+          : undefined,
+      );
     }
 
     await publishLog('Job complete.');
   } catch (err: any) {
     testFailed = true;
     await publishLog(`Playwright Error: ${err.message}`, 'error');
+  }
+
+  let blobArtifact: PlaywrightBlobArtifact | undefined;
+  if (executionMode === 'shard') {
+    try {
+      blobArtifact = createBlobArtifact({
+        blobDirectory: path.join(prepared.workingDir, 'blob-report'),
+        logicalNodeId: payload?.data?.logicalNodeId,
+        playwrightVersion: payload?.data?.playwrightVersion,
+        runtimeNodeId: payload?.data?.nodeId,
+        shardIndex: Number(payload?.data?.shardIndex),
+        shardTotal: Number(payload?.data?.shardTotal),
+        sourceRevision: prepared.sourceRevision,
+        testId,
+      });
+    } catch (error: any) {
+      testFailed = true;
+      await publishLog(`Blob Report Error: ${error.message}`, 'error');
+    }
   }
 
   const output = await uploadOutputs(
@@ -980,7 +1333,9 @@ async function run() {
     payload?.settings?.gcp?.accessToken,
     payload?.settings?.gcp?.selectedProject,
     cloudProvider,
+    blobArtifact,
   );
+  await publishNodeState(testFailed ? 'error' : 'success');
   await publishRunnerStatus(
     runnerControl,
     'completed',

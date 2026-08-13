@@ -17,6 +17,7 @@ import {
   Route,
   Activity,
   ChevronDown,
+  ChevronRight,
   Code2,
   MoreHorizontal,
   X,
@@ -85,6 +86,17 @@ type NodeExecutionStatus =
   | 'error'
   | 'warning';
 
+type RuntimePlaywrightChild = {
+  childKind: 'aggregate' | 'discovery' | 'shard';
+  id: string;
+  logs: string[];
+  output?: Record<string, any>;
+  parentNodeId: string;
+  shardIndex?: number;
+  shardTotal?: number;
+  status: NodeExecutionStatus;
+};
+
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
     value === 'idle' ||
@@ -114,6 +126,49 @@ interface DrawingConnection {
 function nodeTypeAcceptsInboundConnection(typeId?: string) {
   const nodeType = NODE_TYPES.find((n) => n.id === typeId);
   return nodeType?.acceptsInboundConnection ?? true;
+}
+
+function renderNodeTypeIcon(
+  nodeTypeId: string | undefined,
+  alt: string,
+): React.ReactNode {
+  const nodeType = NODE_TYPES.find((candidate) => candidate.id === nodeTypeId);
+  if (!nodeType) return undefined;
+
+  if (nodeType.iconSrc) {
+    if (nodeType.iconRenderMode === 'mask') {
+      return (
+        <div
+          className="h-5 w-5 bg-current"
+          style={{
+            WebkitMaskImage: `url(${nodeType.iconSrc})`,
+            WebkitMaskPosition: 'center',
+            WebkitMaskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            maskImage: `url(${nodeType.iconSrc})`,
+            maskPosition: 'center',
+            maskRepeat: 'no-repeat',
+            maskSize: 'contain',
+          }}
+        />
+      );
+    }
+
+    return (
+      <img
+        src={nodeType.iconSrc}
+        alt={alt}
+        className="h-5 w-5 object-contain"
+      />
+    );
+  }
+
+  if (nodeType.fallbackIcon) {
+    const FallbackIcon = nodeType.fallbackIcon;
+    return <FallbackIcon className={cn('h-5 w-5', nodeType.color)} />;
+  }
+
+  return undefined;
 }
 
 type WorkflowStartupPhase =
@@ -720,16 +775,116 @@ export default function Editor() {
         if (data.state === 'running') {
           clearWorkflowStartupStatus();
         }
+        if (
+          typeof data.parentNodeId === 'string' &&
+          (data.childKind === 'aggregate' ||
+            data.childKind === 'discovery' ||
+            data.childKind === 'shard')
+        ) {
+          setRuntimePlaywrightChildren((previous) => ({
+            ...previous,
+            [data.parentNodeId]: {
+              ...(previous[data.parentNodeId] || {}),
+              [data.nodeId]: {
+                childKind: data.childKind,
+                id: data.nodeId,
+                logs: previous[data.parentNodeId]?.[data.nodeId]?.logs || [],
+                output: previous[data.parentNodeId]?.[data.nodeId]?.output,
+                parentNodeId: data.parentNodeId,
+                shardIndex: data.shardIndex,
+                shardTotal: data.shardTotal,
+                status: data.state,
+              },
+            },
+          }));
+          return;
+        }
         setNodeStatus((prev) => ({ ...prev, [data.nodeId]: data.state }));
         return;
       }
 
       if (data.type === 'node_output' && typeof data.nodeId === 'string') {
+        if (
+          typeof data.parentNodeId === 'string' &&
+          (data.childKind === 'aggregate' ||
+            data.childKind === 'discovery' ||
+            data.childKind === 'shard')
+        ) {
+          setRuntimePlaywrightChildren((previous) => {
+            const existing = previous[data.parentNodeId]?.[data.nodeId];
+            return {
+              ...previous,
+              [data.parentNodeId]: {
+                ...(previous[data.parentNodeId] || {}),
+                [data.nodeId]: {
+                  childKind: data.childKind,
+                  id: data.nodeId,
+                  logs: existing?.logs || [],
+                  output: data.output,
+                  parentNodeId: data.parentNodeId,
+                  shardIndex: data.shardIndex,
+                  shardTotal: data.shardTotal,
+                  status: existing?.status || 'running',
+                },
+              },
+            };
+          });
+          return;
+        }
         setNodes((prev) =>
           prev.map((n) =>
             n.id === data.nodeId ? { ...n, output: data.output } : n,
           ),
         );
+        return;
+      }
+
+      if (data.type === 'shard_plan' && typeof data.nodeId === 'string') {
+        const runtimeChildren: RuntimePlaywrightChild[] = [
+          {
+            childKind: 'discovery' as const,
+            id: `${data.nodeId}--discovery`,
+            logs: [],
+            output: data.discovery ? { discovery: data.discovery } : undefined,
+            parentNodeId: data.nodeId,
+            status: 'success' as const,
+          },
+          ...(Array.isArray(data.children) ? data.children : []).map(
+            (child: Record<string, any>) => ({
+              childKind: 'shard' as const,
+              id: child.nodeId,
+              logs: [],
+              parentNodeId: data.nodeId,
+              shardIndex: child.shardIndex,
+              shardTotal: child.shardTotal,
+              status: 'pending' as const,
+            }),
+          ),
+          {
+            childKind: 'aggregate' as const,
+            id: data.aggregateNodeId,
+            logs: [],
+            parentNodeId: data.nodeId,
+            status: 'pending' as const,
+          },
+        ].filter((child) => typeof child.id === 'string');
+        setRuntimePlaywrightChildren((previous) => ({
+          ...previous,
+          [data.nodeId]: Object.fromEntries(
+            runtimeChildren.map((child) => [
+              child.id,
+              {
+                ...previous[data.nodeId]?.[child.id],
+                ...child,
+                logs: previous[data.nodeId]?.[child.id]?.logs || child.logs,
+              },
+            ]),
+          ),
+        }));
+        setExpandedRuntimeNodes((previous) => ({
+          ...previous,
+          [data.nodeId]: true,
+        }));
         return;
       }
 
@@ -748,6 +903,34 @@ export default function Editor() {
 
       if (typeof data.message !== 'string' || data.message.length === 0) {
         return;
+      }
+
+      if (
+        typeof data.parentNodeId === 'string' &&
+        typeof data.nodeId === 'string' &&
+        (data.childKind === 'aggregate' ||
+          data.childKind === 'discovery' ||
+          data.childKind === 'shard')
+      ) {
+        setRuntimePlaywrightChildren((previous) => {
+          const existing = previous[data.parentNodeId]?.[data.nodeId];
+          return {
+            ...previous,
+            [data.parentNodeId]: {
+              ...(previous[data.parentNodeId] || {}),
+              [data.nodeId]: {
+                childKind: data.childKind,
+                id: data.nodeId,
+                logs: [...(existing?.logs || []), data.message],
+                output: existing?.output,
+                parentNodeId: data.parentNodeId,
+                shardIndex: data.shardIndex,
+                shardTotal: data.shardTotal,
+                status: existing?.status || 'running',
+              },
+            },
+          };
+        });
       }
 
       if (data.message.startsWith('Processing node:')) {
@@ -1116,6 +1299,18 @@ export default function Editor() {
   const [nodeStatus, setNodeStatus] = useState<
     Record<string, NodeExecutionStatus>
   >({});
+  const [runtimePlaywrightChildren, setRuntimePlaywrightChildren] = useState<
+    Record<string, Record<string, RuntimePlaywrightChild>>
+  >({});
+  const [expandedRuntimeNodes, setExpandedRuntimeNodes] = useState<
+    Record<string, boolean>
+  >({});
+  const [selectedRuntimeChildId, setSelectedRuntimeChildId] = useState<
+    string | null
+  >(null);
+  const selectedRuntimeChild = Object.values(runtimePlaywrightChildren)
+    .flatMap((children) => Object.values(children))
+    .find((child) => child.id === selectedRuntimeChildId);
   const isSimulationRunning = useRef(false);
 
   const [openNodeSettingsId, setOpenNodeSettingsId] = useState<string | null>(
@@ -1357,6 +1552,9 @@ export default function Editor() {
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setRuntimePlaywrightChildren({});
+    setExpandedRuntimeNodes({});
+    setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
@@ -1380,6 +1578,9 @@ export default function Editor() {
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setRuntimePlaywrightChildren({});
+    setExpandedRuntimeNodes({});
+    setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
@@ -2808,6 +3009,17 @@ export default function Editor() {
             {nodes.map((node) => {
               const isSelected = selectedNodeIds.has(node.id);
               const status = nodeStatus[node.id] || 'idle';
+              const runtimeChildren = Object.values(
+                runtimePlaywrightChildren[node.id] || {},
+              ).sort((left, right) => {
+                const order = { discovery: 0, shard: 1, aggregate: 2 };
+                const kindDifference =
+                  order[left.childKind] - order[right.childKind];
+                return kindDifference !== 0
+                  ? kindDifference
+                  : (left.shardIndex || 0) - (right.shardIndex || 0);
+              });
+              const isRuntimeExpanded = !!expandedRuntimeNodes[node.id];
 
               const isNodeConfigured = (n: NodeData) => {
                 if (n.nodeType === 'environment') {
@@ -2906,6 +3118,85 @@ export default function Editor() {
                       <div className="absolute left-1/2 top-1/2 aspect-square w-[300%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#22d3ee,#3b82f6)]" />
                     </div>
                   )}
+
+                  {node.nodeType === 'playwright' &&
+                    runtimeChildren.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          className="absolute bottom-2 left-1/2 z-20 flex min-w-[112px] -translate-x-1/2 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-[var(--node-border)] bg-[var(--node-bg)] px-3 py-1.5 text-[11px] font-medium text-muted shadow-sm pointer-events-auto hover:text-[var(--foreground)]"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpandedRuntimeNodes((previous) => ({
+                              ...previous,
+                              [node.id]: !previous[node.id],
+                            }));
+                          }}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          {isRuntimeExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                          {
+                            runtimeChildren.filter(
+                              (child) => child.childKind === 'shard',
+                            ).length
+                          }{' '}
+                          shards
+                        </button>
+
+                        {isRuntimeExpanded && (
+                          <div
+                            className="absolute left-[calc(100%+32px)] top-0 z-20 flex w-56 flex-col gap-2 pointer-events-auto"
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <div className="absolute -left-8 top-8 h-px w-8 bg-[var(--node-border)]" />
+                            {runtimeChildren.map((child) => {
+                              const label =
+                                child.childKind === 'shard'
+                                  ? `Shard ${child.shardIndex}/${child.shardTotal}`
+                                  : child.childKind === 'aggregate'
+                                    ? 'Merge reports'
+                                    : 'Discover tests';
+                              return (
+                                <button
+                                  key={child.id}
+                                  type="button"
+                                  className="guard-node relative flex items-center gap-2 rounded-lg border border-[var(--node-border)] bg-[var(--node-bg)] px-3 py-2 text-left shadow-md hover:border-[var(--border-strong)]"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedRuntimeChildId(child.id);
+                                  }}
+                                >
+                                  {child.status === 'running' && (
+                                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-400" />
+                                  )}
+                                  {child.status === 'pending' && (
+                                    <Clock className="h-4 w-4 shrink-0 animate-pulse text-sky-300" />
+                                  )}
+                                  {child.status === 'success' && (
+                                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                                  )}
+                                  {child.status === 'error' && (
+                                    <XCircle className="h-4 w-4 shrink-0 text-red-500" />
+                                  )}
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-xs font-semibold text-[var(--foreground)]">
+                                      {label}
+                                    </span>
+                                    <span className="block truncate text-[10px] capitalize text-muted">
+                                      {child.status}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
 
                   {/* Connection Placeholder (hidden for schedule nodes) */}
                   {!isScheduleNode &&
@@ -3345,42 +3636,9 @@ export default function Editor() {
           const node = openNodeSettingsId
             ? nodes.find((n) => n.id === openNodeSettingsId)
             : null;
-          let iconElement = undefined;
-          if (node) {
-            const matchedType = NODE_TYPES.find((n) => n.id === node.nodeType);
-            if (matchedType) {
-              if (matchedType.iconSrc) {
-                iconElement =
-                  matchedType.iconRenderMode === 'mask' ? (
-                    <div
-                      className="w-5 h-5 bg-current"
-                      style={{
-                        WebkitMaskImage: `url(${matchedType.iconSrc})`,
-                        WebkitMaskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskImage: `url(${matchedType.iconSrc})`,
-                        maskSize: 'contain',
-                        maskRepeat: 'no-repeat',
-                        maskPosition: 'center',
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={matchedType.iconSrc}
-                      alt={node.label}
-                      className="w-5 h-5 object-contain"
-                    />
-                  );
-              } else if (matchedType.fallbackIcon) {
-                iconElement = (
-                  <matchedType.fallbackIcon
-                    className={cn('w-5 h-5', matchedType.color)}
-                  />
-                );
-              }
-            }
-          }
+          const iconElement = node
+            ? renderNodeTypeIcon(node.nodeType, node.label)
+            : undefined;
           const getAncestors = (targetId: string) => {
             const ancestors: any[] = [];
             const queue = [targetId];
@@ -3452,6 +3710,70 @@ export default function Editor() {
             </Modal>
           );
         })()}
+
+        <Modal
+          isOpen={!!selectedRuntimeChild}
+          onClose={() => setSelectedRuntimeChildId(null)}
+          title={
+            selectedRuntimeChild?.childKind === 'shard'
+              ? `Shard ${selectedRuntimeChild.shardIndex}/${selectedRuntimeChild.shardTotal}`
+              : selectedRuntimeChild?.childKind === 'aggregate'
+                ? 'Merged Playwright report'
+                : 'Playwright test discovery'
+          }
+          icon={renderNodeTypeIcon('playwright', 'Playwright')}
+          maxWidth="max-w-2xl"
+        >
+          {selectedRuntimeChild && (
+            <div className="space-y-4 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    Runtime child
+                  </p>
+                  <p className="break-all text-xs text-muted">
+                    {selectedRuntimeChild.id}
+                  </p>
+                </div>
+                <Badge>{selectedRuntimeChild.status}</Badge>
+              </div>
+
+              {selectedRuntimeChild.output?.reportUrl && (
+                <Button
+                  onClick={() =>
+                    void openAuthenticatedOutput(
+                      selectedRuntimeChild.output!.reportUrl,
+                    )
+                  }
+                >
+                  View report
+                </Button>
+              )}
+
+              {selectedRuntimeChild.output && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Output
+                  </p>
+                  <pre className="max-h-56 overflow-auto rounded-lg border border-subtle bg-surface-hover p-3 text-xs text-[var(--foreground)]">
+                    {JSON.stringify(selectedRuntimeChild.output, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  Logs
+                </p>
+                <pre className="max-h-72 min-h-24 overflow-auto whitespace-pre-wrap rounded-lg border border-subtle bg-surface-hover p-3 text-xs text-[var(--foreground)]">
+                  {selectedRuntimeChild.logs.length > 0
+                    ? selectedRuntimeChild.logs.join('\n')
+                    : 'No child logs received yet.'}
+                </pre>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
       <LogsPanel logs={orchestratorLogs} />
 

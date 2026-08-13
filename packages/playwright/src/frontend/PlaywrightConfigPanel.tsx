@@ -11,6 +11,7 @@ const DEFAULT_PLAYWRIGHT_VERSION = playwrightRunnerConfig.defaultTag;
 const PLAYWRIGHT_VERSION_OPTIONS = playwrightRunnerConfig.versions;
 const DEFAULT_CPU = 2;
 const DEFAULT_MEMORY = 4;
+const DEFAULT_MAX_SHARDS = 4;
 
 function inferPlaywrightRuntime(
   config: Record<string, any>,
@@ -107,6 +108,17 @@ test.describe('navigation', () => {
       shouldUpdate = true;
     }
 
+    if (!config.shardingMode) {
+      updates.shardingMode = 'off';
+      shouldUpdate = true;
+    } else if (
+      inferredRuntime === 'python' &&
+      config.shardingMode !== 'off'
+    ) {
+      updates.shardingMode = 'off';
+      shouldUpdate = true;
+    }
+
     if (shouldUpdate) {
       onChange(nodeId, { ...latestConfigRef.current, ...updates });
     }
@@ -116,6 +128,7 @@ test.describe('navigation', () => {
     config.memory,
     config.testScript,
     config.playwrightVersion,
+    config.shardingMode,
     config.testLanguage,
     nodeId,
     onChange,
@@ -803,8 +816,9 @@ test.describe('navigation', () => {
         )}
 
         {activeTab === 'resources' && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                 CPU
               </label>
@@ -821,8 +835,8 @@ test.describe('navigation', () => {
                 <option value={4}>4 CPUs</option>
                 <option value={8}>8 CPUs</option>
               </Select>
-            </div>
-            <div className="space-y-1.5">
+              </div>
+              <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                 Memory
               </label>
@@ -845,8 +859,8 @@ test.describe('navigation', () => {
                 <option value={16}>16 GB</option>
                 <option value={32}>32 GB</option>
               </Select>
-            </div>
-            <div className="space-y-1.5">
+              </div>
+              <div className="space-y-1.5">
               <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                 Workers (Max 100)
               </label>
@@ -867,6 +881,127 @@ test.describe('navigation', () => {
                 }
                 className="bg-[var(--background)] border-subtle text-sm"
               />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-subtle bg-background p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  Suite sharding
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                  Shards run on separate runners. CPU, memory, and workers are
+                  allocated to every shard.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  Mode
+                </label>
+                <Select
+                  data-testid="playwright-node-sharding-mode"
+                  value={config.shardingMode || 'off'}
+                  disabled={inferPlaywrightRuntime(config) === 'python'}
+                  onChange={(event) =>
+                    onChange(nodeId, {
+                      ...config,
+                      shardingMode: event.target.value,
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value="off">Off</option>
+                  <option value="manual">Manual</option>
+                  <option value="auto">Auto</option>
+                </Select>
+                {inferPlaywrightRuntime(config) === 'python' ? (
+                  <p className="text-[10px] text-muted">
+                    Sharding and blob report merging currently require the
+                    TypeScript Playwright Test runtime.
+                  </p>
+                ) : null}
+              </div>
+
+              {config.shardingMode === 'manual' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                    Shard count
+                  </label>
+                  <Input
+                    data-testid="playwright-node-shard-count"
+                    type="number"
+                    min={2}
+                    max={16}
+                    value={config.shardCount || 2}
+                    onChange={(event) =>
+                      onChange(nodeId, {
+                        ...config,
+                        shardCount: Math.min(
+                          16,
+                          Math.max(2, parseInt(event.target.value) || 2),
+                        ),
+                      })
+                    }
+                  />
+                </div>
+              ) : null}
+
+              {config.shardingMode === 'auto' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                    Maximum shards
+                  </label>
+                  <Input
+                    data-testid="playwright-node-max-shards"
+                    type="number"
+                    min={2}
+                    max={16}
+                    value={config.maxShards || DEFAULT_MAX_SHARDS}
+                    onChange={(event) =>
+                      onChange(nodeId, {
+                        ...config,
+                        maxShards: Math.min(
+                          16,
+                          Math.max(
+                            2,
+                            parseInt(event.target.value) || DEFAULT_MAX_SHARDS,
+                          ),
+                        ),
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-muted">
+                    Playrunner discovers the suite first, then reduces this
+                    maximum for useful test/file units and available capacity.
+                  </p>
+                </div>
+              ) : null}
+
+              {config.shardingMode !== 'off' ? (
+                <div className="rounded-lg border border-subtle bg-surface-hover p-3 text-[10px] text-muted">
+                  Up to{' '}
+                  <span className="font-medium text-[var(--foreground)]">
+                    {config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS}{' '}
+                    shards
+                  </span>{' '}
+                  · {(config.cpu || DEFAULT_CPU) *
+                    (config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
+                  CPUs · {(config.memory || DEFAULT_MEMORY) *
+                    (config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
+                  GB · {(config.workers || 1) *
+                    (config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
+                  workers maximum
+                </div>
+              ) : null}
             </div>
           </div>
         )}
