@@ -86,13 +86,13 @@ function HomepageHeader() {
         />
         <p className={styles.eyebrow}>For teams already using Playwright</p>
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
-          Turn your Playwright suite into a release gate you can trust.
+          Run Playwright at scale—without building the platform around it.
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
-          Keep the tests and CI you already use. Playrunner runs the workflow on
-          your infrastructure or ours, keeps credentials, live state, reports,
-          and artefacts together, and returns one result your pipeline can act
-          on.
+          Keep the tests and CI you already use. Playrunner brings runners,
+          environments, credentials, reports, integrations, and automatic
+          sharding into one workflow—on your infrastructure or ours—without the
+          scripts and CI matrices that normally hold it all together.
         </p>
         <div className={styles.heroActions}>
           <Link
@@ -320,8 +320,8 @@ export default function Home(): ReactNode {
 
   return (
     <Layout
-      title="Playwright release gates you can trust"
-      description="Run the Playwright tests you already have on your infrastructure or ours, with credentials, live state, reports, and artefacts together in one reliable release gate."
+      title="Run Playwright at scale without the platform glue"
+      description="Bring Playwright runners, environments, credentials, reports, integrations, and automatic sharding into one workflow on your infrastructure or ours."
     >
       <HomepageHeader />
       <main>
