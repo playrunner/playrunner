@@ -223,7 +223,35 @@ class LocalAuth {
     }
   }
 
+  async prepareOutputAccess() {
+    if (!this.token) {
+      return false;
+    }
+
+    try {
+      const response = await fetch('/api/auth/session', {
+        credentials: 'same-origin',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const payload = (await response.json().catch(() => null)) as {
+        user?: StoredAuthUser;
+      } | null;
+
+      return !!payload?.user?.uid && !!payload.user.username;
+    } catch {
+      return false;
+    }
+  }
+
   async signOut() {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     this.persistSession(null);
     this.applySession(null);
   }

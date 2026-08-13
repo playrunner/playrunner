@@ -30,6 +30,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="The gpt-5.6 alias tracks OpenAI's flagship GPT-5.6 Sol model."
       >
         <Select
+          data-testid="openai-node-model"
           value={config.model || DEFAULT_MODEL}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ model: event.target.value });
@@ -46,6 +47,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Drag workflow or upstream-node variables from the Input panel."
       >
         <Textarea
+          data-testid="openai-node-prompt"
           value={config.prompt ?? DEFAULT_PROMPT}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             updateConfig({ prompt: event.target.value });
@@ -57,6 +59,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
       <IntegrationConfigField label="Response format">
         <Select
+          data-testid="openai-node-response-format"
           value={responseFormat}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             updateConfig({ responseFormat: event.target.value });
@@ -73,6 +76,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           hint="Enter a JSON Schema object. Strict structured output is enabled."
         >
           <Textarea
+            data-testid="openai-node-json-schema"
             value={config.jsonSchema || ''}
             onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
               updateConfig({ jsonSchema: event.target.value });
@@ -91,6 +95,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           hint="Use low for latency or higher levels for harder analysis."
         >
           <Select
+            data-testid="openai-node-reasoning-effort"
             value={config.reasoningEffort || 'medium'}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
               updateConfig({ reasoningEffort: event.target.value });
@@ -107,6 +112,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
         <IntegrationConfigField label="Verbosity">
           <Select
+            data-testid="openai-node-verbosity"
             value={config.verbosity || 'medium'}
             onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
               updateConfig({ verbosity: event.target.value });
@@ -124,6 +130,7 @@ export const OpenAIConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="Optional. Leave blank to use the model default."
       >
         <Input
+          data-testid="openai-node-max-output-tokens"
           type="number"
           min={1}
           max={128000}

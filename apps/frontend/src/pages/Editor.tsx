@@ -17,6 +17,7 @@ import {
   Route,
   Activity,
   ChevronDown,
+  ChevronRight,
   Code2,
   MoreHorizontal,
   X,
@@ -47,6 +48,7 @@ import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
+import { openAuthenticatedOutput } from '../lib/output-links';
 import {
   CLOUD_PROVIDERS,
   getCloudProvider,
@@ -84,6 +86,39 @@ type NodeExecutionStatus =
   | 'error'
   | 'warning';
 
+type RuntimePlaywrightChild = {
+  childKind: 'aggregate' | 'discovery' | 'shard';
+  id: string;
+  logs: string[];
+  output?: Record<string, any>;
+  parentNodeId: string;
+  shardIndex?: number;
+  shardTotal?: number;
+  status: NodeExecutionStatus;
+};
+
+type RuntimePlaywrightPlan = {
+  aggregateCpu: number;
+  aggregateMemoryGb: number;
+  aggregateWorkers: number;
+  count: number;
+  discovery: {
+    fileCount: number;
+    fullyParallel: boolean;
+    projectCount: number;
+    shardableUnits: number;
+    testCount: number;
+  };
+  limits: {
+    capacity: number;
+    configured: number;
+    useful: number;
+  };
+  mode: 'auto' | 'manual';
+  reason: string;
+  workersPerShard: number;
+};
+
 function isNodeExecutionStatus(value: string): value is NodeExecutionStatus {
   return (
     value === 'idle' ||
@@ -113,6 +148,49 @@ interface DrawingConnection {
 function nodeTypeAcceptsInboundConnection(typeId?: string) {
   const nodeType = NODE_TYPES.find((n) => n.id === typeId);
   return nodeType?.acceptsInboundConnection ?? true;
+}
+
+function renderNodeTypeIcon(
+  nodeTypeId: string | undefined,
+  alt: string,
+): React.ReactNode {
+  const nodeType = NODE_TYPES.find((candidate) => candidate.id === nodeTypeId);
+  if (!nodeType) return undefined;
+
+  if (nodeType.iconSrc) {
+    if (nodeType.iconRenderMode === 'mask') {
+      return (
+        <div
+          className="h-5 w-5 bg-current"
+          style={{
+            WebkitMaskImage: `url(${nodeType.iconSrc})`,
+            WebkitMaskPosition: 'center',
+            WebkitMaskRepeat: 'no-repeat',
+            WebkitMaskSize: 'contain',
+            maskImage: `url(${nodeType.iconSrc})`,
+            maskPosition: 'center',
+            maskRepeat: 'no-repeat',
+            maskSize: 'contain',
+          }}
+        />
+      );
+    }
+
+    return (
+      <img
+        src={nodeType.iconSrc}
+        alt={alt}
+        className="h-5 w-5 object-contain"
+      />
+    );
+  }
+
+  if (nodeType.fallbackIcon) {
+    const FallbackIcon = nodeType.fallbackIcon;
+    return <FallbackIcon className={cn('h-5 w-5', nodeType.color)} />;
+  }
+
+  return undefined;
 }
 
 type WorkflowStartupPhase =
@@ -435,6 +513,7 @@ function CloudProviderDropdown({
     <div className="relative" ref={dropdownRef}>
       <button
         type="button"
+        data-testid="workflow-runner-selector"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-1.5 hover:bg-surface-hover text-sm font-medium text-[var(--foreground)] rounded-full py-1.5 px-3 focus:outline-none transition-colors"
         title={displayLabel}
@@ -493,6 +572,7 @@ function CloudProviderDropdown({
                   <button
                     key={provider.id}
                     type="button"
+                    data-testid={`workflow-runner-option-${provider.id}`}
                     onClick={() => {
                       if (isDisabled) {
                         setNotice(provider.disabledReason || 'Premium feature');
@@ -717,16 +797,122 @@ export default function Editor() {
         if (data.state === 'running') {
           clearWorkflowStartupStatus();
         }
+        if (
+          typeof data.parentNodeId === 'string' &&
+          (data.childKind === 'aggregate' ||
+            data.childKind === 'discovery' ||
+            data.childKind === 'shard')
+        ) {
+          setRuntimePlaywrightChildren((previous) => ({
+            ...previous,
+            [data.parentNodeId]: {
+              ...(previous[data.parentNodeId] || {}),
+              [data.nodeId]: {
+                childKind: data.childKind,
+                id: data.nodeId,
+                logs: previous[data.parentNodeId]?.[data.nodeId]?.logs || [],
+                output: previous[data.parentNodeId]?.[data.nodeId]?.output,
+                parentNodeId: data.parentNodeId,
+                shardIndex: data.shardIndex,
+                shardTotal: data.shardTotal,
+                status: data.state,
+              },
+            },
+          }));
+          return;
+        }
         setNodeStatus((prev) => ({ ...prev, [data.nodeId]: data.state }));
         return;
       }
 
       if (data.type === 'node_output' && typeof data.nodeId === 'string') {
+        if (
+          typeof data.parentNodeId === 'string' &&
+          (data.childKind === 'aggregate' ||
+            data.childKind === 'discovery' ||
+            data.childKind === 'shard')
+        ) {
+          setRuntimePlaywrightChildren((previous) => {
+            const existing = previous[data.parentNodeId]?.[data.nodeId];
+            return {
+              ...previous,
+              [data.parentNodeId]: {
+                ...(previous[data.parentNodeId] || {}),
+                [data.nodeId]: {
+                  childKind: data.childKind,
+                  id: data.nodeId,
+                  logs: existing?.logs || [],
+                  output: data.output,
+                  parentNodeId: data.parentNodeId,
+                  shardIndex: data.shardIndex,
+                  shardTotal: data.shardTotal,
+                  status: existing?.status || 'running',
+                },
+              },
+            };
+          });
+          return;
+        }
         setNodes((prev) =>
           prev.map((n) =>
             n.id === data.nodeId ? { ...n, output: data.output } : n,
           ),
         );
+        return;
+      }
+
+      if (data.type === 'shard_plan' && typeof data.nodeId === 'string') {
+        if (data.plan && typeof data.plan === 'object') {
+          setRuntimePlaywrightPlans((previous) => ({
+            ...previous,
+            [data.nodeId]: data.plan as RuntimePlaywrightPlan,
+          }));
+        }
+        const runtimeChildren: RuntimePlaywrightChild[] = [
+          {
+            childKind: 'discovery' as const,
+            id: `${data.nodeId}--discovery`,
+            logs: [],
+            output: data.discovery ? { discovery: data.discovery } : undefined,
+            parentNodeId: data.nodeId,
+            status: 'success' as const,
+          },
+          ...(Array.isArray(data.children) ? data.children : []).map(
+            (child: Record<string, any>) => ({
+              childKind: 'shard' as const,
+              id: child.nodeId,
+              logs: [],
+              parentNodeId: data.nodeId,
+              shardIndex: child.shardIndex,
+              shardTotal: child.shardTotal,
+              status: 'pending' as const,
+            }),
+          ),
+          {
+            childKind: 'aggregate' as const,
+            id: data.aggregateNodeId,
+            logs: [],
+            parentNodeId: data.nodeId,
+            status: 'pending' as const,
+          },
+        ].filter((child) => typeof child.id === 'string');
+        setRuntimePlaywrightChildren((previous) => ({
+          ...previous,
+          [data.nodeId]: Object.fromEntries(
+            runtimeChildren.map((child) => [
+              child.id,
+              {
+                ...previous[data.nodeId]?.[child.id],
+                ...child,
+                logs: previous[data.nodeId]?.[child.id]?.logs || child.logs,
+              },
+            ]),
+          ),
+        }));
+        setExpandedRuntimeNodes((previous) => ({
+          ...previous,
+          [data.nodeId]: true,
+        }));
         return;
       }
 
@@ -745,6 +931,34 @@ export default function Editor() {
 
       if (typeof data.message !== 'string' || data.message.length === 0) {
         return;
+      }
+
+      if (
+        typeof data.parentNodeId === 'string' &&
+        typeof data.nodeId === 'string' &&
+        (data.childKind === 'aggregate' ||
+          data.childKind === 'discovery' ||
+          data.childKind === 'shard')
+      ) {
+        setRuntimePlaywrightChildren((previous) => {
+          const existing = previous[data.parentNodeId]?.[data.nodeId];
+          return {
+            ...previous,
+            [data.parentNodeId]: {
+              ...(previous[data.parentNodeId] || {}),
+              [data.nodeId]: {
+                childKind: data.childKind,
+                id: data.nodeId,
+                logs: [...(existing?.logs || []), data.message],
+                output: existing?.output,
+                parentNodeId: data.parentNodeId,
+                shardIndex: data.shardIndex,
+                shardTotal: data.shardTotal,
+                status: existing?.status || 'running',
+              },
+            },
+          };
+        });
       }
 
       if (data.message.startsWith('Processing node:')) {
@@ -1113,6 +1327,21 @@ export default function Editor() {
   const [nodeStatus, setNodeStatus] = useState<
     Record<string, NodeExecutionStatus>
   >({});
+  const [runtimePlaywrightChildren, setRuntimePlaywrightChildren] = useState<
+    Record<string, Record<string, RuntimePlaywrightChild>>
+  >({});
+  const [runtimePlaywrightPlans, setRuntimePlaywrightPlans] = useState<
+    Record<string, RuntimePlaywrightPlan>
+  >({});
+  const [expandedRuntimeNodes, setExpandedRuntimeNodes] = useState<
+    Record<string, boolean>
+  >({});
+  const [selectedRuntimeChildId, setSelectedRuntimeChildId] = useState<
+    string | null
+  >(null);
+  const selectedRuntimeChild = Object.values(runtimePlaywrightChildren)
+    .flatMap((children) => Object.values(children))
+    .find((child) => child.id === selectedRuntimeChildId);
   const isSimulationRunning = useRef(false);
 
   const [openNodeSettingsId, setOpenNodeSettingsId] = useState<string | null>(
@@ -1354,6 +1583,10 @@ export default function Editor() {
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setRuntimePlaywrightChildren({});
+    setRuntimePlaywrightPlans({});
+    setExpandedRuntimeNodes({});
+    setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
@@ -1377,6 +1610,10 @@ export default function Editor() {
     isSimulationRunning.current = true;
     setSimulationState('running');
     setNodeStatus({});
+    setRuntimePlaywrightChildren({});
+    setRuntimePlaywrightPlans({});
+    setExpandedRuntimeNodes({});
+    setSelectedRuntimeChildId(null);
     setNodes((prev) => prev.map((node) => ({ ...node, output: undefined })));
 
     const currentCloudProvider = cloudProvider || 'LOCAL_RUNNER';
@@ -2805,6 +3042,27 @@ export default function Editor() {
             {nodes.map((node) => {
               const isSelected = selectedNodeIds.has(node.id);
               const status = nodeStatus[node.id] || 'idle';
+              const runtimeChildren = Object.values(
+                runtimePlaywrightChildren[node.id] || {},
+              ).sort((left, right) => {
+                const order = { discovery: 0, shard: 1, aggregate: 2 };
+                const kindDifference =
+                  order[left.childKind] - order[right.childKind];
+                return kindDifference !== 0
+                  ? kindDifference
+                  : (left.shardIndex || 0) - (right.shardIndex || 0);
+              });
+              const runtimePlan = runtimePlaywrightPlans[node.id];
+              const runtimePlanLimit = runtimePlan
+                ? runtimePlan.limits.capacity <=
+                    runtimePlan.limits.configured &&
+                  runtimePlan.limits.capacity <= runtimePlan.limits.useful
+                  ? 'runner capacity'
+                  : runtimePlan.limits.useful <= runtimePlan.limits.configured
+                    ? 'suite size'
+                    : 'your maximum'
+                : null;
+              const isRuntimeExpanded = !!expandedRuntimeNodes[node.id];
 
               const isNodeConfigured = (n: NodeData) => {
                 if (n.nodeType === 'environment') {
@@ -2847,7 +3105,7 @@ export default function Editor() {
                   >
                     <div
                       className={cn(
-                        'rounded-full border border-[var(--node-border)] bg-[#18181b] transition-all duration-200',
+                        'rounded-full border border-[var(--node-port-border)] bg-[var(--node-port-bg)] transition-all duration-200',
                         connected || port === 'right' || port === 'left'
                           ? 'opacity-100 w-6 h-6'
                           : 'opacity-0 w-6 h-6 group-hover:opacity-100',
@@ -2864,6 +3122,7 @@ export default function Editor() {
                   key={node.id}
                   data-testid={`canvas-node-${node.nodeType}`}
                   data-node-id={node.id}
+                  data-node-status={status}
                   className={cn(
                     'group guard-node absolute bg-[var(--node-bg)] p-4 shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
                     isScheduleNode
@@ -2903,6 +3162,135 @@ export default function Editor() {
                     </div>
                   )}
 
+                  {node.nodeType === 'playwright' &&
+                    runtimeChildren.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          className="absolute bottom-2 left-1/2 z-20 flex min-w-[112px] -translate-x-1/2 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-[var(--node-border)] bg-[var(--node-bg)] px-3 py-1.5 text-[11px] font-medium text-muted shadow-sm pointer-events-auto hover:text-[var(--foreground)]"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpandedRuntimeNodes((previous) => ({
+                              ...previous,
+                              [node.id]: !previous[node.id],
+                            }));
+                          }}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          {isRuntimeExpanded ? (
+                            <ChevronDown className="h-3 w-3" />
+                          ) : (
+                            <ChevronRight className="h-3 w-3" />
+                          )}
+                          {runtimePlan?.mode === 'auto' && 'Auto · '}
+                          {runtimePlan?.count ??
+                            runtimeChildren.filter(
+                              (child) => child.childKind === 'shard',
+                            ).length}{' '}
+                          shards
+                          {runtimePlan &&
+                            ` · ${runtimePlan.workersPerShard}w each`}
+                        </button>
+
+                        {isRuntimeExpanded && (
+                          <div
+                            className="absolute left-[calc(100%+32px)] top-0 z-20 flex w-56 flex-col gap-2 pointer-events-auto"
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <div className="absolute -left-8 top-8 h-px w-8 bg-[var(--node-border)]" />
+                            {runtimePlan && (
+                              <div
+                                className="guard-node rounded-lg border border-blue-500/40 bg-[var(--node-bg)] p-3 text-left shadow-md"
+                                title={runtimePlan.reason}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-blue-400">
+                                    {runtimePlan.mode === 'auto'
+                                      ? 'Auto plan selected'
+                                      : 'Execution plan'}
+                                  </span>
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                                </div>
+                                <p className="mt-1 text-sm font-semibold text-[var(--foreground)]">
+                                  {runtimePlan.count} shards ×{' '}
+                                  {runtimePlan.workersPerShard} workers each
+                                </p>
+                                <p className="mt-1 text-[10px] leading-4 text-muted">
+                                  Per shard:{' '}
+                                  {runtimePlan.aggregateCpu / runtimePlan.count}{' '}
+                                  CPU ·{' '}
+                                  {runtimePlan.aggregateMemoryGb /
+                                    runtimePlan.count <
+                                  1
+                                    ? `${(runtimePlan.aggregateMemoryGb / runtimePlan.count) * 1024} MB`
+                                    : `${runtimePlan.aggregateMemoryGb / runtimePlan.count} GB`}
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Total: {runtimePlan.aggregateCpu} CPUs ·{' '}
+                                  {runtimePlan.aggregateMemoryGb} GB ·{' '}
+                                  {runtimePlan.aggregateWorkers} workers
+                                </p>
+                                <div className="my-2 h-px bg-[var(--node-border)]" />
+                                <p className="text-[10px] leading-4 text-muted">
+                                  {runtimePlan.discovery.testCount} tests in{' '}
+                                  {runtimePlan.discovery.fileCount} files
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Limited by {runtimePlanLimit} (
+                                  {runtimePlan.count}).
+                                </p>
+                                <p className="text-[10px] leading-4 text-muted">
+                                  Limits: max {runtimePlan.limits.configured} ·
+                                  suite {runtimePlan.limits.useful} · capacity{' '}
+                                  {runtimePlan.limits.capacity}
+                                </p>
+                              </div>
+                            )}
+                            {runtimeChildren.map((child) => {
+                              const label =
+                                child.childKind === 'shard'
+                                  ? `Shard ${child.shardIndex}/${child.shardTotal}`
+                                  : child.childKind === 'aggregate'
+                                    ? 'Merge reports'
+                                    : 'Discover tests';
+                              return (
+                                <button
+                                  key={child.id}
+                                  type="button"
+                                  className="guard-node relative flex items-center gap-2 rounded-lg border border-[var(--node-border)] bg-[var(--node-bg)] px-3 py-2 text-left shadow-md hover:border-[var(--border-strong)]"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedRuntimeChildId(child.id);
+                                  }}
+                                >
+                                  {child.status === 'running' && (
+                                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-blue-400" />
+                                  )}
+                                  {child.status === 'pending' && (
+                                    <Clock className="h-4 w-4 shrink-0 animate-pulse text-sky-300" />
+                                  )}
+                                  {child.status === 'success' && (
+                                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                                  )}
+                                  {child.status === 'error' && (
+                                    <XCircle className="h-4 w-4 shrink-0 text-red-500" />
+                                  )}
+                                  <span className="min-w-0">
+                                    <span className="block truncate text-xs font-semibold text-[var(--foreground)]">
+                                      {label}
+                                    </span>
+                                    <span className="block truncate text-[10px] capitalize text-muted">
+                                      {child.status}
+                                    </span>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </>
+                    )}
+
                   {/* Connection Placeholder (hidden for schedule nodes) */}
                   {!isScheduleNode &&
                     !connections.some(
@@ -2911,9 +3299,10 @@ export default function Editor() {
                         (c.sourcePort === 'right' || !c.sourcePort),
                     ) && (
                       <div className="absolute top-1/2 -translate-y-1/2 left-full flex items-center z-[-1]">
-                        <div className="w-[40px] h-[2px] bg-[var(--node-border)]" />
+                        <div className="w-[40px] h-[2px] shrink-0 bg-[var(--node-border)]" />
                         <button
-                          className="w-6 h-6 rounded-md bg-[var(--node-bg)] hover:bg-[#3f3f46] flex items-center justify-center transition-colors text-muted hover:text-[var(--foreground)] shadow-sm pointer-events-auto"
+                          className="group/add-node relative w-6 h-6 rounded-md bg-[var(--node-bg)] hover:bg-surface-hover dark:hover:bg-[#3f3f46] flex items-center justify-center transition-colors text-muted hover:text-[var(--foreground)] shadow-sm pointer-events-auto"
+                          aria-label="Add connected node"
                           onClick={(e) => {
                             e.stopPropagation();
                             setPendingConnectionSource({
@@ -2930,6 +3319,9 @@ export default function Editor() {
                           onPointerDown={(e) => e.stopPropagation()}
                         >
                           <Plus className="w-4 h-4" />
+                          <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 whitespace-nowrap rounded border border-subtle bg-surface-hover px-2 py-1 text-xs font-medium text-[var(--foreground)] dark:border-[#555] dark:bg-[#555] dark:text-white opacity-0 shadow-lg transition-opacity group-hover/add-node:opacity-100">
+                            Add connected node
+                          </span>
                         </button>
                       </div>
                     )}
@@ -3317,7 +3709,7 @@ export default function Editor() {
                       )}
                       onClick={() => {
                         if (hasReport) {
-                          window.open(node.output!.reportUrl, '_blank');
+                          void openAuthenticatedOutput(node.output!.reportUrl);
                           setContextMenu(null);
                         }
                       }}
@@ -3337,42 +3729,9 @@ export default function Editor() {
           const node = openNodeSettingsId
             ? nodes.find((n) => n.id === openNodeSettingsId)
             : null;
-          let iconElement = undefined;
-          if (node) {
-            const matchedType = NODE_TYPES.find((n) => n.id === node.nodeType);
-            if (matchedType) {
-              if (matchedType.iconSrc) {
-                iconElement =
-                  matchedType.iconRenderMode === 'mask' ? (
-                    <div
-                      className="w-5 h-5 bg-current"
-                      style={{
-                        WebkitMaskImage: `url(${matchedType.iconSrc})`,
-                        WebkitMaskSize: 'contain',
-                        WebkitMaskRepeat: 'no-repeat',
-                        WebkitMaskPosition: 'center',
-                        maskImage: `url(${matchedType.iconSrc})`,
-                        maskSize: 'contain',
-                        maskRepeat: 'no-repeat',
-                        maskPosition: 'center',
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={matchedType.iconSrc}
-                      alt={node.label}
-                      className="w-5 h-5 object-contain"
-                    />
-                  );
-              } else if (matchedType.fallbackIcon) {
-                iconElement = (
-                  <matchedType.fallbackIcon
-                    className={cn('w-5 h-5', matchedType.color)}
-                  />
-                );
-              }
-            }
-          }
+          const iconElement = node
+            ? renderNodeTypeIcon(node.nodeType, node.label)
+            : undefined;
           const getAncestors = (targetId: string) => {
             const ancestors: any[] = [];
             const queue = [targetId];
@@ -3444,6 +3803,70 @@ export default function Editor() {
             </Modal>
           );
         })()}
+
+        <Modal
+          isOpen={!!selectedRuntimeChild}
+          onClose={() => setSelectedRuntimeChildId(null)}
+          title={
+            selectedRuntimeChild?.childKind === 'shard'
+              ? `Shard ${selectedRuntimeChild.shardIndex}/${selectedRuntimeChild.shardTotal}`
+              : selectedRuntimeChild?.childKind === 'aggregate'
+                ? 'Merged Playwright report'
+                : 'Playwright test discovery'
+          }
+          icon={renderNodeTypeIcon('playwright', 'Playwright')}
+          maxWidth="max-w-2xl"
+        >
+          {selectedRuntimeChild && (
+            <div className="space-y-4 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    Runtime child
+                  </p>
+                  <p className="break-all text-xs text-muted">
+                    {selectedRuntimeChild.id}
+                  </p>
+                </div>
+                <Badge>{selectedRuntimeChild.status}</Badge>
+              </div>
+
+              {selectedRuntimeChild.output?.reportUrl && (
+                <Button
+                  onClick={() =>
+                    void openAuthenticatedOutput(
+                      selectedRuntimeChild.output!.reportUrl,
+                    )
+                  }
+                >
+                  View report
+                </Button>
+              )}
+
+              {selectedRuntimeChild.output && (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Output
+                  </p>
+                  <pre className="max-h-56 overflow-auto rounded-lg border border-subtle bg-surface-hover p-3 text-xs text-[var(--foreground)]">
+                    {JSON.stringify(selectedRuntimeChild.output, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  Logs
+                </p>
+                <pre className="max-h-72 min-h-24 overflow-auto whitespace-pre-wrap rounded-lg border border-subtle bg-surface-hover p-3 text-xs text-[var(--foreground)]">
+                  {selectedRuntimeChild.logs.length > 0
+                    ? selectedRuntimeChild.logs.join('\n')
+                    : 'No child logs received yet.'}
+                </pre>
+              </div>
+            </div>
+          )}
+        </Modal>
       </div>
       <LogsPanel logs={orchestratorLogs} />
 

@@ -9,7 +9,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --require ts-node/register --test src/**/*.test.ts"
   },
   "keywords": [],
   "author": "Concept AI PTY LTD",
@@ -17,16 +17,16 @@
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
-    "@playwright/test": "1.61.0",
-    "google-auth-library": "^10.7.0",
-    "playwright": "1.61.0"
+    "google-auth-library": "^10.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.62.1",
     "@types/node": "^25.6.2",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "10.1.8",
     "globals": "^17.6.0",
+    "playwright": "1.62.1",
     "prettier": "3.8.4",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",

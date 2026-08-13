@@ -120,6 +120,20 @@ The CLI exits non-zero when the workflow fails, so it gates exactly like any
 other step. See [the CI/CD quality gate post](/blog/playrunner-ci-cd-pipeline/)
 for the full setup.
 
+## A separate question: when the runner itself is the bottleneck
+
+Everything above is about orchestration — the branching, scheduling, and
+notification logic around a run. There is a different failure mode where the
+workflow is fine and the _machine_ is the problem: a suite large enough that a
+standard hosted runner slows down, gets less predictable, and turns flaky no
+matter how the pipeline is arranged.
+
+That is a compute problem rather than an orchestration one, and it is covered
+in [When Playwright outgrows your GitHub Actions runner](/blog/running-heavy-playwright-workloads/).
+Note that the elastic execution and automatic sharding described there are
+roadmap rather than shipped features — today Playrunner runs your suite on the
+runner you select.
+
 ## When GitHub Actions alone is the right answer
 
 Be honest about this — if the following describes you, you do not need

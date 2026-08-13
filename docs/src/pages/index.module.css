@@ -49,18 +49,15 @@
   margin-top: 2rem;
 }
 
-.heroBoundary {
-  max-width: 820px;
-  margin: 1.5rem 0 0;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--ifm-color-emphasis-200);
-  color: var(--ifm-color-content-secondary);
-  font-size: 0.95rem;
-  line-height: 1.6;
+.showcase {
+  padding: 3rem 0 4rem;
 }
 
-.showcase {
-  padding: 0 0 4rem;
+.showcaseTitle {
+  margin: 0 0 2rem;
+  color: var(--ifm-font-color-base);
+  font-size: 2rem;
+  line-height: 1.2;
 }
 
 .showcaseFigure {

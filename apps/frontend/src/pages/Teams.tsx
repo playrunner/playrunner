@@ -300,6 +300,7 @@ export default function Teams() {
         teams.map((team) => (
           <section
             key={team.id}
+            data-testid="team-card"
             className="bg-surface border border-subtle rounded-xl shadow-sm overflow-hidden"
           >
             <div className="flex items-center justify-between gap-4 p-6 border-b border-subtle">

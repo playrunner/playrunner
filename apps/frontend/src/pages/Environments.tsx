@@ -293,9 +293,71 @@ function EnvironmentEditModal({
   }, [variables]);
 
   const updateVar = (id: string, updates: Partial<EnvVar>) => {
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (updates.type === 'secret' && variable?.type === 'default') {
+      void convertToSecret(id);
+      return;
+    }
+    if (updates.type === 'default' && variable?.type === 'secret') {
+      void convertToDefault(id);
+      return;
+    }
     setVariables((prev) =>
       prev.map((v) => (v.id === id ? { ...v, ...updates } : v)),
     );
+  };
+
+  const convertToSecret = async (id: string) => {
+    if (!auth.currentUser) return;
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (!variable) return;
+
+    try {
+      await DbAPI.saveSecret(auth.currentUser.uid, variable.key, {
+        value: variable.currentValue,
+        initialValue: variable.initialValue,
+        currentValue: variable.currentValue,
+        description: `Secret for ${variable.key}`,
+      });
+      setVariables((prev) =>
+        prev.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                type: 'secret',
+                initialValue: '********',
+                currentValue: '********',
+              }
+            : candidate,
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to save secret:', error);
+    }
+  };
+
+  const convertToDefault = async (id: string) => {
+    if (!auth.currentUser) return;
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (!variable) return;
+
+    try {
+      const secret = await DbAPI.getSecret(auth.currentUser.uid, variable.key);
+      setVariables((prev) =>
+        prev.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                type: 'default',
+                initialValue: secret.initialValue ?? secret.value ?? '',
+                currentValue: secret.currentValue ?? secret.value ?? '',
+              }
+            : candidate,
+        ),
+      );
+    } catch (error) {
+      console.error('Failed to restore secret as text:', error);
+    }
   };
 
   const removeVar = (id: string) => {
@@ -373,6 +435,7 @@ function EnvironmentEditModal({
             onUpdateVar={updateVar}
             onRemoveVar={removeVar}
             onToggleEnabled={toggleEnabled}
+            onConvertToSecret={convertToSecret}
           />
         </div>
       </div>

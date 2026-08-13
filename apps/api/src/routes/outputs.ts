@@ -16,6 +16,50 @@ function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function isSafePathSegment(value: string) {
+  return value !== '.' && value !== '..' && path.basename(value) === value;
+}
+
+outputsRouter.get(
+  '/:testId/:nodeId/blob-report/:fileName',
+  async (req, res) => {
+    const { fileName, nodeId, testId } = req.params;
+    const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
+    if (!executionToken) {
+      return res
+        .status(401)
+        .json({ error: `Missing ${EXECUTION_TOKEN_HEADER} header.` });
+    }
+    const execution = await executionEvents.verifyExecutionToken(
+      testId,
+      executionToken,
+    );
+    if (!execution) {
+      return res.status(403).json({ error: 'Invalid execution token.' });
+    }
+    if (
+      !isSafePathSegment(testId) ||
+      !isSafePathSegment(nodeId) ||
+      !isSafePathSegment(fileName) ||
+      !fileName.endsWith('.zip')
+    ) {
+      return res.status(400).json({ error: 'Invalid blob report file name.' });
+    }
+    const filePath = path.join(
+      __dirname,
+      '../../public/outputs',
+      testId,
+      nodeId,
+      'blob-report',
+      fileName,
+    );
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Blob report not found.' });
+    }
+    return res.sendFile(filePath);
+  },
+);
+
 // Endpoint to receive outputs from runner
 outputsRouter.post(
   '/:testId/:nodeId',
@@ -76,6 +120,31 @@ outputsRouter.post(
       fs.existsSync(path.join(outputsDir, 'playwright-report', 'index.html'))
     ) {
       outputData.reportUrl = `/outputs/${testId}/${nodeId}/playwright-report/index.html`;
+    }
+    const reportDataPath = path.join(
+      outputsDir,
+      'playwright-report',
+      'report.json',
+    );
+    const reportSummaryPath = path.join(
+      outputsDir,
+      'playwright-report',
+      'report-summary.json',
+    );
+    if (fs.existsSync(reportDataPath)) {
+      outputData.reportDataUrl = `/outputs/${testId}/${nodeId}/playwright-report/report.json`;
+    }
+    if (fs.existsSync(reportSummaryPath)) {
+      try {
+        outputData.report = JSON.parse(
+          fs.readFileSync(reportSummaryPath, 'utf8'),
+        );
+      } catch (err) {
+        console.error(
+          `Failed to parse report summary for ${testId}/${nodeId}:`,
+          err,
+        );
+      }
     }
 
     const testResultsDir = path.join(outputsDir, 'test-results');

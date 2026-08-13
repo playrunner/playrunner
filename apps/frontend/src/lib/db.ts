@@ -1,4 +1,5 @@
 import { auth } from './auth';
+import { trackApiActivity } from './apiActivity';
 
 async function getAuthenticatedUser() {
   if (auth.currentUser) {
@@ -26,44 +27,46 @@ async function getApiHeaders() {
 }
 
 async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers: Record<string, string> = {
-    ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-    ...(await getApiHeaders()),
-    ...((init.headers as Record<string, string> | undefined) ?? {}),
-  };
+  return trackApiActivity(async () => {
+    const headers: Record<string, string> = {
+      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(await getApiHeaders()),
+      ...((init.headers as Record<string, string> | undefined) ?? {}),
+    };
 
-  const response = await fetch(path, {
-    ...init,
-    headers,
-  });
+    const response = await fetch(path, {
+      ...init,
+      headers,
+    });
 
-  if (response.status === 204) {
-    return null as T;
-  }
-
-  const payload = (await response.json().catch(() => null)) as
-    | {
-        error?: string;
-      }
-    | T
-    | null;
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      await auth.signOut();
+    if (response.status === 204) {
+      return null as T;
     }
 
-    const message =
-      payload &&
-      typeof payload === 'object' &&
-      'error' in payload &&
-      typeof payload.error === 'string'
-        ? payload.error
-        : `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
+    const payload = (await response.json().catch(() => null)) as
+      | {
+          error?: string;
+        }
+      | T
+      | null;
 
-  return payload as T;
+    if (!response.ok) {
+      if (response.status === 401) {
+        await auth.signOut();
+      }
+
+      const message =
+        payload &&
+        typeof payload === 'object' &&
+        'error' in payload &&
+        typeof payload.error === 'string'
+          ? payload.error
+          : `Request failed with status ${response.status}`;
+      throw new Error(message);
+    }
+
+    return payload as T;
+  });
 }
 
 function createPollingSubscription<T>(
@@ -370,6 +373,13 @@ export const DbAPI = {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  },
+
+  async getSecret(_userId: string, secretKey: string) {
+    const payload = await apiRequest<{ secret: any }>(
+      `/api/store/secrets/${encodeURIComponent(secretKey)}`,
+    );
+    return payload.secret;
   },
 
   async getEnvironments(_userId: string) {

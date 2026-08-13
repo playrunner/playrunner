@@ -18,6 +18,7 @@ import {
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { DbAPI } from '../lib/db';
+import { openAuthenticatedOutput } from '../lib/output-links';
 import { cn } from '../lib/utils';
 
 type InsightRange = '7' | '30' | '90' | 'all';
@@ -765,6 +766,10 @@ function RecentExecutions({ executions }: { executions: RecentExecution[] }) {
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 text-xs font-medium text-[var(--foreground)] hover:text-muted"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openAuthenticatedOutput(execution.reportUrl!);
+                    }}
                   >
                     Report
                     <ExternalLink className="h-3 w-3" />

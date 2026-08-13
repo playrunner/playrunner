@@ -646,11 +646,14 @@ while IFS= read -r version; do
 done < <(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" tags)
 
 for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
+    PLAYWRIGHT_NPM_VERSION=$(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" npm-version "${version}")
+    PYTHON_PLAYWRIGHT_VERSION=$(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" python-version "${version}")
     if [ "$version" = "$PLAYWRIGHT_LATEST_TAG" ]; then
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.typescript" \
             --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
             -t playrunner-playwright-runner-typescript:latest \
             -t "playrunner-playwright-runner-typescript:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
@@ -658,6 +661,8 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
             --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
+            --build-arg "PYTHON_PLAYWRIGHT_VERSION=${PYTHON_PLAYWRIGHT_VERSION}" \
             -t playrunner-playwright-runner-python:latest \
             -t "playrunner-playwright-runner-python:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
@@ -666,12 +671,15 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.typescript" \
             --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
             -t "playrunner-playwright-runner-typescript:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
             --build-arg "PLAYWRIGHT_VERSION=${version}" \
+            --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
+            --build-arg "PYTHON_PLAYWRIGHT_VERSION=${PYTHON_PLAYWRIGHT_VERSION}" \
             -t "playrunner-playwright-runner-python:${version}" \
             "${BASE_DIR}/apps/runners/playwright"
     fi

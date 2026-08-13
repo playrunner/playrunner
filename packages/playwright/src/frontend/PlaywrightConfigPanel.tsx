@@ -11,6 +11,7 @@ const DEFAULT_PLAYWRIGHT_VERSION = playwrightRunnerConfig.defaultTag;
 const PLAYWRIGHT_VERSION_OPTIONS = playwrightRunnerConfig.versions;
 const DEFAULT_CPU = 2;
 const DEFAULT_MEMORY = 4;
+const DEFAULT_MAX_SHARDS = 4;
 
 function inferPlaywrightRuntime(
   config: Record<string, any>,
@@ -33,6 +34,19 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   onConnectOAuth,
 }) => {
   const { auth, ui } = useIntegrationHost();
+  const [isDarkTheme, setIsDarkTheme] = useState(() =>
+    document.documentElement.classList.contains('dark'),
+  );
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => {
+      setIsDarkTheme(root.classList.contains('dark'));
+    });
+
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
   const Input = ui.Input;
   const Select = ui.Select;
   const [repositories, setRepositories] = useState<
@@ -94,6 +108,14 @@ test.describe('navigation', () => {
       shouldUpdate = true;
     }
 
+    if (!config.shardingMode) {
+      updates.shardingMode = 'off';
+      shouldUpdate = true;
+    } else if (inferredRuntime === 'python' && config.shardingMode !== 'off') {
+      updates.shardingMode = 'off';
+      shouldUpdate = true;
+    }
+
     if (shouldUpdate) {
       onChange(nodeId, { ...latestConfigRef.current, ...updates });
     }
@@ -103,6 +125,7 @@ test.describe('navigation', () => {
     config.memory,
     config.testScript,
     config.playwrightVersion,
+    config.shardingMode,
     config.testLanguage,
     nodeId,
     onChange,
@@ -206,6 +229,7 @@ test.describe('navigation', () => {
     <>
       <div className="flex items-center gap-2 mt-6 mb-4 overflow-x-auto pb-1 scrollbar-hide">
         <button
+          data-testid="playwright-node-tab-config"
           onClick={() => setActiveTab('config')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -217,6 +241,7 @@ test.describe('navigation', () => {
           Configuration
         </button>
         <button
+          data-testid="playwright-node-tab-env"
           onClick={() => setActiveTab('env')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -228,6 +253,7 @@ test.describe('navigation', () => {
           Environment
         </button>
         <button
+          data-testid="playwright-node-tab-resources"
           onClick={() => setActiveTab('resources')}
           className={cn(
             'px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none',
@@ -272,22 +298,23 @@ test.describe('navigation', () => {
                 Azure Playwright Testing:
               </span>{' '}
               For TypeScript, if a{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 playwright.service.config.ts
               </code>{' '}
               is detected alongside your standard config, it will be
               automatically executed. For Python, standard{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 pytest.ini
               </code>{' '}
               and{' '}
-              <code className="text-[10px] font-mono text-muted bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
+              <code className="text-[10px] font-mono text-muted bg-surface-hover dark:bg-[#18181b] px-1 py-0.5 rounded border border-subtle">
                 conftest.py
               </code>{' '}
               configurations are supported.
             </p>
           </div>
           <button
+            data-testid="playwright-node-dismiss-language-info"
             onClick={() =>
               onChange(nodeId, { ...config, dismissedLanguageInfo: true })
             }
@@ -317,6 +344,7 @@ test.describe('navigation', () => {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted">Action</label>
               <Select
+                data-testid="playwright-node-action"
                 value={config.action || 'clone'}
                 onChange={(e) => {
                   const nextAction = e.target.value;
@@ -414,6 +442,7 @@ test.describe('navigation', () => {
                     Repository
                   </label>
                   <Select
+                    data-testid="playwright-node-repository"
                     value={config.repository || ''}
                     onChange={(e) =>
                       onChange(nodeId, {
@@ -446,6 +475,7 @@ test.describe('navigation', () => {
                     Branch
                   </label>
                   <Select
+                    data-testid="playwright-node-branch"
                     value={config.branch || ''}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, branch: e.target.value })
@@ -473,6 +503,7 @@ test.describe('navigation', () => {
                     Runtime
                   </label>
                   <Select
+                    data-testid="playwright-node-test-language"
                     value={config.testLanguage || 'typescript'}
                     onChange={(e) =>
                       onChange(nodeId, {
@@ -495,6 +526,7 @@ test.describe('navigation', () => {
                     Folder
                   </label>
                   <Input
+                    data-testid="playwright-node-folder"
                     value={config.folder || '/'}
                     onChange={(e) =>
                       onChange(nodeId, { ...config, folder: e.target.value })
@@ -511,28 +543,34 @@ test.describe('navigation', () => {
 
             {config.action === 'run' && (
               <div className="flex flex-col gap-1.5 shrink-0">
-                <div className="rounded-xl border border-subtle bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
-                  <Editor
-                    height="100%"
-                    defaultLanguage="javascript"
-                    theme="vs-dark"
-                    value={config.testScript || ''}
-                    onChange={(value) =>
-                      onChange(nodeId, { ...config, testScript: value || '' })
-                    }
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      fontFamily: 'var(--font-mono)',
-                      lineNumbers: 'on',
-                      scrollBeyondLastLine: false,
-                      wordWrap: 'on',
-                      padding: { top: 16, bottom: 16 },
-                      tabSize: 2,
-                      dragAndDrop: true,
-                      dropIntoEditor: { enabled: true },
-                    }}
-                  />
+                <div className="rounded-xl border border-subtle bg-background dark:bg-[#1e1e1e] overflow-hidden resize-y min-h-[250px] h-[350px]">
+                  <div
+                    data-testid="playwright-node-script"
+                    data-script-value={config.testScript || ''}
+                    className="h-full"
+                  >
+                    <Editor
+                      height="100%"
+                      defaultLanguage="javascript"
+                      theme={isDarkTheme ? 'vs-dark' : 'light'}
+                      value={config.testScript || ''}
+                      onChange={(value) =>
+                        onChange(nodeId, { ...config, testScript: value || '' })
+                      }
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        fontFamily: 'var(--font-mono)',
+                        lineNumbers: 'on',
+                        scrollBeyondLastLine: false,
+                        wordWrap: 'on',
+                        padding: { top: 16, bottom: 16 },
+                        tabSize: 2,
+                        dragAndDrop: true,
+                        dropIntoEditor: { enabled: true },
+                      }}
+                    />
+                  </div>
                 </div>
                 <p className="text-[10px] text-muted mt-1">
                   The test will run in a headless browser on our infrastructure.
@@ -574,6 +612,7 @@ test.describe('navigation', () => {
                     </p>
                   </div>
                   <input
+                    data-testid="playwright-node-zip-file"
                     type="file"
                     accept=".zip"
                     className="hidden"
@@ -610,7 +649,9 @@ test.describe('navigation', () => {
                       <line x1="12" x2="12" y1="3" y2="15" />
                     </svg>
                     <span className="text-xs text-[var(--foreground)] truncate">
-                      {config.zipFileName}
+                      <span data-testid="playwright-node-zip-file-name">
+                        {config.zipFileName}
+                      </span>
                     </span>
                   </div>
                 )}
@@ -645,7 +686,7 @@ test.describe('navigation', () => {
                     </ul>
                   </div>
 
-                  <div className="bg-[#18181b] border border-subtle rounded-md p-2 font-mono text-[10px] text-muted leading-relaxed">
+                  <div className="bg-surface-hover dark:bg-[#18181b] border border-subtle rounded-md p-2 font-mono text-[10px] text-muted leading-relaxed">
                     <p className="text-[var(--foreground)] mb-1.5 font-medium font-sans">
                       Expected ZIP Structure:
                     </p>
@@ -684,6 +725,7 @@ test.describe('navigation', () => {
                 Playwright Version
               </label>
               <Select
+                data-testid="playwright-node-version"
                 value={config.playwrightVersion || DEFAULT_PLAYWRIGHT_VERSION}
                 onChange={(e) =>
                   onChange(nodeId, {
@@ -710,6 +752,7 @@ test.describe('navigation', () => {
                 Injected Environment Variables
               </label>
               <div
+                data-testid="playwright-node-env-vars"
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 className="min-h-[80px] border-2 border-dashed border-subtle rounded-xl p-4 flex flex-col gap-2 bg-surface/30 transition-colors hover:bg-surface/50 relative group"
@@ -724,7 +767,7 @@ test.describe('navigation', () => {
                     {config.envVars.map((v: string) => (
                       <div
                         key={v}
-                        className="bg-[#18181b] border border-subtle rounded px-2 py-1 flex items-center gap-2 group/tag cursor-default"
+                        className="bg-surface-hover dark:bg-[#18181b] border border-subtle rounded px-2 py-1 flex items-center gap-2 group/tag cursor-default"
                       >
                         <span className="text-[10px] font-mono text-muted">
                           env.{v}
@@ -770,67 +813,200 @@ test.describe('navigation', () => {
         )}
 
         {activeTab === 'resources' && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                CPU
-              </label>
-              <Select
-                value={config.cpu || DEFAULT_CPU}
-                onChange={(e) =>
-                  onChange(nodeId, { ...config, cpu: parseInt(e.target.value) })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              >
-                <option value={1}>1 CPU</option>
-                <option value={2}>2 CPUs</option>
-                <option value={4}>4 CPUs</option>
-                <option value={8}>8 CPUs</option>
-              </Select>
+          <div className="space-y-5">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  CPU
+                </label>
+                <Select
+                  data-testid="playwright-node-cpu"
+                  value={config.cpu || DEFAULT_CPU}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      cpu: parseInt(e.target.value),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value={1}>1 CPU</option>
+                  <option value={2}>2 CPUs</option>
+                  <option value={4}>4 CPUs</option>
+                  <option value={8}>8 CPUs</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  Memory
+                </label>
+                <Select
+                  data-testid="playwright-node-memory"
+                  value={config.memory || DEFAULT_MEMORY}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      memory: parseFloat(e.target.value),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value={0.5}>512 MB</option>
+                  <option value={1}>1 GB</option>
+                  <option value={2}>2 GB</option>
+                  <option value={4}>4 GB</option>
+                  <option value={8}>8 GB</option>
+                  <option value={16}>16 GB</option>
+                  <option value={32}>32 GB</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  {config.shardingMode === 'auto'
+                    ? 'Maximum workers per shard'
+                    : 'Workers (Max 100)'}
+                </label>
+                <Input
+                  data-testid="playwright-node-workers"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={config.workers || 1}
+                  onChange={(e) =>
+                    onChange(nodeId, {
+                      ...config,
+                      workers: Math.min(
+                        100,
+                        Math.max(1, parseInt(e.target.value) || 1),
+                      ),
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                Memory
-              </label>
-              <Select
-                value={config.memory || DEFAULT_MEMORY}
-                onChange={(e) =>
-                  onChange(nodeId, {
-                    ...config,
-                    memory: parseFloat(e.target.value),
-                  })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              >
-                <option value={0.5}>512 MB</option>
-                <option value={1}>1 GB</option>
-                <option value={2}>2 GB</option>
-                <option value={4}>4 GB</option>
-                <option value={8}>8 GB</option>
-                <option value={16}>16 GB</option>
-                <option value={32}>32 GB</option>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
-                Workers (Max 100)
-              </label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={config.workers || 1}
-                onChange={(e) =>
-                  onChange(nodeId, {
-                    ...config,
-                    workers: Math.min(
-                      100,
-                      Math.max(1, parseInt(e.target.value) || 1),
-                    ),
-                  })
-                }
-                className="bg-[var(--background)] border-subtle text-sm"
-              />
+
+            <div className="rounded-xl border border-subtle bg-background p-4 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-[var(--foreground)]">
+                  Suite sharding
+                </p>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                  Shards run on separate runners. CPU, memory, and workers are
+                  allocated to every shard.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                  Mode
+                </label>
+                <Select
+                  data-testid="playwright-node-sharding-mode"
+                  value={config.shardingMode || 'off'}
+                  disabled={inferPlaywrightRuntime(config) === 'python'}
+                  onChange={(event) =>
+                    onChange(nodeId, {
+                      ...config,
+                      shardingMode: event.target.value,
+                    })
+                  }
+                  className="bg-[var(--background)] border-subtle text-sm"
+                >
+                  <option value="off">Off</option>
+                  <option value="manual">Manual</option>
+                  <option value="auto">Auto</option>
+                </Select>
+                {inferPlaywrightRuntime(config) === 'python' ? (
+                  <p className="text-[10px] text-muted">
+                    Sharding and blob report merging currently require the
+                    TypeScript Playwright Test runtime.
+                  </p>
+                ) : null}
+              </div>
+
+              {config.shardingMode === 'manual' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                    Shard count
+                  </label>
+                  <Input
+                    data-testid="playwright-node-shard-count"
+                    type="number"
+                    min={2}
+                    max={16}
+                    value={config.shardCount || 2}
+                    onChange={(event) =>
+                      onChange(nodeId, {
+                        ...config,
+                        shardCount: Math.min(
+                          16,
+                          Math.max(2, parseInt(event.target.value) || 2),
+                        ),
+                      })
+                    }
+                  />
+                </div>
+              ) : null}
+
+              {config.shardingMode === 'auto' ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
+                    Maximum shards
+                  </label>
+                  <Input
+                    data-testid="playwright-node-max-shards"
+                    type="number"
+                    min={2}
+                    max={16}
+                    value={config.maxShards || DEFAULT_MAX_SHARDS}
+                    onChange={(event) =>
+                      onChange(nodeId, {
+                        ...config,
+                        maxShards: Math.min(
+                          16,
+                          Math.max(
+                            2,
+                            parseInt(event.target.value) || DEFAULT_MAX_SHARDS,
+                          ),
+                        ),
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-muted">
+                    Playrunner discovers the suite first, then reduces this
+                    maximum for useful test/file units and available capacity.
+                    It may also reduce workers per shard to create a wider
+                    feasible topology.
+                  </p>
+                </div>
+              ) : null}
+
+              {config.shardingMode !== 'off' ? (
+                <div className="rounded-lg border border-subtle bg-surface-hover p-3 text-[10px] text-muted">
+                  Up to{' '}
+                  <span className="font-medium text-[var(--foreground)]">
+                    {config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS}{' '}
+                    shards
+                  </span>{' '}
+                  ·{' '}
+                  {(config.cpu || DEFAULT_CPU) *
+                    (config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
+                  CPUs ·{' '}
+                  {(config.memory || DEFAULT_MEMORY) *
+                    (config.shardingMode === 'manual'
+                      ? config.shardCount || 2
+                      : config.maxShards || DEFAULT_MAX_SHARDS)}{' '}
+                  GB ·{' '}
+                  {config.shardingMode === 'manual'
+                    ? `${(config.workers || 1) * (config.shardCount || 2)} workers`
+                    : `${config.workers || 1} workers per shard maximum; final allocation is planned after discovery`}
+                </div>
+              ) : null}
             </div>
           </div>
         )}

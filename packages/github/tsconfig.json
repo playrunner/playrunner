@@ -16,7 +16,12 @@
       "@playrunner/integration-sdk/e2e": [
         "../integration-sdk/src/e2e/index.ts"
       ],
-      "@playrunner/integration-sdk/api": ["../integration-sdk/src/api/index.ts"]
+      "@playrunner/integration-sdk/api": [
+        "../integration-sdk/src/api/index.ts"
+      ],
+      "@playrunner/integration-sdk/orchestrator": [
+        "../integration-sdk/src/orchestrator/index.ts"
+      ]
     }
   },
   "include": ["src"]

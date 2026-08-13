@@ -53,7 +53,8 @@ When building or extending packages under `packages/*`, follow the package shape
 - Default-export the frontend integration object from `src/frontend/index.tsx` using the existing `Integration` contract. Preserve established ids unless the user asks to rename them; for example, `@playrunner/playwright` uses id `playwright`, GitHub uses `github`, and Environment uses `environment`.
 - Default-export the API contribution from `src/api/index.ts` with a stable `id`, `mountPath`, and Express router.
 - When a package owns workflow execution, default-export its `OrchestratorIntegrationContribution` from `src/orchestrator/index.ts` using the versioned `@playrunner/integration-sdk/orchestrator` contract. Keep scheduling, lifecycle, state, transport, timeouts, cancellation, and cleanup in the orchestrator host.
-- Select a package for a surface by adding its published npm version as a direct production `dependency` or `optionalDependency` of the consuming frontend, API, or orchestrator app. Do not rely on a transitive or development dependency, and do not add provider-specific Vite or TypeScript aliases. Use a local `file:` dependency only as an explicit package-development override, with symlink preservation where required.
+- Whenever modifying a package under `packages/*`, link every consuming frontend, API, or orchestrator app directly to that local package with a relative `file:` production `dependency` or `optionalDependency`. Run the consuming app's package install so its lockfile records the local link and `node_modules` resolves to the package source, then keep the link in place throughout development, testing, and review. Do not rely on a transitive or development dependency, and do not add provider-specific Vite or TypeScript aliases.
+- Replace a consuming app's local `file:` package dependency with an exact npm version only after that new package version has been published and its registry artifact and exports have been verified. Update the consuming app's lockfile after restoring the npm dependency; never switch back to an older published version merely because the package code is complete or committed.
 - Let each consuming app generate its static contribution imports from installed direct dependencies at build time with `infra/scripts/generate-integration-composition.mjs`. Do not install packages, discover providers, or modify contribution composition at workflow runtime. The orchestrator host owns provider-agnostic contribution validation and executor resolution in `apps/runners/orchestrator/src/runtime/orchestrator-registry.ts`.
 - `install-local.sh` discovers package directories dynamically from `playrunner.integration` metadata. Do not add new integration package names to a handwritten install list or update `start-local.sh` merely to register a provider; change those scripts only when their generic install/start behaviour itself must change.
 - Prefer package-owned SVG/logo assets for integrations that need brand media. Follow the implemented asset export pattern instead of depending only on duplicated app public assets.
@@ -69,3 +70,28 @@ When building or extending packages under `packages/*`, follow the package shape
 - Run `npm pack --dry-run --json` from the package directory and inspect the reported filename, package size, unpacked size, and complete file list. The tarball must include `package.json`, `LICENSE`, `README.md`, declared source entrypoints, and exported assets, while excluding tests, credentials, local configuration, caches, `node_modules`, generated app composition, and unrelated repository files.
 - Publish scoped Playrunner packages with the package manifest's public npm `publishConfig`; the explicit command is `npm publish --access public --registry https://registry.npmjs.org`. Do not add `--force`, bypass lifecycle checks, or publish from the repository root.
 - After publishing, verify the exact version and dist-tag from npm, then install that exact published version into a temporary directory and confirm every declared export resolves. Publishing the package does not rebuild or deploy any consuming Playrunner frontend, API, or runner artifact.
+- After the published artifact passes verification, replace each consuming app's local `file:` dependency for that package with the newly published exact npm version, reinstall to update its lockfile, and rerun the relevant consumer checks. Do not restore npm dependencies before publication and verification succeed.
+
+## Adding Playwright Runner Versions
+
+- Treat `config/playwright-runner-versions.json` as the only release registry. A normal Playwright runner version addition must change this file only; do not edit `infra/scripts/playwright-runner-config.mjs`, either file under `apps/runners/playwright/Dockerfile.*`, or a cloud Dockerfile/build definition.
+- Add one registry entry containing:
+  - `tag`: the exact Microsoft Playwright image tag, such as `v1.62.1-jammy`.
+  - `label`: the user-facing Playwright version, such as `v1.62.1`.
+  - `npmVersion`: the exact published npm `playwright` and `@playwright/test` version.
+  - `pythonVersion`: the exact published PyPI `playwright` version. This may differ from the image/npm patch version when PyPI has not published the same patch; verify availability instead of assuming equality.
+  - `publishAsLatest`: `true` for exactly one entry and `false` for every retained older entry.
+- Set `defaultTag` to the preferred release and retain every still-supported older entry. Never replace the versions array when the request is to add or retain a release.
+- Do not put numeric Playwright defaults back into the Dockerfiles. The publisher must pass `PLAYWRIGHT_VERSION`, `PLAYWRIGHT_NPM_VERSION`, and `PYTHON_PLAYWRIGHT_VERSION` from the registry.
+- Validate the registry before any image publication:
+
+```bash
+node infra/scripts/playwright-runner-config.mjs default-tag
+node infra/scripts/playwright-runner-config.mjs tags
+node infra/scripts/playwright-runner-config.mjs npm-version <runner-tag>
+node infra/scripts/playwright-runner-config.mjs python-version <runner-tag>
+bash -n infra/gcp/scripts/push-runners.sh
+git diff --check
+```
+
+- Build and smoke-test TypeScript and Python images for every registry entry when changing the generic publisher. For a registry-only release addition, rely on the existing generic publisher and verify every versioned registry tag plus `latest` after publication.

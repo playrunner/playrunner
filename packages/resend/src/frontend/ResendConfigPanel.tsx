@@ -29,6 +29,7 @@ export const ResendConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       >
         <Select
           aria-label="Resend operation"
+          data-testid="resend-node-operation"
           value={operation}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             update({ action: event.target.value });
@@ -73,6 +74,7 @@ function SendEmailFields({
     <>
       <IntegrationConfigField label="From">
         <Input
+          data-testid="resend-node-from"
           value={config.from || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ from: event.target.value });
@@ -85,6 +87,7 @@ function SendEmailFields({
         hint="Separate multiple recipients with commas or new lines."
       >
         <Textarea
+          data-testid="resend-node-to"
           value={config.to || ''}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             update({ to: event.target.value });
@@ -95,6 +98,7 @@ function SendEmailFields({
       </IntegrationConfigField>
       <IntegrationConfigField label="Subject">
         <Input
+          data-testid="resend-node-subject"
           value={config.subject || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ subject: event.target.value });
@@ -104,6 +108,7 @@ function SendEmailFields({
       </IntegrationConfigField>
       <IntegrationConfigField label="Content">
         <Select
+          data-testid="resend-node-content-mode"
           value={contentMode}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             update({ contentMode: event.target.value });
@@ -118,6 +123,7 @@ function SendEmailFields({
         <>
           <IntegrationConfigField label="Template ID or alias">
             <Input
+              data-testid="resend-node-template-id"
               value={config.templateId || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ templateId: event.target.value });
@@ -130,6 +136,7 @@ function SendEmailFields({
             hint="Optional JSON object."
           >
             <Textarea
+              data-testid="resend-node-template-variables"
               value={config.templateVariables || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 update({ templateVariables: event.target.value });
@@ -143,6 +150,7 @@ function SendEmailFields({
         <>
           <IntegrationConfigField label="Plain text">
             <Textarea
+              data-testid="resend-node-text"
               value={config.text || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 update({ text: event.target.value });
@@ -153,6 +161,7 @@ function SendEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="HTML (optional)">
             <Textarea
+              data-testid="resend-node-html"
               value={config.html || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 update({ html: event.target.value });
@@ -171,6 +180,7 @@ function SendEmailFields({
         <div className="mt-4 space-y-4">
           <IntegrationConfigField label="CC">
             <Input
+              data-testid="resend-node-cc"
               value={config.cc || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ cc: event.target.value });
@@ -180,6 +190,7 @@ function SendEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="BCC">
             <Input
+              data-testid="resend-node-bcc"
               value={config.bcc || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ bcc: event.target.value });
@@ -189,6 +200,7 @@ function SendEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="Reply to">
             <Input
+              data-testid="resend-node-reply-to"
               value={config.replyTo || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ replyTo: event.target.value });
@@ -198,6 +210,7 @@ function SendEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="Idempotency key">
             <Input
+              data-testid="resend-node-idempotency-key"
               value={config.idempotencyKey || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ idempotencyKey: event.target.value });
@@ -207,6 +220,7 @@ function SendEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="Tags" hint="Optional JSON object.">
             <Textarea
+              data-testid="resend-node-tags"
               value={config.tags || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 update({ tags: event.target.value });
@@ -220,6 +234,7 @@ function SendEmailFields({
             hint="Optional JSON object."
           >
             <Textarea
+              data-testid="resend-node-headers"
               value={config.headers || ''}
               onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
                 update({ headers: event.target.value });
@@ -261,6 +276,7 @@ function WaitForEmailFields({
         hint="Use a unique, templated address to correlate concurrent runs."
       >
         <Input
+          data-testid="resend-node-wait-recipient"
           value={config.to || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ to: event.target.value });
@@ -273,6 +289,7 @@ function WaitForEmailFields({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <IntegrationConfigField label="Timeout (seconds)">
           <Input
+            data-testid="resend-node-timeout"
             type="number"
             min={5}
             max={240}
@@ -287,6 +304,7 @@ function WaitForEmailFields({
           hint="Includes mail sent just before this node started."
         >
           <Input
+            data-testid="resend-node-lookback"
             type="number"
             min={0}
             max={300}
@@ -299,6 +317,7 @@ function WaitForEmailFields({
       </div>
       <IntegrationConfigField label="Sender (optional)">
         <Input
+          data-testid="resend-node-sender-filter"
           value={config.fromFilter || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ fromFilter: event.target.value });
@@ -308,6 +327,7 @@ function WaitForEmailFields({
       </IntegrationConfigField>
       <IntegrationConfigField label="Subject contains (optional)">
         <Input
+          data-testid="resend-node-subject-filter"
           value={config.subjectFilter || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ subjectFilter: event.target.value });
@@ -317,6 +337,7 @@ function WaitForEmailFields({
       </IntegrationConfigField>
       <IntegrationConfigField label="Body contains (optional)">
         <Input
+          data-testid="resend-node-body-filter"
           value={config.bodyFilter || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             update({ bodyFilter: event.target.value });
@@ -326,6 +347,7 @@ function WaitForEmailFields({
       </IntegrationConfigField>
       <IntegrationConfigField label="Extract">
         <Select
+          data-testid="resend-node-extraction"
           value={extraction}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             update({ extraction: event.target.value });
@@ -340,6 +362,7 @@ function WaitForEmailFields({
         <>
           <IntegrationConfigField label="Regular expression">
             <Input
+              data-testid="resend-node-extraction-pattern"
               value={config.extractionPattern || ''}
               onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                 update({ extractionPattern: event.target.value });
@@ -350,6 +373,7 @@ function WaitForEmailFields({
           </IntegrationConfigField>
           <IntegrationConfigField label="Capture group">
             <Input
+              data-testid="resend-node-capture-group"
               type="number"
               min={0}
               max={20}
@@ -363,6 +387,7 @@ function WaitForEmailFields({
       ) : null}
       <IntegrationConfigField label="Attachments">
         <Select
+          data-testid="resend-node-attachments"
           value={config.attachments || 'metadata'}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             update({ attachments: event.target.value });

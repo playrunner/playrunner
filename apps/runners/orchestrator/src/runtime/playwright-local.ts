@@ -22,6 +22,23 @@ function resolveExecutionId(request: PlaywrightExecutionRequest): string {
   );
 }
 
+function createContainerName(executionId: string, nodeId: string): string {
+  return `playrunner-${executionId}-${nodeId}`
+    .toLowerCase()
+    .replace(/[^a-z0-9_.-]/g, '-')
+    .slice(0, 120);
+}
+
+async function stopContainer(containerName: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const stop = spawn('docker', ['stop', '--time', '5', containerName], {
+      stdio: 'ignore',
+    });
+    stop.on('error', () => resolve(false));
+    stop.on('exit', (code) => resolve(code === 0));
+  });
+}
+
 export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBackend {
   supports(cloudProvider: string): boolean {
     return cloudProvider === 'LOCAL_RUNNER';
@@ -51,6 +68,7 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
     const imageTag = config.playwrightVersion || 'latest';
     const fullImage = `${resolvePlaywrightLocalImage(runtime)}:${imageTag}`;
     const executionId = resolveExecutionId(request);
+    const containerName = createContainerName(executionId, nodeId);
     const eventTransport = request.reqBody.eventTransport as
       | { projectId?: string; topicName?: string; type?: 'gcp_pubsub' }
       | undefined;
@@ -86,7 +104,22 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
       'info',
     );
 
-    const dockerArgs = ['run', '--rm', '--platform', 'linux/amd64'];
+    const dockerArgs = [
+      'run',
+      '--rm',
+      '--name',
+      containerName,
+      '--label',
+      `playrunner.execution-id=${executionId}`,
+      '--label',
+      `playrunner.node-id=${nodeId}`,
+      '--cpus',
+      String(config.cpu || 2),
+      '--memory',
+      `${config.memory || 4}g`,
+      '--platform',
+      'linux/amd64',
+    ];
 
     envKeys.forEach((key) => {
       const actualVal = globalEnvVars[key] || '***';
@@ -107,6 +140,9 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
     });
     registerActiveProcess(nodeId, playwrightProcess);
     const emitChunk = createChunkEmitter(async (line, level) => {
+      if (line.startsWith('[Playwright Runner]')) {
+        return;
+      }
       await publishLog(`[Local Docker] ${line}`, level);
     });
 
@@ -115,7 +151,7 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
     });
 
     playwrightProcess.stderr?.on('data', (chunk) => {
-      emitChunk(chunk.toString(), 'error');
+      emitChunk(chunk.toString(), 'info');
     });
 
     const completion = new Promise<void>((resolve, reject) => {
@@ -135,18 +171,30 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
 
     let startRequested = false;
     let completed = false;
+    let stopRequested = false;
     completion.then(
       () => {
         completed = true;
-        void runnerControl.cleanup();
       },
       () => {
         completed = true;
-        void runnerControl.cleanup();
       },
     );
 
     return {
+      cancel: async () => {
+        if (!completed && !stopRequested) {
+          stopRequested = true;
+          await runnerControl.publishCancel().catch((error) => {
+            console.warn(
+              `[Local] Failed to signal cancellation for Playwright runner ${nodeId}: ${error.message}`,
+            );
+          });
+          if (!(await stopContainer(containerName))) {
+            playwrightProcess.kill('SIGTERM');
+          }
+        }
+      },
       cleanup: async () => {
         if (!startRequested && !completed) {
           await runnerControl.publishCancel().catch((error) => {
@@ -154,6 +202,12 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
               `[Local] Failed to cancel prepared Playwright runner ${nodeId}: ${error.message}`,
             );
           });
+          if (!stopRequested) {
+            stopRequested = true;
+            if (!(await stopContainer(containerName))) {
+              playwrightProcess.kill('SIGTERM');
+            }
+          }
           return;
         }
         await runnerControl.cleanup();
@@ -164,7 +218,9 @@ export class LocalPlaywrightExecutionBackend implements PlaywrightExecutionBacke
       },
       waitForCompletion: async () => {
         await completion;
+        const result = await runnerControl.waitForCompletion();
         await publishLog('Playwright Runner finished and shut down.', 'info');
+        return result;
       },
       waitUntilReady: async () => {
         await runnerControl.waitUntilReady();

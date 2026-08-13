@@ -5,6 +5,11 @@ import { Textarea } from './ui/Textarea';
 import { Select } from './ui/Select';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
+import { openAuthenticatedOutput } from '../lib/output-links';
+import {
+  insertDroppedText,
+  normalizeConfigDropText,
+} from '../lib/config-template-drop';
 import { INTEGRATIONS } from '../integrations/registry';
 import {
   ChevronDown,
@@ -35,6 +40,16 @@ type WorkflowInputVariable = {
   type: string;
 };
 
+type OutputVariable = WorkflowInputVariable & {
+  description?: string;
+};
+
+type OutputAwareIntegration = {
+  getOutputVariables?: (
+    config: Record<string, unknown>,
+  ) => readonly OutputVariable[];
+};
+
 const WORKFLOW_INPUT_PANEL_ID = '__workflow__';
 const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
   { path: 'workflow.definition.id', type: 'string' },
@@ -51,19 +66,100 @@ const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
   { path: 'workflow.run.url', type: 'url' },
 ];
 
+const DEFAULT_OUTPUT_VARIABLES: readonly OutputVariable[] = [
+  { path: 'result.status', type: 'string' },
+  { path: 'result.data', type: 'object', description: 'Response payload' },
+  { path: 'error.message', type: 'string' },
+];
+
 function setDragText(event: React.DragEvent, dragText: string) {
   event.dataTransfer.setData('text/plain', dragText);
 
   const dragGhost = document.createElement('div');
   dragGhost.textContent = dragText;
   dragGhost.className =
-    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
   document.body.appendChild(dragGhost);
   event.dataTransfer.setDragImage(dragGhost, 10, 10);
 
   setTimeout(() => {
     document.body.removeChild(dragGhost);
   }, 0);
+}
+
+function setNativeFieldValue(
+  field: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) {
+  const prototype =
+    field instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+
+  if (valueSetter) {
+    valueSetter.call(field, value);
+  } else {
+    field.value = value;
+  }
+}
+
+function outputVariablesFor(
+  integration: OutputAwareIntegration | undefined,
+  config: Record<string, unknown> | undefined,
+  output?: unknown,
+): readonly OutputVariable[] {
+  const declaredVariables = integration?.getOutputVariables?.(config ?? {});
+  if (declaredVariables) return declaredVariables;
+
+  const inferredVariables = inferOutputVariables(output);
+  return inferredVariables.length > 0
+    ? inferredVariables
+    : DEFAULT_OUTPUT_VARIABLES;
+}
+
+function inferOutputVariables(
+  value: unknown,
+  parentPath = '',
+  depth = 0,
+): OutputVariable[] {
+  if (
+    depth > 4 ||
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value)
+  ) {
+    return [];
+  }
+
+  return Object.entries(value as Record<string, unknown>).flatMap(
+    ([key, child]) => {
+      const path = parentPath ? `${parentPath}.${key}` : key;
+      const isObject =
+        typeof child === 'object' && child !== null && !Array.isArray(child);
+      const isStandardContainer =
+        !parentPath && (key === 'result' || key === 'error');
+      const variable: OutputVariable = {
+        path,
+        type: Array.isArray(child)
+          ? 'array'
+          : isObject
+            ? 'object'
+            : typeof child === 'boolean'
+              ? 'boolean'
+              : typeof child === 'number'
+                ? 'number'
+                : typeof child === 'string' && /^https?:\/\//.test(child)
+                  ? 'url'
+                  : 'string',
+      };
+      const children = isObject
+        ? inferOutputVariables(child, path, depth + 1)
+        : [];
+
+      return isStandardContainer ? children : [variable, ...children];
+    },
+  );
 }
 
 export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
@@ -88,6 +184,9 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     [WORKFLOW_INPUT_PANEL_ID]: true,
   });
   const [expandedMediaItems, setExpandedMediaItems] = useState<
+    Record<string, boolean>
+  >({});
+  const [expandedOutputObjects, setExpandedOutputObjects] = useState<
     Record<string, boolean>
   >({});
 
@@ -135,6 +234,34 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
     document.addEventListener('pointermove', handlePointerMove);
     document.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const handleConfigFieldDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const field = event.target;
+    if (
+      !(
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement
+      )
+    ) {
+      return;
+    }
+
+    const droppedText = event.dataTransfer.getData('text/plain');
+    const normalizedText = normalizeConfigDropText(droppedText);
+    if (!droppedText || normalizedText === droppedText) return;
+
+    event.preventDefault();
+    const insertion = insertDroppedText(
+      field.value,
+      normalizedText,
+      field.selectionStart,
+      field.selectionEnd,
+    );
+    setNativeFieldValue(field, insertion.value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.focus();
+    field.setSelectionRange(insertion.caret, insertion.caret);
   };
 
   const currentIntegration = INTEGRATIONS.find((i) => i.id === nodeType);
@@ -205,6 +332,84 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const showAuthenticationPanel =
     currentIntegration?.requiresAuth !== false &&
     currentIntegration?.showAuthenticationPanel !== false;
+
+  const renderOutputVariables = (
+    variables: readonly OutputVariable[],
+    options: { nodeId?: string; color: string },
+  ) =>
+    variables.map((variable) => {
+      const parentObjects = variables.filter(
+        (candidate) =>
+          candidate.type === 'object' &&
+          variable.path.startsWith(`${candidate.path}.`),
+      );
+      const isVisible = parentObjects.every(
+        (parent) =>
+          expandedOutputObjects[`${options.nodeId ?? nodeId}:${parent.path}`],
+      );
+      if (!isVisible) return null;
+
+      const objectKey = `${options.nodeId ?? nodeId}:${variable.path}`;
+      const isObject = variable.type === 'object';
+      const isExpanded = expandedOutputObjects[objectKey];
+      const dragText = options.nodeId
+        ? `{{node_${options.nodeId}.${variable.path}}}`
+        : undefined;
+      const isNested = parentObjects.length > 0;
+
+      return (
+        <div
+          key={variable.path}
+          className={cn(
+            'flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors',
+            dragText ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+            isNested && 'ml-3',
+          )}
+          draggable={Boolean(dragText)}
+          onDragStart={
+            dragText ? (event) => setDragText(event, dragText) : undefined
+          }
+          title={dragText ? `Drag ${dragText} to inject this value` : undefined}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn('text-xs font-mono', options.color)}>
+              {variable.path}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                {variable.type}
+              </span>
+              {isObject && (
+                <button
+                  type="button"
+                  className="p-0.5 text-muted hover:text-[var(--foreground)]"
+                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${variable.path}`}
+                  title={`${isExpanded ? 'Collapse' : 'Expand'} ${variable.path}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpandedOutputObjects((previous) => ({
+                      ...previous,
+                      [objectKey]: !previous[objectKey],
+                    }));
+                  }}
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+          {variable.description && (
+            <span className="text-[10px] text-muted leading-relaxed">
+              {variable.description}
+            </span>
+          )}
+        </div>
+      );
+    });
 
   return (
     <div
@@ -367,6 +572,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                             {vars.map((v: any) => (
                               <div
                                 key={v.id}
+                                data-testid={`input-environment-variable-${v.key}`}
                                 className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
                                 draggable
                                 onDragStart={(e) => {
@@ -380,7 +586,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                     document.createElement('div');
                                   dragGhost.textContent = dragText;
                                   dragGhost.className =
-                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                   document.body.appendChild(dragGhost);
                                   e.dataTransfer.setDragImage(
                                     dragGhost,
@@ -430,55 +636,62 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                         </button>
                         {!isCollapsed && (
                           <div className="space-y-2 mt-2">
-                            {inNode.output?.reportUrl && (
-                              <div
-                                className="flex flex-col gap-2 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
-                                draggable
-                                onDragStart={(e) => {
-                                  const dragText = `{{node_${inNode.id}.reportUrl}}`;
-                                  e.dataTransfer.setData(
-                                    'text/plain',
-                                    dragText,
-                                  );
-
-                                  const dragGhost =
-                                    document.createElement('div');
-                                  dragGhost.textContent = dragText;
-                                  dragGhost.className =
-                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
-                                  document.body.appendChild(dragGhost);
-                                  e.dataTransfer.setDragImage(
-                                    dragGhost,
-                                    10,
-                                    10,
-                                  );
-
-                                  setTimeout(() => {
-                                    document.body.removeChild(dragGhost);
-                                  }, 0);
-                                }}
-                                title="Drag to inject this value"
-                              >
-                                <div className="flex items-center justify-between pointer-events-none">
-                                  <span className="text-xs font-mono text-blue-400">
-                                    reportUrl
-                                  </span>
-                                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                                    url
-                                  </span>
-                                </div>
+                            <div
+                              className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                              draggable
+                              onDragStart={(event) =>
+                                setDragText(
+                                  event,
+                                  `{{node_${inNode.id}.report}}`,
+                                )
+                              }
+                              title="Drag the machine-readable report into this node"
+                            >
+                              <span className="text-xs font-mono text-blue-400">
+                                report
+                              </span>
+                              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                                object
+                              </span>
+                            </div>
+                            <div
+                              className="flex flex-col gap-2 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-grab active:cursor-grabbing"
+                              draggable
+                              onDragStart={(event) =>
+                                setDragText(
+                                  event,
+                                  `{{node_${inNode.id}.reportUrl}}`,
+                                )
+                              }
+                              title="Drag to inject this value"
+                            >
+                              <div className="flex items-center justify-between pointer-events-none">
+                                <span className="text-xs font-mono text-blue-400">
+                                  reportUrl
+                                </span>
+                                <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                                  url
+                                </span>
+                              </div>
+                              {inNode.output?.reportUrl && (
                                 <a
                                   href={inNode.output.reportUrl}
                                   target="_blank"
                                   rel="noreferrer"
                                   className="text-[10px] text-blue-500 hover:underline break-all pointer-events-auto w-fit"
                                   onDragStart={(e) => e.preventDefault()}
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    void openAuthenticatedOutput(
+                                      inNode.output.reportUrl,
+                                    );
+                                  }}
                                 >
                                   Open HTML Report
                                 </a>
-                              </div>
-                            )}
+                              )}
+                            </div>
                             {inNode.output?.media &&
                               inNode.output.media.length > 0 &&
                               (() => {
@@ -501,7 +714,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                           document.createElement('div');
                                         dragGhost.textContent = dragText;
                                         dragGhost.className =
-                                          'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                          'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                         document.body.appendChild(dragGhost);
                                         e.dataTransfer.setDragImage(
                                           dragGhost,
@@ -574,7 +787,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                                   dragGhost.textContent =
                                                     dragText;
                                                   dragGhost.className =
-                                                    'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
+                                                    'bg-surface-hover dark:bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
                                                   document.body.appendChild(
                                                     dragGhost,
                                                   );
@@ -657,20 +870,16 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                                   </>
                                 );
                               })()}
-                            {!inNode.output?.reportUrl &&
-                              (!inNode.output?.media ||
-                                inNode.output.media.length === 0) && (
-                                <div className="p-2 rounded border border-dashed border-subtle bg-surface/50 text-center">
-                                  <span className="text-xs text-muted">
-                                    Run node to fetch outputs
-                                  </span>
-                                </div>
-                              )}
                           </div>
                         )}
                       </div>
                     );
                   } else {
+                    const outputVariables = outputVariablesFor(
+                      matchedIntegration as OutputAwareIntegration | undefined,
+                      inNode.config,
+                      inNode.output,
+                    );
                     return (
                       <div
                         key={inNode.id}
@@ -694,33 +903,10 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                         </button>
                         {!isCollapsed && (
                           <div className="space-y-2 mt-2">
-                            <div
-                              className="flex items-center justify-between p-2 rounded hover:bg-surface transition-colors border border-transparent hover:border-subtle cursor-grab active:cursor-grabbing"
-                              draggable
-                              onDragStart={(e) => {
-                                const dragText = `{{node_${inNode.id}.result.data}}`;
-                                e.dataTransfer.setData('text/plain', dragText);
-
-                                const dragGhost = document.createElement('div');
-                                dragGhost.textContent = dragText;
-                                dragGhost.className =
-                                  'bg-[#18181b] text-blue-400 px-2 py-1 rounded text-xs font-mono border border-subtle shadow-lg absolute -top-96';
-                                document.body.appendChild(dragGhost);
-                                e.dataTransfer.setDragImage(dragGhost, 10, 10);
-
-                                setTimeout(() => {
-                                  document.body.removeChild(dragGhost);
-                                }, 0);
-                              }}
-                              title="Drag to inject this object"
-                            >
-                              <span className="text-xs font-mono text-blue-400">
-                                result.data
-                              </span>
-                              <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                                object
-                              </span>
-                            </div>
+                            {renderOutputVariables(outputVariables, {
+                              nodeId: inNode.id,
+                              color: 'text-blue-400',
+                            })}
                           </div>
                         )}
                       </div>
@@ -761,7 +947,10 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             Configuration
           </h3>
         </div>
-        <div className="flex-1 overflow-y-auto w-full p-6 space-y-6">
+        <div
+          className="flex-1 overflow-y-auto w-full p-6 space-y-6"
+          onDropCapture={handleConfigFieldDrop}
+        >
           {showAuthenticationPanel && (
             <div className="bg-[var(--background)] border border-subtle rounded-lg p-4 space-y-4">
               <div className="flex items-center justify-between border-b border-subtle pb-2">
@@ -977,7 +1166,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                       Access directly in any node parameter using the curly
                       brace syntax:
                     </p>
-                    <div className="bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-blue-400 mt-1">
+                    <div className="bg-surface-hover dark:bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-blue-400 mt-1">
                       {'{ '}env.{config.variables?.[0]?.key || 'MY_VAR'}
                       {' }'}
                     </div>
@@ -990,7 +1179,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                       Available as standard environment variables in your
                       runner's shell or code:
                     </p>
-                    <div className="bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-amber-400 mt-1">
+                    <div className="bg-surface-hover dark:bg-[#18181b] p-2 rounded border border-subtle font-mono text-[10px] text-amber-400 mt-1">
                       process.env.{config.variables?.[0]?.key || 'MY_VAR'}
                     </div>
                   </div>
@@ -1003,6 +1192,20 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 Provides
               </h4>
               <div className="space-y-2">
+                <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-green-400">
+                      output.report
+                    </span>
+                    <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
+                      object
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted">
+                    Machine-readable failures, errors, steps, logs, and
+                    attachments
+                  </span>
+                </div>
                 <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-green-400">
@@ -1098,39 +1301,13 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
                 Provides
               </h4>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-green-400">
-                      result.status
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                    string
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1.5 p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono text-green-400">
-                      result.data
-                    </span>
-                    <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                      object
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted">
-                    Response payload
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 rounded bg-surface border border-subtle hover:border-strong transition-colors cursor-default">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-orange-400">
-                      error.message
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-muted border border-subtle rounded px-1.5 py-0.5">
-                    string
-                  </span>
-                </div>
+                {renderOutputVariables(
+                  outputVariablesFor(
+                    currentIntegration as OutputAwareIntegration | undefined,
+                    config,
+                  ),
+                  { color: 'text-green-400' },
+                )}
               </div>
             </div>
           )}

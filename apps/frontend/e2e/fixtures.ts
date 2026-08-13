@@ -24,6 +24,12 @@ async function clearIntegrationConnections(
 
   await Promise.all(
     Object.keys(payload.integrations ?? {}).map(async (provider) => {
+      const mode = process.env.PLAYRUNNER_E2E_MODE ?? 'mock';
+      const preserveSeededProvider =
+        (mode === 'mock' && ['github', 'jira'].includes(provider)) ||
+        (provider === 'github' &&
+          Boolean(process.env.PLAYRUNNER_E2E_GITHUB_TOKEN?.trim()));
+      if (preserveSeededProvider) return;
       const deleteResponse = await request.delete(
         `http://127.0.0.1:3999/api/store/integrations/${encodeURIComponent(provider)}`,
         { headers },
@@ -35,6 +41,34 @@ async function clearIntegrationConnections(
       }
     }),
   );
+}
+
+async function clearOwnedResources(request: APIRequestContext, token: string) {
+  const headers = { Authorization: `Bearer ${token}` };
+  for (const resource of ['workflows', 'projects', 'environments']) {
+    const response = await request.get(
+      `http://127.0.0.1:3999/api/store/${resource}`,
+      { headers },
+    );
+    if (!response.ok()) {
+      throw new Error(`Failed to list E2E ${resource}: ${response.status()}`);
+    }
+    const payload = (await response.json()) as Record<
+      string,
+      Array<{ id: string }> | undefined
+    >;
+    for (const item of payload[resource] ?? []) {
+      const deleteResponse = await request.delete(
+        `http://127.0.0.1:3999/api/store/${resource}/${encodeURIComponent(item.id)}`,
+        { headers },
+      );
+      if (!deleteResponse.ok()) {
+        throw new Error(
+          `Failed to clear E2E ${resource} "${item.id}": ${deleteResponse.status()}`,
+        );
+      }
+    }
+  }
 }
 
 export const test = base.extend<PlayrunnerFixtures>({
@@ -60,6 +94,7 @@ export const test = base.extend<PlayrunnerFixtures>({
       };
 
       await clearIntegrationConnections(request, authSession.token);
+      await clearOwnedResources(request, authSession.token);
 
       await context.addInitScript((session) => {
         window.localStorage.setItem(
@@ -72,6 +107,7 @@ export const test = base.extend<PlayrunnerFixtures>({
       await use();
 
       await clearIntegrationConnections(request, authSession.token);
+      await clearOwnedResources(request, authSession.token);
     },
     { auto: true },
   ],

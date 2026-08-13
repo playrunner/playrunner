@@ -50,7 +50,7 @@ class PlaywrightExecutionRegistry {
 
     return {
       start,
-      waitForCompletion: async () => {},
+      waitForCompletion: async () => ({ outcome: 'success', output: {} }),
       waitUntilReady: async () => {},
     };
   }

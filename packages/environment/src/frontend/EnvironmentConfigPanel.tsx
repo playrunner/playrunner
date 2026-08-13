@@ -77,6 +77,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   const getEnvironments = store.getEnvironments;
   const saveEnvironment = store.saveEnvironment;
   const saveSecret = store.saveSecret;
+  const getSecret = store.getSecret;
   const latestConfigRef = useRef(config);
   const latestOnChangeRef = useRef(onChange);
 
@@ -189,6 +190,11 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
   };
 
   const updateVar = (id: string, updates: Partial<EnvVar>) => {
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (updates.type === 'default' && variable?.type === 'secret') {
+      void convertToDefault(id);
+      return;
+    }
     setVariables((prev) => {
       const next = prev.map((v) => (v.id === id ? { ...v, ...updates } : v));
       if (linkedEnvId) syncToSavedEnvironment(next);
@@ -421,6 +427,8 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
     try {
       await saveSecret(auth.currentUser.uid, v.key, {
         value: v.currentValue,
+        initialValue: v.initialValue,
+        currentValue: v.currentValue,
         description: `Secret for ${v.key}`,
       });
 
@@ -443,6 +451,32 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
     }
   };
 
+  const convertToDefault = async (id: string) => {
+    if (!auth.currentUser || !getSecret) return;
+    const variable = variables.find((candidate) => candidate.id === id);
+    if (!variable) return;
+
+    try {
+      const secret = await getSecret(auth.currentUser.uid, variable.key);
+      setVariables((prev) => {
+        const next: EnvVar[] = prev.map((candidate) =>
+          candidate.id === id
+            ? {
+                ...candidate,
+                type: 'default' as const,
+                initialValue: secret.initialValue ?? secret.value ?? '',
+                currentValue: secret.currentValue ?? secret.value ?? '',
+              }
+            : candidate,
+        );
+        if (linkedEnvId) syncToSavedEnvironment(next);
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to restore secret as text:', err);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -456,7 +490,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 bg-[#1c1c1c]/90 backdrop-blur-sm border-2 border-dashed border-[var(--accent)] flex items-center justify-center rounded-lg m-2">
+        <div className="absolute inset-0 z-50 bg-surface/90 dark:bg-[#1c1c1c]/90 backdrop-blur-sm border-2 border-dashed border-[var(--accent)] flex items-center justify-center rounded-lg m-2">
           <div className="flex flex-col items-center text-[var(--accent)]">
             <Upload className="w-10 h-10 mb-4 opacity-80" />
             <p className="text-sm font-medium">Drop .env file here to upload</p>
@@ -467,6 +501,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
       <div className="p-4 border-b border-subtle bg-surface/50 space-y-3">
         <div className="relative">
           <select
+            data-testid="environment-node-environment"
             value={dropdownEnvId}
             onChange={(e) => handleSelectEnvironment(e.target.value)}
             className="w-full bg-[var(--control-bg)] border border-[var(--border)] rounded-md py-1.5 pl-2.5 pr-8 text-xs text-[var(--foreground)] appearance-none focus:outline-none focus:border-[var(--border-strong)] focus:ring-1 focus:ring-[var(--border-strong)] transition-colors"
@@ -485,6 +520,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         {dropdownEnvId === '__create_new__' && (
           <label className="flex items-center gap-2 cursor-pointer w-fit">
             <input
+              data-testid="environment-node-save-globally"
               type="checkbox"
               checked={!!linkedEnvId}
               onChange={(e) => handleToggleGlobal(e.target.checked)}
@@ -532,7 +568,7 @@ export const EnvironmentConfigPanel: React.FC<EnvironmentConfigPanelProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#1c1c1c] p-4">
+      <div className="flex-1 overflow-auto bg-surface dark:bg-[#1c1c1c] p-4">
         <VariablesTable
           variables={filteredVariables}
           onUpdateVar={updateVar}

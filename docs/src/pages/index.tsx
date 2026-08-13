@@ -92,12 +92,13 @@ function HomepageHeader() {
         />
         <p className={styles.eyebrow}>For teams already using Playwright</p>
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
-          Orchestrate your Playwright suite on a canvas, not in YAML.
+          Run Playwright at scale—without building the platform around it.
         </Heading>
         <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
-          Keep the tests and config you already maintain. Wire triggers,
-          environments, branches, and runners on a canvas, then watch state and
-          logs stream back as the run executes.
+          Keep the tests and CI you already use. Playrunner brings runners,
+          environments, credentials, reports, integrations, and automatic
+          sharding into one workflow—on your infrastructure or ours—without the
+          scripts and CI matrices that normally hold it all together.
         </p>
         <div className={styles.heroActions}>
           <Link
@@ -113,9 +114,6 @@ function HomepageHeader() {
             See how it works
           </Link>
         </div>
-        <p className={styles.heroBoundary}>
-          Not a test framework. Not a CI system.
-        </p>
       </div>
     </header>
   );
@@ -125,6 +123,9 @@ function CanvasShowcase(): ReactNode {
   return (
     <section className={styles.showcase}>
       <div className="container">
+        <Heading as="h2" className={styles.showcaseTitle}>
+          Your tests stay. Your CI stays. The glue goes.
+        </Heading>
         <figure className={styles.showcaseFigure}>
           <img
             className={styles.showcaseImage}
@@ -332,8 +333,8 @@ export default function Home(): ReactNode {
 
   return (
     <Layout
-      title="Visual orchestration for Playwright"
-      description="Orchestrate the Playwright tests you already have on a visual workflow canvas. Triggers, environments, branches, and runners, without the CI glue."
+      title="Run Playwright at scale without the platform glue"
+      description="Bring Playwright runners, environments, credentials, reports, integrations, and automatic sharding into one workflow on your infrastructure or ours."
     >
       <JsonLd
         data={{

@@ -25,6 +25,22 @@ export interface Integration {
   authProviders?: { id: string; label: string }[];
   getAuthPath?: (uid: string) => string;
   ConfigPanel?: React.FC<IntegrationConfigPanelProps>;
+  getOutputVariables?: (
+    config: Record<string, unknown>,
+  ) => readonly IntegrationOutputVariable[];
+}
+
+export interface IntegrationOutputVariable {
+  path: string;
+  type:
+    | 'array'
+    | 'boolean'
+    | 'datetime'
+    | 'number'
+    | 'object'
+    | 'string'
+    | 'url';
+  description?: string;
 }
 
 export interface IntegrationConfigPanelProps {
@@ -104,6 +120,7 @@ export interface IntegrationStore {
   ) => Promise<void>;
   deleteEnvironment?: (userId: string, environmentId: string) => Promise<void>;
   saveSecret?: (userId: string, secretKey: string, data: any) => Promise<void>;
+  getSecret?: (userId: string, secretKey: string) => Promise<any>;
 }
 
 export interface IntegrationModalProps {

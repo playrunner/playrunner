@@ -37,6 +37,8 @@
   --control-bg: #ffffff;
   --node-bg: #ffffff;
   --node-border: #3e444d;
+  --node-port-bg: #ffffff;
+  --node-port-border: #71717a;
   --accent: #09090b; /* Sleek black for primary actions */
   --accent-hover: #27272a;
   --accent-foreground: #fafafa;
@@ -56,6 +58,8 @@
   --control-bg: #000000;
   --node-bg: #1b1e24;
   --node-border: #3e444d;
+  --node-port-bg: #18181b;
+  --node-port-border: #3e444d;
   --accent: #ffffff; /* Sleek white for primary actions */
   --accent-hover: #e4e4e7;
   --accent-foreground: #09090b;
@@ -144,6 +148,42 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ambient-dot-background::before {
     animation: none;
+  }
+}
+
+.navigation-progress {
+  animation: navigation-progress-loading 10s cubic-bezier(0.1, 0.6, 0.2, 1)
+    forwards;
+  opacity: 1;
+  transform: scaleX(0.08);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.navigation-progress--finishing {
+  animation: none;
+  opacity: 0;
+  transform: scaleX(1);
+}
+
+@keyframes navigation-progress-loading {
+  0% {
+    transform: scaleX(0.08);
+  }
+  100% {
+    transform: scaleX(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navigation-progress {
+    animation: none;
+    transform: scaleX(0.65);
+  }
+
+  .navigation-progress--finishing {
+    transform: scaleX(1);
   }
 }
 

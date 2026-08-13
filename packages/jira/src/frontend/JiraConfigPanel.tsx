@@ -16,6 +16,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [projects, setProjects] = useState<any[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
   const latestConfigRef = useRef(config);
+  const latestOnChangeRef = useRef(onChange);
   const Input = ui.Input;
   const Select = ui.Select;
   const Textarea = ui.Textarea;
@@ -23,6 +24,10 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   useEffect(() => {
     latestConfigRef.current = config;
   }, [config]);
+
+  useEffect(() => {
+    latestOnChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -42,7 +47,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         const data = await res.json();
 
         if (data.cloudId && data.projects) {
-          onChange(nodeId, {
+          latestOnChangeRef.current(nodeId, {
             ...latestConfigRef.current,
             cloudId: data.cloudId,
           });
@@ -56,7 +61,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     }
 
     void fetchProjects();
-  }, [auth, integrationData?.credentialStatus?.configured, nodeId, onChange]);
+  }, [auth, integrationData?.credentialStatus?.configured, nodeId]);
 
   const selectedProject = projects.find((project) => {
     return project.id === config.projectId;
@@ -67,6 +72,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     <div className="space-y-4">
       <IntegrationConfigField label="Action">
         <Select
+          data-testid="jira-node-action"
           value={config.action || 'create'}
           onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
             onChange(nodeId, { ...config, action: event.target.value });
@@ -83,6 +89,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           hint="The Jira issue key to update."
         >
           <Input
+            data-testid="jira-node-issue-key"
             value={config.issueKey || ''}
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               onChange(nodeId, { ...config, issueKey: event.target.value });
@@ -94,6 +101,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         <>
           <IntegrationConfigField label="Project">
             <Select
+              data-testid="jira-node-project"
               value={config.projectId || ''}
               onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 onChange(nodeId, {
@@ -116,6 +124,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
           <IntegrationConfigField label="Issue Type">
             <Select
+              data-testid="jira-node-issue-type"
               value={config.issueType || ''}
               onChange={(event: React.ChangeEvent<HTMLSelectElement>) => {
                 onChange(nodeId, {
@@ -145,6 +154,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="You can use {{variables}} here."
       >
         <Input
+          data-testid="jira-node-summary"
           value={config.summary || ''}
           onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
             onChange(nodeId, { ...config, summary: event.target.value });
@@ -158,6 +168,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         hint="You can use {{variables}} here."
       >
         <Textarea
+          data-testid="jira-node-description"
           value={config.description || ''}
           onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
             onChange(nodeId, { ...config, description: event.target.value });

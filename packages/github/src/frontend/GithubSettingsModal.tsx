@@ -380,7 +380,8 @@ export function GithubSettingsModal({
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
                   Use the setup guide to create the GitHub App, configure
-                  repository permissions, and find the app slug, client ID, and
+                  repository permissions (Issues and Pull requests: Read and
+                  write; Contents: Read), and find the app slug, client ID, and
                   client secret.
                 </p>
                 <a

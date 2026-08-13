@@ -2,9 +2,14 @@
 sidebar_position: 1
 sidebar_label: Choose how to run it
 title: Get started with Playrunner
-description: Run Playrunner locally with Docker or deploy it to your own cloud account. Compare both options and pick the one that matches how you want to run tests.
+description: Use the managed Playrunner Cloud beta, run it locally with Docker, or deploy it to your own cloud. Compare the three and pick what fits how you work.
 keywords:
-  ['run playwright orchestration', 'self-host playwright', 'playrunner setup']
+  [
+    'run playwright orchestration',
+    'self-host playwright',
+    'playrunner setup',
+    'playwright cloud test orchestration',
+  ]
 ---
 
 # Get started with Playrunner
@@ -14,31 +19,25 @@ workflow runs, there is one decision to make: **where Playrunner itself runs.**
 
 ## Your options today
 
-|                         | Local (Docker)                                    | Your own cloud                                               |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| **Best for**            | Evaluating Playrunner, and day-to-day development | Teams running Playwright on a schedule, or sharing workflows |
-| **Setup time**          | About 15 minutes                                  | Longer — you provision cloud resources                       |
-| **What runs the tests** | Docker containers on your machine                 | Cloud Run jobs in your GCP project                           |
-| **Cost**                | Free. No license fee for permitted use            | Free license; you pay your cloud provider                    |
-| **Data location**       | Entirely on your machine                          | Entirely in your cloud account                               |
-| **Availability**        | Available now                                     | Available now (GCP; AWS and Azure planned)                   |
+|                      | Playrunner Cloud                          | Local (Docker)                         | Your own cloud                              |
+| -------------------- | ----------------------------------------- | -------------------------------------- | ------------------------------------------- |
+| **Best for**         | Trying Playrunner, and teams sharing work | Day-to-day development and evaluation  | Keeping runs inside your own infrastructure |
+| **Setup time**       | A couple of minutes                       | About 15 minutes                       | Longer — you provision cloud resources      |
+| **What you operate** | Nothing                                   | Docker on your machine                 | Cloud Run jobs in your GCP project          |
+| **Cost**             | Free during the beta                      | Free. No license fee for permitted use | Free license; you pay your cloud provider   |
+| **Data location**    | Hosted by Playrunner                      | Entirely on your machine               | Entirely in your cloud account              |
+| **Availability**     | Free beta, open to sign-ups               | Available now                          | Available now (GCP; AWS and Azure planned)  |
 
-**If you are not sure, start locally.** It is the fastest path to a running
-workflow, everything works the same way, and moving execution to a cloud runner
-later is a setting on the node rather than a rewrite.
+**If you just want to see it work, use Playrunner Cloud.** Go to
+[playrunner.cloud](https://playrunner.cloud), sign in with GitHub or Google, and
+you can build a workflow without installing anything.
 
-## What about Playrunner Cloud?
+**If you would rather run it yourself, start locally.** Everything works the
+same way, and moving execution to a cloud runner later is a setting on the node
+rather than a rewrite.
 
-Playrunner Cloud is the fully hosted version — no infrastructure for you to
-operate at all. **It is in beta, with limited access.** Beta access and pricing
-details will be announced separately; see the [pricing page](/pricing) for the
-current position.
-
-If you would like to be included in the beta, ask in
-[Discord](https://discord.gg/4zPdBy3DwU).
-
-Everything in these docs works today on the two options above, and workflows
-built now carry over.
+Workflows you build on one option carry over to the others — the workflow model
+is identical.
 
 ## Get running
 

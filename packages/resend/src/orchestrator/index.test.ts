@@ -12,11 +12,13 @@ function context(
     workflowId: 'workflow-1',
     node: { id: 'resend-1', nodeType: 'resend', config: { action, ...config } },
     settings: { apiKey: 're_test' },
-    env: {},
+    env: { RECIPIENT_EMAIL: 'person@example.com' },
     nodeOutputs: {},
     workflow: {},
     renderTemplate: (value) =>
-      value.replace('{{recipient}}', 'person@example.com'),
+      value
+        .replace('{{recipient}}', 'person@example.com')
+        .replace('{{env.RECIPIENT_EMAIL}}', 'person@example.com'),
     log: async () => {},
     signal: new AbortController().signal,
   };
@@ -74,6 +76,28 @@ test('sends templated email and returns the provider email id', async () => {
       (request?.headers as Record<string, string>)['Idempotency-Key'],
       'execution-1:resend-1',
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('renders a dropped environment template in recipient fields', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody: Record<string, unknown> = {};
+  globalThis.fetch = async (_input, init) => {
+    requestBody = JSON.parse(String(init?.body));
+    return Response.json({ id: 'email-env' });
+  };
+  try {
+    await sendExecutor.execute(
+      context('send', {
+        from: 'automation@example.com',
+        to: '{{env.RECIPIENT_EMAIL}}',
+        subject: 'Hello',
+        text: 'Welcome',
+      }),
+    );
+    assert.deepEqual(requestBody.to, ['person@example.com']);
   } finally {
     globalThis.fetch = originalFetch;
   }

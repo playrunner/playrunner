@@ -1,12 +1,22 @@
 import { Router } from 'express';
 import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
 
+const GITHUB_API_VERSION = '2026-03-10';
+const GITHUB_API_BASE_URL = (
+  process.env.PLAYRUNNER_GITHUB_API_BASE_URL || 'https://api.github.com'
+).replace(/\/+$/, '');
+
+function githubApiUrl(path: string) {
+  return `${GITHUB_API_BASE_URL}/${path.replace(/^\/+/, '')}`;
+}
+
 function credentialStore(req: unknown): IntegrationCredentialStore | undefined {
   return (req as { integrationCredentials?: IntegrationCredentialStore })
     .integrationCredentials;
 }
 
 export const githubRouter = Router();
+const githubCredentialRefreshes = new Map<string, Promise<void>>();
 
 export const githubApiContribution = {
   id: 'github',
@@ -17,7 +27,7 @@ export const githubApiContribution = {
 
 export default githubApiContribution;
 
-async function refreshGithubCredentials(
+export async function refreshGithubCredentials(
   store: IntegrationCredentialStore,
   _kind?: 'cloud' | 'integration',
   force = false,
@@ -39,26 +49,62 @@ async function refreshGithubCredentials(
       throw new Error('Saved GitHub refresh credentials are incomplete.');
     return;
   }
+
+  const refreshKey = String(refreshToken);
+  const activeRefresh = githubCredentialRefreshes.get(refreshKey);
+  if (activeRefresh) {
+    await activeRefresh;
+    return;
+  }
+
+  const refresh = refreshGithubAccessToken(store, {
+    clientId: String(clientId),
+    clientSecret: String(clientSecret),
+    refreshToken: refreshKey,
+  }).finally(() => {
+    if (githubCredentialRefreshes.get(refreshKey) === refresh) {
+      githubCredentialRefreshes.delete(refreshKey);
+    }
+  });
+  githubCredentialRefreshes.set(refreshKey, refresh);
+  await refresh;
+}
+
+async function refreshGithubAccessToken(
+  store: IntegrationCredentialStore,
+  credentials: {
+    clientId: string;
+    clientSecret: string;
+    refreshToken: string;
+  },
+) {
+  const parameters = new URLSearchParams({
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    refresh_token: credentials.refreshToken,
+    grant_type: 'refresh_token',
+  });
   const response = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       Accept: 'application/json',
       'User-Agent': 'Playrunner-App',
     },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
+    body: parameters,
   });
-  const data = (await response.json()) as Record<string, any>;
-  if (!response.ok || typeof data.access_token !== 'string')
+  const data = (await response.json().catch(() => ({}))) as Record<string, any>;
+  if (!response.ok || typeof data.access_token !== 'string') {
+    const errorCode =
+      typeof data.error === 'string' ? data.error : 'unknown_error';
+    console.warn(
+      `GitHub token refresh failed (${response.status}): ${errorCode}.`,
+    );
     throw new Error('GitHub authorization has expired. Reconnect GitHub.');
+  }
   await store.updateSecrets('integration', 'github', {
     accessToken: data.access_token,
-    refreshToken: data.refresh_token || refreshToken,
+    refreshToken: data.refresh_token || credentials.refreshToken,
     expiresAt: data.expires_in
       ? Date.now() + data.expires_in * 1000
       : undefined,
@@ -91,7 +137,7 @@ async function githubGet(accessToken: string, url: string) {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
+      'X-GitHub-Api-Version': GITHUB_API_VERSION,
     },
   });
   const data = await response.json().catch(() => ({}));
@@ -153,24 +199,56 @@ async function createGithubApiClient(req: unknown) {
   };
 }
 
+async function githubGetAllPages<T>(
+  github: { get(url: string): Promise<unknown> },
+  url: string,
+  collectionKey?: string,
+): Promise<T[]> {
+  const items: T[] = [];
+  const pageSize = 100;
+
+  for (let page = 1; ; page += 1) {
+    const separator = url.includes('?') ? '&' : '?';
+    const data = await github.get(
+      `${url}${separator}per_page=${pageSize}&page=${page}`,
+    );
+    const pageItems = collectionKey
+      ? data &&
+        typeof data === 'object' &&
+        collectionKey in data &&
+        Array.isArray(data[collectionKey as keyof typeof data])
+        ? (data[collectionKey as keyof typeof data] as T[])
+        : []
+      : Array.isArray(data)
+        ? (data as T[])
+        : [];
+
+    items.push(...pageItems);
+    if (pageItems.length < pageSize) break;
+  }
+
+  return items;
+}
+
 // Proxy endpoint to exchange GitHub OAuth code for an access token to bypass CORS
 githubRouter.post('/token', async (req, res) => {
   const { code, client_id, client_secret, app_name, installation_id } =
     req.body;
 
   try {
+    const parameters = new URLSearchParams({
+      client_id,
+      client_secret,
+      code,
+    });
     const gRes = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json',
         'User-Agent': 'Playrunner-App',
       },
-      body: JSON.stringify({
-        client_id,
-        client_secret,
-        code,
-      }),
+      body: parameters,
     });
 
     const text = await gRes.text();
@@ -238,6 +316,29 @@ githubRouter.get('/repositories', async (req, res) => {
   try {
     const github = await createGithubApiClient(req);
     const { connection } = github;
+    const configuredRepository = connection.config.repository;
+    if (
+      typeof configuredRepository === 'string' &&
+      /^[^/]+\/[^/]+$/.test(configuredRepository)
+    ) {
+      const [owner, repositoryName] = configuredRepository.split('/');
+      const repository = (await github.get(
+        githubApiUrl(
+          `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`,
+        ),
+      )) as { full_name?: unknown; id?: unknown };
+      if (
+        (typeof repository.id === 'string' ||
+          typeof repository.id === 'number') &&
+        typeof repository.full_name === 'string'
+      ) {
+        return res.json({
+          repositories: [
+            { id: String(repository.id), full_name: repository.full_name },
+          ],
+        });
+      }
+    }
     const savedInstallationId = connection.config.installationId;
     let installationIds: string[] = [];
 
@@ -247,10 +348,10 @@ githubRouter.get('/repositories', async (req, res) => {
     ) {
       installationIds = [String(savedInstallationId)];
     } else {
-      const installations = (await github.get(
-        'https://api.github.com/user/installations?per_page=100',
-      )) as { installations?: Array<{ id?: string | number }> };
-      installationIds = (installations.installations ?? [])
+      const installations = await githubGetAllPages<{
+        id?: string | number;
+      }>(github, githubApiUrl('user/installations'), 'installations');
+      installationIds = installations
         .map((installation) => installation.id)
         .filter(
           (id): id is string | number =>
@@ -261,12 +362,16 @@ githubRouter.get('/repositories', async (req, res) => {
 
     const repositoryLists = await Promise.all(
       installationIds.map(async (installationId) => {
-        const data = (await github.get(
-          `https://api.github.com/user/installations/${encodeURIComponent(installationId)}/repositories?per_page=100`,
-        )) as {
-          repositories?: Array<{ id?: string | number; full_name?: string }>;
-        };
-        return data.repositories ?? [];
+        return githubGetAllPages<{
+          id?: string | number;
+          full_name?: string;
+        }>(
+          github,
+          githubApiUrl(
+            `user/installations/${encodeURIComponent(installationId)}/repositories`,
+          ),
+          'repositories',
+        );
       }),
     );
     const repositories = repositoryLists
@@ -283,6 +388,11 @@ githubRouter.get('/repositories', async (req, res) => {
         id: String(repository.id),
         full_name: repository.full_name,
       }))
+      .filter(
+        (repository, index, all) =>
+          all.findIndex((candidate) => candidate.id === repository.id) ===
+          index,
+      )
       .sort((left, right) => left.full_name.localeCompare(right.full_name));
 
     return res.json({ repositories });
@@ -317,17 +427,17 @@ githubRouter.get('/branches', async (req, res) => {
     }
 
     const github = await createGithubApiClient(req);
-    const data = (await github.get(
-      `https://api.github.com/repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches?per_page=100`,
-    )) as Array<{ name?: string }>;
-    const branches = Array.isArray(data)
-      ? data
-          .filter(
-            (branch): branch is { name: string } =>
-              typeof branch.name === 'string',
-          )
-          .map((branch) => ({ name: branch.name }))
-      : [];
+    const data = await githubGetAllPages<{ name?: string }>(
+      github,
+      githubApiUrl(
+        `repos/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/branches`,
+      ),
+    );
+    const branches = data
+      .filter(
+        (branch): branch is { name: string } => typeof branch.name === 'string',
+      )
+      .map((branch) => ({ name: branch.name }));
 
     return res.json({ branches });
   } catch (error) {

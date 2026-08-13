@@ -47,6 +47,7 @@ export default [
           allowExportNames: [
             'githubIntegration',
             'githubIconUrl',
+            'GithubConfigPanel',
             'GithubSettingsModal',
           ],
         },
@@ -73,7 +74,7 @@ export default [
     },
   },
   {
-    files: ['src/api/**/*.ts', 'src/e2e/**/*.ts'],
+    files: ['src/api/**/*.ts', 'src/e2e/**/*.ts', 'src/orchestrator/**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

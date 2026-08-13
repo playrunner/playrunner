@@ -52,6 +52,7 @@ export type PrewarmedGcpPlaywrightRunner = {
   nodeId: string;
   projectId: string;
   runRequestedAt: number;
+  resultSubscriptionName: string;
   statusSubscriptionName: string;
   topicName: string;
   type: 'gcp_pubsub_cloud_run_job';
@@ -179,6 +180,16 @@ function getRunnerStatusSubscriptionName(args: {
   return sanitizePubSubId(
     `playrunner-runner-status-${args.executionId}-${args.nodeId}`,
     `playrunner-runner-status-${Date.now()}`,
+  );
+}
+
+function getRunnerResultSubscriptionName(args: {
+  executionId: string;
+  nodeId: string;
+}) {
+  return sanitizePubSubId(
+    `playrunner-runner-result-${args.executionId}-${args.nodeId}`,
+    `playrunner-runner-result-${Date.now()}`,
   );
 }
 
@@ -540,6 +551,7 @@ async function ensureRunnerControlSubscriptions(args: {
   executionId: string;
   nodeId: string;
   projectId: string;
+  resultSubscriptionName: string;
   statusSubscriptionName: string;
   topicName: string;
 }) {
@@ -556,6 +568,13 @@ async function ensureRunnerControlSubscriptions(args: {
       filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_status"`,
       projectId: args.projectId,
       subscriptionName: args.statusSubscriptionName,
+      topicName: args.topicName,
+    }),
+    ensureRunnerSubscription({
+      accessToken: args.accessToken,
+      filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_result"`,
+      projectId: args.projectId,
+      subscriptionName: args.resultSubscriptionName,
       topicName: args.topicName,
     }),
   ]);
@@ -733,6 +752,10 @@ async function prewarmPlaywrightNode(args: {
     executionId: args.testId,
     nodeId: args.node.id,
   });
+  const resultSubscriptionName = getRunnerResultSubscriptionName({
+    executionId: args.testId,
+    nodeId: args.node.id,
+  });
   const runnerControl = {
     controlSubscriptionName,
     projectId: args.projectId,
@@ -758,6 +781,7 @@ async function prewarmPlaywrightNode(args: {
     executionId: args.testId,
     nodeId: args.node.id,
     projectId: args.projectId,
+    resultSubscriptionName,
     statusSubscriptionName,
     topicName: args.eventTransport.topicName,
   });
@@ -831,6 +855,7 @@ async function prewarmPlaywrightNode(args: {
     nodeId: args.node.id,
     projectId: args.projectId,
     runRequestedAt,
+    resultSubscriptionName,
     statusSubscriptionName,
     topicName: args.eventTransport.topicName,
     type: 'gcp_pubsub_cloud_run_job',
@@ -852,7 +877,9 @@ export async function prewarmGcpPlaywrightRunners(args: {
   const nodes = Array.isArray(args.body.nodes) ? args.body.nodes : [];
   const playwrightNodes = nodes.filter(
     (node: Record<string, any>) =>
-      String(node.nodeType || node.label || '').toLowerCase() === 'playwright',
+      String(node.nodeType || node.label || '').toLowerCase() === 'playwright' &&
+      node.config?.shardingMode !== 'auto' &&
+      node.config?.shardingMode !== 'manual',
   );
 
   if (playwrightNodes.length === 0) {
@@ -921,6 +948,11 @@ export async function cancelPrewarmedGcpPlaywrightRunners(args: {
           accessToken: args.accessToken,
           projectId: runner.projectId,
           subscriptionName: runner.statusSubscriptionName,
+        }),
+        deleteRunnerSubscription({
+          accessToken: args.accessToken,
+          projectId: runner.projectId,
+          subscriptionName: runner.resultSubscriptionName,
         }),
       ]);
     }),

@@ -37,6 +37,39 @@ export const slackE2EContribution = definePlayrunnerE2EContribution({
         ).toBeVisible();
       },
     },
+    {
+      id: 'configure-all-webhook-node-values',
+      mode: 'mock',
+      title: 'configures and persists every Slack webhook node value',
+      tags: ['@slack', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.connectWebhook(data.webhookUrl);
+        await pom.createNode();
+        await expect(pom.nodeChannel).toHaveCount(0);
+        await pom.nodeMessage.fill(data.message);
+        await pom.nodeUsername.fill(data.username);
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.nodeMessage).toHaveValue(data.message);
+        await expect(pom.nodeUsername).toHaveValue(data.username);
+      },
+    },
+    {
+      id: 'configure-all-oauth-node-values',
+      mode: 'mock',
+      title: 'configures and persists every Slack OAuth node value',
+      tags: ['@slack', '@integration', '@node'],
+      async run({ data, expect, pom }) {
+        await pom.createOauthNode();
+        await expect(pom.nodeChannel).toContainText('playrunner-e2e');
+        await pom.nodeChannel.selectOption('C-E2E-PRIVATE');
+        await pom.nodeMessage.fill(data.message);
+        await pom.nodeUsername.fill(data.username);
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.nodeChannel).toHaveValue('C-E2E-PRIVATE');
+        await expect(pom.nodeMessage).toHaveValue(data.message);
+        await expect(pom.nodeUsername).toHaveValue(data.username);
+      },
+    },
   ],
 });
 

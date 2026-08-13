@@ -10,8 +10,13 @@ test('creates a team and securely manages an invited member @teams', async ({
   await page.goto('/teams');
   await page.getByLabel('Team name').fill(teamName);
   await page.getByRole('button', { name: 'Create team' }).click();
-  await expect(page.getByRole('heading', { name: teamName })).toBeVisible();
-  await expect(page.getByText('owner', { exact: true })).toBeVisible();
+  const teamCard = page
+    .getByTestId('team-card')
+    .filter({ has: page.getByRole('heading', { name: teamName }) });
+  await expect(teamCard).toBeVisible();
+  await expect(
+    teamCard.getByText('owner', { exact: true }).first(),
+  ).toBeVisible();
 
   const invitationResponse = page.waitForResponse(
     (response) =>
@@ -34,35 +39,45 @@ test('creates a team and securely manages an invited member @teams', async ({
     'A pending invitation already exists',
   );
 
-  await page.goto(invitationPayload.invitation.invitationPath);
-  await expect(page).toHaveURL(/\/login\?returnTo=/);
-  await page
+  const browser = page.context().browser();
+  if (!browser) throw new Error('The teams E2E test requires a browser.');
+  const invitedContext = await browser.newContext();
+  const invitedPage = await invitedContext.newPage();
+  await invitedPage.goto(invitationPayload.invitation.invitationPath);
+  await expect(invitedPage).toHaveURL(/\/login\?returnTo=/);
+  await invitedPage
     .getByRole('link', { name: 'Create an account from this invitation' })
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Create your account' }),
+    invitedPage.getByRole('heading', { name: 'Create your account' }),
   ).toBeVisible();
   await expect(
-    page.getByText(memberEmail, { exact: true }).first(),
+    invitedPage.getByText(memberEmail, { exact: true }).first(),
   ).toBeVisible();
-  await page
+  await invitedPage
     .getByLabel('Password', { exact: true })
     .fill('invited-e2e-password');
-  await page.getByLabel('Confirm password').fill('invited-e2e-password');
-  await page.getByRole('button', { name: 'Create account and join' }).click();
+  await invitedPage.getByLabel('Confirm password').fill('invited-e2e-password');
+  await invitedPage
+    .getByRole('button', { name: 'Create account and join' })
+    .click();
 
-  await expect(page).toHaveURL('/teams');
-  await expect(page.getByRole('heading', { name: teamName })).toBeVisible();
-  await expect(page.getByText('member', { exact: true }).first()).toBeVisible();
+  await expect(invitedPage).toHaveURL('/teams');
+  await expect(
+    invitedPage.getByRole('heading', { name: teamName }),
+  ).toBeVisible();
+  await expect(
+    invitedPage.getByText('member', { exact: true }).first(),
+  ).toBeVisible();
+  await invitedContext.close();
 
-  await page.evaluate(() => window.localStorage.clear());
-  await page.goto('/login');
-  await page.getByPlaceholder('Username').fill('e2e@playrunner.dev');
-  await page.getByPlaceholder('Password').fill('playrunner-e2e-password');
-  await page.getByRole('button', { name: 'Enter Playrunner' }).click();
   await page.goto('/teams');
-  await expect(page.getByText(memberEmail, { exact: true })).toBeVisible();
-  await expect(page.getByText('Accepted', { exact: true })).toBeVisible();
+  await expect(
+    teamCard.getByText(memberEmail, { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    teamCard.getByText('Accepted', { exact: true }).first(),
+  ).toBeVisible();
 
   const pendingEmail = `pending-${suffix}@playrunner.dev`;
   await page.getByLabel('Email address').fill(pendingEmail);

@@ -9,7 +9,7 @@ if (!Number.isFinite(slowMo) || slowMo < 0) {
 
 export default defineConfig({
   testDir: './e2e/specs',
-  timeout: slowMo > 0 ? 120_000 : 30_000,
+  timeout: 120_000,
   fullyParallel: false,
   forbidOnly: isCi,
   retries: isCi ? 1 : 0,
@@ -18,11 +18,11 @@ export default defineConfig({
     ? [
         ['line'],
         ['junit', { outputFile: 'test-results/e2e-junit.xml' }],
-        ['html', { open: 'never', outputFolder: '../../playwright-report' }],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
       ]
     : [
         ['list'],
-        ['html', { open: 'never', outputFolder: '../../playwright-report' }],
+        ['html', { open: 'never', outputFolder: 'playwright-report' }],
       ],
   use: {
     baseURL: 'http://127.0.0.1:4173',
@@ -40,6 +40,30 @@ export default defineConfig({
     },
   ],
   webServer: [
+    {
+      command: 'npm run dev:e2e:github-fake --prefix ../api',
+      url: 'http://127.0.0.1:4010/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npm run dev:e2e:jira-fake --prefix ../api',
+      url: 'http://127.0.0.1:4011/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      command: 'npm run dev:e2e:slack-fake --prefix ../api',
+      url: 'http://127.0.0.1:4012/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
     {
       command: 'npm run dev:e2e --prefix ../api',
       url: 'http://127.0.0.1:3999/health',

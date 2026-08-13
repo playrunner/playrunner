@@ -345,11 +345,13 @@ push_playwright() {
     for runtime in typescript python; do
         local dockerfile="${pw_ctx}/Dockerfile.${runtime}"
         for version in "${versions[@]}"; do
-            local image_versioned fingerprint image_fingerprint
+            local image_versioned fingerprint image_fingerprint npm_version python_version
             image_versioned="$(substitute "$PLAYWRIGHT_TEMPLATE" \
                 "projectId=${PROJECT_ID}" \
                 "runtime=${runtime}" \
                 "version=${version}")"
+            npm_version="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" npm-version "${version}")"
+            python_version="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" python-version "${version}")"
             fingerprint="$(node "${RUNNER_FINGERPRINT_SCRIPT}" playwright \
                 --repo-root "${REPO_ROOT}" \
                 --runtime "${runtime}" \
@@ -377,6 +379,8 @@ push_playwright() {
                 --platform linux/amd64 \
                 -f "${dockerfile}" \
                 --build-arg PLAYWRIGHT_VERSION="${version}" \
+                --build-arg PLAYWRIGHT_NPM_VERSION="${npm_version}" \
+                --build-arg PYTHON_PLAYWRIGHT_VERSION="${python_version}" \
                 --label "dev.playrunner.build-fingerprint=${fingerprint}" \
                 "${tag_args[@]}" \
                 "${pw_ctx}"

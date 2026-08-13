@@ -226,7 +226,7 @@ async function ensureSubscription(params: {
           expirationPolicy: {
             ttl: `${SUBSCRIPTION_RETENTION_SECONDS}s`,
           },
-          filter: `attributes.executionId = "${params.executionId}"`,
+          filter: `attributes.executionId = "${params.executionId}" AND attributes.messageKind = "workflow_event"`,
           messageRetentionDuration: `${SUBSCRIPTION_RETENTION_SECONDS}s`,
           topic: `projects/${params.projectId}/topics/${params.topicName}`,
         }),
@@ -347,7 +347,11 @@ async function processMessage(params: {
   message: PubSubMessage;
 }) {
   const messageKind = params.message.message.attributes?.messageKind;
-  if (messageKind === 'runner_control' || messageKind === 'runner_status') {
+  if (
+    messageKind === 'runner_control' ||
+    messageKind === 'runner_result' ||
+    messageKind === 'runner_status'
+  ) {
     return { eventType: undefined };
   }
 

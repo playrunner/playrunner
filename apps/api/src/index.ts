@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth';
 import { insightsRouter } from './routes/insights';
 import { schedulerRouter } from './routes/scheduler';
 import { requireAuth } from './auth/auth.middleware';
+import { requireOutputAccess } from './auth/output-access';
 import { loadPremiumApiRoutes } from './premium-routes';
 import { apiRuntime } from './runtime';
 import { storeRouter } from './routes/store';
@@ -35,6 +36,7 @@ app.get('/health', (_req, res) => {
 });
 
 // Serve static outputs with a proxy for GCP bucket streams
+app.use('/outputs', requireOutputAccess);
 app.use('/outputs', async (req, res, next) => {
   if (await apiRuntime.outputProxy.tryHandle(req, res)) {
     return;

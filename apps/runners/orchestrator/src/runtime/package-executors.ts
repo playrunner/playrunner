@@ -14,7 +14,6 @@ const DEFAULT_EXECUTOR_TIMEOUT_MS = 5 * 60 * 1000;
 
 export const HOST_MANAGED_NODE_TYPES = Object.freeze([
   'environment',
-  'github',
   'playwright',
   'schedule',
 ] as const);
