@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Understanding Test Reports
+description: 'Read the Playwright HTML report from a Playrunner run: find failing specs, open screenshots and traces, and browse artefacts by run.'
 ---
 
 # Understanding Test Reports

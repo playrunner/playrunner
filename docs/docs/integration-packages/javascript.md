@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 13
 sidebar_label: JavaScript
 title: JavaScript Integration
 description: Configure JavaScript workflow nodes; execution is not currently available.

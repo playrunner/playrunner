@@ -1,0 +1,9 @@
+{
+  "label": "Use Cases",
+  "position": 2.5,
+  "link": {
+    "type": "doc",
+    "id": "use-cases/index"
+  },
+  "description": "Common Playwright workflows built on the canvas: alerts, ticketing, AI triage, schedules, and webhook triggers."
+}

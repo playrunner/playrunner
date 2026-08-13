@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Connection Nodes
+description: 'How Playrunner connection state drives execution order: success, failure, and concurrent edges, parallel branches, and node dependency rules.'
 ---
 
 ## Connection State Rules

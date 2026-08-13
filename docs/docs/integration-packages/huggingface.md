@@ -1,5 +1,5 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 sidebar_label: Hugging Face
 title: Hugging Face Integration
 description: Run hosted open-source models through Hugging Face Inference Providers from Playrunner workflows.
@@ -190,3 +190,10 @@ from node output and user-visible execution errors.
 The SVG lives at `packages/huggingface/assets/huggingface.svg` and is exported
 from `@playrunner/huggingface/assets/huggingface.svg`. The frontend contribution
 exports `huggingFaceIconUrl` for product UI.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [AI triage for Playwright test failures](/docs/use-cases/ai-triage-for-playwright-test-failures/)

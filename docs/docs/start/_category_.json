@@ -1,0 +1,9 @@
+{
+  "label": "Start Here",
+  "position": 1,
+  "link": {
+    "type": "doc",
+    "id": "start/index"
+  },
+  "description": "Choose how to run Playrunner, then get a first Playwright workflow executing."
+}

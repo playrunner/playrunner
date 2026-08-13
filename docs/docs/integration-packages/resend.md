@@ -1,5 +1,5 @@
 ---
-sidebar_position: 11
+sidebar_position: 12
 sidebar_label: Resend
 title: Resend Integration
 description: Send email or wait for inbound messages, verification codes, and attachments in Playrunner workflows.

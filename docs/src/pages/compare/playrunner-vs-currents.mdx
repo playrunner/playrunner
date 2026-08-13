@@ -1,0 +1,137 @@
+---
+title: Playrunner vs Currents for Playwright
+description: Currents makes Playwright runs faster and easier to diagnose inside your CI. Playrunner owns the workflow around the run. Where they differ, and where they overlap.
+keywords:
+  [
+    currents.dev alternative,
+    playwright test orchestration dashboard,
+    playwright flaky test detection,
+    currents playwright,
+  ]
+image: /img/og/og-compare.png
+---
+
+import {
+  JsonLd,
+  faqPage,
+  breadcrumbs,
+} from '@site/src/components/StructuredData';
+
+export const faq = [
+  {
+    question: 'Is Playrunner a Currents alternative?',
+    answer:
+      'Only for part of what Currents does. Currents speeds up and analyses the run itself inside your existing CI, including test distribution across machines and flake detection. Playrunner owns what happens before and after the run: triggers, environments, branching, integrations, and where the runner comes from.',
+  },
+  {
+    question: 'Does Currents provision the machines that run my tests?',
+    answer:
+      'No. Currents orchestration distributes test files across the CI machines you already have, using historical timing data, and is invoked as a CLI inside your CI job. The compute stays yours. Playrunner provisions runners itself, on local Docker, managed cloud, or your own cloud account.',
+  },
+  {
+    question: 'Can I use Currents and Playrunner together?',
+    answer:
+      'Yes, and for teams that value Currents analytics that is often the sensible arrangement. Playrunner decides when a run starts, on what environment, and what happens to the result, while Currents continues to report on and optimise the run itself.',
+  },
+  {
+    question: 'Does Playrunner detect flaky tests?',
+    answer:
+      'Not today. Flake detection and quarantine are on the roadmap, and Currents is considerably more mature here. If reducing flake is your main problem right now, Currents solves it directly and Playrunner does not.',
+  },
+];
+
+<JsonLd data={faqPage(faq)} />
+<JsonLd
+  data={breadcrumbs([
+    { name: 'Playrunner', url: '/' },
+    { name: 'Compare', url: '/compare/' },
+    { name: 'vs Currents', url: '/compare/playrunner-vs-currents/' },
+  ])}
+/>
+
+# Playrunner vs Currents
+
+These two products get compared because both use the word "orchestration", but
+they mean quite different things by it — and understanding the difference is
+the whole comparison.
+
+## Two meanings of orchestration
+
+**Currents orchestration means test distribution.** Its CLI runs inside your
+existing CI job, builds an inventory of your tests, and assigns them across the
+CI machines already available to you using historical timing data. Currents
+documents this as meaningfully faster than Playwright's native sharding. The
+compute stays yours; Currents makes better use of it.
+
+**Playrunner orchestration means the workflow around the run.** What triggers
+it, which environment it targets, what happens on failure versus success, which
+downstream systems get told, and where the runner comes from in the first
+place.
+
+One optimises the run. The other decides everything surrounding it.
+
+## Side by side
+
+|                                                 | Currents                                 | Playrunner                                                             |
+| ----------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------- |
+| Distributing tests across CI machines           | Yes — the core of the product            | No                                                                     |
+| Flaky-test detection and quarantine             | Yes, mature                              | On the roadmap, not shipped                                            |
+| Rich historical test analytics                  | Yes                                      | Run history and reports, not trend analytics                           |
+| Where it executes                               | Inside your existing CI job, via CLI     | Provisions its own runners: local Docker, managed cloud, or your cloud |
+| Scheduled runs                                  | Comes from your CI                       | Schedule node                                                          |
+| Conditional branching after a run               | Alerting and custom workflows on outcome | An edge on the canvas, driving further execution                       |
+| Jira, Slack, email, AI triage as workflow steps | Notification-oriented                    | Integration nodes that run as part of the graph                        |
+| Visual workflow editing                         | No — configuration is code               | The canvas is the product                                              |
+| Pricing                                         | Commercial SaaS, see their pricing page  | Free to self-host; hosted Cloud in beta                                |
+
+Currents does offer outcome-triggered custom workflows, so the boundary is not
+absolute. The difference is that in Currents those hang off a run happening in
+your CI, whereas in Playrunner the run is one node in a graph that Playrunner
+executes end to end.
+
+## Choose Currents if
+
+This is a genuinely strong product and the following are real reasons to pick
+it over, or before, Playrunner:
+
+- **Flake is your biggest problem.** Detection, quarantine, and trend analysis
+  are mature there and absent here.
+- **You want faster CI without changing where tests run.** Currents slots into
+  the pipeline you already have and reduces wall-clock time.
+- **You want deep historical analytics** across runs, branches, and authors.
+- **You are happy with CI-driven execution** and are not looking to move the
+  surrounding workflow anywhere.
+
+## Choose Playrunner if
+
+- The thing you maintain is the glue — schedules, retries, notifications,
+  ticket creation, environment wiring — rather than the run itself.
+- You want to see the flow, and change it by moving a connection.
+- You need execution off CI runners entirely: your own cloud account, or
+  managed runners, without rewriting pipelines.
+- You want AI triage, Jira tickets, or Slack routing as steps in a graph rather
+  than as scripts hanging off a pipeline.
+
+## Using both
+
+There is no conflict in running both. A reasonable arrangement is Playrunner
+owning the trigger, the environment, the branching, and the downstream systems,
+while the Playwright run it invokes continues to report into Currents for
+analytics and flake tracking. You lose nothing by keeping the tool that is
+already answering a question Playrunner does not answer yet.
+
+## Frequently asked questions
+
+{faq.map(({ question, answer }) => (
+
+  <div key={question}>
+    <h3>{question}</h3>
+    <p>{answer}</p>
+  </div>
+))}
+
+## Next steps
+
+- [AI triage for Playwright test failures](/docs/use-cases/ai-triage-for-playwright-test-failures/)
+- [Get started with Playrunner](/docs/start/)
+- [Compare the other options](/compare/)

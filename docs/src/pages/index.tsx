@@ -7,6 +7,12 @@ import Layout from '@theme/Layout';
 import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
 import Logo from '@site/static/img/playrunner-icon.svg';
+import {
+  JsonLd,
+  organization,
+  softwareApplication,
+  website,
+} from '@site/src/components/StructuredData';
 
 import styles from './index.module.css';
 
@@ -122,11 +128,13 @@ function CanvasShowcase(): ReactNode {
         <figure className={styles.showcaseFigure}>
           <img
             className={styles.showcaseImage}
-            src={useBaseUrl('/img/workflow-canvas.png')}
+            src={useBaseUrl('/img/workflow-canvas.webp')}
             alt="A Playrunner workflow mid-run: a smoke test branches on failure into an OpenAI analysis and a Jira bug, and on success through Slack, a regression suite, a report, and a deploy webhook. Individual nodes carry amber warning markers showing their own execution status."
-            width={3148}
-            height={1554}
-            loading="lazy"
+            width={2400}
+            height={1185}
+            // Sits directly below the hero and is the LCP element on desktop.
+            // Lazy-loading it would delay the fetch until layout completes.
+            fetchPriority="high"
           />
           <figcaption className={styles.showcaseCaption}>
             Live run state on the canvas. Every node reports its own outcome,
@@ -209,10 +217,10 @@ function JourneySection(): ReactNode {
         <figure className={clsx(styles.showcaseFigure, styles.showcaseInline)}>
           <img
             className={styles.showcaseImage}
-            src={useBaseUrl('/img/workflow-canvas-branch.png')}
+            src={useBaseUrl('/img/workflow-canvas-branch.webp')}
             alt="A regression test node on the canvas splitting into two paths: a red failure branch into an OpenAI analysis and a Jira bug, and a green success branch into a Slack alert and a deploy webhook."
-            width={2444}
-            height={1454}
+            width={2400}
+            height={1428}
             loading="lazy"
           />
           <figcaption className={styles.showcaseCaption}>
@@ -244,7 +252,7 @@ function ValidationSection(): ReactNode {
           <div className={styles.validationActions}>
             <Link
               className="button button--primary button--lg"
-              to="/docs/tutorials/getting-started"
+              to="https://playrunner.cloud"
             >
               Try it with your suite
             </Link>
@@ -307,8 +315,8 @@ export default function Home(): ReactNode {
   if (shouldRedirectToSetupDocs) {
     return (
       <Layout
-        title={`Hello from ${siteConfig.title}`}
-        description="Description will go into a meta tag in <head />"
+        title="Opening setup docs"
+        description="Redirecting to the local Playrunner setup documentation."
       >
         <main className="container margin-vert--xl">
           <p>Opening setup docs…</p>
@@ -317,11 +325,22 @@ export default function Home(): ReactNode {
     );
   }
 
+  // The /search route only exists when Algolia DocSearch is configured.
+  const hasSearch = Boolean(
+    (siteConfig.themeConfig as { algolia?: unknown } | undefined)?.algolia,
+  );
+
   return (
     <Layout
       title="Visual orchestration for Playwright"
       description="Orchestrate the Playwright tests you already have on a visual workflow canvas. Triggers, environments, branches, and runners, without the CI glue."
     >
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@graph': [organization, website(hasSearch), softwareApplication],
+        }}
+      />
       <HomepageHeader />
       <main>
         <CanvasShowcase />

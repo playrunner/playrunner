@@ -1,6 +1,9 @@
 ---
 sidebar_position: 1
-title: Tutorials
+sidebar_label: Tutorials
+title: Playwright orchestration tutorials
+description: 'Step-by-step tutorials: set up Playrunner, build a workflow on the canvas, connect GitHub, run your Playwright tests, and read the reports.'
+keywords: ['playwright tutorial', 'playwright orchestration tutorial']
 ---
 
 # Tutorials

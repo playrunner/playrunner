@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 sidebar_label: GitHub
 title: GitHub Integration
 description: Connect GitHub repositories and install app credentials for Playrunner workflows.

@@ -1,0 +1,11 @@
+# Playrunner Cloud is an auth-gated application.
+#
+# Crawling is deliberately ALLOWED so that crawlers can fetch each page and see
+# the `noindex` meta tag in index.html. Disallowing here would have the opposite
+# of the intended effect: the page would never be fetched, the noindex would
+# never be read, and the URL could still surface as a bare link indefinitely.
+#
+# The indexable content lives on https://playrunner.dev.
+
+User-agent: *
+Disallow:

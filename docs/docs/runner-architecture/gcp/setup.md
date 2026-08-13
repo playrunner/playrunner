@@ -1,7 +1,8 @@
 ---
 sidebar_position: 2
-title: GCP Setup
 sidebar_label: Setup
+title: GCP Setup
+description: "Provision Playrunner's Google Cloud runner resources from the Connect to GCP dialog: permission checks, API enablement, and shared infrastructure."
 ---
 
 # GCP Setup

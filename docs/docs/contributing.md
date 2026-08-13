@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Contributing
+description: 'Contribute to Playrunner: where to start on the workflow canvas, the runners, integration packages, and the documentation.'
 ---
 
 # Contributing to Playrunner

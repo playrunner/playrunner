@@ -1,8 +1,72 @@
 import type { ReactNode } from 'react';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import { PageMetadata } from '@docusaurus/theme-common';
+import { JsonLd, faqPage } from '@site/src/components/StructuredData';
 
 import styles from './pricing.module.css';
+
+/**
+ * Every answer below is also rendered on the page, in the FAQ section at the
+ * bottom. Markup that is not visible to the reader is a violation.
+ *
+ * Scope: licensing and availability only. Anything that states or implies a
+ * price, a billing model, or a compute allocation is parked in PARKED_FAQ
+ * below until those decisions are actually made.
+ */
+const FAQ = [
+  {
+    question: 'Is Playrunner open source?',
+    answer:
+      'Playrunner is source-available, not open source. It is distributed under the Playrunner Sustainable Use License, which is not an OSI-approved license. You can read, modify, and self-host the code; you cannot resell it or offer it as a hosted service.',
+  },
+  {
+    question: 'What am I allowed to do under the Sustainable Use License?',
+    answer:
+      "You can use and modify Playrunner to support your own organization's internal operations, and for personal, educational, evaluation, and other non-commercial purposes. You cannot sell Playrunner, monetize access to it, or offer a service substantially based on it to third parties without separate written permission.",
+  },
+  {
+    question: 'Can I use Playrunner today?',
+    answer:
+      'Yes, by running it yourself. Install it locally with Docker or deploy it to your own cloud account, and the full workflow model is available with no license fee for any use the Sustainable Use License permits. Playrunner Cloud, the hosted version, is in beta with limited access.',
+  },
+  {
+    question: 'Do I need Playrunner Cloud to use the integrations?',
+    answer:
+      'No. Every integration node runs the same way on a self-hosted Playrunner deployment as it does on Playrunner Cloud, because integrations are bundled into the build rather than fetched at runtime. You connect your own Slack, Jira, GitHub, or OpenAI credentials either way.',
+  },
+];
+
+/*
+ * TODO(pricing): parked until the Playrunner Cloud pricing structure is
+ * decided. Do NOT publish any of these as-is — each one states or implies a
+ * commitment that has not been made:
+ *
+ *   - "How much does Playrunner cost?"
+ *       Needs a settled answer for Cloud. The self-hosted half (no license fee
+ *       for permitted use) is already covered by the license section.
+ *
+ *   - "Do I need a credit card to join the Playrunner Cloud beta?"
+ *       Reads as a promise about billing during and after the beta.
+ *
+ *   - "Why is there no Playrunner Cloud pricing yet?"
+ *       Good trust-building answer, but it commits publicly to the reasoning
+ *       and to a rough timeline. Revisit once the model is chosen.
+ *
+ *   - "Are there limits during the beta?"
+ *       Previously named a specific vCPU/memory allocation. That number is not
+ *       settled and must not be published until it is.
+ *
+ *   - "Will self-hosting stay free when Cloud pricing launches?"
+ *       Safe in substance, but presumes a launch shape that is undecided.
+ *
+ *   - "What happens to my beta account when pricing launches?"
+ *       Describes migration and billing behaviour that has not been designed.
+ *
+ * When pricing firms up, rewrite these against the real model and move them
+ * into FAQ above. They will flow into the FAQPage JSON-LD automatically, so
+ * they must be rendered visibly on the page at the same time.
+ */
 
 type FeatureProps = {
   children: ReactNode;
@@ -29,8 +93,20 @@ export default function Pricing(): ReactNode {
   return (
     <Layout
       title="Pricing"
-      description="Use and self-host Playrunner for free under the Playrunner Sustainable Use License. Playrunner Cloud is coming soon."
+      description="Use and self-host Playrunner for free under the Playrunner Sustainable Use License. Playrunner Cloud, the hosted version, is in beta."
     >
+      {/* Layout only forwards title and description to PageMetadata, so the
+          page-specific image and keywords have to be set directly. */}
+      <PageMetadata
+        image="/img/og/og-pricing.png"
+        keywords={[
+          'playrunner pricing',
+          'playwright orchestration pricing',
+          'self-hosted playwright',
+          'free playwright test orchestration',
+        ]}
+      />
+      <JsonLd data={faqPage(FAQ)} />
       <main className={styles.page}>
         <section className={styles.hero}>
           <div className="container">
@@ -38,17 +114,23 @@ export default function Pricing(): ReactNode {
               <span className={styles.eyebrow}>Simple from the start</span>
               <h1>Run Playrunner your way, for free.</h1>
               <p>
-                Download Playrunner, install it locally, or deploy it to your
-                own cloud. There are no license fees for uses permitted by the
-                Playrunner Sustainable Use License.
+                Run Playrunner on your own infrastructure today. There are no
+                license fees for uses permitted by the Playrunner Sustainable
+                Use License. Playrunner Cloud, the hosted version, is in beta.
               </p>
               <div className={styles.heroActions}>
                 <Link
                   className="button button--primary button--lg"
-                  to="/docs/tutorials/getting-started"
+                  to="/docs/start"
                 >
                   Get started locally
                 </Link>
+                <a
+                  className="button button--secondary button--lg"
+                  href="https://discord.gg/4zPdBy3DwU"
+                >
+                  Request beta access
+                </a>
                 <a
                   className="button button--secondary button--lg"
                   href="https://github.com/playrunner/playrunner"
@@ -64,10 +146,11 @@ export default function Pricing(): ReactNode {
           <div className="container">
             <div className={styles.sectionHeading}>
               <span className={styles.eyebrow}>Choose how you run</span>
-              <h2>Start self-hosted. Move to our cloud when it arrives.</h2>
+              <h2>Self-host it today, or join the hosted beta.</h2>
               <p>
-                The product is available today for you to operate. A managed
-                option from the Playrunner team is now in development.
+                Self-hosting is available now and free for any use the
+                Sustainable Use License permits. A managed option from the
+                Playrunner team is in beta.
               </p>
             </div>
 
@@ -116,9 +199,7 @@ export default function Pricing(): ReactNode {
                 <div className={styles.cloudGlow} aria-hidden="true" />
                 <div className={styles.planHeader}>
                   <div>
-                    <span className={`${styles.status} ${styles.soonStatus}`}>
-                      Beta coming soon
-                    </span>
+                    <span className={styles.status}>Beta</span>
                     <h2>Playrunner Cloud</h2>
                     <p className={styles.planSummary}>
                       The convenience of Playrunner, hosted and managed by us.
@@ -137,21 +218,20 @@ export default function Pricing(): ReactNode {
                   <Feature>
                     A faster path from setup to running workflows
                   </Feature>
+                  {/* TODO(pricing): no cost, billing, or compute-allocation
+                      claims here until the Cloud pricing structure is
+                      decided. */}
                   <Feature>
                     Beta access and pricing details to be announced
                   </Feature>
                 </ul>
 
-                <div className={styles.comingSoon}>
-                  <span className={styles.pulse} aria-hidden="true" />
-                  <div>
-                    <strong>In the works</strong>
-                    <p>
-                      We&apos;re building the hosted beta now. We&apos;ll share
-                      an update soon.
-                    </p>
-                  </div>
-                </div>
+                <a
+                  className={`button button--primary button--block button--lg ${styles.planAction}`}
+                  href="https://discord.gg/4zPdBy3DwU"
+                >
+                  Request beta access
+                </a>
               </article>
             </div>
           </div>
@@ -189,22 +269,39 @@ export default function Pricing(): ReactNode {
           </div>
         </section>
 
+        <section className={styles.faq}>
+          <div className="container">
+            <div className={styles.faqInner}>
+              <span className={styles.eyebrow}>Questions</span>
+              <h2>Common questions about cost and licensing.</h2>
+              <dl className={styles.faqList}>
+                {FAQ.map(({ question, answer }) => (
+                  <div className={styles.faqItem} key={question}>
+                    <dt>{question}</dt>
+                    <dd>{answer}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        </section>
+
         <section className={styles.bottomCta}>
           <div className="container">
             <div className={styles.bottomCtaInner}>
               <div>
                 <h2>Ready to run Playrunner?</h2>
                 <p>
-                  Start locally today. No account, subscription, or license fee
-                  required for permitted use.
+                  Start free on our cloud, or run it yourself. No subscription
+                  or license fee required for permitted use.
                 </p>
               </div>
-              <Link
+              <a
                 className="button button--primary button--lg"
-                to="/docs/tutorials/getting-started"
+                href="https://playrunner.cloud"
               >
-                Follow the getting started guide
-              </Link>
+                Start free on Playrunner Cloud
+              </a>
             </div>
           </div>
         </section>

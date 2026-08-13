@@ -1,7 +1,8 @@
 ---
 sidebar_position: 4
-title: Project and Region Setup
 sidebar_label: Project & Region
+title: Project and Region Setup
+description: Choose the Google Cloud project and Cloud Run region Playrunner provisions runners into, and confirm billing and org policy prerequisites first.
 ---
 
 # Project and Region Setup

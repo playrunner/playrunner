@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 title: Create Your First Workflow
+description: 'Build your first Playwright workflow on the Playrunner canvas: add an Environment node, wire it to a Playwright test node, and save the graph.'
 ---
 
 # Create Your First Workflow

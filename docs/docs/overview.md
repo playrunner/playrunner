@@ -1,6 +1,9 @@
 ---
 sidebar_position: 1
-title: Overview
+sidebar_label: Overview
+title: Playwright test orchestration docs
+description: Orchestrate the Playwright suite you already have on a visual canvas, with triggers, environments, runners, and integrations around every run.
+keywords: ['playwright orchestration', 'playwright test automation platform']
 ---
 
 # Playrunner Documentation

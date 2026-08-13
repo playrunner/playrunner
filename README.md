@@ -35,7 +35,7 @@ cp .env.local.example .env.local
 
 This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
 
-Edit `.env.local` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5432` is already in use locally, set `POSTGRES_PORT=55432` before setup.
+Edit `.env.local` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5431` is already in use locally, set `POSTGRES_PORT=55432` before setup.
 
 ### 3. Start the app
 
@@ -45,13 +45,13 @@ On the first run, Playrunner opens the setup app automatically. After setup is c
 ./start-local.sh
 ```
 
-If setup is needed, open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3000/setup`. In that screen, confirm the PostgreSQL URL and create the first admin username and password.
+If setup is needed, open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3100/setup`. In that screen, confirm the PostgreSQL URL and create the first admin username and password.
 
-That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3004/playrunner/`, and the app header's `Docs` link points there during local development.
+That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3104/playrunner/`, and the app header's `Docs` link points there during local development.
 
-Then open the URL printed by the script and log in with the username and password you created during setup. With defaults, that is `http://127.0.0.1:3000`.
+Then open the URL printed by the script and log in with the username and password you created during setup. With defaults, that is `http://127.0.0.1:3100`.
 
-The local docs site also starts with this command. With defaults, it is `http://127.0.0.1:3004/playrunner/`.
+The local docs site also starts with this command. With defaults, it is `http://127.0.0.1:3104/playrunner/`.
 
 ### Run setup again
 
@@ -72,10 +72,10 @@ For more detail, see [`docs/docs/tutorials/01-getting-started.md`](docs/docs/tut
 
 ```bash
 cd docs
-npm run start -- --port 3004
+npm run start -- --port 3104
 ```
 
-Then open `http://127.0.0.1:3004/playrunner/`.
+Then open `http://127.0.0.1:3104/playrunner/`.
 
 ## Package end-to-end tests
 
