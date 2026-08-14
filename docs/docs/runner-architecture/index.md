@@ -1,6 +1,8 @@
 ---
-title: Runner Architecture
+sidebar_position: 0
 sidebar_label: Overview
+title: Playwright runner architecture
+description: 'How Playrunner runners execute Playwright tests: the shared orchestrator, runner, and messaging model behind the local and cloud providers.'
 ---
 
 # Runner Architecture

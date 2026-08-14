@@ -1,0 +1,106 @@
+name: Docs CI
+
+# The docs deploy is push-triggered on main with no gate in front of it, and
+# the site now builds with onBrokenLinks/onBrokenAnchors set to 'throw'. Without
+# this workflow, a single bad relative link silently breaks the deploy and the
+# published site quietly goes stale.
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "packages/*/assets/**"
+      - ".github/workflows/docs-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          # Must match deploy-docs.yml, or CI and production build different
+          # sitemaps and this job stops being a faithful preview.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: docs
+        run: npm run typecheck
+
+      - name: Check formatting
+        working-directory: docs
+        run: npm run format:check
+
+      - name: Build site
+        working-directory: docs
+        env:
+          ALGOLIA_APP_ID: ${{ vars.ALGOLIA_APP_ID }}
+          ALGOLIA_INDEX_NAME: ${{ vars.ALGOLIA_INDEX_NAME }}
+          ALGOLIA_SEARCH_API_KEY: ${{ vars.ALGOLIA_SEARCH_API_KEY }}
+        # Throws on broken links and anchors.
+        run: npm run build
+
+      # Regression guards for the specific mistakes the SEO pass fixed. These
+      # are deliberately crude greps: they cost nothing to maintain and they
+      # fail loudly if someone reintroduces a known problem.
+      - name: Assert SEO invariants
+        working-directory: docs
+        run: |
+          set -euo pipefail
+          fail() { echo "::error::$1"; exit 1; }
+
+          grep -qE 'og:image content=[^ ]*\.(png|jpg)' build/index.html \
+            || fail "og:image must be a raster image; social cards render blank with an SVG"
+
+          test -f build/robots.txt \
+            || fail "build/robots.txt is missing"
+
+          grep -q 'playrunner.dev/sitemap.xml' build/robots.txt \
+            || fail "robots.txt is missing its Sitemap directive"
+
+          test -f build/sitemap.xml \
+            || fail "build/sitemap.xml is missing"
+
+          ! grep -q 'markdown-page' build/sitemap.xml \
+            || fail "the Docusaurus template page is back in the sitemap"
+
+          grep -q '<lastmod>' build/sitemap.xml \
+            || fail "sitemap has no <lastmod>; check showLastUpdateTime and fetch-depth: 0"
+
+          # Blog posts already emit BlogPosting and docs pages already emit
+          # BreadcrumbList. More than one block on a docs page means a
+          # site-wide injection is duplicating what the theme provides.
+          count=$(grep -o 'application/ld+json' build/docs/overview/index.html | wc -l)
+          [ "$count" -le 1 ] \
+            || fail "duplicate JSON-LD on docs pages ($count blocks)"
+
+          echo "SEO invariants OK"
+
+      - name: Flag over-length meta descriptions
+        working-directory: docs
+        # Advisory only: Google truncates around 155-160 characters, but a long
+        # description is not a build error.
+        continue-on-error: true
+        run: |
+          grep -rho 'name="description" content="[^"]*"' build/docs --include=index.html \
+            | sed 's/.*content="//;s/"$//' \
+            | awk 'length($0) > 160 { print "::warning::description is " length($0) " chars: " substr($0, 1, 80) "..." }'

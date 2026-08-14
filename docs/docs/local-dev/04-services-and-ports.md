@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Services & Ports
+description: 'Port map for the local Playrunner stack: web app, docs, API, orchestrator, Postgres, and the Pub/Sub emulator, plus how to override each default.'
 ---
 
 # Services & Ports
@@ -19,7 +20,7 @@ title: Services & Ports
 | API Server             | `3011` | `localhost:3011`                 | Express, started via `npm start`                             |
 | Setup Installer        | `3103` | `localhost:SETUP_INSTALLER_PORT` | Local-only file writer, started by `start-local.sh`          |
 | Orchestrator           | `3012` | `localhost:3012`                 | Docker container, port-mapped `3012:8080`                    |
-| PostgreSQL             | `5432` | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
+| PostgreSQL             | `5431` | `localhost:POSTGRES_PORT`        | Docker container started by `start-local.sh`                 |
 | Pub/Sub Emulator       | `8084` | `localhost:PUBSUB_EMULATOR_PORT` | Host port (default `8084`) mapped to container port `8085`   |
 
 ---

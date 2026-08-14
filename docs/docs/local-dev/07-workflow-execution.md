@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 title: Workflow Execution Flow
+description: 'How a Playrunner workflow run executes end to end: graph traversal, node types, connection states, runner dispatch, and live event streaming.'
 ---
 
 # Workflow Execution Flow

@@ -1,7 +1,8 @@
 ---
 sidebar_position: 5
-title: Optional Terraform Deployment
 sidebar_label: Terraform (Optional)
+title: Optional Terraform Deployment
+description: Optional Terraform configuration for a wider Playrunner GCP deployment, including the API Cloud Run service and OAuth-provisioned resources.
 ---
 
 # Optional Terraform Deployment

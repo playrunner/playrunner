@@ -1,7 +1,8 @@
 ---
 sidebar_position: 1
-title: GCP Runner Architecture
 sidebar_label: Overview
+title: GCP Runner Architecture
+description: 'Run Playwright tests on Google Cloud: Cloud Run orchestrator and runner jobs, Pub/Sub messaging, and Cloud Storage for reports and artefacts.'
 ---
 
 # Google Cloud Platform (GCP) Runner Architecture

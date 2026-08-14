@@ -1,6 +1,7 @@
 ---
 sidebar_position: 10
 title: Remote Runner Messaging
+description: How runner messages, logs, and output archives travel between a cloud runner and a Playrunner API server running on your own machine.
 ---
 
 # Remote Runner Messaging

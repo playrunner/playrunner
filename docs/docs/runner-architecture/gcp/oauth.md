@@ -1,7 +1,8 @@
 ---
 sidebar_position: 3
-title: Google OAuth Setup
 sidebar_label: OAuth
+title: Google OAuth Setup
+description: Create the Google OAuth web client Playrunner needs, set the authorised redirect URI, and grant the scope used to provision GCP runners.
 ---
 
 # Google OAuth Setup

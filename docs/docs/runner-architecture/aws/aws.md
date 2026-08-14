@@ -1,7 +1,9 @@
 ---
 sidebar_position: 3
-title: AWS Runner Architecture
 sidebar_label: AWS
+title: AWS Runner Architecture
+description: AWS runner support for Playrunner is planned. Use the local or GCP runner architecture today, and follow the roadmap for progress.
+unlisted: true
 ---
 
 # AWS Runner Architecture

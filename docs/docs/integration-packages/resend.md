@@ -1,5 +1,5 @@
 ---
-sidebar_position: 11
+sidebar_position: 12
 sidebar_label: Resend
 title: Resend Integration
 description: Send email or wait for inbound messages, verification codes, and attachments in Playrunner workflows.
@@ -52,7 +52,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 Resend declares frontend, API, Orchestrator, and E2E surfaces in its package
 manifest. It must be a direct production dependency of each Playrunner app or

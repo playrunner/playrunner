@@ -3,8 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Auth-gated application shell. Every route behind it requires a session,
+      so there is nothing here worth indexing, and letting it rank would split
+      authority away from playrunner.dev.
+
+      Deliberately no cross-domain rel=canonical to playrunner.dev: combining
+      noindex with a canonical pointing elsewhere sends contradictory signals,
+      and can propagate the noindex to the canonical target. The noindex alone
+      does the job. See public/robots.txt for why crawling stays allowed.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="googlebot" content="noindex, nofollow" />
+
+    <title>Playrunner Cloud</title>
+    <meta
+      name="description"
+      content="Sign in to Playrunner and orchestrate your Playwright suite on a visual workflow canvas."
+    />
+
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="color-scheme" content="light dark" />
+
     <link rel="icon" type="image/svg+xml" href="/images/playrunner-icon.svg" />
-    <title>Playrunner</title>
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/images/icons/favicon-32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/images/icons/favicon-16.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/images/icons/apple-touch-icon.png"
+    />
+    <link rel="manifest" href="/site.webmanifest" />
   </head>
 
   <body>

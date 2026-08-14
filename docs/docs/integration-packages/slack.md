@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 4
 sidebar_label: Slack
 title: Slack Integration
 description: Send notifications and alerts to Slack channels from Playrunner workflows.
@@ -54,7 +54,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 The install command on this page is for building a Playrunner deployment. Slack
 declares its frontend, API, and Orchestrator surfaces in its own package
@@ -203,3 +203,10 @@ are never included in user-visible execution errors.
 ## Assets
 
 The Slack SVG lives inside the package at `packages/slack/assets/slack.svg`. The frontend entrypoint resolves it with `new URL(..., import.meta.url)`, so the app does not need a duplicate public asset.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [Send Slack alerts when Playwright tests fail](/docs/use-cases/slack-alerts-for-failed-playwright-tests/)
