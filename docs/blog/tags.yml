@@ -23,11 +23,6 @@ orchestration:
   permalink: /orchestration
   description: Building and running Playwright test workflows
 
-no-code:
-  label: No-code
-  permalink: /no-code
-  description: Visual, no-code orchestration for Playwright test suites
-
 self-hosting:
   label: Self-hosting
   permalink: /self-hosting

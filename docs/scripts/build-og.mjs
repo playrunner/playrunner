@@ -51,9 +51,9 @@ const CARDS = [
     title: 'Free to self-host. Free on Playrunner Cloud, in open beta.',
   },
   {
-    file: 'og-no-code.png',
-    eyebrow: 'No-code orchestration',
-    title: 'Keep your test code. Skip the orchestration code.',
+    file: 'og-use-cases.png',
+    eyebrow: 'Use cases',
+    title: 'Alerts, tickets, triage, and schedules around every run.',
   },
 ];
 

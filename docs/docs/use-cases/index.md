@@ -3,6 +3,7 @@ sidebar_position: 1
 sidebar_label: Overview
 title: Playwright workflow use cases
 description: 'Common workflows built on the Playrunner canvas: Slack alerts, Jira bugs, AI failure triage, scheduled regression runs, and webhook-triggered tests.'
+image: /img/og/og-use-cases.png
 keywords:
   ['playwright workflow examples', 'playwright test automation workflows']
 ---

@@ -206,7 +206,6 @@ const config: Config = {
         content: [
           'playwright orchestration',
           'playwright test automation',
-          'no-code playwright',
           'visual workflow builder',
           'e2e test orchestration',
           'playwright runners',
@@ -310,8 +309,8 @@ const config: Config = {
               to: '/docs/use-cases/ai-triage-for-playwright-test-failures',
             },
             {
-              label: 'No-code orchestration',
-              to: '/no-code-playwright-orchestration',
+              label: 'Scheduled runs',
+              to: '/docs/use-cases/scheduled-playwright-test-runs',
             },
           ],
         },
