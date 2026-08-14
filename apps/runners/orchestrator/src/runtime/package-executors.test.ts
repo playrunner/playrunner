@@ -624,6 +624,40 @@ describe('package orchestrator integration', { concurrency: false }, () => {
 
       process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
       globalThis.fetch = async (input, init) => {
+        if (
+          String(input) ===
+          'https://editor.test/api/outputs/execution-upstream-output/diagnostics/history'
+        ) {
+          assert.equal(
+            new Headers(init?.headers).get('x-execution-token'),
+            'execution-token',
+          );
+          return new Response(
+            JSON.stringify({
+              runs: [
+                {
+                  diagnostics: { sharding: [] },
+                  durationMs: 1000,
+                  finishedAt: '2026-08-13T00:00:01.000Z',
+                  id: 'previous-run',
+                  logs: [
+                    {
+                      executionId: 'previous-run',
+                      level: 'error',
+                      message: 'Historical shard failure.',
+                      timestamp: '2026-08-13T00:00:00.000Z',
+                    },
+                  ],
+                  runner: 'LOCAL_RUNNER',
+                  startedAt: '2026-08-13T00:00:00.000Z',
+                  status: 'failed',
+                },
+              ],
+            }),
+            { headers: { 'Content-Type': 'application/json' }, status: 200 },
+          );
+        }
+
         if (String(input) === 'https://api.openai.com/v1/responses') {
           openAIRequests.push(JSON.parse(String(init?.body)));
           return new Response(
@@ -655,6 +689,7 @@ describe('package orchestrator integration', { concurrency: false }, () => {
             type: 'gcp_pubsub',
           },
           executionAuthToken: 'execution-token',
+          editorApiUrl: 'https://editor.test',
           nodes: [
             {
               config: { prompt: 'Create the first result.' },
@@ -676,19 +711,6 @@ describe('package orchestrator integration', { concurrency: false }, () => {
           testId: 'execution-upstream-output',
           workflow: {
             definition: { id: 'workflow-1', name: 'Output template test' },
-          },
-          workflowHistory: {
-            logs: {
-              error: [
-                {
-                  executionId: 'previous-run',
-                  level: 'error',
-                  message: 'Historical shard failure.',
-                  timestamp: '2026-08-13T00:00:00.000Z',
-                },
-              ],
-            },
-            runs: [],
           },
           workflowId: 'workflow-1',
         });

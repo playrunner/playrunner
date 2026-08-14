@@ -9,6 +9,7 @@ import {
 } from '../services/execution-events';
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
+import { loadWorkflowHistory } from '../services/workflow-history';
 
 export const outputsRouter = Router();
 
@@ -19,6 +20,34 @@ function getStringHeader(value: string | string[] | undefined) {
 function isSafePathSegment(value: string) {
   return value !== '.' && value !== '..' && path.basename(value) === value;
 }
+
+outputsRouter.get('/:testId/diagnostics/history', async (req, res) => {
+  const { testId } = req.params;
+  const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
+  if (!executionToken) {
+    return res
+      .status(401)
+      .json({ error: `Missing ${EXECUTION_TOKEN_HEADER} header.` });
+  }
+
+  const execution = await executionEvents.verifyExecutionToken(
+    testId,
+    executionToken,
+  );
+  if (!execution) {
+    return res.status(403).json({ error: 'Invalid execution token.' });
+  }
+  if (!execution.workflowId) {
+    return res.status(200).json({ runs: [] });
+  }
+
+  const history = await loadWorkflowHistory({
+    currentExecutionId: execution.id,
+    userId: execution.userId,
+    workflowId: execution.workflowId,
+  });
+  return res.status(200).json(history);
+});
 
 outputsRouter.get(
   '/:testId/:nodeId/blob-report/:fileName',

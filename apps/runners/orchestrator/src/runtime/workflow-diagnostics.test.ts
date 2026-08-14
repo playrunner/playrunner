@@ -53,3 +53,22 @@ test('merges delayed child diagnostics into timestamp order', () => {
     ['Earlier child log', 'Orchestrator completion'],
   );
 });
+
+test('drops oldest entries when a diagnostic log reaches its byte limit', () => {
+  const logs = createWorkflowDiagnosticLogs({
+    maxBytes: 220,
+    maxEntries: 10,
+  });
+
+  for (let index = 0; index < 5; index += 1) {
+    appendWorkflowDiagnosticLog(logs, {
+      level: index === 0 ? 'error' : 'info',
+      message: `entry-${index}-${'x'.repeat(80)}`,
+      timestamp: `2026-08-14T00:00:0${index}.000Z`,
+    });
+  }
+
+  assert.ok(Buffer.byteLength(JSON.stringify(logs.all), 'utf8') <= 220);
+  assert.doesNotMatch(JSON.stringify(logs), /entry-0/);
+  assert.match(JSON.stringify(logs), /entry-4/);
+});

@@ -54,6 +54,9 @@ const runnerDiagnosticLogs: Array<{
   nodeId?: string;
   timestamp: string;
 }> = [];
+const MAX_RUNNER_DIAGNOSTIC_LOG_BYTES = 64 * 1024;
+const MAX_RUNNER_DIAGNOSTIC_LOG_ENTRIES = 100;
+const MAX_RUNNER_DIAGNOSTIC_MESSAGE_LENGTH = 2_000;
 const CONTROL_POLL_INTERVAL_MS = 1000;
 const CONTROL_SIGNAL_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
@@ -209,12 +212,19 @@ async function publishLog(message: string, level: 'info' | 'error' = 'info') {
   const timestamp = new Date().toISOString();
   runnerDiagnosticLogs.push({
     level,
-    message: formattedMessage,
+    message: formattedMessage.slice(0, MAX_RUNNER_DIAGNOSTIC_MESSAGE_LENGTH),
     ...(runnerEventContext?.nodeId
       ? { nodeId: runnerEventContext.nodeId }
       : {}),
     timestamp,
   });
+  while (
+    runnerDiagnosticLogs.length > MAX_RUNNER_DIAGNOSTIC_LOG_ENTRIES ||
+    Buffer.byteLength(JSON.stringify(runnerDiagnosticLogs), 'utf8') >
+      MAX_RUNNER_DIAGNOSTIC_LOG_BYTES
+  ) {
+    runnerDiagnosticLogs.shift();
+  }
   if (level === 'error') {
     console.error(formattedMessage);
   } else {

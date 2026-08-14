@@ -197,23 +197,6 @@ function formatTemplateValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function withNodeDiagnosticLogs(
-  output: unknown,
-  logs: WorkflowDiagnosticLogs,
-): Record<string, unknown> {
-  if (output && typeof output === 'object' && !Array.isArray(output)) {
-    return {
-      ...(output as Record<string, unknown>),
-      logs,
-    };
-  }
-
-  return {
-    ...(output === undefined ? {} : { result: output }),
-    logs,
-  };
-}
-
 function getDurationMs(startedAt: string, finishedAt: Date): number {
   const startedAtMs = new Date(startedAt).getTime();
   if (Number.isNaN(startedAtMs)) {
@@ -223,16 +206,55 @@ function getDurationMs(startedAt: string, finishedAt: Date): number {
   return Math.max(0, finishedAt.getTime() - startedAtMs);
 }
 
+async function loadWorkflowDiagnosticHistory(
+  reqBody: Record<string, any>,
+): Promise<Record<string, unknown>> {
+  const editorApiUrl =
+    getString(reqBody.editorApiUrl) || EDITOR_API_URL.replace(/\/+$/, '');
+  const executionId = getString(reqBody.testId);
+  const executionToken = getString(reqBody.executionAuthToken);
+  if (!editorApiUrl || !executionId || !executionToken) {
+    return { runs: [] };
+  }
+
+  try {
+    const response = await fetch(
+      `${editorApiUrl.replace(/\/+$/, '')}/api/outputs/${encodeURIComponent(executionId)}/diagnostics/history`,
+      {
+        headers: { 'x-execution-token': executionToken },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
+
+    const history: unknown = await response.json();
+    return getRecord(history);
+  } catch (error) {
+    console.warn(
+      `Workflow diagnostic history is unavailable for ${executionId}: ${getErrorMessage(error)}`,
+    );
+    return { runs: [] };
+  }
+}
+
 function createWorkflowTemplateContext(
   reqBody: Record<string, any>,
   testId: string,
   startedAt: Date,
+  history: Record<string, unknown>,
 ): WorkflowTemplateContext {
   const workflow = getRecord(reqBody.workflow);
   const definition = getRecord(workflow.definition);
   const run = getRecord(workflow.run);
   const failedNode = getRecord(run.failedNode);
-  const history = getRecord(reqBody.workflowHistory);
+  const historyRuns = Array.isArray(history.runs) ? history.runs : [];
+  const historyLogs = Array.isArray(history.logs)
+    ? history.logs
+    : historyRuns.flatMap((historyRun) => {
+        const logs = getRecord(historyRun).logs;
+        return Array.isArray(logs) ? logs : [];
+      });
   const workflowId = getString(definition.id) || getString(reqBody.workflowId);
 
   return {
@@ -267,17 +289,42 @@ function createWorkflowTemplateContext(
       url: getString(run.url),
     },
     history: {
-      logs: normalizeDiagnosticLogs(history.logs),
-      runs: Array.isArray(history.runs)
-        ? (history.runs as WorkflowHistoryRun[])
+      logs: normalizeDiagnosticLogs(historyLogs),
+      runs: historyRuns.length
+        ? (historyRuns as WorkflowHistoryRun[]).map((historyRun) => ({
+            ...historyRun,
+            logs: normalizeDiagnosticLogs(historyRun.logs),
+          }))
         : [],
     },
   };
 }
 
 function normalizeDiagnosticLogs(value: unknown): WorkflowDiagnosticLogs {
-  const logs = getRecord(value);
   const normalized = createWorkflowDiagnosticLogs();
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const log = getRecord(entry);
+      const level = getString(log.level) as WorkflowEventLevel;
+      if (
+        !['build', 'debug', 'error', 'info', 'warn'].includes(level) ||
+        !getString(log.message) ||
+        !getString(log.timestamp)
+      ) {
+        continue;
+      }
+      appendWorkflowDiagnosticLog(normalized, {
+        level,
+        message: getString(log.message),
+        ...(getString(log.nodeId) ? { nodeId: getString(log.nodeId) } : {}),
+        timestamp: getString(log.timestamp),
+      });
+    }
+    return normalized;
+  }
+
+  const logs = getRecord(value);
 
   for (const level of ['all', 'build', 'debug', 'error', 'info', 'warn']) {
     if (Array.isArray(logs[level])) {
@@ -288,6 +335,20 @@ function normalizeDiagnosticLogs(value: unknown): WorkflowDiagnosticLogs {
   }
 
   return normalized;
+}
+
+function playwrightHistoryForNode(
+  runs: WorkflowHistoryRun[],
+  nodeId: string,
+): PlaywrightExecutionObservation[] {
+  return runs
+    .flatMap((run) => run.diagnostics.sharding)
+    .filter(
+      (diagnostic): diagnostic is PlaywrightExecutionObservation =>
+        getString(diagnostic.type) === 'playwright_execution_observation' &&
+        getString(diagnostic.nodeId) === nodeId,
+    )
+    .slice(0, 10);
 }
 
 function finishWorkflowRun(
@@ -339,6 +400,7 @@ function renderNodeTemplate(
   text: string,
   context: {
     env: Record<string, string>;
+    nodeLogs: ReadonlyMap<string, WorkflowDiagnosticLogs>;
     nodeOutputs: Record<string, unknown>;
     workflow: WorkflowTemplateContext;
   },
@@ -350,6 +412,17 @@ function renderNodeTemplate(
   return text.replace(/{{\s*([^{}]+?)\s*}}/g, (match, expression) => {
     const path = expression.trim();
     if (path.startsWith('node_')) {
+      const logMatch = path.match(
+        /^node_(.+)\.logs(?:\.(all|build|debug|error|info|warn))?$/,
+      );
+      if (logMatch) {
+        const logs = context.nodeLogs.get(logMatch[1]);
+        return formatTemplateValue(
+          logMatch[2]
+            ? logs?.[logMatch[2] as keyof WorkflowDiagnosticLogs]
+            : logs,
+        );
+      }
       return formatTemplateValue(getPathValue(context.nodeOutputs, path));
     }
     if (!path.startsWith('env.') && !path.startsWith('workflow.')) {
@@ -562,17 +635,22 @@ function createWorkflowEventPublisher(
 }
 
 export async function executeWorkflow(reqBody: any) {
+  const workflowHistory = await loadWorkflowDiagnosticHistory(reqBody);
   const workflowContext = createWorkflowTemplateContext(
     reqBody,
     getString(reqBody.testId),
     new Date(),
+    workflowHistory,
   );
   const nodeDiagnosticLogs = new Map<string, WorkflowDiagnosticLogs>();
   const getNodeDiagnosticLogs = (nodeId: string) => {
     const existing = nodeDiagnosticLogs.get(nodeId);
     if (existing) return existing;
 
-    const logs = createWorkflowDiagnosticLogs();
+    const logs = createWorkflowDiagnosticLogs({
+      maxBytes: 64 * 1024,
+      maxEntries: 100,
+    });
     nodeDiagnosticLogs.set(nodeId, logs);
     return logs;
   };
@@ -927,11 +1005,10 @@ export async function executeWorkflow(reqBody: any) {
               : getRecord(reqBody.shardCapacity),
           config,
           discovery,
-          history: Array.isArray(reqBody.playwrightHistory?.[node.id])
-            ? (reqBody.playwrightHistory[
-                node.id
-              ] as PlaywrightExecutionObservation[])
-            : [],
+          history: playwrightHistoryForNode(
+            workflowContext.history.runs,
+            node.id,
+          ),
         });
         const shardChildren = Array.from(
           { length: plan.count },
@@ -1267,6 +1344,7 @@ export async function executeWorkflow(reqBody: any) {
               renderTemplate: (value) =>
                 renderNodeTemplate(value, {
                   env: globalEnvVars,
+                  nodeLogs: nodeDiagnosticLogs,
                   nodeOutputs: nodeTemplateOutputs,
                   workflow: workflowContext,
                 }),
@@ -1303,11 +1381,6 @@ export async function executeWorkflow(reqBody: any) {
               finalizationError,
             );
           } finally {
-            const outputKey = `node_${node.id}`;
-            nodeTemplateOutputs[outputKey] = withNodeDiagnosticLogs(
-              nodeTemplateOutputs[outputKey],
-              getNodeDiagnosticLogs(node.id),
-            );
             nodeIsRunning[nodeId] = false;
             nodeHasRun[nodeId] = true;
             activeNodeCount--;

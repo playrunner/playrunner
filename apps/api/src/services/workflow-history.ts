@@ -1,4 +1,5 @@
 import { sanitizeWorkflowLogMessage } from './execution-events';
+import { prisma } from '../lib/prisma';
 
 type WorkflowHistoryEvent = {
   executionId: string;
@@ -27,47 +28,26 @@ type WorkflowHistoryLog = {
   timestamp: string;
 };
 
-type WorkflowHistoryLogs = {
-  all: WorkflowHistoryLog[];
-  build: WorkflowHistoryLog[];
-  debug: WorkflowHistoryLog[];
-  error: WorkflowHistoryLog[];
-  info: WorkflowHistoryLog[];
-  warn: WorkflowHistoryLog[];
-};
-
 const HISTORY_LOG_LEVELS = new Set(['build', 'debug', 'error', 'info', 'warn']);
+const MAX_HISTORY_RUNS = 5;
+const MAX_HISTORY_EVENTS_PER_RUN = 100;
+const MAX_HISTORY_BYTES = 256 * 1024;
+const MAX_HISTORY_LOG_MESSAGE_LENGTH = 2_000;
 
-function createHistoryLogs(): WorkflowHistoryLogs {
-  return {
-    all: [],
-    build: [],
-    debug: [],
-    error: [],
-    info: [],
-    warn: [],
-  };
-}
-
-function appendHistoryLog(
-  logs: WorkflowHistoryLogs,
-  event: WorkflowHistoryEvent,
-) {
+function historyLog(event: WorkflowHistoryEvent): WorkflowHistoryLog | null {
   const message = sanitizeWorkflowLogMessage(event.message);
-  if (!message) return;
+  if (!message) return null;
 
   const level = HISTORY_LOG_LEVELS.has(event.level || '')
-    ? (event.level as keyof Omit<WorkflowHistoryLogs, 'all'>)
+    ? event.level!
     : 'info';
-  const entry: WorkflowHistoryLog = {
+  return {
     executionId: event.executionId,
     level,
-    message,
+    message: message.slice(0, MAX_HISTORY_LOG_MESSAGE_LENGTH),
     ...(event.nodeId ? { nodeId: event.nodeId } : {}),
     timestamp: (event.occurredAt || new Date(0)).toISOString(),
   };
-  logs.all.push(entry);
-  logs[level].push(entry);
 }
 
 function durationMs(startedAt: Date, completedAt: Date | null) {
@@ -77,15 +57,16 @@ function durationMs(startedAt: Date, completedAt: Date | null) {
 }
 
 export function buildWorkflowHistory(executions: WorkflowHistoryExecution[]) {
-  const allLogs = createHistoryLogs();
-  const runs = executions.map((execution) => {
-    const logs = createHistoryLogs();
+  const runs = executions.slice(0, MAX_HISTORY_RUNS).map((execution) => {
+    const logs: WorkflowHistoryLog[] = [];
     const sharding: unknown[] = [];
 
-    for (const event of execution.events) {
+    for (const event of execution.events.slice(0, MAX_HISTORY_EVENTS_PER_RUN)) {
       if (event.type === 'log') {
-        appendHistoryLog(logs, event);
-        appendHistoryLog(allLogs, event);
+        const log = historyLog(event);
+        if (log) {
+          logs.push(log);
+        }
       } else if (
         event.type === 'shard_plan' ||
         event.type === 'playwright_execution_observation'
@@ -106,5 +87,56 @@ export function buildWorkflowHistory(executions: WorkflowHistoryExecution[]) {
     };
   });
 
-  return { logs: allLogs, runs };
+  const history = { runs };
+  while (
+    history.runs.length > 0 &&
+    Buffer.byteLength(JSON.stringify(history), 'utf8') > MAX_HISTORY_BYTES
+  ) {
+    history.runs.pop();
+  }
+
+  return history;
+}
+
+export async function loadWorkflowHistory(args: {
+  currentExecutionId: string;
+  userId: string;
+  workflowId: string;
+}) {
+  const executions = await prisma.workflowExecution.findMany({
+    orderBy: { startedAt: 'desc' },
+    select: {
+      cloudProvider: true,
+      completedAt: true,
+      events: {
+        orderBy: { id: 'asc' },
+        select: {
+          executionId: true,
+          level: true,
+          message: true,
+          nodeId: true,
+          occurredAt: true,
+          payload: true,
+          type: true,
+        },
+        take: MAX_HISTORY_EVENTS_PER_RUN,
+        where: {
+          type: {
+            in: ['log', 'shard_plan', 'playwright_execution_observation'],
+          },
+        },
+      },
+      id: true,
+      startedAt: true,
+      status: true,
+    },
+    take: MAX_HISTORY_RUNS,
+    where: {
+      id: { not: args.currentExecutionId },
+      userId: args.userId,
+      workflowId: args.workflowId,
+    },
+  });
+
+  return buildWorkflowHistory(executions);
 }
