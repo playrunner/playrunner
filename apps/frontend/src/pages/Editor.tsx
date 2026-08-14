@@ -3067,6 +3067,11 @@ export default function Editor() {
                   : (left.shardIndex || 0) - (right.shardIndex || 0);
               });
               const runtimePlan = runtimePlaywrightPlans[node.id];
+              const runtimeShardCount =
+                runtimePlan?.count ??
+                runtimeChildren.filter((child) => child.childKind === 'shard')
+                  .length;
+              const runtimeWorkersPerShard = runtimePlan?.workersPerShard ?? 1;
               const runtimeCpuPerShard = runtimePlan
                 ? (runtimePlan.cpuPerShard ??
                   runtimePlan.aggregateCpu / runtimePlan.count)
@@ -3189,7 +3194,14 @@ export default function Editor() {
                       <>
                         <button
                           type="button"
-                          className="absolute bottom-2 left-1/2 z-20 flex min-w-[112px] -translate-x-1/2 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-[var(--node-border)] bg-[var(--node-bg)] px-3 py-1.5 text-[11px] font-medium text-muted shadow-sm pointer-events-auto hover:text-[var(--foreground)]"
+                          className={cn(
+                            'absolute inset-x-0 bottom-0 z-20 flex h-9 w-full items-center gap-1.5 rounded-b-xl border-t border-[var(--node-border)] bg-[var(--node-bg)] px-2 text-muted pointer-events-auto transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]',
+                            isRuntimeExpanded &&
+                              'bg-[var(--surface-hover)] text-[var(--foreground)]',
+                          )}
+                          aria-expanded={isRuntimeExpanded}
+                          aria-label={`${isRuntimeExpanded ? 'Collapse' : 'Expand'} ${runtimePlan?.mode === 'auto' ? 'auto' : 'execution'} plan: ${runtimeShardCount} shards, ${runtimeWorkersPerShard} workers each`}
+                          title={`${runtimePlan?.mode === 'auto' ? 'Auto plan' : 'Execution plan'}: ${runtimeShardCount} shards × ${runtimeWorkersPerShard} workers each`}
                           onClick={(event) => {
                             event.stopPropagation();
                             setExpandedRuntimeNodes((previous) => ({
@@ -3199,19 +3211,17 @@ export default function Editor() {
                           }}
                           onPointerDown={(event) => event.stopPropagation()}
                         >
+                          <span className="rounded border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase leading-none tracking-wide text-blue-400">
+                            {runtimePlan?.mode === 'auto' ? 'Auto' : 'Plan'}
+                          </span>
+                          <span className="min-w-0 flex-1 whitespace-nowrap text-center text-[10px] font-medium text-[var(--foreground)]">
+                            {runtimeShardCount} × {runtimeWorkersPerShard}
+                          </span>
                           {isRuntimeExpanded ? (
-                            <ChevronDown className="h-3 w-3" />
+                            <ChevronDown className="h-3 w-3 shrink-0" />
                           ) : (
-                            <ChevronRight className="h-3 w-3" />
+                            <ChevronRight className="h-3 w-3 shrink-0" />
                           )}
-                          {runtimePlan?.mode === 'auto' && 'Auto · '}
-                          {runtimePlan?.count ??
-                            runtimeChildren.filter(
-                              (child) => child.childKind === 'shard',
-                            ).length}{' '}
-                          shards
-                          {runtimePlan &&
-                            ` · ${runtimePlan.workersPerShard}w each`}
                         </button>
 
                         {isRuntimeExpanded && (
@@ -3367,7 +3377,14 @@ export default function Editor() {
                     renderPort('left', '-left-5 top-1/2 -translate-y-1/2')}
 
                   {/* Label & Icon */}
-                  <div className="flex items-center justify-center w-full h-full relative pointer-events-none">
+                  <div
+                    className={cn(
+                      'flex items-center justify-center w-full h-full relative pointer-events-none',
+                      node.nodeType === 'playwright' &&
+                        runtimeChildren.length > 0 &&
+                        'pb-8',
+                    )}
+                  >
                     <div className="w-16 h-16 rounded-lg flex items-center justify-center shrink-0">
                       {renderNodeIcon(node.nodeType)}
                     </div>
