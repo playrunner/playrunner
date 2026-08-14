@@ -99,7 +99,6 @@
 }
 
 .sectionGrid,
-.inviteLayout,
 .validationLayout {
   --eyebrow-size: 0.78rem;
   --eyebrow-gap: 0.75rem;
@@ -113,7 +112,6 @@
 /* The eyebrow only exists in the first column, so drop the second column by
    its height to line the body copy up with the heading instead. */
 .sectionGrid > *:nth-child(2),
-.inviteLayout > *:nth-child(2),
 .validationLayout > *:nth-child(2) {
   padding-top: calc(
     var(--eyebrow-size) * var(--eyebrow-line) + var(--eyebrow-gap)
@@ -151,6 +149,72 @@
   color: var(--ifm-color-content-secondary);
   font-size: 1.05rem;
   line-height: 1.7;
+}
+
+.shardingLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 3.5rem;
+  align-items: center;
+}
+
+.shardingLayout .bodyText {
+  margin-top: 1rem;
+}
+
+.shardingList {
+  display: grid;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  list-style: none;
+}
+
+.shardingList li {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.shardingList strong {
+  color: var(--ifm-font-color-base);
+  font-size: 0.95rem;
+}
+
+.shardingList span {
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.shardingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.shardingFigure {
+  margin: 0;
+}
+
+.shardingImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 0.9rem;
+  background: #0b0b0d;
+  box-shadow: var(--ifm-global-shadow-lw);
+}
+
+.shardingCaption {
+  margin: 0.85rem 0 0;
+  color: var(--ifm-color-content-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .assistantActions {
@@ -291,7 +355,7 @@
   }
 
   .sectionGrid,
-  .inviteLayout,
+  .shardingLayout,
   .assistantLayout {
     grid-template-columns: 1fr;
     gap: 1.25rem;
@@ -303,7 +367,6 @@
   }
 
   .sectionGrid > *:nth-child(2),
-  .inviteLayout > *:nth-child(2),
   .validationLayout > *:nth-child(2) {
     padding-top: 0;
   }
@@ -338,6 +401,15 @@
   }
 
   .validationActions :global(.button) {
+    width: 100%;
+  }
+
+  .shardingActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shardingActions :global(.button) {
     width: 100%;
   }
 

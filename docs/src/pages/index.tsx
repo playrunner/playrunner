@@ -169,23 +169,63 @@ function MissionSection(): ReactNode {
   );
 }
 
-function PlatformSection(): ReactNode {
+function AutoShardingSection(): ReactNode {
   return (
     <section className={clsx(styles.section, styles.sectionTint)}>
-      <div className={clsx('container', styles.inviteLayout)}>
+      <div className={clsx('container', styles.shardingLayout)}>
         <div>
-          <p className={styles.eyebrow}>What Playrunner replaces</p>
+          <p className={styles.eyebrow}>Automatic Playwright sharding</p>
           <Heading as="h2" className={styles.sectionTitle}>
-            One orchestration layer instead of another internal platform.
+            Set the limits. Playrunner chooses the plan.
           </Heading>
-        </div>
-        <div>
           <p className={styles.bodyText}>
-            Runner provisioning, retries, schedules, webhooks, notifications,
-            and reporting move behind a single workflow model. Your tests and
-            your CI system stay where they are.
+            Auto mode discovers the suite before it runs, fits the useful
+            parallelism to your runner capacity, and turns one Playwright node
+            into a complete sharded execution.
           </p>
+          <ul className={styles.shardingList}>
+            <li>
+              <strong>Discover the real workload</strong>
+              <span>Plan from the current tests, files, and projects.</span>
+            </li>
+            <li>
+              <strong>Use capacity safely</strong>
+              <span>Bound shards, workers, CPU, and memory with maximums.</span>
+            </li>
+            <li>
+              <strong>Keep one result</strong>
+              <span>Run every shard concurrently, then merge the reports.</span>
+            </li>
+          </ul>
+          <div className={styles.shardingActions}>
+            <Link
+              className="button button--primary"
+              to="/docs/integration-packages/playwright#suite-sharding"
+            >
+              Explore Auto sharding
+            </Link>
+            <Link
+              className="button button--secondary"
+              to="/blog/automatic-playwright-sharding"
+            >
+              Read the launch post
+            </Link>
+          </div>
         </div>
+        <figure className={styles.shardingFigure}>
+          <img
+            className={styles.shardingImage}
+            src={useBaseUrl('/img/playwright-auto-sharding-plan.png')}
+            alt="An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge."
+            width={1380}
+            height={1140}
+            loading="lazy"
+          />
+          <figcaption className={styles.shardingCaption}>
+            Four shards, two workers each, and one merged report—even when a
+            shard fails.
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
@@ -347,7 +387,7 @@ export default function Home(): ReactNode {
         <CanvasShowcase />
         <MissionSection />
         <HomepageFeatures />
-        <PlatformSection />
+        <AutoShardingSection />
         <JourneySection />
         <ValidationSection />
         <GettingStartedSection />
