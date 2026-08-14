@@ -1,7 +1,8 @@
 ---
 sidebar_position: 1
-title: Local Runner Architecture
 sidebar_label: Local
+title: Local Runner Architecture
+description: 'Run Playwright tests locally with Docker: the orchestrator container, isolated runner containers, the Pub/Sub emulator, and API-hosted outputs.'
 ---
 
 # Local Runner Architecture

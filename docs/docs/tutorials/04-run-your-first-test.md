@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 title: Run Your First Test
+description: Trigger a Playwright run from the Playrunner canvas and watch node status, live logs, and artefacts stream back as the workflow executes.
 ---
 
 # Run Your First Test

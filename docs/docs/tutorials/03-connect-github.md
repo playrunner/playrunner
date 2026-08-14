@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Connect GitHub
+description: 'Connect a GitHub repository to Playrunner: create a GitHub App, authorise it, pick the repo holding your Playwright tests, and choose a branch.'
 ---
 
 # Connect GitHub

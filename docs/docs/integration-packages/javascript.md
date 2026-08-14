@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 13
 sidebar_label: JavaScript
 title: JavaScript Integration
 description: Configure JavaScript workflow nodes; execution is not currently available.
@@ -55,7 +55,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::warning Current execution status
+:::warning[Current execution status]
 
 `@playrunner/javascript` currently contributes configuration UI and an empty API
 router only. Its manifest does not declare an `./orchestrator` surface, and the

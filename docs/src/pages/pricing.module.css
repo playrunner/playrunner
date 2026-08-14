@@ -269,6 +269,45 @@
   padding: 0 0 5rem;
 }
 
+.faq {
+  padding: 0 0 5rem;
+}
+
+.faqInner {
+  max-width: 46rem;
+}
+
+.faqInner h2 {
+  margin: 0.75rem 0 2rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.faqList {
+  margin: 0;
+}
+
+.faqItem {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--pricing-border);
+}
+
+.faqItem:last-child {
+  border-bottom: 1px solid var(--pricing-border);
+}
+
+.faqItem dt {
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.faqItem dd {
+  margin: 0;
+  color: var(--pricing-muted);
+  line-height: 1.65;
+}
+
 .licenseCard {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

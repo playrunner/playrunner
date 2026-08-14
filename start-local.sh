@@ -565,6 +565,27 @@ NODE
 # 1. Start local Docker-backed services in the background
 ensure_local_dependencies
 
+if ! command -v docker >/dev/null 2>&1; then
+    echo "❌ Docker is required but was not found in PATH."
+    echo "   Install Docker Desktop, or a CLI + engine (for example: brew install colima docker docker-compose)."
+    exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+    echo "❌ Docker is installed but no engine is running."
+    echo "   Start Docker Desktop (or run 'colima start'), then re-run ./start-local.sh."
+    exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+    echo "❌ The 'docker compose' v2 plugin is not available."
+    echo "   Playrunner uses 'docker compose', not the legacy 'docker-compose' binary."
+    echo "   With Homebrew, link the plugin once:"
+    echo "     mkdir -p ~/.docker/cli-plugins"
+    echo "     ln -sfn \"\$(brew --prefix)/opt/docker-compose/bin/docker-compose\" ~/.docker/cli-plugins/docker-compose"
+    exit 1
+fi
+
 echo "📦 Starting local Docker services..."
 docker compose -f "${COMPOSE_FILE}" up -d postgres pubsub
 wait_for_compose_service postgres 90

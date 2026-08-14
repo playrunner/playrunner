@@ -1,5 +1,5 @@
 ---
-sidebar_position: 12
+sidebar_position: 7
 sidebar_label: Webhooks
 title: Webhooks Integration
 description: Receive inbound workflow triggers and send outbound HTTPS requests.
@@ -200,3 +200,10 @@ import webhooksOrchestratorContribution from '@playrunner/webhooks/orchestrator'
 The package manifest declares the `webhooks` integration ID and all three
 contribution surfaces. Application builds discover them from installed direct
 dependencies and generate static imports.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [Trigger Playwright tests from a webhook](/docs/use-cases/trigger-playwright-tests-from-a-webhook/)

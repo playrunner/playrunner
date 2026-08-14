@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 5
 sidebar_label: Jira
 title: Jira Integration
 description: Create and sync Jira tickets from Playrunner workflows.
@@ -54,7 +54,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 The install command on this page is for building a Playrunner deployment. Jira
 declares its frontend, API, and Orchestrator surfaces in its own package
@@ -187,3 +187,10 @@ errors. Expected messages include:
 ## Assets
 
 The Jira SVG lives inside the package at `packages/jira/assets/jira.svg`. The frontend entrypoint resolves it with `new URL(..., import.meta.url)`, so the app does not need a duplicate public asset.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [Create Jira bugs from failed Playwright tests](/docs/use-cases/create-jira-bugs-from-failed-playwright-tests/)

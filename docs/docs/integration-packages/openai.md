@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 10
 sidebar_label: OpenAI
 title: OpenAI Integration
 description: Generate text and structured output with OpenAI models from Playrunner workflows.
@@ -49,7 +49,7 @@ facts={[
   </IntegrationCard>
 </IntegrationGrid>
 
-:::important Build-time installation only
+:::important[Build-time installation only]
 
 The install command on this page is for building a Playrunner deployment. The
 OpenAI package declares frontend, API, and Orchestrator surfaces in its own
@@ -223,3 +223,10 @@ The raw SVG lives at `packages/openai/assets/openai.svg` and is exported from
 `OpenAIIcon` React component, whose inline SVG has `fill="currentColor"`. This
 allows the monochrome mark to follow the active theme without a CSS mask or a
 duplicate public asset.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [AI triage for Playwright test failures](/docs/use-cases/ai-triage-for-playwright-test-failures/)

@@ -6,6 +6,11 @@ on:
       - main
     paths:
       - "docs/**"
+      # src/components/IntegrationPage imports integration logos directly from
+      # packages/*/assets. Without this path, renaming or deleting one of those
+      # SVGs breaks the docs build but never triggers a deploy, so the breakage
+      # stays hidden until the next unrelated docs commit.
+      - "packages/*/assets/**"
   workflow_dispatch:
 
 permissions:
@@ -23,6 +28,11 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # The sitemap resolves <lastmod> from git history. The default
+          # depth-1 checkout makes every file report the same commit date,
+          # which makes the timestamps worthless to crawlers.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -44,6 +54,12 @@ jobs:
           ALGOLIA_APP_ID: ${{ vars.ALGOLIA_APP_ID }}
           ALGOLIA_INDEX_NAME: ${{ vars.ALGOLIA_INDEX_NAME }}
           ALGOLIA_SEARCH_API_KEY: ${{ vars.ALGOLIA_SEARCH_API_KEY }}
+          # Optional override. The GA4 measurement ID is committed in
+          # docusaurus.config.ts, so analytics works without this being set;
+          # only set it to point a staging or fork build at another property.
+          GA_MEASUREMENT_ID: ${{ vars.GA_MEASUREMENT_ID }}
+          # Optional. The verification meta tag is omitted until this is set.
+          GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
         run: npm run build
 
       - name: Upload GitHub Pages artifact

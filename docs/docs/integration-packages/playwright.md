@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 2
 sidebar_label: Playwright
 title: Playwright Integration
 description: Trigger Playwright test runs from Playrunner workflows.
@@ -257,3 +257,12 @@ the host runtime already bundled into the Orchestrator image.
 ## Assets
 
 The Playwright SVG lives inside the package at `packages/playwright/assets/playwright.svg`. The frontend entrypoint resolves it with `new URL(..., import.meta.url)`, so the app does not need a duplicate public asset.
+
+## See it in a workflow
+
+This page is the package reference. For a complete workflow built on the
+canvas, start here:
+
+- [Send Slack alerts when Playwright tests fail](/docs/use-cases/slack-alerts-for-failed-playwright-tests/)
+- [Run Playwright tests on a schedule](/docs/use-cases/scheduled-playwright-test-runs/)
+- [AI triage for Playwright test failures](/docs/use-cases/ai-triage-for-playwright-test-failures/)

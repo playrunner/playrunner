@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Roadmap
+description: "What's next for Playrunner: workflow execution, debugging and reporting, more integrations, flake reduction, and AI-assisted failure analysis."
 ---
 
 # Roadmap

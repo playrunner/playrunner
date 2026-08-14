@@ -1,7 +1,9 @@
 ---
 sidebar_position: 4
-title: Azure Runner Architecture
 sidebar_label: Azure
+title: Azure Runner Architecture
+description: Azure runner support for Playrunner is planned. Use the local or GCP runner architecture today, and follow the roadmap for progress.
+unlisted: true
 ---
 
 # Azure Runner Architecture

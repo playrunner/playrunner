@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 9
 sidebar_label: GCP
 title: GCP Integration
 description: Connect Google Cloud credentials and register GCP runner infrastructure for Playrunner workflows.

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Environment Variables
+description: 'Environment variables for the local Playrunner stack: .env.local startup values, per-service defaults, and what each variable actually controls.'
 ---
 
 # Environment Variables
@@ -18,7 +19,7 @@ Copy from `.env.local.example`.
 | `WEB_PORT`                  | `3100`                              | Port used by both the setup app and the normal web app                                          |
 | `DOCS_PORT`                 | `3104`                              | Port used by the local Docusaurus docs site started by `./start-local.sh`                       |
 | `SETUP_INSTALLER_PORT`      | `3103`                              | Port used by the local setup installer service                                                  |
-| `POSTGRES_PORT`             | `5432`                              | Host port mapped to the Docker-backed Postgres container                                        |
+| `POSTGRES_PORT`             | `5431`                              | Host port mapped to the Docker-backed Postgres container                                        |
 | `POSTGRES_HOST`             | `127.0.0.1`                         | Hostname used when deriving the default local Prisma connection                                 |
 | `POSTGRES_DB`               | `playrunner`                        | Database name for the standard local Postgres container                                         |
 | `POSTGRES_USER`             | `postgres`                          | Username for the standard local Postgres container                                              |

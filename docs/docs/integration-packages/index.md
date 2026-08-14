@@ -1,7 +1,9 @@
 ---
 sidebar_position: 1
-title: Overview
+sidebar_label: Overview
+title: Playwright workflow integrations
 description: Available Playrunner integrations, their supported surfaces, and runtime configuration.
+image: /img/og/og-integrations.png
 hide_title: true
 ---
 

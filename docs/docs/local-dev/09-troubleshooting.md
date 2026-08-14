@@ -1,6 +1,7 @@
 ---
 sidebar_position: 9
 title: Troubleshooting
+description: "Fix common local Playrunner problems: the orchestrator won't start, missing Docker images, port conflicts, database errors, and failed runs."
 ---
 
 # Troubleshooting
@@ -178,9 +179,9 @@ For a GCP Orchestrator, rebuild, push, and redeploy the Orchestrator-only image:
 
 ---
 
-## Postgres port 5432 is already allocated
+## Postgres port 5431 is already allocated
 
-**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5432` failed because the port is already allocated.
+**Symptom:** `./start-local.sh` or `./start-local.sh --setup` fails with a Docker error saying the bind for `0.0.0.0:5431` failed because the port is already allocated.
 
 **Fix:**
 
