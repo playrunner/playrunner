@@ -191,6 +191,17 @@ any shard fails, the node's final outcome is an error. When every shard still
 produces a valid blob report, Playrunner can merge the reports before returning
 that error so the combined failure details remain available.
 
+The workflow canvas keeps discovery, each numbered shard, and report merging
+visible beneath the Playwright node. Expand the runtime plan to inspect the
+selected resources and the constraint that limited the plan. A failed shard
+marks the Playwright node as an error, while report merging can still succeed
+and preserve one combined report for diagnosis.
+
+![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](/img/playwright-auto-sharding-plan.png)
+
+_An Auto plan running four shards with two workers each. The failed first shard
+is still included in the successfully merged report._
+
 ## Exports
 
 ```ts
