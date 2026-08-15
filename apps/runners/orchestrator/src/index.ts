@@ -1108,6 +1108,9 @@ export async function executeWorkflow(reqBody: any) {
           memoryGbPerShard: plan.memoryGbPerShard,
           nodeId: node.id,
           shardCount: plan.count,
+          shardDurationsMs: shardResults.map((result) =>
+            'durationMs' in result ? result.durationMs : 0,
+          ),
           timestamp: observationTimestamp,
           type: 'playwright_execution_observation',
           workersPerShard: plan.workersPerShard,

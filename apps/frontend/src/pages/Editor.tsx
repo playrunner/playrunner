@@ -3267,14 +3267,21 @@ export default function Editor() {
                                 <p className="text-[10px] leading-4 text-muted">
                                   {runtimePlan.estimate?.source === 'history'
                                     ? `Based on ${runtimePlan.estimate.historySamples} comparable previous run${runtimePlan.estimate.historySamples === 1 ? '' : 's'}`
-                                    : 'First run: safe discovery-based estimate'}
+                                    : 'No comparable history: using a safe discovery-based estimate'}
                                   {runtimePlan.estimate?.durationMs != null
                                     ? ` · expected ${formatPlannedDuration(runtimePlan.estimate.durationMs)}`
                                     : ''}
                                 </p>
                                 <p className="text-[10px] leading-4 text-muted">
-                                  Limited by {runtimePlanLimit} (
-                                  {runtimePlan.count}).
+                                  {runtimePlan.estimate?.source === 'history' &&
+                                  runtimePlan.count <
+                                    Math.min(
+                                      runtimePlan.limits.capacity,
+                                      runtimePlan.limits.configured,
+                                      runtimePlan.limits.useful,
+                                    )
+                                    ? `History optimized the shape to ${runtimePlan.count} shards.`
+                                    : `Limited by ${runtimePlanLimit} (${runtimePlan.count}).`}
                                 </p>
                                 <p className="text-[10px] leading-4 text-muted">
                                   Limits: max {runtimePlan.limits.configured} ·

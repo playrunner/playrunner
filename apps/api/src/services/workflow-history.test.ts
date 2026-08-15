@@ -66,6 +66,92 @@ test('keeps the lazy history response within its byte budget', () => {
   const history = buildWorkflowHistory(executions);
 
   assert.ok(Buffer.byteLength(JSON.stringify(history), 'utf8') <= 256 * 1024);
-  assert.ok(history.runs.length <= 5);
+  assert.ok(history.runs.length <= 10);
   assert.ok(history.runs.every((run) => run.logs.length <= 100));
+});
+
+test('retains sharding observations after the per-run log limit', () => {
+  const history = buildWorkflowHistory([
+    {
+      cloudProvider: 'GCP',
+      completedAt: new Date('2026-08-14T00:01:00.000Z'),
+      events: [
+        ...Array.from({ length: 150 }, (_, eventIndex) => ({
+          executionId: 'run-noisy',
+          level: 'info',
+          message: `log-${eventIndex}`,
+          nodeId: 'playwright-1',
+          occurredAt: new Date('2026-08-14T00:00:30.000Z'),
+          payload: {},
+          type: 'log',
+        })),
+        {
+          executionId: 'run-noisy',
+          level: null,
+          message: null,
+          nodeId: 'playwright-1',
+          occurredAt: new Date('2026-08-14T00:00:59.000Z'),
+          payload: {
+            blobReportsComplete: true,
+            completed: true,
+            nodeId: 'playwright-1',
+            type: 'playwright_execution_observation',
+          },
+          type: 'playwright_execution_observation',
+        },
+      ],
+      id: 'run-noisy',
+      startedAt: new Date('2026-08-14T00:00:00.000Z'),
+      status: 'completed',
+    },
+  ]);
+
+  assert.equal(history.runs[0]?.logs.length, 100);
+  assert.deepEqual(history.runs[0]?.diagnostics.sharding, [
+    {
+      blobReportsComplete: true,
+      completed: true,
+      nodeId: 'playwright-1',
+      type: 'playwright_execution_observation',
+    },
+  ]);
+});
+
+test('retains ten run observations when logs exceed the response budget', () => {
+  const executions = Array.from({ length: 10 }, (_, runIndex) => ({
+    cloudProvider: 'GCP',
+    completedAt: new Date('2026-08-14T00:01:00.000Z'),
+    events: [
+      ...Array.from({ length: 100 }, (_, eventIndex) => ({
+        executionId: `run-${runIndex}`,
+        level: 'info',
+        message: `log-${eventIndex}-${'x'.repeat(2_000)}`,
+        nodeId: 'playwright-1',
+        occurredAt: new Date('2026-08-14T00:00:30.000Z'),
+        payload: {},
+        type: 'log',
+      })),
+      {
+        executionId: `run-${runIndex}`,
+        level: null,
+        message: null,
+        nodeId: 'playwright-1',
+        occurredAt: new Date('2026-08-14T00:00:59.000Z'),
+        payload: {
+          nodeId: 'playwright-1',
+          type: 'playwright_execution_observation',
+        },
+        type: 'playwright_execution_observation',
+      },
+    ],
+    id: `run-${runIndex}`,
+    startedAt: new Date('2026-08-14T00:00:00.000Z'),
+    status: 'completed',
+  }));
+
+  const history = buildWorkflowHistory(executions);
+
+  assert.equal(history.runs.length, 10);
+  assert.ok(Buffer.byteLength(JSON.stringify(history), 'utf8') <= 256 * 1024);
+  assert.ok(history.runs.every((run) => run.diagnostics.sharding.length === 1));
 });

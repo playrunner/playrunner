@@ -29,8 +29,8 @@ type WorkflowHistoryLog = {
 };
 
 const HISTORY_LOG_LEVELS = new Set(['build', 'debug', 'error', 'info', 'warn']);
-const MAX_HISTORY_RUNS = 5;
-const MAX_HISTORY_EVENTS_PER_RUN = 100;
+const MAX_HISTORY_RUNS = 10;
+const MAX_HISTORY_LOGS_PER_RUN = 100;
 const MAX_HISTORY_BYTES = 256 * 1024;
 const MAX_HISTORY_LOG_MESSAGE_LENGTH = 2_000;
 
@@ -61,8 +61,9 @@ export function buildWorkflowHistory(executions: WorkflowHistoryExecution[]) {
     const logs: WorkflowHistoryLog[] = [];
     const sharding: unknown[] = [];
 
-    for (const event of execution.events.slice(0, MAX_HISTORY_EVENTS_PER_RUN)) {
+    for (const event of execution.events) {
       if (event.type === 'log') {
+        if (logs.length >= MAX_HISTORY_LOGS_PER_RUN) continue;
         const log = historyLog(event);
         if (log) {
           logs.push(log);
@@ -88,6 +89,15 @@ export function buildWorkflowHistory(executions: WorkflowHistoryExecution[]) {
   });
 
   const history = { runs };
+  for (let index = history.runs.length - 1; index >= 0; index -= 1) {
+    if (
+      Buffer.byteLength(JSON.stringify(history), 'utf8') <= MAX_HISTORY_BYTES
+    ) {
+      break;
+    }
+    history.runs[index].logs = [];
+  }
+
   while (
     history.runs.length > 0 &&
     Buffer.byteLength(JSON.stringify(history), 'utf8') > MAX_HISTORY_BYTES
@@ -119,12 +129,8 @@ export async function loadWorkflowHistory(args: {
           payload: true,
           type: true,
         },
-        take: MAX_HISTORY_EVENTS_PER_RUN,
-        where: {
-          type: {
-            in: ['log', 'shard_plan', 'playwright_execution_observation'],
-          },
-        },
+        take: MAX_HISTORY_LOGS_PER_RUN,
+        where: { type: 'log' },
       },
       id: true,
       startedAt: true,
@@ -138,5 +144,43 @@ export async function loadWorkflowHistory(args: {
     },
   });
 
-  return buildWorkflowHistory(executions);
+  if (executions.length === 0) {
+    return { runs: [] };
+  }
+
+  const shardingEvents = await prisma.workflowEvent.findMany({
+    orderBy: { id: 'asc' },
+    select: {
+      executionId: true,
+      level: true,
+      message: true,
+      nodeId: true,
+      occurredAt: true,
+      payload: true,
+      type: true,
+    },
+    where: {
+      executionId: { in: executions.map((execution) => execution.id) },
+      type: { in: ['shard_plan', 'playwright_execution_observation'] },
+    },
+  });
+  const shardingEventsByExecution = new Map<
+    string,
+    (typeof shardingEvents)[number][]
+  >();
+  for (const event of shardingEvents) {
+    const events = shardingEventsByExecution.get(event.executionId) || [];
+    events.push(event);
+    shardingEventsByExecution.set(event.executionId, events);
+  }
+
+  return buildWorkflowHistory(
+    executions.map((execution) => ({
+      ...execution,
+      events: [
+        ...execution.events,
+        ...(shardingEventsByExecution.get(execution.id) || []),
+      ],
+    })),
+  );
 }

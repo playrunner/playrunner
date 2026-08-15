@@ -268,6 +268,12 @@ const config: Config = {
           'aria-label': 'View Playrunner packages on npm',
         },
         {
+          href: 'https://www.youtube.com/@playrunnerdev',
+          position: 'right',
+          className: 'header-youtube-link',
+          'aria-label': 'Watch Playrunner on YouTube',
+        },
+        {
           href: 'https://github.com/playrunner/playrunner',
           position: 'right',
           className: 'header-github-link',
@@ -364,6 +370,10 @@ const config: Config = {
             {
               label: 'GitHub',
               href: 'https://github.com/playrunner/playrunner',
+            },
+            {
+              label: 'YouTube',
+              href: 'https://www.youtube.com/@playrunnerdev',
             },
           ],
         },

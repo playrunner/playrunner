@@ -131,6 +131,133 @@ test('auto planning uses comparable history to select memory and meet a duration
   assert.equal(plan.estimate.source, 'history');
 });
 
+test('auto planning explores an equivalent shape with more workers per shard', () => {
+  const plan = planPlaywrightShards({
+    capacity: {
+      maxConcurrentShards: 4,
+      maxShards: 16,
+      maxTotalCpu: 8,
+      maxTotalMemoryGb: 4,
+      maxTotalWorkers: 8,
+    },
+    config: {
+      cpu: 4,
+      maxShards: 16,
+      memory: 4,
+      shardingMode: 'auto',
+      workers: 10,
+    },
+    discovery: { ...discovery, shardableUnits: 128, testCount: 128 },
+    history: [
+      {
+        blobReportsComplete: true,
+        completed: true,
+        cpuPerShard: 2,
+        discovery: { ...discovery, shardableUnits: 128, testCount: 128 },
+        durationMs: 42_000,
+        memoryGbPerShard: 1,
+        shardCount: 4,
+        workersPerShard: 2,
+      },
+    ],
+  });
+
+  assert.equal(plan.count, 2);
+  assert.equal(plan.cpuPerShard, 4);
+  assert.equal(plan.memoryGbPerShard, 2);
+  assert.equal(plan.workersPerShard, 4);
+  assert.equal(plan.aggregateWorkers, 8);
+  assert.equal(plan.estimate.durationMs, 42_000);
+  assert.match(plan.reason, /feasible shapes/);
+});
+
+test('auto planning prefers the faster observed execution shape', () => {
+  const commonHistory = {
+    blobReportsComplete: true,
+    completed: true,
+    discovery: { ...discovery, shardableUnits: 128, testCount: 128 },
+  };
+  const plan = planPlaywrightShards({
+    capacity: {
+      maxConcurrentShards: 4,
+      maxShards: 16,
+      maxTotalCpu: 8,
+      maxTotalMemoryGb: 4,
+      maxTotalWorkers: 8,
+    },
+    config: {
+      cpu: 4,
+      maxShards: 16,
+      memory: 4,
+      shardingMode: 'auto',
+      workers: 10,
+    },
+    discovery: commonHistory.discovery,
+    history: [
+      {
+        ...commonHistory,
+        cpuPerShard: 2,
+        durationMs: 42_000,
+        memoryGbPerShard: 1,
+        shardCount: 4,
+        workersPerShard: 2,
+      },
+      {
+        ...commonHistory,
+        cpuPerShard: 4,
+        durationMs: 35_000,
+        memoryGbPerShard: 2,
+        shardCount: 2,
+        workersPerShard: 4,
+      },
+    ],
+  });
+
+  assert.equal(plan.count, 2);
+  assert.equal(plan.workersPerShard, 4);
+  assert.equal(plan.estimate.durationMs, 35_000);
+
+  const planWithSlowerHighWorkerShape = planPlaywrightShards({
+    capacity: {
+      maxConcurrentShards: 4,
+      maxShards: 16,
+      maxTotalCpu: 8,
+      maxTotalMemoryGb: 4,
+      maxTotalWorkers: 8,
+    },
+    config: {
+      cpu: 4,
+      maxShards: 16,
+      memory: 4,
+      shardingMode: 'auto',
+      workers: 10,
+    },
+    discovery: commonHistory.discovery,
+    history: [
+      {
+        ...commonHistory,
+        cpuPerShard: 2,
+        durationMs: 42_000,
+        memoryGbPerShard: 1,
+        shardCount: 4,
+        workersPerShard: 2,
+      },
+      {
+        ...commonHistory,
+        cpuPerShard: 4,
+        durationMs: 55_000,
+        memoryGbPerShard: 2,
+        shardCount: 2,
+        workersPerShard: 4,
+      },
+    ],
+  });
+
+  assert.equal(planWithSlowerHighWorkerShape.count, 4);
+  assert.equal(planWithSlowerHighWorkerShape.workersPerShard, 2);
+  assert.equal(planWithSlowerHighWorkerShape.estimate.durationMs, 42_000);
+});
+
 test('auto planning ignores incomplete and dissimilar history', () => {
   const plan = planPlaywrightShards({
     config: {

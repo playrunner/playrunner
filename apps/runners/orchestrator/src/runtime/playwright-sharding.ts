@@ -25,6 +25,7 @@ export type PlaywrightExecutionObservation = {
   durationMs: number;
   memoryGbPerShard: number;
   shardCount: number;
+  shardDurationsMs?: number[];
   workersPerShard: number;
 };
 
@@ -64,6 +65,14 @@ const DEFAULT_AUTO_UNITS_PER_WORKER = 4;
 const MIN_MEMORY_GB_PER_WORKER = 0.5;
 const CPU_SIZES = [1, 2, 4, 8];
 const MEMORY_SIZES_GB = [0.5, 1, 2, 4, 8, 16, 32];
+
+type AutoShardShape = {
+  count: number;
+  cpuPerShard: number;
+  durationMs: number;
+  memoryGbPerShard: number;
+  workersPerShard: number;
+};
 
 function positiveInteger(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -144,9 +153,17 @@ function estimateDurationMs(args: {
   if (args.history.length === 0) return null;
   const candidateParallelism =
     args.shardCount * Math.min(args.workersPerShard, args.cpuPerShard);
+  const exactShapeHistory = args.history.filter(
+    (observation) =>
+      observation.shardCount === args.shardCount &&
+      observation.workersPerShard === args.workersPerShard &&
+      observation.cpuPerShard === args.cpuPerShard,
+  );
+  const samples =
+    exactShapeHistory.length > 0 ? exactShapeHistory : args.history;
   return Math.round(
     median(
-      args.history.map((observation) => {
+      samples.map((observation) => {
         const observedParallelism =
           observation.shardCount *
           Math.min(observation.workersPerShard, observation.cpuPerShard);
@@ -161,6 +178,117 @@ function estimateDurationMs(args: {
       }),
     ),
   );
+}
+
+function feasibleAutoShapes(args: {
+  capacity: PlaywrightShardCapacity;
+  configuredCpu: number;
+  configuredMemory: number;
+  configuredWorkers: number;
+  discovery: PlaywrightShardDiscovery;
+  history: PlaywrightExecutionObservation[];
+  maximumShardCount: number;
+}): AutoShardShape[] {
+  const historicalMemoryPerWorker = Math.max(
+    MIN_MEMORY_GB_PER_WORKER,
+    Math.min(
+      ...args.history.map(
+        (observation) =>
+          observation.memoryGbPerShard / observation.workersPerShard,
+      ),
+    ),
+  );
+  const candidates: AutoShardShape[] = [];
+
+  for (let count = 1; count <= args.maximumShardCount; count += 1) {
+    const cpuSizes = availableSizes(
+      CPU_SIZES,
+      args.configuredCpu,
+      args.capacity.maxTotalCpu,
+      count,
+    );
+    const memorySizes = availableSizes(
+      MEMORY_SIZES_GB,
+      args.configuredMemory,
+      args.capacity.maxTotalMemoryGb,
+      count,
+    );
+    const maximumWorkers = Math.max(
+      1,
+      Math.min(
+        args.configuredWorkers,
+        Math.floor(args.capacity.maxTotalWorkers / count),
+        Math.floor(cpuSizes[cpuSizes.length - 1]),
+        Math.floor(
+          memorySizes[memorySizes.length - 1] / historicalMemoryPerWorker,
+        ),
+      ),
+    );
+
+    for (
+      let workersPerShard = 1;
+      workersPerShard <= maximumWorkers;
+      workersPerShard += 1
+    ) {
+      const cpuPerShard = smallestSizeAtLeast(cpuSizes, workersPerShard);
+      const requestedMemory = workersPerShard * historicalMemoryPerWorker;
+      if (requestedMemory > memorySizes[memorySizes.length - 1]) continue;
+      const memoryGbPerShard = smallestSizeAtLeast(
+        memorySizes,
+        requestedMemory,
+      );
+      const durationMs = estimateDurationMs({
+        cpuPerShard,
+        discovery: args.discovery,
+        history: args.history,
+        shardCount: count,
+        workersPerShard,
+      });
+      if (durationMs === null) continue;
+      candidates.push({
+        count,
+        cpuPerShard,
+        durationMs,
+        memoryGbPerShard,
+        workersPerShard,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function selectAutoShape(
+  candidates: AutoShardShape[],
+  targetDurationMs: number,
+): AutoShardShape | null {
+  const withinTarget =
+    targetDurationMs > 0
+      ? candidates.filter(
+          (candidate) => candidate.durationMs <= targetDurationMs,
+        )
+      : [];
+  const ranked = [...(withinTarget.length > 0 ? withinTarget : candidates)];
+
+  ranked.sort((left, right) => {
+    if (withinTarget.length > 0) {
+      const cpuDifference =
+        left.count * left.cpuPerShard - right.count * right.cpuPerShard;
+      if (cpuDifference !== 0) return cpuDifference;
+      const memoryDifference =
+        left.count * left.memoryGbPerShard -
+        right.count * right.memoryGbPerShard;
+      if (memoryDifference !== 0) return memoryDifference;
+    }
+    const durationDifference = left.durationMs - right.durationMs;
+    if (durationDifference !== 0) return durationDifference;
+    const workerDifference =
+      right.count * right.workersPerShard - left.count * left.workersPerShard;
+    if (workerDifference !== 0) return workerDifference;
+    return left.count - right.count;
+  });
+
+  return ranked[0] || null;
 }
 
 export function resolvePlaywrightShardingMode(
@@ -308,7 +436,7 @@ export function planPlaywrightShards(args: {
     );
   }
 
-  const count = Math.max(1, Math.min(configured, useful, capacityLimit));
+  let count = Math.max(1, Math.min(configured, useful, capacityLimit));
   const cpuSizes = availableSizes(
     CPU_SIZES,
     configuredCpu,
@@ -326,14 +454,14 @@ export function planPlaywrightShards(args: {
     history.length > 0
       ? Math.min(...history.map((observation) => observation.memoryGbPerShard))
       : null;
-  const memoryGbPerShard =
+  let memoryGbPerShard =
     mode === 'auto'
       ? smallestSizeAtLeast(
           memorySizes,
           historicalMemory ?? memorySizes[memorySizes.length - 1],
         )
       : configuredMemory;
-  const workersPerShard =
+  let workersPerShard =
     mode === 'auto'
       ? Math.max(
           1,
@@ -359,7 +487,7 @@ export function planPlaywrightShards(args: {
         workersPerShard,
       }),
     }));
-  const cpuPerShard =
+  let cpuPerShard =
     mode === 'auto'
       ? ((targetDurationMs > 0
           ? cpuEstimates.find(
@@ -370,19 +498,41 @@ export function planPlaywrightShards(args: {
           : undefined
         )?.cpuPerShard ?? smallestSizeAtLeast(cpuSizes, workersPerShard))
       : configuredCpu;
-  const estimatedDurationMs = estimateDurationMs({
+  let estimatedDurationMs = estimateDurationMs({
     cpuPerShard,
     discovery: args.discovery,
     history,
     shardCount: count,
     workersPerShard,
   });
+  let evaluatedShapeCount = 0;
+  if (mode === 'auto' && history.length > 0) {
+    const candidates = feasibleAutoShapes({
+      capacity,
+      configuredCpu,
+      configuredMemory,
+      configuredWorkers,
+      discovery: args.discovery,
+      history,
+      maximumShardCount: count,
+    });
+    const selectedShape = selectAutoShape(candidates, targetDurationMs);
+    evaluatedShapeCount = candidates.length;
+    if (selectedShape) {
+      count = selectedShape.count;
+      cpuPerShard = selectedShape.cpuPerShard;
+      memoryGbPerShard = selectedShape.memoryGbPerShard;
+      workersPerShard = selectedShape.workersPerShard;
+      estimatedDurationMs = selectedShape.durationMs;
+    }
+  }
   const reason = [
     `${configured} configured`,
     `${useful} useful shard${useful === 1 ? '' : 's'} for ${shardableUnits} ${args.discovery.fullyParallel ? 'test' : 'file/project'} unit${shardableUnits === 1 ? '' : 's'} at up to ${configuredWorkers} worker${configuredWorkers === 1 ? '' : 's'} each${mode === 'auto' ? ` and ${autoUnitsPerWorker} units per worker` : ''}`,
     `${capacityLimit} allowed by capacity`,
+    `${count}-shard shape selected`,
     `${workersPerShard} worker${workersPerShard === 1 ? '' : 's'} selected per shard`,
-    `${cpuPerShard} CPU and ${memoryGbPerShard}GB memory selected per shard${history.length > 0 ? ` from ${history.length} comparable run${history.length === 1 ? '' : 's'}` : ' using the first-run fallback'}`,
+    `${cpuPerShard} CPU and ${memoryGbPerShard}GB memory selected per shard${history.length > 0 ? ` after evaluating ${evaluatedShapeCount} feasible shape${evaluatedShapeCount === 1 ? '' : 's'} from ${history.length} comparable run${history.length === 1 ? '' : 's'}` : ' using the first-run fallback'}`,
   ].join(' · ');
 
   return {
