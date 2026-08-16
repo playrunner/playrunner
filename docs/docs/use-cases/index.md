@@ -2,7 +2,7 @@
 sidebar_position: 1
 sidebar_label: Overview
 title: Playwright workflow use cases
-description: 'Common workflows built on the Playrunner canvas: Slack alerts, Jira bugs, AI failure triage, scheduled regression runs, and webhook-triggered tests.'
+description: 'Common workflows built on the Playrunner canvas: Slack alerts, Jira bugs, AI failure triage, scheduled regression runs, webhook-triggered tests, and automatic suite sharding.'
 image: /img/og/og-use-cases.png
 keywords:
   ['playwright workflow examples', 'playwright test automation workflows']
@@ -35,6 +35,12 @@ condition inside a script.
   — nightly and recurring runs without a cron job in CI.
 - **[Trigger Playwright tests from a webhook](/docs/use-cases/trigger-playwright-tests-from-a-webhook/)**
   — run a suite when another system says so, and report back when it finishes.
+
+## Scaling runs
+
+- **[Choose a Playwright shard count automatically](/docs/use-cases/automatic-playwright-sharding/)**
+  — discover the suite, size the plan against capacity, and merge every shard
+  back into one report.
 
 ## Related
 

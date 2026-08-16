@@ -5,5 +5,5 @@
     "type": "doc",
     "id": "use-cases/index"
   },
-  "description": "Common Playwright workflows built on the canvas: alerts, ticketing, AI triage, schedules, and webhook triggers."
+  "description": "Common Playwright workflows built on the canvas: alerts, ticketing, AI triage, schedules, webhook triggers, and automatic sharding."
 }
