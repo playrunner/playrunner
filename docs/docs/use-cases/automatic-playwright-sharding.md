@@ -68,7 +68,7 @@ Open the node and set **Suite sharding** to one of three modes:
   shards than the suite has shardable units, and rejects a request that exceeds
   the runner backend's capacity.
 - **Auto** discovers the suite first, then treats your configured shard, CPU,
-  memory, and worker values as *maximums*.
+  memory, and worker values as _maximums_.
 
 The rest of this page is about Auto.
 

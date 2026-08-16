@@ -50,7 +50,8 @@ export const website = (hasSearch: boolean) => ({
   '@id': WEBSITE_ID,
   url: `${SITE_URL}/`,
   name: 'Playrunner',
-  description: 'Run Playwright at scale, without building the platform around it.',
+  description:
+    'Run Playwright at scale, without building the platform around it.',
   publisher: { '@id': ORGANIZATION_ID },
   inLanguage: 'en',
   ...(hasSearch
