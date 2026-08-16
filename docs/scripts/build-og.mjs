@@ -28,7 +28,7 @@ const CARDS = [
   {
     file: 'playrunner-og.png',
     eyebrow: 'For teams already using Playwright',
-    title: 'Orchestrate your Playwright suite on a canvas, not in YAML.',
+    title: 'Run Playwright at scale, without building the platform around it.',
   },
   {
     file: 'og-docs.png',

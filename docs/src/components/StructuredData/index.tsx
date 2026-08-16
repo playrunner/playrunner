@@ -50,7 +50,7 @@ export const website = (hasSearch: boolean) => ({
   '@id': WEBSITE_ID,
   url: `${SITE_URL}/`,
   name: 'Playrunner',
-  description: 'Orchestrate your Playwright suite on a canvas, not in YAML.',
+  description: 'Run Playwright at scale, without building the platform around it.',
   publisher: { '@id': ORGANIZATION_ID },
   inLanguage: 'en',
   ...(hasSearch
