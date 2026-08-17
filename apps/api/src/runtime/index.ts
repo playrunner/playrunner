@@ -35,6 +35,7 @@ import {
   getEnvironmentSecretKeys,
   hydrateEnvironmentSecretVariables,
 } from '../services/environment-secrets';
+import { hydrateLinkedWorkflowEnvironments } from '../services/workflow-environments';
 
 const HOST_NODE_TYPES = new Set([
   'environment',
@@ -44,7 +45,8 @@ const HOST_NODE_TYPES = new Set([
 ]);
 
 async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
-  const userId = request.req.authUser?.providerUserId;
+  const userId =
+    request.resourceOwnerUserId ?? request.req.authUser?.providerUserId;
   if (!userId) {
     throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
   }
@@ -61,6 +63,9 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
 
   const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
   const settings: Record<string, Record<string, unknown>> = {};
+  const isSharedExecution =
+    Boolean(request.resourceOwnerUserId) &&
+    request.resourceOwnerUserId !== request.req.authUser?.providerUserId;
   const credentialStore = createIntegrationCredentialStore(userId);
   await Promise.all(
     [...providers].map(async (provider) => {
@@ -72,6 +77,13 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
       );
       if (connection) {
         settings[provider] = { ...connection.config, ...connection.secrets };
+      } else if (isSharedExecution) {
+        throw Object.assign(
+          new Error(
+            `The workflow owner's ${provider} integration connection is unavailable. Ask the owner to reconnect it.`,
+          ),
+          { code: 'workflow_connection_unavailable', statusCode: 409 },
+        );
       }
     }),
   );
@@ -81,13 +93,21 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
     const connection = await resolveConnection(userId, 'cloud', provider);
     if (connection) {
       settings[provider] = { ...connection.config, ...connection.secrets };
+    } else if (isSharedExecution) {
+      throw Object.assign(
+        new Error(
+          `The workflow owner's ${provider} runner connection is unavailable. Ask the owner to reconnect it.`,
+        ),
+        { code: 'workflow_connection_unavailable', statusCode: 409 },
+      );
     }
   }
   return settings;
 }
 
 async function resolveEnvironmentSecrets(request: WorkflowExecutionRequest) {
-  const userId = request.req.authUser?.providerUserId;
+  const userId =
+    request.resourceOwnerUserId ?? request.req.authUser?.providerUserId;
   if (!userId) {
     throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
   }
@@ -129,6 +149,15 @@ class WorkflowExecutionRegistry {
   async execute(
     request: WorkflowExecutionRequest,
   ): Promise<WorkflowExecutionResult> {
+    const resourceOwnerUserId =
+      request.resourceOwnerUserId ?? request.req.authUser?.providerUserId;
+    if (!resourceOwnerUserId) {
+      throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+    }
+    request.body.nodes = await hydrateLinkedWorkflowEnvironments(
+      request.body.nodes,
+      resourceOwnerUserId,
+    );
     // The browser is never authoritative for credentials. Rebuild the settings
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);

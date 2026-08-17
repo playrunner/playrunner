@@ -17,6 +17,13 @@ import {
   decodeEnvironmentSecret,
   encodeEnvironmentSecret,
 } from '../services/environment-secrets';
+import {
+  accessibleWorkflowWhere,
+  replaceWorkflowTeamShares,
+  requireAccessibleWorkflow,
+  serializeWorkflowAccess,
+  workflowAccessInclude,
+} from '../services/workflow-access';
 
 export const storeRouter = Router();
 
@@ -106,18 +113,25 @@ function serializeProject(project: {
   };
 }
 
-function serializeWorkflow(workflow: {
-  id: string;
-  userId: string;
-  projectId: string | null;
-  title: string | null;
-  nodes: Prisma.JsonValue | null;
-  connections: Prisma.JsonValue | null;
-  cloudProvider: string | null;
-  concurrency: number | null;
-  createdAt: Date;
-  updatedAt: Date;
-}) {
+function serializeWorkflow(
+  workflow: {
+    id: string;
+    userId: string;
+    projectId: string | null;
+    title: string | null;
+    nodes: Prisma.JsonValue | null;
+    connections: Prisma.JsonValue | null;
+    cloudProvider: string | null;
+    concurrency: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+    teamShares?: Array<{
+      permission: string;
+      team: { id: string; name: string };
+    }>;
+  },
+  actorUserId: string,
+) {
   return {
     id: workflow.id,
     userId: workflow.userId,
@@ -129,6 +143,7 @@ function serializeWorkflow(workflow: {
     concurrency: workflow.concurrency,
     createdAt: workflow.createdAt,
     updatedAt: workflow.updatedAt,
+    access: serializeWorkflowAccess(workflow, actorUserId),
   };
 }
 
@@ -249,17 +264,33 @@ storeRouter.get(
   '/workflows',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const includeShared = req.query.includeShared === 'true';
+    const sharedOnly = req.query.sharedOnly === 'true';
     const projectId =
       typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
     const workflows = await prisma.workflow.findMany({
       where: {
-        userId,
+        ...(sharedOnly
+          ? {
+              userId: { not: userId },
+              teamShares: {
+                some: { team: { memberships: { some: { userId } } } },
+              },
+            }
+          : includeShared
+            ? accessibleWorkflowWhere(userId)
+            : { userId }),
         ...(projectId ? { projectId } : {}),
       },
+      include: workflowAccessInclude(userId),
       orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({ workflows: workflows.map(serializeWorkflow) });
+    res.json({
+      workflows: workflows.map((workflow) =>
+        serializeWorkflow(workflow, userId),
+      ),
+    });
   }),
 );
 
@@ -267,14 +298,22 @@ storeRouter.get(
   '/workflows/:id',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const workflow = await prisma.workflow.findFirst({
-      where: {
-        id: req.params.id,
-        userId,
-      },
-    });
+    const workflow = await requireAccessibleWorkflow(userId, req.params.id);
 
-    res.json({ workflow: workflow ? serializeWorkflow(workflow) : null });
+    res.json({ workflow: serializeWorkflow(workflow, userId) });
+  }),
+);
+
+storeRouter.put(
+  '/workflows/:id/shares',
+  createRouteHandler(async (req, res) => {
+    const userId = getUserId(req);
+    const workflow = await replaceWorkflowTeamShares(
+      userId,
+      req.params.id,
+      req.body?.teamIds,
+    );
+    res.json({ workflow: serializeWorkflow(workflow, userId) });
   }),
 );
 
@@ -313,7 +352,8 @@ storeRouter.post(
       workflowId: workflow.id,
     });
 
-    res.status(201).json({ workflow: serializeWorkflow(workflow) });
+    const created = await requireAccessibleWorkflow(userId, workflow.id);
+    res.status(201).json({ workflow: serializeWorkflow(created, userId) });
   }),
 );
 
@@ -321,12 +361,18 @@ storeRouter.put(
   '/workflows/:id',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
-    const existing = await prisma.workflow.findFirst({
-      where: {
-        id: req.params.id,
-        userId,
-      },
+    const workflowAtId = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
     });
+    if (workflowAtId && workflowAtId.userId !== userId) {
+      throw Object.assign(
+        new Error(
+          'Shared workflows are read-only. Only the owner can edit them.',
+        ),
+        { statusCode: 403 },
+      );
+    }
+    const existing = workflowAtId;
 
     const projectId = toNullableString(req.body?.projectId);
     const title = toNullableString(req.body?.title);
@@ -365,7 +411,8 @@ storeRouter.put(
         workflowId: workflow.id,
       });
 
-      res.status(201).json({ workflow: serializeWorkflow(workflow) });
+      const created = await requireAccessibleWorkflow(userId, workflow.id);
+      res.status(201).json({ workflow: serializeWorkflow(created, userId) });
       return;
     }
 
@@ -402,7 +449,8 @@ storeRouter.put(
       workflowId: workflow.id,
     });
 
-    res.json({ workflow: serializeWorkflow(workflow) });
+    const updated = await requireAccessibleWorkflow(userId, workflow.id);
+    res.json({ workflow: serializeWorkflow(updated, userId) });
   }),
 );
 
@@ -410,6 +458,16 @@ storeRouter.delete(
   '/workflows/:id',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const existing = await prisma.workflow.findUnique({
+      where: { id: req.params.id },
+      select: { userId: true },
+    });
+    if (existing && existing.userId !== userId) {
+      throw Object.assign(
+        new Error('Only the workflow owner can delete this workflow.'),
+        { statusCode: 403 },
+      );
+    }
     await deleteWorkflowSchedules({
       req,
       userId,

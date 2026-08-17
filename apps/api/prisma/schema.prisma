@@ -34,6 +34,7 @@ model Workflow {
   updatedAt        DateTime                  @updatedAt
   project          Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   schedules        WorkflowSchedule[]
+  teamShares       WorkflowTeamShare[]
   webhookEndpoints WorkflowWebhookEndpoint[]
 
   @@index([userId])
@@ -200,15 +201,32 @@ model User {
 }
 
 model Team {
-  id              String           @id @default(cuid())
+  id              String              @id @default(cuid())
   name            String
   createdByUserId String
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   memberships     TeamMembership[]
   invitations     TeamInvitation[]
+  workflowShares  WorkflowTeamShare[]
 
   @@index([createdByUserId])
+}
+
+model WorkflowTeamShare {
+  id              String   @id @default(cuid())
+  workflowId      String
+  teamId          String
+  permission      String   @default("view_run")
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, teamId])
+  @@index([teamId])
+  @@index([workflowId])
 }
 
 model TeamMembership {

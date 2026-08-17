@@ -36,6 +36,7 @@ export async function executeSavedWorkflow(params: {
       workflow,
     }),
     req: params.req,
+    resourceOwnerUserId: workflow.userId,
     testId: executionId,
   });
 

@@ -9,10 +9,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Input, Select, Textarea, Badge } from '../components/ui';
+import {
+  Badge,
+  Button,
+  Input,
+  SearchableMultiSelect,
+  Select,
+  Textarea,
+} from '../components/ui';
 import { IntegrationCopyableCode } from '@playrunner/integration-sdk';
-
-import { MultiSelectDropdown } from '../components/MultiSelectDropdown';
 
 export default function DesignSystem() {
   const navigate = useNavigate();
@@ -133,7 +138,8 @@ export default function DesignSystem() {
               Inputs & Forms
             </h2>
             <p className="text-sm text-muted">
-              Text fields, text areas, selects, and states.
+              Text fields, text areas, selects, searchable multi-selects, and
+              states.
             </p>
           </div>
 
@@ -178,9 +184,9 @@ export default function DesignSystem() {
 
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[var(--foreground)] block">
-                  Multi-Select Checkboxes
+                  Searchable Multi-Select
                 </label>
-                <MultiSelectDropdown
+                <SearchableMultiSelect
                   options={[
                     { value: 'chrome', label: 'Chrome' },
                     { value: 'firefox', label: 'Firefox' },
@@ -190,7 +196,12 @@ export default function DesignSystem() {
                   selectedValues={selectedBrowsers}
                   onChange={setSelectedBrowsers}
                   placeholder="Select browsers"
+                  searchPlaceholder="Search browsers..."
+                  ariaLabel="Supported browsers"
                 />
+                <p className="text-xs leading-relaxed text-muted">
+                  Filter the list, then select multiple values with checkboxes.
+                </p>
               </div>
 
               <div className="space-y-1.5 flex flex-col">

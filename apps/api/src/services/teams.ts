@@ -92,6 +92,19 @@ export async function listTeams(actor: AuthUser) {
         include: {
           memberships: { orderBy: { createdAt: 'asc' } },
           invitations: { orderBy: { createdAt: 'desc' } },
+          workflowShares: {
+            include: {
+              workflow: {
+                select: {
+                  id: true,
+                  title: true,
+                  userId: true,
+                  updatedAt: true,
+                },
+              },
+            },
+            orderBy: { createdAt: 'asc' },
+          },
         },
       },
     },
@@ -114,6 +127,13 @@ export async function listTeams(actor: AuthUser) {
       currentMembership.role === 'owner'
         ? currentMembership.team.invitations.map(serializeInvitation)
         : [],
+    sharedWorkflows: currentMembership.team.workflowShares.map((share) => ({
+      id: share.workflow.id,
+      ownerUserId: share.workflow.userId,
+      permission: share.permission,
+      title: share.workflow.title,
+      updatedAt: share.workflow.updatedAt,
+    })),
   }));
 }
 
@@ -300,7 +320,20 @@ export async function removeTeamMember(
     );
   }
 
-  await prisma.teamMembership.delete({ where: { id: member.id } });
+  await prisma.$transaction([
+    prisma.workflowTeamShare.deleteMany({
+      where: {
+        teamId,
+        workflow: { userId: member.userId },
+      },
+    }),
+    prisma.teamMembership.delete({ where: { id: member.id } }),
+  ]);
+}
+
+export async function deleteTeam(actor: AuthUser, teamId: string) {
+  await requireOwner(teamId, actor.providerUserId);
+  await prisma.team.delete({ where: { id: teamId } });
 }
 
 export async function getInvitationPreview(token: string) {

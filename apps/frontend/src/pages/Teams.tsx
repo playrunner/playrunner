@@ -1,8 +1,10 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Clock3,
   Loader2,
   MailPlus,
+  GitBranch,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -11,7 +13,7 @@ import {
   Users,
 } from 'lucide-react';
 import { IntegrationCopyableCode } from '@playrunner/integration-sdk';
-import { Badge, Button, Input } from '../components/ui';
+import { Badge, Button, Input, SearchableMultiSelect } from '../components/ui';
 import { DbAPI } from '../lib/db';
 
 type TeamMember = {
@@ -40,6 +42,21 @@ type Team = {
   invitations: TeamInvitation[];
   members: TeamMember[];
   name: string;
+  sharedWorkflows: SharedWorkflow[];
+};
+
+type SharedWorkflow = {
+  id: string;
+  ownerUserId: string;
+  permission: 'view_run';
+  title: string | null;
+  updatedAt: string;
+};
+
+type OwnedWorkflow = SharedWorkflow & {
+  access: {
+    sharedTeams: Array<{ id: string; name: string; permission: string }>;
+  };
 };
 
 type CreatedInvitation = TeamInvitation & { invitationPath: string };
@@ -56,7 +73,12 @@ function invitationUrl(path: string) {
 }
 
 export default function Teams() {
+  const navigate = useNavigate();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [ownedWorkflows, setOwnedWorkflows] = useState<OwnedWorkflow[]>([]);
+  const [teamWorkflowSelections, setTeamWorkflowSelections] = useState<
+    Record<string, string[]>
+  >({});
   const [teamName, setTeamName] = useState('');
   const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
   const [latestInvitation, setLatestInvitation] =
@@ -67,7 +89,28 @@ export default function Teams() {
 
   const loadTeams = useCallback(async () => {
     try {
-      setTeams((await DbAPI.getTeams()) as Team[]);
+      const [nextTeams, workflows] = await Promise.all([
+        DbAPI.getTeams(),
+        DbAPI.getWorkflows(''),
+      ]);
+      const typedTeams = nextTeams as Team[];
+      const typedWorkflows = workflows as OwnedWorkflow[];
+      setTeams(typedTeams);
+      setOwnedWorkflows(typedWorkflows);
+      setTeamWorkflowSelections(
+        Object.fromEntries(
+          typedTeams.map((team) => [
+            team.id,
+            typedWorkflows
+              .filter((workflow) =>
+                workflow.access.sharedTeams.some(
+                  (sharedTeam) => sharedTeam.id === team.id,
+                ),
+              )
+              .map((workflow) => workflow.id),
+          ]),
+        ),
+      );
       setError(null);
     } catch (loadError) {
       setError(
@@ -184,6 +227,78 @@ export default function Teams() {
         removeError instanceof Error
           ? removeError.message
           : 'Failed to remove the member.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const deleteTeam = async (team: Team) => {
+    if (
+      !window.confirm(
+        `Delete team "${team.name}"? Memberships, invitations, and workflow shares will be removed. The underlying workflows and connections will not be deleted.`,
+      )
+    ) {
+      return;
+    }
+    setBusyAction(`delete-team-${team.id}`);
+    setError(null);
+    try {
+      await DbAPI.deleteTeam(team.id);
+      setLatestInvitation(null);
+      await loadTeams();
+    } catch (deleteError) {
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : 'Failed to delete the team.',
+      );
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const updateTeamWorkflowShares = async (
+    teamId: string,
+    nextWorkflowIds: string[],
+  ) => {
+    const previousWorkflowIds = teamWorkflowSelections[teamId] ?? [];
+    const previousSet = new Set(previousWorkflowIds);
+    const nextSet = new Set(nextWorkflowIds);
+    const changedWorkflows = ownedWorkflows.filter(
+      (workflow) => previousSet.has(workflow.id) !== nextSet.has(workflow.id),
+    );
+
+    if (changedWorkflows.length === 0) return;
+
+    setTeamWorkflowSelections((current) => ({
+      ...current,
+      [teamId]: nextWorkflowIds,
+    }));
+    setBusyAction(`share-team-${teamId}`);
+    setError(null);
+    try {
+      await Promise.all(
+        changedWorkflows.map((workflow) => {
+          const existingTeamIds = workflow.access.sharedTeams.map(
+            (team) => team.id,
+          );
+          const nextTeamIds = nextSet.has(workflow.id)
+            ? [...new Set([...existingTeamIds, teamId])]
+            : existingTeamIds.filter((id) => id !== teamId);
+          return DbAPI.updateWorkflowTeamShares(workflow.id, nextTeamIds);
+        }),
+      );
+      await loadTeams();
+    } catch (shareError) {
+      setTeamWorkflowSelections((current) => ({
+        ...current,
+        [teamId]: previousWorkflowIds,
+      }));
+      setError(
+        shareError instanceof Error
+          ? shareError.message
+          : 'Failed to update workflow sharing.',
       );
     } finally {
       setBusyAction('');
@@ -313,16 +428,31 @@ export default function Teams() {
                   {team.members.length === 1 ? '' : 's'}
                 </p>
               </div>
-              <Badge
-                variant={
-                  team.currentUserRole === 'owner' ? 'success' : 'default'
-                }
-              >
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={
+                    team.currentUserRole === 'owner' ? 'success' : 'default'
+                  }
+                >
+                  {team.currentUserRole === 'owner' ? (
+                    <ShieldCheck className="h-3 w-3" />
+                  ) : null}
+                  {team.currentUserRole}
+                </Badge>
                 {team.currentUserRole === 'owner' ? (
-                  <ShieldCheck className="h-3 w-3" />
+                  <Button
+                    type="button"
+                    variant="danger"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={busyAction === `delete-team-${team.id}`}
+                    onClick={() => void deleteTeam(team)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete team
+                  </Button>
                 ) : null}
-                {team.currentUserRole}
-              </Badge>
+              </div>
             </div>
 
             {team.currentUserRole === 'owner' ? (
@@ -368,6 +498,75 @@ export default function Teams() {
                 </form>
               </div>
             ) : null}
+
+            <div className="grid grid-cols-1 gap-6 border-b border-subtle p-6 lg:grid-cols-2">
+              <div>
+                <h3 className="text-sm font-medium text-[var(--foreground)]">
+                  Share your workflows
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Team members receive view and run access. Linked global
+                  environments and required connections stay server-side.
+                </p>
+                <div className="mt-3">
+                  {ownedWorkflows.length === 0 ? (
+                    <div className="rounded-xl border border-subtle bg-[var(--background)] p-4 text-sm text-muted">
+                      You do not own any workflows yet.
+                    </div>
+                  ) : (
+                    <SearchableMultiSelect
+                      options={ownedWorkflows.map((workflow) => ({
+                        value: workflow.id,
+                        label: workflow.title || 'Untitled Workflow',
+                      }))}
+                      selectedValues={teamWorkflowSelections[team.id] ?? []}
+                      onChange={(workflowIds) =>
+                        void updateTeamWorkflowShares(team.id, workflowIds)
+                      }
+                      placeholder="Select workflows"
+                      searchPlaceholder="Search workflows..."
+                      emptyMessage="No workflows match your search."
+                      ariaLabel={`Workflows shared with ${team.name}`}
+                      disabled={busyAction === `share-team-${team.id}`}
+                      expandOnOpen
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-[var(--foreground)]">
+                  Team workflows
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Workflows currently available to every member of this team.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {team.sharedWorkflows.length === 0 ? (
+                    <div className="rounded-xl border border-subtle bg-[var(--background)] p-4 text-sm text-muted">
+                      No workflows shared with this team.
+                    </div>
+                  ) : (
+                    team.sharedWorkflows.map((workflow) => (
+                      <button
+                        key={workflow.id}
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-subtle bg-[var(--background)] p-4 text-left hover:border-[var(--border-strong)]"
+                        onClick={() => navigate(`/workflow/${workflow.id}`)}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <GitBranch className="h-4 w-4 shrink-0 text-muted" />
+                          <span className="truncate text-sm font-medium text-[var(--foreground)]">
+                            {workflow.title || 'Untitled Workflow'}
+                          </span>
+                        </span>
+                        <Badge variant="outline">View &amp; run</Badge>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-2">
               <div>

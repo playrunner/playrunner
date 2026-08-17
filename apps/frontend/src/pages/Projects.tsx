@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Loader2, MoreHorizontal, Trash2 } from 'lucide-react';
-import { Button, Input } from '../components/ui';
+import {
+  GitBranch,
+  Plus,
+  Search,
+  Loader2,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { Badge, Button, Input } from '../components/ui';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import {
@@ -13,6 +20,7 @@ import { PremiumOnboardingModal } from '../runtime/onboarding';
 export default function Projects() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
+  const [sharedWorkflows, setSharedWorkflows] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -21,8 +29,12 @@ export default function Projects() {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         try {
-          const projs = await DbAPI.getProjects(user.uid);
+          const [projs, shared] = await Promise.all([
+            DbAPI.getProjects(user.uid),
+            DbAPI.getSharedWorkflows(),
+          ]);
           setProjects(projs);
+          setSharedWorkflows(shared);
 
           const hasCompleted = localStorage.getItem('hasCompletedOnboarding');
           const credentialProviders = CLOUD_PROVIDERS.filter(
@@ -56,6 +68,7 @@ export default function Projects() {
         const hasCompleted = localStorage.getItem('hasCompletedOnboarding');
         if (!hasCompleted && PremiumOnboardingModal) setShowOnboarding(true);
         setProjects([]);
+        setSharedWorkflows([]);
       }
     });
 
@@ -271,6 +284,49 @@ export default function Projects() {
             </div>
           )}
         </div>
+
+        {sharedWorkflows.length > 0 ? (
+          <section className="mt-10 border-t border-subtle pt-8">
+            <div className="mb-5">
+              <h2 className="text-xl font-medium text-[var(--foreground)]">
+                Shared with your teams
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                These workflows are read-only in the editor and use the
+                owner&apos;s linked environments and connections when run.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {sharedWorkflows.map((workflow) => (
+                <button
+                  key={workflow.id}
+                  type="button"
+                  className="rounded-xl border border-subtle bg-surface p-5 text-left shadow-sm transition-colors hover:border-strong"
+                  onClick={() => navigate(`/workflow/${workflow.id}`)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-subtle bg-surface-hover">
+                        <GitBranch className="h-4 w-4 text-muted" />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-medium text-[var(--foreground)]">
+                          {workflow.title || 'Untitled Workflow'}
+                        </h3>
+                        <p className="mt-1 truncate text-xs text-muted">
+                          {workflow.access.sharedTeams
+                            .map((team: { name: string }) => team.name)
+                            .join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline">View &amp; run</Badge>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </main>
     </>
   );

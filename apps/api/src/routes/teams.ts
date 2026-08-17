@@ -3,6 +3,7 @@ import {
   acceptTeamInvitation,
   createTeam,
   createTeamInvitation,
+  deleteTeam,
   listTeams,
   removeTeamMember,
   resendTeamInvitation,
@@ -38,6 +39,15 @@ teamsRouter.post('/', async (req, res) => {
     const name = typeof req.body?.name === 'string' ? req.body.name : '';
     const team = await createTeam(req.authUser!, name);
     res.status(201).json({ team });
+  } catch (error) {
+    handleTeamError(error, res);
+  }
+});
+
+teamsRouter.delete('/:teamId', async (req, res) => {
+  try {
+    await deleteTeam(req.authUser!, req.params.teamId);
+    res.status(204).send();
   } catch (error) {
     handleTeamError(error, res);
   }

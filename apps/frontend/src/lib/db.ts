@@ -165,6 +165,12 @@ export const DbAPI = {
     return payload.team;
   },
 
+  async deleteTeam(teamId: string) {
+    await apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
+      method: 'DELETE',
+    });
+  },
+
   async createTeamInvitation(teamId: string, email: string) {
     const payload = await apiRequest<{ invitation: any }>(
       `/api/teams/${encodeURIComponent(teamId)}/invitations`,
@@ -268,6 +274,13 @@ export const DbAPI = {
     return payload.workflows;
   },
 
+  async getSharedWorkflows() {
+    const payload = await apiRequest<{ workflows: any[] }>(
+      '/api/store/workflows?sharedOnly=true',
+    );
+    return payload.workflows;
+  },
+
   async getWorkflowsByProject(_userId: string, projectId: string) {
     const payload = await apiRequest<{ workflows: any[] }>(
       `/api/store/workflows?projectId=${encodeURIComponent(projectId)}`,
@@ -301,6 +314,17 @@ export const DbAPI = {
     await apiRequest(`/api/store/workflows/${workflowId}`, {
       method: 'DELETE',
     });
+  },
+
+  async updateWorkflowTeamShares(workflowId: string, teamIds: string[]) {
+    const payload = await apiRequest<{ workflow: any }>(
+      `/api/store/workflows/${encodeURIComponent(workflowId)}/shares`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ teamIds }),
+      },
+    );
+    return payload.workflow;
   },
 
   async getIntegration(_userId: string, integrationId: string) {

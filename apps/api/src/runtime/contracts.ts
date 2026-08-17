@@ -5,6 +5,7 @@ export type WorkflowRequestBody = Record<string, any>;
 export interface WorkflowExecutionRequest {
   body: WorkflowRequestBody;
   req: Request;
+  resourceOwnerUserId?: string;
   testId: string;
 }
 

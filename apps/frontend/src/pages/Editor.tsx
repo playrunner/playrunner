@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   XCircle,
   Save,
+  ShieldCheck,
   Copy,
   Check,
   ZoomIn,
@@ -656,6 +657,13 @@ export default function Editor() {
   const activeWorkflowId = workflowId || 'current';
   const { setHeaderLeft, setHeaderCenter } = useHeader();
   const [workflowName, setWorkflowName] = useState('Untitled Workflow');
+  const [workflowAccess, setWorkflowAccess] = useState<{
+    canEdit: boolean;
+    canRun: boolean;
+    permission: 'owner' | 'view_run';
+    sharedTeams: Array<{ id: string; name: string }>;
+  } | null>(null);
+  const isReadOnly = workflowAccess?.canEdit === false;
   const [projectId, setProjectId] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingLabelNodeId, setEditingLabelNodeId] = useState<string | null>(
@@ -1198,6 +1206,7 @@ export default function Editor() {
               activeWorkflowId,
             );
             if (data) {
+              if (data.access) setWorkflowAccess(data.access);
               if (data.nodes) setNodes(data.nodes);
               if (data.connections) setConnections(data.connections);
               if (data.name) setWorkflowName(data.name);
@@ -1670,6 +1679,10 @@ export default function Editor() {
   };
 
   const handleSaveWorkflow = useCallback(async () => {
+    if (isReadOnly) {
+      showToast('Shared workflows are read-only.', 'info');
+      return;
+    }
     const exportedNodes = getNodesWithParents();
     if (!auth.currentUser) {
       console.warn(
@@ -1713,17 +1726,18 @@ export default function Editor() {
     workflowName,
     cloudProvider,
     concurrency,
+    isReadOnly,
   ]);
 
   useEffect(() => {
-    if (shouldAutoSave) {
+    if (shouldAutoSave && !isReadOnly) {
       const timer = setTimeout(() => {
         handleSaveWorkflow();
         setShouldAutoSave(false);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [nodes, shouldAutoSave, handleSaveWorkflow]);
+  }, [nodes, shouldAutoSave, handleSaveWorkflow, isReadOnly]);
 
   const handleCloudProviderChange = useCallback(
     (nextProvider: string) => {
@@ -2539,7 +2553,7 @@ export default function Editor() {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="h-6 w-px bg-subtle mx-2" />
-        {isEditingName ? (
+        {isEditingName && !isReadOnly ? (
           <input
             autoFocus
             value={workflowName}
@@ -2559,9 +2573,16 @@ export default function Editor() {
           />
         ) : (
           <button
-            onClick={() => setIsEditingName(true)}
-            className="text-sm font-medium text-[var(--foreground)] hover:text-white truncate max-w-[220px] transition-colors px-1 py-0.5 rounded hover:bg-white/5"
-            title="Click to rename workflow"
+            onClick={() => {
+              if (!isReadOnly) setIsEditingName(true);
+            }}
+            className="text-sm font-medium text-[var(--foreground)] truncate max-w-[220px] transition-colors px-1 py-0.5 rounded disabled:cursor-default"
+            title={
+              isReadOnly
+                ? 'Shared workflow (read-only)'
+                : 'Click to rename workflow'
+            }
+            disabled={isReadOnly}
           >
             {workflowName}
           </button>
@@ -2576,6 +2597,7 @@ export default function Editor() {
     setHeaderLeft,
     navigate,
     handleSaveWorkflow,
+    isReadOnly,
   ]);
 
   useEffect(() => {
@@ -2583,8 +2605,12 @@ export default function Editor() {
       <div className="bg-surface/30 rounded-lg p-1 flex items-center gap-2">
         <CloudProviderDropdown
           value={cloudProvider}
-          onChange={handleCloudProviderChange}
-          onOpenSettings={() => setIsCloudSettingsOpen(true)}
+          onChange={(provider) => {
+            if (!isReadOnly) handleCloudProviderChange(provider);
+          }}
+          onOpenSettings={() => {
+            if (!isReadOnly) setIsCloudSettingsOpen(true);
+          }}
           connectedIds={connectedCloudIds}
           cloudProjectId={cloudProjectId}
           providers={availableCloudProviders}
@@ -2594,14 +2620,15 @@ export default function Editor() {
           onClick={handleAddNode}
           className="flex items-center justify-center w-8 h-8 rounded-md text-sm font-medium text-[var(--foreground)] hover:bg-surface-hover transition-colors"
           title="Add Node"
+          disabled={isReadOnly}
         >
           <Plus className="w-4 h-4 text-[var(--foreground)]" />
         </button>
         <button
           onClick={handleSaveWorkflow}
           className="flex items-center justify-center w-8 h-8 rounded-md text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors disabled:opacity-50"
-          title="Save Workflow"
-          disabled={isSaving}
+          title={isReadOnly ? 'Shared workflow (read-only)' : 'Save Workflow'}
+          disabled={isSaving || isReadOnly}
         >
           {isSaving ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -2651,6 +2678,7 @@ export default function Editor() {
     cloudProvider,
     connectedCloudIds,
     isSaving,
+    isReadOnly,
     simulationState,
     setHeaderCenter,
     handleCloudProviderChange,
@@ -2702,6 +2730,14 @@ export default function Editor() {
   return (
     <>
       <div className="flex-1 relative overflow-hidden select-none">
+        {isReadOnly ? (
+          <div className="absolute left-1/2 top-3 z-40 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs text-muted shadow-sm">
+            <ShieldCheck className="h-4 w-4" />
+            Shared via{' '}
+            {workflowAccess.sharedTeams.map((team) => team.name).join(', ')}.
+            You can view and run this workflow, but only its owner can edit it.
+          </div>
+        ) : null}
         <NodeSelectorModal
           isOpen={showNodeSelector}
           onClose={() => setShowNodeSelector(false)}
