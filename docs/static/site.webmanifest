@@ -1,7 +1,7 @@
 {
   "name": "Playrunner",
   "short_name": "Playrunner",
-  "description": "Orchestrate your Playwright suite on a canvas, not in YAML.",
+  "description": "Run Playwright at scale, without building the platform around it.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

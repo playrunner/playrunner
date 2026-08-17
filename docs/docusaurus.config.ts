@@ -62,7 +62,7 @@ const twitterHandle: string | undefined = '@playrunner_';
 
 const config: Config = {
   title: 'Playrunner',
-  tagline: 'Orchestrate your Playwright suite on a canvas, not in YAML.',
+  tagline: 'Run Playwright at scale, without building the platform around it.',
   favicon: 'img/favicon.svg',
   customFields: {
     localDocsLandingPath: process.env.DOCS_LANDING_PATH || '/',
@@ -206,6 +206,9 @@ const config: Config = {
         content: [
           'playwright orchestration',
           'playwright test automation',
+          'playwright sharding',
+          'parallel playwright tests',
+          'playwright test distribution',
           'visual workflow builder',
           'e2e test orchestration',
           'playwright runners',
