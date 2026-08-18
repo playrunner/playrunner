@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  ArrowLeft,
+  ChevronRight,
   Clock3,
   Loader2,
   MailPlus,
@@ -60,6 +62,7 @@ type OwnedWorkflow = SharedWorkflow & {
 };
 
 type CreatedInvitation = TeamInvitation & { invitationPath: string };
+type LatestInvitation = CreatedInvitation & { teamId: string };
 
 function invitationBadge(status: TeamInvitation['status']) {
   if (status === 'accepted') return <Badge variant="success">Accepted</Badge>;
@@ -80,9 +83,11 @@ export default function Teams() {
     Record<string, string[]>
   >({});
   const [teamName, setTeamName] = useState('');
+  const [isCreatingTeam, setIsCreatingTeam] = useState(false);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
   const [latestInvitation, setLatestInvitation] =
-    useState<CreatedInvitation | null>(null);
+    useState<LatestInvitation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [busyAction, setBusyAction] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -132,9 +137,11 @@ export default function Teams() {
     setBusyAction('create-team');
     setError(null);
     try {
-      await DbAPI.createTeam(teamName);
+      const createdTeam = (await DbAPI.createTeam(teamName)) as Team;
       setTeamName('');
       await loadTeams();
+      setIsCreatingTeam(false);
+      setSelectedTeamId(createdTeam.id);
     } catch (createError) {
       setError(
         createError instanceof Error
@@ -159,7 +166,7 @@ export default function Teams() {
         teamId,
         email,
       )) as CreatedInvitation;
-      setLatestInvitation(invitation);
+      setLatestInvitation({ ...invitation, teamId });
       setInviteEmails((current) => ({ ...current, [teamId]: '' }));
       await loadTeams();
     } catch (inviteError) {
@@ -181,7 +188,7 @@ export default function Teams() {
         teamId,
         invitationId,
       )) as CreatedInvitation;
-      setLatestInvitation(invitation);
+      setLatestInvitation({ ...invitation, teamId });
       await loadTeams();
     } catch (resendError) {
       setError(
@@ -247,6 +254,7 @@ export default function Teams() {
       await DbAPI.deleteTeam(team.id);
       setLatestInvitation(null);
       await loadTeams();
+      setSelectedTeamId(null);
     } catch (deleteError) {
       setError(
         deleteError instanceof Error
@@ -257,6 +265,8 @@ export default function Teams() {
       setBusyAction('');
     }
   };
+
+  const team = teams.find((candidate) => candidate.id === selectedTeamId);
 
   const updateTeamWorkflowShares = async (
     teamId: string,
@@ -307,13 +317,28 @@ export default function Teams() {
 
   return (
     <main className="flex-1 max-w-7xl mx-auto p-8 w-full space-y-6">
-      <header className="border-b border-subtle pb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-          Teams
-        </h1>
-        <p className="text-sm text-muted mt-2 leading-relaxed">
-          Create shared workspaces, invite collaborators, and manage access.
-        </p>
+      <header className="flex items-start justify-between gap-6 border-b border-subtle pb-6">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
+            Teams
+          </h1>
+          <p className="text-sm text-muted mt-2 leading-relaxed">
+            Create shared workspaces, invite collaborators, and manage access.
+          </p>
+        </div>
+        {!isCreatingTeam && !team ? (
+          <Button
+            type="button"
+            className="shrink-0 gap-2"
+            onClick={() => {
+              setError(null);
+              setIsCreatingTeam(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Create new team
+          </Button>
+        ) : null}
       </header>
 
       {error ? (
@@ -325,75 +350,6 @@ export default function Teams() {
         </div>
       ) : null}
 
-      <section className="bg-surface border border-subtle rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-subtle">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted">
-              <Plus className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-xl font-medium text-[var(--foreground)]">
-                Create a team
-              </h2>
-              <p className="text-sm text-muted leading-relaxed mt-1">
-                You become the owner and can invite or remove members.
-              </p>
-            </div>
-          </div>
-        </div>
-        <form
-          className="flex flex-col gap-3 p-6 sm:flex-row"
-          onSubmit={createTeam}
-        >
-          <label className="sr-only" htmlFor="team-name">
-            Team name
-          </label>
-          <Input
-            id="team-name"
-            value={teamName}
-            onChange={(event) => setTeamName(event.target.value)}
-            placeholder="Team name"
-            maxLength={80}
-            required
-          />
-          <Button
-            type="submit"
-            className="shrink-0 gap-2"
-            disabled={busyAction === 'create-team'}
-          >
-            {busyAction === 'create-team' ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            Create team
-          </Button>
-        </form>
-      </section>
-
-      {latestInvitation ? (
-        <section className="bg-surface border border-subtle rounded-xl shadow-sm p-6">
-          <div className="flex items-start gap-3">
-            <div className="h-9 w-9 shrink-0 rounded-lg bg-surface-hover border border-subtle flex items-center justify-center text-muted">
-              <MailPlus className="h-4 w-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-xl font-medium text-[var(--foreground)]">
-                Invitation ready
-              </h2>
-              <p className="text-sm text-muted leading-relaxed mt-1">
-                Share this single-use link with {latestInvitation.email}. A new
-                link replaces the previous one when you resend.
-              </p>
-              <IntegrationCopyableCode
-                value={invitationUrl(latestInvitation.invitationPath)}
-                label="Copy team invitation link"
-              />
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {isLoading ? (
         <div className="flex items-center justify-center p-12 text-muted">
           <Loader2
@@ -401,21 +357,108 @@ export default function Teams() {
             aria-label="Loading teams"
           />
         </div>
-      ) : teams.length === 0 ? (
-        <section className="bg-surface border border-subtle rounded-xl shadow-sm p-8 text-center">
-          <Users className="mx-auto h-6 w-6 text-muted" />
-          <h2 className="mt-4 text-xl font-medium text-[var(--foreground)]">
-            No teams yet
-          </h2>
-          <p className="mt-2 text-sm text-muted leading-relaxed">
-            Create your first team to start collaborating.
-          </p>
+      ) : isCreatingTeam ? (
+        <section className="overflow-hidden rounded-xl border border-subtle bg-surface shadow-sm">
+          <div className="border-b border-subtle p-6">
+            <Button
+              type="button"
+              variant="tertiary"
+              size="sm"
+              className="mb-4 -ml-3 gap-1.5"
+              onClick={() => {
+                setError(null);
+                setTeamName('');
+                setIsCreatingTeam(false);
+              }}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to teams
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-subtle bg-surface-hover text-muted">
+                <Plus className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-xl font-medium text-[var(--foreground)]">
+                  Create a team
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-muted">
+                  You become the owner and can invite or remove members.
+                </p>
+              </div>
+            </div>
+          </div>
+          <form
+            className="flex flex-col gap-3 p-6 sm:flex-row"
+            onSubmit={createTeam}
+          >
+            <label className="sr-only" htmlFor="team-name">
+              Team name
+            </label>
+            <Input
+              id="team-name"
+              value={teamName}
+              onChange={(event) => setTeamName(event.target.value)}
+              placeholder="Team name"
+              maxLength={80}
+              autoFocus
+              required
+            />
+            <Button
+              type="submit"
+              className="shrink-0 gap-2"
+              disabled={busyAction === 'create-team'}
+            >
+              {busyAction === 'create-team' ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Create team
+            </Button>
+          </form>
         </section>
-      ) : (
-        teams.map((team) => (
+      ) : team ? (
+        <>
+          <Button
+            type="button"
+            variant="tertiary"
+            className="-ml-4 w-fit gap-2"
+            onClick={() => {
+              setError(null);
+              setLatestInvitation(null);
+              setSelectedTeamId(null);
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to teams
+          </Button>
+
+          {latestInvitation?.teamId === team.id ? (
+            <section className="rounded-xl border border-subtle bg-surface p-6 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-subtle bg-surface-hover text-muted">
+                  <MailPlus className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-medium text-[var(--foreground)]">
+                    Invitation ready
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    Share this single-use link with {latestInvitation.email}. A
+                    new link replaces the previous one when you resend.
+                  </p>
+                  <IntegrationCopyableCode
+                    value={invitationUrl(latestInvitation.invitationPath)}
+                    label="Copy team invitation link"
+                  />
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <section
-            key={team.id}
-            data-testid="team-card"
+            data-testid="team-details"
             className="bg-surface border border-subtle rounded-xl shadow-sm overflow-hidden"
           >
             <div className="flex items-center justify-between gap-4 p-6 border-b border-subtle">
@@ -693,7 +736,74 @@ export default function Teams() {
               ) : null}
             </div>
           </section>
-        ))
+        </>
+      ) : teams.length === 0 ? (
+        <section className="rounded-xl border border-subtle bg-surface p-8 text-center shadow-sm">
+          <Users className="mx-auto h-6 w-6 text-muted" />
+          <h2 className="mt-4 text-xl font-medium text-[var(--foreground)]">
+            No teams yet
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            Create your first team to start collaborating.
+          </p>
+        </section>
+      ) : (
+        <section aria-labelledby="your-teams-heading" className="space-y-4">
+          <div className="border-b border-subtle pb-2">
+            <h2
+              id="your-teams-heading"
+              className="text-xl font-medium text-[var(--foreground)]"
+            >
+              Your teams
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted">
+              Select a team to manage its members, invitations, and workflows.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {teams.map((listedTeam) => (
+              <button
+                key={listedTeam.id}
+                type="button"
+                data-testid="team-card"
+                className="group flex min-h-36 w-full flex-col justify-between rounded-xl border border-subtle bg-surface p-5 text-left shadow-sm transition-colors hover:border-[var(--border-strong)] hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-strong)]"
+                onClick={() => {
+                  setError(null);
+                  setLatestInvitation(null);
+                  setSelectedTeamId(listedTeam.id);
+                }}
+              >
+                <div className="flex w-full items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-xl font-medium text-[var(--foreground)]">
+                      {listedTeam.name}
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">
+                      {listedTeam.members.length} member
+                      {listedTeam.members.length === 1 ? '' : 's'} ·{' '}
+                      {listedTeam.sharedWorkflows.length} workflow
+                      {listedTeam.sharedWorkflows.length === 1 ? '' : 's'}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--foreground)]" />
+                </div>
+                <Badge
+                  variant={
+                    listedTeam.currentUserRole === 'owner'
+                      ? 'success'
+                      : 'default'
+                  }
+                  className="mt-6 w-fit"
+                >
+                  {listedTeam.currentUserRole === 'owner' ? (
+                    <ShieldCheck className="h-3 w-3" />
+                  ) : null}
+                  {listedTeam.currentUserRole}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        </section>
       )}
     </main>
   );
