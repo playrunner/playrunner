@@ -23,7 +23,7 @@ const FAQ = [
   {
     question: 'What am I allowed to do under the Sustainable Use License?',
     answer:
-      "You can use and modify Playrunner to support your own organization's internal operations, and for personal, educational, evaluation, and other non-commercial purposes. You cannot sell Playrunner, monetize access to it, or offer a service substantially based on it to third parties without separate written permission.",
+      "The license permits two categories of use: supporting your own organization's internal operations; and personal, educational, evaluation, or other non-commercial purposes. You cannot sell Playrunner, monetize access to it, or offer a service substantially based on it to third parties without separate written permission.",
   },
   {
     question: 'Can I use Playrunner today?',
@@ -174,12 +174,9 @@ export default function Pricing(): ReactNode {
                   <Feature>Download and install Playrunner locally</Feature>
                   <Feature>Deploy it in your own cloud environment</Feature>
                   <Feature>
-                    Use it for personal, educational, evaluation, and
-                    non-commercial purposes
-                  </Feature>
-                  <Feature>
-                    Use it to support your organization&apos;s internal
-                    operations
+                    Use it for your own internal business operations, or for
+                    personal, educational, evaluation, and other non-commercial
+                    purposes
                   </Feature>
                   <Feature>
                     Keep control of your infrastructure and data
