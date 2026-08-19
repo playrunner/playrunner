@@ -2,11 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import type {
+  AgentExecutionBackend,
+  AgentExecutionRequest,
   OrchestratorRuntimeContribution,
   PlaywrightExecutionBackend,
   PlaywrightExecutionRequest,
   PreparedPlaywrightRunner,
 } from './contracts';
+import { LocalAgentExecutionBackend } from './agent-local';
 import { GcpPlaywrightExecutionBackend } from './playwright-gcp';
 import { LocalPlaywrightExecutionBackend } from './playwright-local';
 
@@ -60,12 +63,40 @@ class PlaywrightExecutionRegistry {
   }
 }
 
+class AgentExecutionRegistry {
+  constructor(private readonly backends: AgentExecutionBackend[]) {}
+
+  async prepare(request: AgentExecutionRequest) {
+    const cloudProvider = request.reqBody.cloudProvider || 'LOCAL_RUNNER';
+    const backend = this.backends.find((candidate) =>
+      candidate.supports(cloudProvider),
+    );
+    if (!backend) {
+      throw new Error(
+        `AI Container execution is not available for cloud provider ${cloudProvider}.`,
+      );
+    }
+    return backend.prepare(request);
+  }
+
+  register(backends: AgentExecutionBackend[]) {
+    this.backends.push(...backends);
+  }
+}
+
+const agentExecution = new AgentExecutionRegistry([
+  new LocalAgentExecutionBackend(),
+]);
+
 const playwrightExecution = new PlaywrightExecutionRegistry([
   new LocalPlaywrightExecutionBackend(),
   new GcpPlaywrightExecutionBackend(),
 ]);
 
 function applyContribution(contribution: OrchestratorRuntimeContribution) {
+  if (contribution.agentExecutionBackends?.length) {
+    agentExecution.register(contribution.agentExecutionBackends);
+  }
   if (contribution.playwrightExecutionBackends?.length) {
     playwrightExecution.register(contribution.playwrightExecutionBackends);
   }
@@ -114,6 +145,7 @@ function resolvePremiumRuntimeEntry(): string | null {
 }
 
 export const orchestratorRuntime = {
+  agentExecution,
   playwrightExecution,
   ready: loadPremiumContribution(),
 };

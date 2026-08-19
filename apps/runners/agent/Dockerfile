@@ -1,0 +1,22 @@
+ARG PLAYWRIGHT_VERSION=v1.62.1-jammy
+FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION} AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+RUN chmod +x /app/dist/validator-cli.js && \
+    ln -s /app/dist/validator-cli.js /usr/local/bin/playrunner-validator && \
+    ln -s /app/node_modules/.bin/codex /usr/local/bin/codex
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+CMD ["node", "dist/index.js"]

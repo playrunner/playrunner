@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import express from 'express';
 import { orchestratorRuntime } from './runtime';
 import type {
+  AgentExecutionRequest,
   PlaywrightExecutionRequest,
   PreparedPlaywrightRunner,
 } from './runtime/contracts';
@@ -26,6 +27,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3012;
 const EDITOR_API_URL = process.env.EDITOR_API_URL?.trim() || '';
+const ATTACHMENT_NODE_TYPES = new Set(['codex-cli', 'validator']);
 
 function requiredEditorApiUrl(): never {
   throw new Error(
@@ -692,7 +694,18 @@ export async function executeWorkflow(reqBody: any) {
     });
 
     if (nodes && Array.isArray(nodes)) {
-      packageExecutorRuntime.preflight(nodes);
+      const attachmentConnections = (connections || []).filter(
+        (connection: any) => connection.role === 'attachment',
+      );
+      const attachmentNodeIds = new Set(
+        attachmentConnections.map((connection: any) => connection.sourceId),
+      );
+      const workflowNodes = nodes.filter(
+        (node: any) =>
+          !attachmentNodeIds.has(node.id) &&
+          !ATTACHMENT_NODE_TYPES.has(packageExecutorRuntime.nodeType(node)),
+      );
+      packageExecutorRuntime.preflight(workflowNodes);
 
       const globalEnvVars: Record<string, string> = {};
       const nodeTemplateOutputs: Record<string, unknown> = Object.fromEntries(
@@ -719,9 +732,11 @@ export async function executeWorkflow(reqBody: any) {
         }
       }
 
-      const processedConnections = [...(connections || [])];
+      const processedConnections = (connections || []).filter(
+        (connection: any) => connection.role !== 'attachment',
+      );
 
-      for (const node of nodes) {
+      for (const node of workflowNodes) {
         const implicitParents = [
           ...(Array.isArray(node.parentNodes) ? node.parentNodes : []),
           ...(node.parentId ? [node.parentId] : []),
@@ -879,11 +894,96 @@ export async function executeWorkflow(reqBody: any) {
         };
       };
 
+      const createAgentExecutionRequest = (
+        node: any,
+      ): AgentExecutionRequest => {
+        const attachedNodes = attachmentConnections
+          .filter((connection: any) => connection.targetId === node.id)
+          .map((connection: any) => ({
+            connection,
+            node: nodes.find(
+              (candidate: any) => candidate.id === connection.sourceId,
+            ),
+          }))
+          .filter((entry: any) => entry.node);
+        const agents = attachedNodes.filter(
+          (entry: any) => entry.connection.attachmentPort === 'agent',
+        );
+        const validators = attachedNodes.filter(
+          (entry: any) => entry.connection.attachmentPort === 'tool',
+        );
+        if (agents.length !== 1) {
+          throw new Error(
+            `AI Container ${node.label || node.id} requires exactly one Agent attachment; found ${agents.length}.`,
+          );
+        }
+        if (validators.length < 1) {
+          throw new Error(
+            `AI Container ${node.label || node.id} requires at least one Validator attachment.`,
+          );
+        }
+        const config = node.config || {};
+        const agentNodeType = packageExecutorRuntime.nodeType(agents[0].node);
+        if (agentNodeType !== 'codex-cli') {
+          throw new Error(`Unsupported AI Container Agent: ${agentNodeType}.`);
+        }
+        const agentConfig = agents[0].node.config || {};
+        const apiKeyEnvVar = String(agentConfig.apiKeyEnvVar || '').trim();
+        if (!apiKeyEnvVar) {
+          throw new Error(
+            'Codex CLI requires an API key Environment variable. Open the Codex CLI configuration and select one from the Input panel.',
+          );
+        }
+        if (!globalEnvVars[apiKeyEnvVar]) {
+          throw new Error(
+            `Codex CLI API key Environment variable ${apiKeyEnvVar} is missing or empty.`,
+          );
+        }
+        const envKeys = Array.from(
+          new Set([
+            ...(Array.isArray(config.envVars) ? config.envVars : []),
+            apiKeyEnvVar,
+          ]),
+        );
+        const resolvedValidators = validators.map((entry: any) => ({
+          config: entry.node.config || {},
+          nodeType: packageExecutorRuntime.nodeType(entry.node),
+        }));
+        const unsupportedValidator = resolvedValidators.find(
+          (validator: any) => validator.nodeType !== 'validator',
+        );
+        if (unsupportedValidator) {
+          throw new Error(
+            `Unsupported AI Container Validator: ${unsupportedValidator.nodeType}.`,
+          );
+        }
+        return {
+          agent: {
+            config: agentConfig,
+            nodeType: agentNodeType,
+          },
+          config,
+          envKeys,
+          globalEnvVars,
+          nodeId: node.id,
+          publishLog: (message, level) =>
+            publishLog(message, level, { nodeId: node.id }),
+          registerActiveProcess: (activeNodeId, process) =>
+            registerActiveProcessForNode(
+              activeNodeId,
+              process as ReturnType<typeof spawn>,
+              node.id,
+            ),
+          reqBody,
+          validators: resolvedValidators,
+        };
+      };
+
       const preparedPlaywrightRunners: Record<
         string,
         Promise<PreparedPlaywrightRunner>
       > = {};
-      const playwrightNodes = nodes.filter(
+      const playwrightNodes = workflowNodes.filter(
         (node: any) => packageExecutorRuntime.nodeType(node) === 'playwright',
       );
       const prewarmPlaywrightNodes = playwrightNodes.filter(
@@ -1221,7 +1321,9 @@ export async function executeWorkflow(reqBody: any) {
           return;
         }
 
-        const node = nodes.find((candidate: any) => candidate.id === nodeId);
+        const node = workflowNodes.find(
+          (candidate: any) => candidate.id === nodeId,
+        );
         if (!node) return;
 
         nodeIsRunning[nodeId] = true;
@@ -1235,7 +1337,9 @@ export async function executeWorkflow(reqBody: any) {
         try {
           await publishNodeState(
             node.id,
-            type === 'playwright' ? 'pending' : 'running',
+            type === 'playwright' || type === 'agent-container'
+              ? 'pending'
+              : 'running',
           );
           prepareWorkflowRunStatusForNode({
             activeNodeCount,
@@ -1253,6 +1357,34 @@ export async function executeWorkflow(reqBody: any) {
               'info',
               { nodeId: node.id },
             );
+          } else if (type === 'agent-container') {
+            const request = createAgentExecutionRequest(node);
+            await publishLog(
+              `Processing node: ${node.label} (${node.id})`,
+              'info',
+              { nodeId: node.id },
+            );
+            if (request.envKeys.length) {
+              await publishLog(
+                `Injecting Environment Variables: ${request.envKeys.map((key) => `${key}=***`).join(', ')}`,
+                'info',
+                { nodeId: node.id },
+              );
+            }
+            const preparedRunner =
+              await orchestratorRuntime.agentExecution.prepare(request);
+            await preparedRunner.waitUntilReady();
+            await publishNodeState(node.id, 'running');
+            await preparedRunner.start();
+            const result = await preparedRunner.waitForCompletion();
+            nodeTemplateOutputs[`node_${node.id}`] = result.output;
+            await publishEvent({
+              nodeId: node.id,
+              output: result.output,
+              timestamp: new Date().toISOString(),
+              type: 'node_output',
+            });
+            finalState = result.outcome;
           } else if (type === 'playwright') {
             const { cpu, injectedEnv, memory, request, workers } =
               createPlaywrightExecutionRequest(node);
@@ -1427,7 +1559,7 @@ export async function executeWorkflow(reqBody: any) {
       };
 
       const incomingCount: Record<string, number> = {};
-      for (const node of nodes) {
+      for (const node of workflowNodes) {
         incomingCount[node.id] = 0;
       }
       for (const conn of processedConnections) {
@@ -1435,7 +1567,7 @@ export async function executeWorkflow(reqBody: any) {
           incomingCount[conn.targetId]++;
         }
       }
-      const startNodes = nodes
+      const startNodes = workflowNodes
         .filter((n: any) => incomingCount[n.id] === 0)
         .map((n: any) => n.id);
 

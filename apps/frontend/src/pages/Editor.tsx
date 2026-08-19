@@ -44,7 +44,7 @@ import type { AppNodeType } from '../components/NodeSelectorModal';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { getIntegration } from '../integrations/registry';
 import { LogsPanel, LogItem } from '../components/LogsPanel';
-import { Button } from '../components/ui';
+import { Button, ConfirmDialog } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
 import { auth } from '../lib/auth';
@@ -71,6 +71,19 @@ interface NodeData {
 }
 
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
+type AttachmentKind = 'agent' | 'tool';
+
+const AI_CONTAINER_WIDTH = 280;
+const AI_CONTAINER_HEIGHT = 128;
+// Retain the per-node controls so they can be restored without rebuilding the
+// execution handlers or context-menu layout.
+const SHOW_NODE_EXECUTION_CONTROLS = false;
+
+function getNodeDimensions(node: NodeData) {
+  return node.nodeType === 'agent-container'
+    ? { width: AI_CONTAINER_WIDTH, height: AI_CONTAINER_HEIGHT }
+    : { width: node.width, height: node.height };
+}
 
 type ConnectionType =
   | 'sequential'
@@ -152,6 +165,8 @@ interface Connection {
   sourcePort?: PortPosition;
   targetPort?: PortPosition;
   type?: ConnectionType;
+  role?: 'execution' | 'attachment';
+  attachmentPort?: 'agent' | 'tool';
 }
 
 interface DrawingConnection {
@@ -163,6 +178,65 @@ interface DrawingConnection {
 function nodeTypeAcceptsInboundConnection(typeId?: string) {
   const nodeType = NODE_TYPES.find((n) => n.id === typeId);
   return nodeType?.acceptsInboundConnection ?? true;
+}
+
+function getNodeType(typeId?: string) {
+  return NODE_TYPES.find((nodeType) => nodeType.id === typeId);
+}
+
+function createCanvasConnection(
+  source: NodeData,
+  target: NodeData,
+  sourcePort: PortPosition,
+  targetPort: PortPosition,
+): Connection | null {
+  const sourceType = getNodeType(source.nodeType);
+  const targetType = getNodeType(target.nodeType);
+  if (sourceType?.executionRole === 'attachment') {
+    const attachmentKind = sourceType.attachmentKind;
+    if (
+      !attachmentKind ||
+      !targetType?.acceptsAttachments.includes(attachmentKind)
+    ) {
+      return null;
+    }
+    return {
+      id: `c_${Date.now()}`,
+      sourceId: source.id,
+      sourcePort,
+      targetId: target.id,
+      targetPort,
+      role: 'attachment',
+      attachmentPort: attachmentKind,
+    };
+  }
+  if (targetType?.executionRole === 'attachment') {
+    const attachmentKind = targetType.attachmentKind;
+    if (
+      !attachmentKind ||
+      !sourceType?.acceptsAttachments.includes(attachmentKind)
+    ) {
+      return null;
+    }
+    return {
+      id: `c_${Date.now()}`,
+      sourceId: target.id,
+      sourcePort: targetPort,
+      targetId: source.id,
+      targetPort: sourcePort,
+      role: 'attachment',
+      attachmentPort: attachmentKind,
+    };
+  }
+  if (!nodeTypeAcceptsInboundConnection(target.nodeType)) return null;
+  return {
+    id: `c_${Date.now()}`,
+    sourceId: source.id,
+    sourcePort,
+    targetId: target.id,
+    targetPort,
+    role: 'execution',
+  };
 }
 
 function renderNodeTypeIcon(
@@ -1159,6 +1233,10 @@ export default function Editor() {
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<
     Set<string>
   >(new Set());
+  const [pendingNodeDeletion, setPendingNodeDeletion] = useState<{
+    nodeIds: string[];
+    connectionIds: string[];
+  } | null>(null);
   const [hoveredConnectionId, setHoveredConnectionId] = useState<string | null>(
     null,
   );
@@ -1174,6 +1252,8 @@ export default function Editor() {
   } | null>(null);
   const [pendingConnectionSource, setPendingConnectionSource] =
     useState<DrawingConnection | null>(null);
+  const [pendingAttachmentKind, setPendingAttachmentKind] =
+    useState<AttachmentKind | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{
@@ -1379,7 +1459,7 @@ export default function Editor() {
   const getNodesWithParents = useCallback(() => {
     return nodes.map((node) => {
       const parentNodes = connections
-        .filter((c) => c.targetId === node.id)
+        .filter((c) => c.targetId === node.id && c.role !== 'attachment')
         .map((c) => c.sourceId);
       return {
         ...node,
@@ -1646,10 +1726,22 @@ export default function Editor() {
       console.warn('auth.currentUser is null when handlePlayNode is called!');
     }
 
-    // Send only the target node and environment nodes, with no connections.
+    // Send the target, ordinary Environment nodes, and attached capabilities.
     // We disguise the environment node's ID so the UI doesn't visually "play" it as well.
+    const attachmentConnections = connections.filter(
+      (connection) =>
+        connection.role === 'attachment' && connection.targetId === nodeId,
+    );
+    const attachmentNodeIds = new Set(
+      attachmentConnections.map((connection) => connection.sourceId),
+    );
     const nodesToRun = getNodesWithParents()
-      .filter((n) => n.id === nodeId || n.nodeType === 'environment')
+      .filter(
+        (n) =>
+          n.id === nodeId ||
+          n.nodeType === 'environment' ||
+          attachmentNodeIds.has(n.id),
+      )
       .map((n) => {
         if (n.id !== nodeId && n.nodeType === 'environment') {
           return { ...n, id: `hidden_${n.id}` };
@@ -1657,7 +1749,7 @@ export default function Editor() {
         return n;
       });
 
-    runWorkflow(nodesToRun, [], currentCloudProvider);
+    runWorkflow(nodesToRun, attachmentConnections, currentCloudProvider);
   };
 
   const handleStopNode = async (nodeId: string) => {
@@ -1776,6 +1868,40 @@ export default function Editor() {
     clearWorkflowStartupStatus();
   }, [clearWorkflowStartupStatus]);
 
+  const requestNodeDeletion = useCallback(
+    (nodeIds: Iterable<string>, connectionIds: Iterable<string> = []) => {
+      const uniqueNodeIds = Array.from(new Set(nodeIds));
+      if (uniqueNodeIds.length === 0) return;
+
+      setPendingNodeDeletion({
+        nodeIds: uniqueNodeIds,
+        connectionIds: Array.from(new Set(connectionIds)),
+      });
+    },
+    [],
+  );
+
+  const confirmNodeDeletion = useCallback(() => {
+    if (!pendingNodeDeletion) return;
+
+    const nodeIds = new Set(pendingNodeDeletion.nodeIds);
+    const connectionIds = new Set(pendingNodeDeletion.connectionIds);
+    setNodes((currentNodes) =>
+      currentNodes.filter((node) => !nodeIds.has(node.id)),
+    );
+    setConnections((currentConnections) =>
+      currentConnections.filter(
+        (connection) =>
+          !connectionIds.has(connection.id) &&
+          !nodeIds.has(connection.sourceId) &&
+          !nodeIds.has(connection.targetId),
+      ),
+    );
+    setSelectedNodeIds(new Set());
+    setSelectedConnectionIds(new Set());
+    setPendingNodeDeletion(null);
+  }, [pendingNodeDeletion]);
+
   // Add keyboard listeners for deletion and saving
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1794,22 +1920,29 @@ export default function Editor() {
       }
 
       if (e.key === 'Backspace' || e.key === 'Delete') {
-        setNodes((prev) => prev.filter((n) => !selectedNodeIds.has(n.id)));
+        e.preventDefault();
+        if (pendingNodeDeletion) return;
+
+        if (selectedNodeIds.size > 0) {
+          requestNodeDeletion(selectedNodeIds, selectedConnectionIds);
+          return;
+        }
+
         setConnections((prev) =>
-          prev.filter(
-            (c) =>
-              !selectedConnectionIds.has(c.id) &&
-              !selectedNodeIds.has(c.sourceId) &&
-              !selectedNodeIds.has(c.targetId),
-          ),
+          prev.filter((c) => !selectedConnectionIds.has(c.id)),
         );
-        setSelectedNodeIds(new Set());
         setSelectedConnectionIds(new Set());
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedNodeIds, selectedConnectionIds, handleSaveWorkflow]);
+  }, [
+    selectedNodeIds,
+    selectedConnectionIds,
+    pendingNodeDeletion,
+    handleSaveWorkflow,
+    requestNodeDeletion,
+  ]);
 
   // Convert screen coordinates to canvas coordinates
   const screenToCanvas = (sx: number, sy: number) => {
@@ -1938,6 +2071,7 @@ export default function Editor() {
     portPos: PortPosition,
   ) => {
     e.stopPropagation();
+    setPendingAttachmentKind(null);
 
     // Check if this port is a target of any connection (incoming)
     let incomingConnectionIndex = -1;
@@ -1991,27 +2125,22 @@ export default function Editor() {
         ? targetNodeId
         : isDrawingConnection.fixedNodeId;
       const targetNode = nodes.find((node) => node.id === targetId);
+      const sourceNode = nodes.find((node) => node.id === sourceId);
 
-      if (
-        !targetNode ||
-        !nodeTypeAcceptsInboundConnection(targetNode.nodeType)
-      ) {
+      if (!sourceNode || !targetNode) {
         setIsDrawingConnection(null);
         return;
       }
 
-      const newConnection: Connection = {
-        id: `c_${Date.now()}`,
-        sourceId,
-        sourcePort: isDrawingConnection.isForward
-          ? isDrawingConnection.fixedPort
-          : portPos,
-        targetId,
-        targetPort: isDrawingConnection.isForward
-          ? portPos
-          : isDrawingConnection.fixedPort,
-      };
-      setConnections((prev) => [...prev, newConnection]);
+      const newConnection = createCanvasConnection(
+        sourceNode,
+        targetNode,
+        isDrawingConnection.isForward ? isDrawingConnection.fixedPort : portPos,
+        isDrawingConnection.isForward ? portPos : isDrawingConnection.fixedPort,
+      );
+      if (newConnection) {
+        setConnections((prev) => [...prev, newConnection]);
+      }
     }
     setIsDrawingConnection(null);
   };
@@ -2043,6 +2172,7 @@ export default function Editor() {
     );
     setNodeSelectorPos({ x: center.x - 80, y: center.y - 40 });
     setPendingConnectionSource(null);
+    setPendingAttachmentKind(null);
     setShowNodeSelector(true);
   }, []);
 
@@ -2067,20 +2197,6 @@ export default function Editor() {
     typeId: string;
     label: string;
   }) => {
-    const pendingConnectionTargetType = pendingConnectionSource
-      ? pendingConnectionSource.isForward
-        ? data.typeId
-        : nodes.find((node) => node.id === pendingConnectionSource.fixedNodeId)
-            ?.nodeType
-      : undefined;
-
-    if (
-      pendingConnectionTargetType &&
-      !nodeTypeAcceptsInboundConnection(pendingConnectionTargetType)
-    ) {
-      return;
-    }
-
     const pos =
       nodeSelectorPos ||
       screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
@@ -2088,31 +2204,61 @@ export default function Editor() {
       id: `n_${Date.now()}`,
       nodeType: data.typeId,
       label: data.label,
-      x: pos.x,
-      y: pos.y,
-      width: 128,
-      height: 128,
+      x:
+        data.typeId === 'agent-container' && !pendingConnectionSource
+          ? pos.x - (AI_CONTAINER_WIDTH - 128) / 2
+          : pos.x,
+      y:
+        data.typeId === 'agent-container' && !pendingConnectionSource
+          ? pos.y - (AI_CONTAINER_HEIGHT - 128) / 2
+          : pos.y,
+      width: data.typeId === 'agent-container' ? AI_CONTAINER_WIDTH : 128,
+      height: data.typeId === 'agent-container' ? AI_CONTAINER_HEIGHT : 128,
     };
 
     setNodes((prev) => [...prev, newNode]);
 
-    if (pendingConnectionSource) {
-      const newConnection: Connection = {
-        id: `c_${Date.now()}`,
-        sourceId: pendingConnectionSource.isForward
-          ? pendingConnectionSource.fixedNodeId
-          : newNode.id,
-        sourcePort: pendingConnectionSource.isForward
-          ? pendingConnectionSource.fixedPort
-          : 'right',
-        targetId: pendingConnectionSource.isForward
-          ? newNode.id
-          : pendingConnectionSource.fixedNodeId,
-        targetPort: pendingConnectionSource.isForward
-          ? 'left'
-          : pendingConnectionSource.fixedPort,
-      };
-      setConnections((prev) => [...prev, newConnection]);
+    if (pendingConnectionSource && pendingAttachmentKind) {
+      const targetNode = nodes.find(
+        (node) => node.id === pendingConnectionSource.fixedNodeId,
+      );
+      if (targetNode) {
+        setConnections((previous) => [
+          ...previous,
+          {
+            id: `c_${Date.now()}`,
+            sourceId: newNode.id,
+            sourcePort: 'top',
+            targetId: targetNode.id,
+            targetPort: 'bottom',
+            role: 'attachment',
+            attachmentPort: pendingAttachmentKind,
+          },
+        ]);
+      }
+    } else if (pendingConnectionSource) {
+      const fixedNode = nodes.find(
+        (node) => node.id === pendingConnectionSource.fixedNodeId,
+      );
+      if (fixedNode) {
+        const sourceNode = pendingConnectionSource.isForward
+          ? fixedNode
+          : newNode;
+        const targetNode = pendingConnectionSource.isForward
+          ? newNode
+          : fixedNode;
+        const newConnection = createCanvasConnection(
+          sourceNode,
+          targetNode,
+          pendingConnectionSource.isForward
+            ? pendingConnectionSource.fixedPort
+            : 'right',
+          pendingConnectionSource.isForward
+            ? 'left'
+            : pendingConnectionSource.fixedPort,
+        );
+        if (newConnection) setConnections((prev) => [...prev, newConnection]);
+      }
     }
 
     setSelectedNodeIds(new Set([newNode.id]));
@@ -2121,6 +2267,40 @@ export default function Editor() {
     setShowNodeSelector(false);
     setNodeSelectorPos(null);
     setPendingConnectionSource(null);
+    setPendingAttachmentKind(null);
+    if (
+      pendingAttachmentKind &&
+      pendingConnectionSource &&
+      !connections.some(
+        (connection) =>
+          connection.role === 'attachment' &&
+          connection.targetId === pendingConnectionSource.fixedNodeId,
+      )
+    ) {
+      setTransform((current) => ({
+        ...current,
+        y: current.y - 168 * current.scale,
+      }));
+    }
+  };
+
+  const handleAddAttachment = (
+    node: NodeData,
+    attachmentKind: AttachmentKind,
+  ) => {
+    const dimensions = getNodeDimensions(node);
+    const horizontalRatio = attachmentKind === 'agent' ? 0.26 : 0.74;
+    setPendingConnectionSource({
+      fixedNodeId: node.id,
+      fixedPort: 'bottom',
+      isForward: true,
+    });
+    setPendingAttachmentKind(attachmentKind);
+    setNodeSelectorPos({
+      x: node.x + dimensions.width * horizontalRatio - 64,
+      y: node.y + dimensions.height + 104,
+    });
+    setShowNodeSelector(true);
   };
 
   const handleFitView = () => {
@@ -2292,6 +2472,30 @@ export default function Editor() {
       });
     }
 
+    const attachmentIndexByTarget = new Map<string, number>();
+    connections
+      .filter((connection) => connection.role === 'attachment')
+      .forEach((connection) => {
+        const target = nodes.find((node) => node.id === connection.targetId);
+        if (!target) return;
+        const targetPosition = newPositions.get(target.id) || {
+          x: target.x,
+          y: target.y,
+        };
+        const dimensions = getNodeDimensions(target);
+        const toolIndex = attachmentIndexByTarget.get(target.id) || 0;
+        const isTool = connection.attachmentPort === 'tool';
+        newPositions.set(connection.sourceId, {
+          x:
+            targetPosition.x +
+            dimensions.width * (isTool ? 0.74 : 0.26) -
+            64 +
+            (isTool ? toolIndex * 144 : 0),
+          y: targetPosition.y + dimensions.height + 104,
+        });
+        if (isTool) attachmentIndexByTarget.set(target.id, toolIndex + 1);
+      });
+
     setNodes((prev) =>
       prev.map((n) => {
         const pos = newPositions.get(n.id);
@@ -2308,16 +2512,35 @@ export default function Editor() {
     port: PortPosition,
     offset: number = 0,
   ) => {
+    const dimensions = getNodeDimensions(node);
     switch (port) {
       case 'top':
-        return { x: node.x + node.width / 2, y: node.y - offset };
+        return { x: node.x + dimensions.width / 2, y: node.y - offset };
       case 'right':
-        return { x: node.x + node.width + offset, y: node.y + node.height / 2 };
+        return {
+          x: node.x + dimensions.width + offset,
+          y: node.y + dimensions.height / 2,
+        };
       case 'bottom':
-        return { x: node.x + node.width / 2, y: node.y + node.height + offset };
+        return {
+          x: node.x + dimensions.width / 2,
+          y: node.y + dimensions.height + offset,
+        };
       case 'left':
-        return { x: node.x - offset, y: node.y + node.height / 2 };
+        return { x: node.x - offset, y: node.y + dimensions.height / 2 };
     }
+  };
+
+  const getAttachmentPortCoordinates = (
+    node: NodeData,
+    attachmentKind: AttachmentKind,
+    offset = 0,
+  ) => {
+    const dimensions = getNodeDimensions(node);
+    return {
+      x: node.x + dimensions.width * (attachmentKind === 'agent' ? 0.26 : 0.74),
+      y: node.y + dimensions.height + offset,
+    };
   };
 
   const getOppositePort = (port: PortPosition): PortPosition => {
@@ -2536,7 +2759,22 @@ export default function Editor() {
     if (!pendingConnectionSource?.isForward) {
       return null;
     }
-
+    const fixedNode = nodes.find(
+      (candidate) => candidate.id === pendingConnectionSource.fixedNodeId,
+    );
+    const fixedType = getNodeType(fixedNode?.nodeType);
+    if (node.executionRole === 'attachment') {
+      return node.attachmentKind &&
+        fixedType?.acceptsAttachments.includes(node.attachmentKind)
+        ? null
+        : 'This node does not accept that attachment';
+    }
+    if (fixedType?.executionRole === 'attachment') {
+      return fixedType.attachmentKind &&
+        node.acceptsAttachments.includes(fixedType.attachmentKind)
+        ? null
+        : 'This node does not accept that attachment';
+    }
     return node.acceptsInboundConnection ? null : 'No inbound connection';
   };
 
@@ -2739,14 +2977,45 @@ export default function Editor() {
           </div>
         ) : null}
         <NodeSelectorModal
+          attachmentKind={pendingAttachmentKind}
           isOpen={showNodeSelector}
-          onClose={() => setShowNodeSelector(false)}
+          onClose={() => {
+            setShowNodeSelector(false);
+            setNodeSelectorPos(null);
+            setPendingConnectionSource(null);
+            setPendingAttachmentKind(null);
+          }}
           onSelect={handleAddNodeFromSelector}
           getNodeDisabledReason={
             pendingConnectionSource
               ? getConnectionTargetDisabledReason
               : undefined
           }
+        />
+
+        <ConfirmDialog
+          isOpen={!!pendingNodeDeletion}
+          title={
+            pendingNodeDeletion?.nodeIds.length === 1
+              ? `Delete “${
+                  nodes.find(
+                    (node) => node.id === pendingNodeDeletion.nodeIds[0],
+                  )?.label || 'node'
+                }”?`
+              : `Delete ${pendingNodeDeletion?.nodeIds.length || 0} nodes?`
+          }
+          description={
+            pendingNodeDeletion?.nodeIds.length === 1
+              ? 'This will permanently remove the node and all of its connections from the workflow. This action cannot be undone.'
+              : 'This will permanently remove the selected nodes and all of their connections from the workflow. This action cannot be undone.'
+          }
+          confirmLabel={
+            pendingNodeDeletion?.nodeIds.length === 1
+              ? 'Delete node'
+              : 'Delete nodes'
+          }
+          onCancel={() => setPendingNodeDeletion(null)}
+          onConfirm={confirmNodeDeletion}
         />
 
         {ActiveCloudSettingsModal ? (
@@ -2949,32 +3218,50 @@ export default function Editor() {
                 const tgt = nodes.find((n) => n.id === conn.targetId);
                 if (!src || !tgt) return null;
 
-                const sPort = conn.sourcePort || 'right';
-                const tPort = conn.targetPort || 'left';
+                const sPort =
+                  conn.role === 'attachment'
+                    ? 'top'
+                    : conn.sourcePort || 'right';
+                const tPort =
+                  conn.role === 'attachment'
+                    ? 'bottom'
+                    : conn.targetPort || 'left';
 
                 const startCoords = getPortCoordinates(src, sPort);
-                const endCoords = getPortCoordinates(tgt, tPort, 10);
+                const endCoords =
+                  conn.role === 'attachment' && conn.attachmentPort
+                    ? getAttachmentPortCoordinates(tgt, conn.attachmentPort)
+                    : getPortCoordinates(tgt, tPort, 10);
 
                 const isSelected = selectedConnectionIds.has(conn.id);
                 const isTargetRunning = nodeStatus[conn.targetId] === 'running';
 
                 const strokeColor = isSelected
                   ? 'var(--accent)'
-                  : conn.type === 'success'
-                    ? '#4ade80'
-                    : conn.type === 'failure'
-                      ? '#f87171'
-                      : 'var(--node-border)';
+                  : conn.role === 'attachment'
+                    ? 'var(--muted)'
+                    : conn.type === 'success'
+                      ? '#4ade80'
+                      : conn.type === 'failure'
+                        ? '#f87171'
+                        : 'var(--node-border)';
 
                 const strokeDasharray = isTargetRunning
                   ? '6 6'
-                  : conn.type === 'independent' || conn.type === 'concurrent'
-                    ? '6 4'
-                    : 'none';
+                  : conn.role === 'attachment'
+                    ? '3 5'
+                    : conn.type === 'independent' || conn.type === 'concurrent'
+                      ? '6 4'
+                      : 'none';
 
                 return (
                   <g
                     key={conn.id}
+                    data-testid={
+                      conn.role === 'attachment' && conn.attachmentPort
+                        ? `canvas-attachment-${conn.attachmentPort}`
+                        : undefined
+                    }
                     className="pointer-events-auto guard-connection"
                     onClick={(e) => handleConnectionClick(e, conn.id)}
                     onPointerEnter={() => setHoveredConnectionId(conn.id)}
@@ -3012,13 +3299,15 @@ export default function Editor() {
                       strokeDasharray={strokeDasharray}
                       fill="none"
                       markerEnd={
-                        isSelected
-                          ? 'url(#arrowhead-selected)'
-                          : conn.type === 'success'
-                            ? 'url(#arrowhead-success)'
-                            : conn.type === 'failure'
-                              ? 'url(#arrowhead-failure)'
-                              : 'url(#arrowhead)'
+                        conn.role === 'attachment'
+                          ? undefined
+                          : isSelected
+                            ? 'url(#arrowhead-selected)'
+                            : conn.type === 'success'
+                              ? 'url(#arrowhead-success)'
+                              : conn.type === 'failure'
+                                ? 'url(#arrowhead-failure)'
+                                : 'url(#arrowhead)'
                       }
                       className={cn(
                         'transition-colors drop-shadow-sm',
@@ -3137,6 +3426,23 @@ export default function Editor() {
                 if (n.nodeType === 'schedule') {
                   return !!n.config?.schedule?.frequency;
                 }
+                if (n.nodeType === 'agent-container') {
+                  const attachments = connections.filter(
+                    (connection) =>
+                      connection.role === 'attachment' &&
+                      connection.targetId === n.id,
+                  );
+                  return (
+                    !!n.config?.repository?.trim() &&
+                    !!n.config?.task?.trim() &&
+                    attachments.some(
+                      (connection) => connection.attachmentPort === 'agent',
+                    ) &&
+                    attachments.some(
+                      (connection) => connection.attachmentPort === 'tool',
+                    )
+                  );
+                }
                 if (!n.config) return false;
                 if (n.nodeType === 'javascript-code') {
                   return !!n.config.code?.trim();
@@ -3153,7 +3459,16 @@ export default function Editor() {
                       (c.sourcePort || 'right') === port),
                 );
 
-              const renderPort = (port: PortPosition, posClass: string) => {
+              const isScheduleNode = node.nodeType === 'schedule';
+              const isAttachmentNode =
+                getNodeType(node.nodeType)?.executionRole === 'attachment';
+              const isAIContainer = node.nodeType === 'agent-container';
+
+              const renderPort = (
+                port: PortPosition,
+                posClass: string,
+                diamond = false,
+              ) => {
                 const connected = hasConnection(port);
                 return (
                   <div
@@ -3167,18 +3482,36 @@ export default function Editor() {
                     onPointerUp={(e) => handlePortPointerUp(e, node.id, port)}
                   >
                     <div
+                      data-testid={
+                        diamond ? 'canvas-attachment-node-socket' : undefined
+                      }
                       className={cn(
-                        'rounded-full border border-[var(--node-port-border)] bg-[var(--node-port-bg)] transition-all duration-200',
+                        'border border-[var(--node-port-border)] bg-[var(--node-port-bg)] transition-all duration-200',
+                        diamond
+                          ? 'h-4 w-4 rotate-45 border-[var(--muted)]'
+                          : 'h-6 w-6 rounded-full',
                         connected || port === 'right' || port === 'left'
-                          ? 'opacity-100 w-6 h-6'
-                          : 'opacity-0 w-6 h-6 group-hover:opacity-100',
+                          ? 'opacity-100'
+                          : 'opacity-0 group-hover:opacity-100',
                       )}
                     />
                   </div>
                 );
               };
 
-              const isScheduleNode = node.nodeType === 'schedule';
+              const nodeDimensions = getNodeDimensions(node);
+              const attachedAgentCount = connections.filter(
+                (connection) =>
+                  connection.role === 'attachment' &&
+                  connection.targetId === node.id &&
+                  connection.attachmentPort === 'agent',
+              ).length;
+              const attachedToolCount = connections.filter(
+                (connection) =>
+                  connection.role === 'attachment' &&
+                  connection.targetId === node.id &&
+                  connection.attachmentPort === 'tool',
+              ).length;
 
               return (
                 <div
@@ -3187,12 +3520,15 @@ export default function Editor() {
                   data-node-id={node.id}
                   data-node-status={status}
                   className={cn(
-                    'group guard-node absolute bg-[var(--node-bg)] p-4 shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
+                    'group guard-node absolute bg-[var(--node-bg)] shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
+                    isAIContainer ? 'p-0' : 'p-4',
                     isScheduleNode
                       ? 'rounded-t-full rounded-b-lg'
-                      : node.nodeType === 'environment'
-                        ? 'rounded-l-[48px] rounded-r-sm'
-                        : 'rounded-xl',
+                      : isAttachmentNode
+                        ? 'rounded-full'
+                        : node.nodeType === 'environment'
+                          ? 'rounded-l-[48px] rounded-r-sm'
+                          : 'rounded-xl',
                     status === 'running' ? 'border-transparent' : 'border',
                     status !== 'running' &&
                       isSelected &&
@@ -3204,8 +3540,8 @@ export default function Editor() {
                   style={{
                     left: node.x,
                     top: node.y,
-                    width: isScheduleNode ? 128 : node.width,
-                    height: isScheduleNode ? 128 : node.height,
+                    width: isScheduleNode ? 128 : nodeDimensions.width,
+                    height: isScheduleNode ? 128 : nodeDimensions.height,
                   }}
                   onPointerDown={(e) => handleNodePointerDown(e, node.id)}
                   onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
@@ -3216,9 +3552,11 @@ export default function Editor() {
                       style={
                         isScheduleNode
                           ? { borderRadius: '9999px 9999px 8px 8px' }
-                          : node.nodeType === 'environment'
-                            ? { borderRadius: '49px 5px 5px 49px' }
-                            : undefined
+                          : isAttachmentNode
+                            ? { borderRadius: '9999px' }
+                            : node.nodeType === 'environment'
+                              ? { borderRadius: '49px 5px 5px 49px' }
+                              : undefined
                       }
                     >
                       <div className="absolute left-1/2 top-1/2 aspect-square w-[300%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#22d3ee,#3b82f6)]" />
@@ -3373,6 +3711,7 @@ export default function Editor() {
 
                   {/* Connection Placeholder (hidden for schedule nodes) */}
                   {!isScheduleNode &&
+                    !isAttachmentNode &&
                     !connections.some(
                       (c) =>
                         c.sourceId === node.id &&
@@ -3391,9 +3730,10 @@ export default function Editor() {
                               isForward: true,
                             });
                             setNodeSelectorPos({
-                              x: node.x + node.width + 80,
+                              x: node.x + nodeDimensions.width + 80,
                               y: node.y,
                             });
+                            setPendingAttachmentKind(null);
                             setShowNodeSelector(true);
                           }}
                           onPointerDown={(e) => e.stopPropagation()}
@@ -3409,29 +3749,114 @@ export default function Editor() {
                   {/* Ports (hidden for schedule nodes) */}
                   {!isScheduleNode &&
                     node.nodeType !== 'environment' &&
-                    renderPort('top', '-top-5 left-1/2 -translate-x-1/2')}
+                    renderPort(
+                      'top',
+                      '-top-5 left-1/2 -translate-x-1/2',
+                      isAttachmentNode,
+                    )}
                   {!isScheduleNode &&
+                    !isAttachmentNode &&
                     renderPort('right', '-right-5 top-1/2 -translate-y-1/2')}
                   {!isScheduleNode &&
                     node.nodeType !== 'environment' &&
+                    !isAIContainer &&
+                    !isAttachmentNode &&
                     renderPort('bottom', '-bottom-5 left-1/2 -translate-x-1/2')}
                   {!isScheduleNode &&
                     node.nodeType !== 'environment' &&
+                    !isAttachmentNode &&
                     renderPort('left', '-left-5 top-1/2 -translate-y-1/2')}
 
                   {/* Label & Icon */}
-                  <div
-                    className={cn(
-                      'flex items-center justify-center w-full h-full relative pointer-events-none',
-                      node.nodeType === 'playwright' &&
-                        runtimeChildren.length > 0 &&
-                        'pb-8',
-                    )}
-                  >
-                    <div className="w-16 h-16 rounded-lg flex items-center justify-center shrink-0">
-                      {renderNodeIcon(node.nodeType)}
+                  {isAIContainer ? (
+                    <div className="relative flex h-full w-full flex-col pointer-events-none">
+                      <div className="flex min-h-0 flex-1 items-center gap-4 px-8 pb-12">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--node-border)] bg-[var(--surface-hover)]">
+                          <div className="scale-75">
+                            {renderNodeIcon(node.nodeType)}
+                          </div>
+                        </div>
+                        <div className="min-w-0 text-left">
+                          <p className="truncate text-base font-semibold text-[var(--foreground)]">
+                            {node.label}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted">
+                            Coding Agent
+                          </p>
+                        </div>
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 h-12">
+                        {(
+                          [
+                            {
+                              kind: 'agent' as const,
+                              label: 'Agent',
+                              count: attachedAgentCount,
+                              ratio: 0.26,
+                            },
+                            {
+                              kind: 'tool' as const,
+                              label: 'Validator',
+                              count: attachedToolCount,
+                              ratio: 0.74,
+                            },
+                          ] as const
+                        ).map((attachment) => (
+                          <div
+                            key={attachment.kind}
+                            className="absolute inset-y-0 flex -translate-x-1/2 flex-col items-center justify-center"
+                            style={{ left: `${attachment.ratio * 100}%` }}
+                          >
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                              {attachment.label}
+                            </span>
+                            <span
+                              data-testid={`agent-container-${attachment.kind}-socket`}
+                              className="absolute -bottom-2 h-4 w-4 rotate-45 border border-[var(--muted)] bg-[var(--node-port-bg)] shadow-sm"
+                            />
+                            {(attachment.kind === 'tool' ||
+                              attachment.count === 0) && (
+                              <>
+                                <span
+                                  data-testid={`agent-container-add-${attachment.kind}-stem`}
+                                  className="absolute top-[calc(100%+12px)] h-2 w-px bg-[var(--muted)]"
+                                />
+                                <button
+                                  type="button"
+                                  data-testid={`agent-container-add-${attachment.kind}`}
+                                  aria-label={`Add ${attachment.label}`}
+                                  title={`Add ${attachment.label}`}
+                                  className="absolute top-[calc(100%+20px)] flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--node-border)] bg-[var(--node-bg)] text-muted shadow-sm pointer-events-auto transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleAddAttachment(node, attachment.kind);
+                                  }}
+                                  onPointerDown={(event) =>
+                                    event.stopPropagation()
+                                  }
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div
+                      className={cn(
+                        'flex items-center justify-center w-full h-full relative pointer-events-none',
+                        node.nodeType === 'playwright' &&
+                          runtimeChildren.length > 0 &&
+                          'pb-8',
+                      )}
+                    >
+                      <div className="w-16 h-16 rounded-lg flex items-center justify-center shrink-0">
+                        {renderNodeIcon(node.nodeType)}
+                      </div>
+                    </div>
+                  )}
 
                   {!isNodeConfigured(node) &&
                     status !== 'pending' &&
@@ -3489,40 +3914,41 @@ export default function Editor() {
                         e.stopPropagation();
                       }}
                     >
-                      <button
-                        className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"
-                        title="Play"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayNode(node.id);
-                        }}
-                      >
-                        <Play className="w-5 h-5 fill-current" />
-                      </button>
-                      <button
-                        className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"
-                        title="Power"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStopNode(node.id);
-                        }}
-                      >
-                        <Power className="w-5 h-5" />
-                      </button>
+                      {!isAttachmentNode ? (
+                        <div
+                          className={
+                            SHOW_NODE_EXECUTION_CONTROLS ? 'contents' : 'hidden'
+                          }
+                          aria-hidden={!SHOW_NODE_EXECUTION_CONTROLS}
+                        >
+                          <button
+                            className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"
+                            title="Play"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayNode(node.id);
+                            }}
+                          >
+                            <Play className="w-5 h-5 fill-current" />
+                          </button>
+                          <button
+                            className="text-muted hover:text-[var(--foreground)] transition-colors transform hover:scale-110"
+                            title="Power"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStopNode(node.id);
+                            }}
+                          >
+                            <Power className="w-5 h-5" />
+                          </button>
+                        </div>
+                      ) : null}
                       <button
                         className="text-muted hover:text-error transition-colors transform hover:scale-110"
                         title="Delete Node"
-                        onClick={() => {
-                          setNodes((nodes) =>
-                            nodes.filter((n) => n.id !== node.id),
-                          );
-                          setConnections((conns) =>
-                            conns.filter(
-                              (c) =>
-                                c.sourceId !== node.id &&
-                                c.targetId !== node.id,
-                            ),
-                          );
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestNodeDeletion([node.id]);
                         }}
                       >
                         <Trash2 className="w-5 h-5" />
@@ -3538,27 +3964,15 @@ export default function Editor() {
                   )}
 
                   {/* Node Label (below node) */}
-                  <div className="absolute top-[calc(100%+12px)] left-1/2 -translate-x-1/2 whitespace-nowrap">
-                    {editingLabelNodeId === node.id ? (
-                      <input
-                        autoFocus
-                        defaultValue={node.label}
-                        className="bg-transparent border-b border-white/30 focus:border-white/60 outline-none text-base font-medium text-[var(--foreground)] text-center px-1 py-0.5 w-36 pointer-events-auto transition-colors"
-                        onBlur={(e) => {
-                          const val = e.target.value.trim();
-                          if (val)
-                            setNodes((prev) =>
-                              prev.map((n) =>
-                                n.id === node.id ? { ...n, label: val } : n,
-                              ),
-                            );
-                          setEditingLabelNodeId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const val = (
-                              e.target as HTMLInputElement
-                            ).value.trim();
+                  {!isAIContainer && (
+                    <div className="absolute top-[calc(100%+12px)] left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      {editingLabelNodeId === node.id ? (
+                        <input
+                          autoFocus
+                          defaultValue={node.label}
+                          className="bg-transparent border-b border-white/30 focus:border-white/60 outline-none text-base font-medium text-[var(--foreground)] text-center px-1 py-0.5 w-36 pointer-events-auto transition-colors"
+                          onBlur={(e) => {
+                            const val = e.target.value.trim();
                             if (val)
                               setNodes((prev) =>
                                 prev.map((n) =>
@@ -3566,30 +3980,44 @@ export default function Editor() {
                                 ),
                               );
                             setEditingLabelNodeId(null);
-                          }
-                          if (e.key === 'Escape') setEditingLabelNodeId(null);
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span
-                        className="font-medium text-[var(--foreground)] text-base drop-shadow-md cursor-default pointer-events-auto"
-                        onDoubleClick={(e) => {
-                          e.stopPropagation();
-                          const isLinkedEnvironment =
-                            node.nodeType === 'environment' &&
-                            node.config?.environmentId;
-                          if (!isLinkedEnvironment) {
-                            setEditingLabelNodeId(node.id);
-                          }
-                        }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        {node.label}
-                      </span>
-                    )}
-                  </div>
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const val = (
+                                e.target as HTMLInputElement
+                              ).value.trim();
+                              if (val)
+                                setNodes((prev) =>
+                                  prev.map((n) =>
+                                    n.id === node.id ? { ...n, label: val } : n,
+                                  ),
+                                );
+                              setEditingLabelNodeId(null);
+                            }
+                            if (e.key === 'Escape') setEditingLabelNodeId(null);
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span
+                          className="font-medium text-[var(--foreground)] text-base drop-shadow-md cursor-default pointer-events-auto"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            const isLinkedEnvironment =
+                              node.nodeType === 'environment' &&
+                              node.config?.environmentId;
+                            if (!isLinkedEnvironment) {
+                              setEditingLabelNodeId(node.id);
+                            }
+                          }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          {node.label}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -3600,11 +4028,18 @@ export default function Editor() {
               const tgt = nodes.find((n) => n.id === conn.targetId);
               if (!src || !tgt) return null;
 
-              const sPort = conn.sourcePort || 'right';
-              const tPort = conn.targetPort || 'left';
+              const sPort =
+                conn.role === 'attachment' ? 'top' : conn.sourcePort || 'right';
+              const tPort =
+                conn.role === 'attachment'
+                  ? 'bottom'
+                  : conn.targetPort || 'left';
 
               const startCoords = getPortCoordinates(src, sPort);
-              const endCoords = getPortCoordinates(tgt, tPort, 10);
+              const endCoords =
+                conn.role === 'attachment' && conn.attachmentPort
+                  ? getAttachmentPortCoordinates(tgt, conn.attachmentPort)
+                  : getPortCoordinates(tgt, tPort, 10);
 
               const midPoint = getCurveMidpoint(
                 startCoords.x,
@@ -3624,7 +4059,6 @@ export default function Editor() {
                   className="absolute z-50 pointer-events-none"
                   style={{ left: midPoint.x, top: midPoint.y }}
                 >
-                  {/* Type Label */}
                   {conn.type &&
                     conn.type !== 'sequential' &&
                     !isHovered &&
@@ -3669,22 +4103,24 @@ export default function Editor() {
                         >
                           <Trash2 size={14} />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConnectionMenuId(isMenuOpen ? null : conn.id);
-                          }}
-                          className="hover:bg-surface-hover text-muted hover:text-[var(--foreground)] p-1.5 rounded transition-colors block leading-none"
-                          title="Settings"
-                        >
-                          <Settings size={14} />
-                        </button>
+                        {conn.role !== 'attachment' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConnectionMenuId(isMenuOpen ? null : conn.id);
+                            }}
+                            className="hover:bg-surface-hover text-muted hover:text-[var(--foreground)] p-1.5 rounded transition-colors block leading-none"
+                            title="Settings"
+                          >
+                            <Settings size={14} />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   )}
 
                   {/* Context Menu Popover */}
-                  {isMenuOpen && (
+                  {isMenuOpen && conn.role !== 'attachment' && (
                     <div
                       className="absolute top-6 left-6 w-[200px] bg-surface border border-strong rounded-lg shadow-xl flex flex-col p-2 space-y-1 pointer-events-auto"
                       onPointerEnter={() => setHoveredConnectionId(conn.id)}
@@ -3846,7 +4282,30 @@ export default function Editor() {
             return ancestors;
           };
 
-          const incomingNodes = node ? getAncestors(node.id) : [];
+          const attachedContainerIds = node
+            ? connections
+                .filter(
+                  (connection) =>
+                    connection.role === 'attachment' &&
+                    connection.sourceId === node.id,
+                )
+                .map((connection) => connection.targetId)
+            : [];
+          const incomingNodes = node
+            ? Array.from(
+                new Map(
+                  [node.id, ...attachedContainerIds]
+                    .flatMap((targetId) => getAncestors(targetId))
+                    .filter(
+                      (candidate) =>
+                        candidate.id !== node.id &&
+                        getIntegration(candidate.nodeType)?.executionRole !==
+                          'attachment',
+                    )
+                    .map((candidate) => [candidate.id, candidate]),
+                ).values(),
+              )
+            : [];
 
           return (
             <Modal

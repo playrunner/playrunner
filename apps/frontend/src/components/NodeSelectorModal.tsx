@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import { INTEGRATIONS } from '../integrations/registry';
 
 interface NodeSelectorModalProps {
+  attachmentKind?: 'agent' | 'tool' | null;
   isOpen: boolean;
   onClose: () => void;
   onSelect: (data: { typeId: string; label: string }) => void;
@@ -21,6 +22,9 @@ export type AppNodeType = {
   fallbackText?: string;
   nodeSelectorOrder?: number;
   acceptsInboundConnection: boolean;
+  executionRole: 'workflow' | 'attachment';
+  attachmentKind?: 'agent' | 'tool';
+  acceptsAttachments: readonly ('agent' | 'tool')[];
 };
 
 export const NODE_TYPES: AppNodeType[] = [
@@ -32,6 +36,9 @@ export const NODE_TYPES: AppNodeType[] = [
     iconRenderMode: i.iconRenderMode,
     nodeSelectorOrder: i.nodeSelectorOrder,
     acceptsInboundConnection: i.showInputPanel !== false,
+    executionRole: i.executionRole || 'workflow',
+    attachmentKind: i.attachmentKind,
+    acceptsAttachments: i.acceptsAttachments || [],
     ...(typeof i.icon === 'string'
       ? { iconSrc: i.icon }
       : { fallbackIcon: i.icon }),
@@ -39,6 +46,7 @@ export const NODE_TYPES: AppNodeType[] = [
 ];
 
 export function NodeSelectorModal({
+  attachmentKind,
   isOpen,
   onClose,
   onSelect,
@@ -49,8 +57,10 @@ export function NodeSelectorModal({
 
   if (!isOpen) return null;
 
-  const filteredNodes = NODE_TYPES.filter((n) =>
-    n.label.toLowerCase().includes(search.toLowerCase()),
+  const filteredNodes = NODE_TYPES.filter(
+    (node) =>
+      (!attachmentKind || node.attachmentKind === attachmentKind) &&
+      node.label.toLowerCase().includes(search.toLowerCase()),
   );
   const pinnedNodes = filteredNodes.filter(
     (n) => typeof n.nodeSelectorOrder === 'number',
@@ -140,7 +150,13 @@ export function NodeSelectorModal({
         onClick={onClose}
       />
       <div
-        aria-label="Add node"
+        aria-label={
+          attachmentKind === 'agent'
+            ? 'Add Agent'
+            : attachmentKind === 'tool'
+              ? 'Add Validator'
+              : 'Add node'
+        }
         aria-modal="true"
         role="dialog"
         className="relative w-full max-w-md bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
@@ -152,7 +168,13 @@ export function NodeSelectorModal({
               ref={inputRef}
               autoFocus
               className="w-full bg-background border border-subtle rounded-lg pl-9 pr-4 py-2 text-sm text-[var(--foreground)] placeholder:text-muted focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
-              placeholder="Search tools..."
+              placeholder={
+                attachmentKind === 'agent'
+                  ? 'Search agents...'
+                  : attachmentKind === 'tool'
+                    ? 'Search validators...'
+                    : 'Search tools...'
+              }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {

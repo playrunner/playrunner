@@ -1,0 +1,32 @@
+{
+  "name": "playrunner-agent-runner",
+  "private": true,
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --require ts-node/register --test src/**/*.test.ts"
+  },
+  "license": "SEE LICENSE IN ../../../LICENSE",
+  "dependencies": {
+    "@openai/codex": "0.147.0",
+    "@playwright/test": "1.62.1",
+    "playwright": "1.62.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^25.6.2",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "^17.6.0",
+    "prettier": "3.8.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  }
+}

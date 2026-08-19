@@ -14,6 +14,9 @@ interface ModalProps {
   className?: string;
   bodyClassName?: string;
   zIndex?: number;
+  dialogRole?: 'dialog' | 'alertdialog';
+  ariaDescribedBy?: string;
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 export function Modal({
@@ -28,6 +31,9 @@ export function Modal({
   className,
   bodyClassName,
   zIndex = 60,
+  dialogRole = 'dialog',
+  ariaDescribedBy,
+  initialFocusRef,
 }: ModalProps) {
   const titleId = React.useId();
 
@@ -38,6 +44,15 @@ export function Modal({
     if (isOpen) window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !initialFocusRef?.current) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      initialFocusRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [initialFocusRef, isOpen]);
 
   if (!isOpen) return null;
 
@@ -51,9 +66,10 @@ export function Modal({
         onClick={onClose}
       />
       <div
-        role="dialog"
+        role={dialogRole}
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={ariaDescribedBy}
         className={cn(
           'relative w-full bg-surface border border-strong rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] select-text',
           maxWidth,

@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
+  ConfirmDialog,
   Input,
   SearchableMultiSelect,
   Select,
@@ -27,6 +28,7 @@ export default function DesignSystem() {
   const [connectionMethod, setConnectionMethod] = useState<'oauth' | 'apiKey'>(
     'oauth',
   );
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const handleBackClick = () => {
     if (window.history.state?.idx > 0) {
       navigate(-1);
@@ -129,6 +131,44 @@ export default function DesignSystem() {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* --- Dialogs --- */}
+        <section className="space-y-6">
+          <div className="border-b border-subtle pb-2">
+            <h2 className="text-xl font-medium text-[var(--foreground)] mb-1">
+              Dialogs
+            </h2>
+            <p className="text-sm text-muted">
+              Confirmation dialogs interrupt destructive actions and focus the
+              safe option first.
+            </p>
+          </div>
+
+          <div className="max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+            <h3 className="text-sm font-medium text-[var(--foreground)]">
+              Destructive confirmation
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Use an alert dialog before deleting data that cannot be restored.
+            </p>
+            <Button
+              variant="danger"
+              className="mt-4"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              Open delete dialog
+            </Button>
+          </div>
+
+          <ConfirmDialog
+            isOpen={isDeleteDialogOpen}
+            title="Delete “Playwright tests”?"
+            description="This will permanently remove the node and all of its connections from the workflow. This action cannot be undone."
+            confirmLabel="Delete node"
+            onCancel={() => setIsDeleteDialogOpen(false)}
+            onConfirm={() => setIsDeleteDialogOpen(false)}
+          />
         </section>
 
         {/* --- Inputs & Forms --- */}

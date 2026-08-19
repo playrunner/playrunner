@@ -41,6 +41,7 @@ LOCAL_PACKAGE_DIRS+=(
   "apps/api"
   "apps/frontend"
   "apps/runners/orchestrator"
+  "apps/runners/agent"
   "apps/runners/playwright"
   "docs"
 )

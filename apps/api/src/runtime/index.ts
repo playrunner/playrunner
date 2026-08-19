@@ -38,10 +38,13 @@ import {
 import { hydrateLinkedWorkflowEnvironments } from '../services/workflow-environments';
 
 const HOST_NODE_TYPES = new Set([
+  'agent-container',
+  'codex-cli',
   'environment',
   'javascript',
   'playwright',
   'schedule',
+  'validator',
 ]);
 
 async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
@@ -58,7 +61,9 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
         ? node.nodeType.trim()
         : '';
     if (nodeType && !HOST_NODE_TYPES.has(nodeType)) providers.add(nodeType);
-    if (nodeType === 'playwright') providers.add('github');
+    if (nodeType === 'playwright' || nodeType === 'agent-container') {
+      providers.add('github');
+    }
   }
 
   const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';

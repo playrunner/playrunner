@@ -685,6 +685,14 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
     fi
 done
 
+echo "🤖 Building AI Container Docker image..."
+docker build \
+    --platform linux/amd64 \
+    -f "${BASE_DIR}/apps/runners/agent/Dockerfile" \
+    --build-arg "PLAYWRIGHT_VERSION=${PLAYWRIGHT_LATEST_TAG}" \
+    -t playrunner-agent-runner:latest \
+    "${BASE_DIR}/apps/runners/agent"
+
 # 4. Ensure concurrently is installed
 if ! command -v concurrently &> /dev/null
 then

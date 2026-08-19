@@ -1,0 +1,96 @@
+{
+  "name": "@playrunner/validator",
+  "version": "0.1.0",
+  "description": "Playwright test-quality validator attachment for Playrunner.",
+  "keywords": [
+    "playrunner",
+    "validator",
+    "playwright",
+    "integration"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Concept AI PTY LTD",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/playrunner/playrunner.git",
+    "directory": "packages/validator"
+  },
+  "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "playrunner": {
+    "integration": {
+      "id": "validator",
+      "frontend": ".",
+      "e2e": "./e2e"
+    }
+  },
+  "exports": {
+    ".": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./frontend": {
+      "types": "./src/frontend/index.tsx",
+      "import": "./src/frontend/index.tsx",
+      "require": "./src/frontend/index.tsx",
+      "default": "./src/frontend/index.tsx"
+    },
+    "./e2e": {
+      "types": "./src/e2e/index.ts",
+      "import": "./src/e2e/index.ts",
+      "require": "./src/e2e/index.ts",
+      "default": "./src/e2e/index.ts"
+    }
+  },
+  "files": [
+    "LICENSE",
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@playrunner/integration-sdk": "^0.1.0",
+    "lucide-react": "^0.546.0",
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@playwright/test": {
+      "optional": true
+    },
+    "@playrunner/integration-sdk": {
+      "optional": true
+    },
+    "lucide-react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@playwright/test": "1.61.0",
+    "@types/react": "^19.2.14",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.6.0",
+    "lucide-react": "^0.546.0",
+    "prettier": "3.8.4",
+    "typescript": "~5.8.2",
+    "typescript-eslint": "^8.61.1"
+  }
+}
