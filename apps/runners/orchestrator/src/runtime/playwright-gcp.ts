@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { selectExecutionEnvironment } from '../../../shared/execution-environment';
 import type {
   PlaywrightExecutionBackend,
   PlaywrightExecutionRequest,
@@ -10,7 +11,7 @@ import {
   resolveWorkflowEventsTopicName,
 } from './pubsub-runner-control';
 
-type CloudRunOperation = {
+export type CloudRunOperation = {
   done?: boolean;
   error?: { message?: string };
   metadata?: { name?: string; target?: string };
@@ -41,6 +42,7 @@ type CloudRunJob = {
           startupCpuBoost?: boolean;
         };
       }>;
+      timeout?: string;
     };
   };
 };
@@ -61,10 +63,12 @@ type GcpPlaywrightRunSettings = {
 
 type PrewarmedGcpPlaywrightRunner = {
   controlSubscriptionName?: string;
+  eventSubscriptionName?: string;
   executionId?: string;
   executionName?: string;
   jobPath?: string;
   projectId?: string;
+  protocolToken?: string;
   runRequestedAt?: number;
   resultSubscriptionName?: string;
   statusSubscriptionName?: string;
@@ -74,12 +78,84 @@ type PrewarmedGcpPlaywrightRunner = {
 
 const POLL_INTERVAL_MS = 3000;
 const EXECUTION_START_TIMEOUT_MS = 2 * 60 * 1000;
+const EXECUTION_COMPLETION_TIMEOUT_MS = 25 * 60 * 60 * 1000;
 const MAX_TRANSIENT_RETRIES = 4;
 const RETRY_BASE_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const CLOUD_RUN_API_BASE_URL = 'https://run.googleapis.com/v2';
 const DEFAULT_PLAYWRIGHT_JOB_NAME_TEMPLATE = 'playrunner-{runtime}';
+const PLAYWRIGHT_TASK_TIMEOUT = '90000s';
 let cloudRunJobConfigurationQueue = Promise.resolve();
+
+export function createDurableCloudRunCancellation(args: {
+  cleanupControl: () => Promise<void>;
+  isCompleted: () => boolean;
+  onSignalFailure?: (error: unknown) => Promise<void>;
+  publishCancel: () => Promise<void>;
+  requestExecutionCancel: () => Promise<unknown>;
+}): {
+  cancel: () => Promise<void>;
+  cleanup: () => Promise<void>;
+  isDurablyCancelled: () => boolean;
+} {
+  let durablyCancelled = false;
+  let cancellationInFlight: Promise<void> | undefined;
+
+  const cancelExecution = async () => {
+    if (args.isCompleted() || durablyCancelled) return;
+    if (!cancellationInFlight) {
+      cancellationInFlight = args
+        .requestExecutionCancel()
+        .then(() => {
+          durablyCancelled = true;
+        })
+        .finally(() => {
+          cancellationInFlight = undefined;
+        });
+    }
+    await cancellationInFlight;
+  };
+
+  const attemptCancellation = async (): Promise<unknown | undefined> => {
+    const [signalResult, executionResult] = await Promise.allSettled([
+      args.publishCancel(),
+      cancelExecution(),
+    ]);
+    if (signalResult.status === 'rejected') {
+      await args.onSignalFailure?.(signalResult.reason).catch(() => {});
+    }
+    return executionResult.status === 'rejected'
+      ? executionResult.reason
+      : undefined;
+  };
+
+  return {
+    cancel: async () => {
+      const cancellationError = await attemptCancellation();
+      if (cancellationError !== undefined) throw cancellationError;
+    },
+    cleanup: async () => {
+      const errors: unknown[] = [];
+      if (!args.isCompleted() && !durablyCancelled) {
+        const cancellationError = await attemptCancellation();
+        if (cancellationError !== undefined) errors.push(cancellationError);
+      }
+      try {
+        await args.cleanupControl();
+      } catch (error) {
+        errors.push(error);
+      }
+      if (errors.length === 1) throw errors[0];
+      if (errors.length > 1) {
+        throw new AggregateError(
+          errors,
+          'Playwright Cloud Run cancellation and cleanup failed.',
+        );
+      }
+    },
+    isDurablyCancelled: () => durablyCancelled,
+  };
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -164,7 +240,7 @@ async function withCloudRunJobConfigurationLock<T>(
   }
 }
 
-function getExecutionNameFromOperation(
+export function getExecutionNameFromOperation(
   operation: CloudRunOperation,
 ): string | null {
   const name =
@@ -241,14 +317,16 @@ function getNodeJobSuffix(nodeId: string): string {
   return `${slug || 'node'}-${hash}`;
 }
 
-async function cloudRunRequest<T>(
+export async function cloudRunRequest<T>(
   resourcePath: string,
   accessToken: string,
   init: RequestInit = {},
+  options: { maxTransientRetries?: number } = {},
 ): Promise<T> {
   let lastError: unknown;
+  const maximumRetries = options.maxTransientRetries ?? MAX_TRANSIENT_RETRIES;
 
-  for (let attempt = 0; attempt <= MAX_TRANSIENT_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maximumRetries; attempt++) {
     let response: Response;
     try {
       response = await fetch(cloudRunUrl(resourcePath), {
@@ -261,7 +339,10 @@ async function cloudRunRequest<T>(
       });
     } catch (error) {
       lastError = error;
-      if (attempt === MAX_TRANSIENT_RETRIES) {
+      if (init.signal?.aborted) {
+        throw error;
+      }
+      if (attempt === maximumRetries) {
         throw error;
       }
       await new Promise((resolve) =>
@@ -274,7 +355,7 @@ async function cloudRunRequest<T>(
       const details = await response.text();
       if (
         RETRYABLE_STATUS_CODES.has(response.status) &&
-        attempt < MAX_TRANSIENT_RETRIES
+        attempt < maximumRetries
       ) {
         lastError = new Error(
           `Cloud Run API returned ${response.status}: ${details}`,
@@ -309,7 +390,7 @@ async function getPlaywrightJob(
   }
 }
 
-async function waitForOperation(
+export async function waitForOperation(
   operationName: string,
   accessToken: string,
 ): Promise<CloudRunOperation> {
@@ -332,7 +413,8 @@ async function waitForExecution(
   executionName: string,
   accessToken: string,
 ): Promise<void> {
-  while (true) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < EXECUTION_COMPLETION_TIMEOUT_MS) {
     let execution: CloudRunExecution;
     try {
       execution = await cloudRunRequest<CloudRunExecution>(
@@ -359,6 +441,9 @@ async function waitForExecution(
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
+  throw new Error(
+    `Timed out waiting for Playwright Cloud Run Execution ${executionName}.`,
+  );
 }
 
 function getExecutionCreateTime(execution: CloudRunExecution): number {
@@ -450,7 +535,8 @@ async function ensurePlaywrightJob(args: {
     const hasRequestedTemplate =
       container?.image === args.imageUri &&
       limits.cpu === `${args.cpu}` &&
-      limits.memory === `${args.memory}Gi`;
+      limits.memory === `${args.memory}Gi` &&
+      existingJob.template?.template?.timeout === PLAYWRIGHT_TASK_TIMEOUT;
 
     if (hasRequestedTemplate) {
       await args.publishLog(
@@ -487,6 +573,7 @@ async function ensurePlaywrightJob(args: {
                 },
               ],
               maxRetries: 0,
+              timeout: PLAYWRIGHT_TASK_TIMEOUT,
             },
           },
         }),
@@ -526,6 +613,7 @@ async function ensurePlaywrightJob(args: {
               },
             ],
             maxRetries: 0,
+            timeout: PLAYWRIGHT_TASK_TIMEOUT,
           },
         },
       }),
@@ -543,8 +631,6 @@ async function ensurePlaywrightJob(args: {
 async function startPlaywrightJob(args: {
   accessToken: string;
   cpu: number;
-  envKeys: string[];
-  globalEnvVars: Record<string, string>;
   imageUri: string;
   jobName: string;
   location: string;
@@ -561,10 +647,6 @@ async function startPlaywrightJob(args: {
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
     { name: 'GCP_PROJECT', value: args.projectId },
     { name: 'PLAYWRIGHT_WORKERS', value: String(args.workers) },
-    ...args.envKeys.map((key) => ({
-      name: key,
-      value: args.globalEnvVars[key] || '',
-    })),
   ];
 
   await args.publishLog(
@@ -675,6 +757,8 @@ function resolvePrewarmedRunner(
     runner.projectId !== settings.projectId ||
     runner.topicName !== settings.topicName ||
     !runner.controlSubscriptionName ||
+    !runner.eventSubscriptionName ||
+    !runner.protocolToken ||
     !runner.resultSubscriptionName ||
     !runner.statusSubscriptionName
   ) {
@@ -710,14 +794,26 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       request.reqBody.testId || payloadData?.data?.testId,
       'testId',
     );
+    requireRequestValue(
+      payloadData?.data?.executionAuthToken,
+      'executionAuthToken',
+    );
+    const selectedEnvironment = selectExecutionEnvironment(
+      envKeys,
+      globalEnvVars,
+      'Playwright Environment',
+    );
     const prewarmedRunner = resolvePrewarmedRunner(request, settings);
     const runnerControl = prewarmedRunner
       ? createPubSubRunnerControlFromSubscriptions({
           accessToken: settings.accessToken,
           controlSubscriptionName: prewarmedRunner.controlSubscriptionName!,
+          eventSubscriptionName: prewarmedRunner.eventSubscriptionName!,
           executionId,
           nodeId,
+          onRunnerEvent: request.publishEvent,
           projectId: settings.projectId,
+          protocolToken: prewarmedRunner.protocolToken!,
           resultSubscriptionName: prewarmedRunner.resultSubscriptionName!,
           statusSubscriptionName: prewarmedRunner.statusSubscriptionName!,
           topicName: settings.topicName,
@@ -726,6 +822,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
           accessToken: settings.accessToken,
           executionId,
           nodeId,
+          onRunnerEvent: request.publishEvent,
           projectId: settings.projectId,
           topicName: settings.topicName,
         });
@@ -734,6 +831,7 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       ...payloadData,
       data: {
         ...(payloadData?.data || {}),
+        environment: selectedEnvironment,
         runnerControl: runnerControl.payload,
       },
     };
@@ -762,8 +860,6 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
       : await startPlaywrightJob({
           accessToken: settings.accessToken,
           cpu: settings.cpu,
-          envKeys,
-          globalEnvVars,
           imageUri: settings.imageUri,
           jobName: settings.jobName,
           location: settings.cloudRunLocation,
@@ -782,39 +878,29 @@ export class GcpPlaywrightExecutionBackend implements PlaywrightExecutionBackend
     }
 
     let ready = false;
-    let started = false;
     let completed = false;
+    const cancellation = createDurableCloudRunCancellation({
+      cleanupControl: runnerControl.cleanup,
+      isCompleted: () => completed,
+      onSignalFailure: async (error) => {
+        await publishLog(
+          `Could not publish the Playwright cancellation signal: ${error instanceof Error ? error.message : String(error)}`,
+          'warn',
+        );
+      },
+      publishCancel: runnerControl.publishCancel,
+      requestExecutionCancel: () =>
+        cloudRunRequest<CloudRunOperation>(
+          `${executionName}:cancel`,
+          settings.accessToken,
+          { body: '{}', method: 'POST' },
+        ),
+    });
 
     return {
-      cancel: async () => {
-        if (!completed) {
-          if (!started) {
-            await runnerControl.publishCancel().catch((error) => {
-              console.warn(
-                `[GCP] Failed to signal cancellation for prepared Playwright runner ${nodeId}: ${error.message}`,
-              );
-            });
-          } else {
-            await cloudRunRequest<CloudRunOperation>(
-              `${executionName}:cancel`,
-              settings.accessToken,
-              { body: '{}', method: 'POST' },
-            );
-          }
-        }
-      },
-      cleanup: async () => {
-        if (!started && !completed) {
-          await runnerControl.publishCancel().catch((error) => {
-            console.warn(
-              `[GCP] Failed to cancel prepared Playwright runner ${nodeId}: ${error.message}`,
-            );
-          });
-        }
-        await runnerControl.cleanup();
-      },
+      cancel: cancellation.cancel,
+      cleanup: cancellation.cleanup,
       start: async () => {
-        started = true;
         await runnerControl.startWithRetry();
       },
       waitForCompletion: async () => {

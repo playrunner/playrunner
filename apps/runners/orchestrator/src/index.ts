@@ -1,13 +1,23 @@
 import { spawn } from 'child_process';
 import crypto from 'crypto';
 import express from 'express';
+import { withRunnerProtocolSignature } from '../../shared/runner-protocol';
 import { orchestratorRuntime } from './runtime';
+import { createBotPullRequestWorkflowEvent } from './runtime/agent-local';
 import type {
   AgentExecutionRequest,
+  CiChangeContext,
   PlaywrightExecutionRequest,
   PreparedPlaywrightRunner,
 } from './runtime/contracts';
+import { ExecuteRequestCoordinator } from './runtime/execute-idempotency';
 import { packageExecutorRuntime } from './runtime/package-executors';
+import {
+  GCP_ORCHESTRATOR_AUTH_MODE,
+  isGcpOrchestratorRequestAuthorized,
+  isLocalOrchestratorRequestAuthorized,
+  LOCAL_ORCHESTRATOR_AUTH_HEADER,
+} from './runtime/orchestrator-auth';
 import {
   appendWorkflowDiagnosticLog,
   createWorkflowDiagnosticLogs,
@@ -21,6 +31,12 @@ import {
   type PlaywrightExecutionObservation,
   type PlaywrightShardDiscovery,
 } from './runtime/playwright-sharding';
+import { createPubSubAuthorizationHeaders } from './runtime/pubsub-runner-control';
+import {
+  publishTerminalWorkflowEvent,
+  type TerminalWorkflowEventPayload,
+  WorkflowEventPublishError,
+} from './runtime/terminal-workflow-events';
 
 const app = express();
 app.use(express.json());
@@ -29,10 +45,63 @@ const PORT = process.env.PORT || 3012;
 const EDITOR_API_URL = process.env.EDITOR_API_URL?.trim() || '';
 const ATTACHMENT_NODE_TYPES = new Set(['codex-cli', 'validator']);
 
-function requiredEditorApiUrl(): never {
-  throw new Error(
-    'EDITOR_API_URL is required for local runner callbacks. Set EDITOR_API_URL in the orchestrator environment from apps/api/.env EDITOR_API_URL_DOCKER.',
-  );
+async function requireOrchestratorAuth(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  const authMode = process.env.PLAYRUNNER_ORCHESTRATOR_AUTH_MODE?.trim();
+  const authorized =
+    authMode === GCP_ORCHESTRATOR_AUTH_MODE
+      ? await isGcpOrchestratorRequestAuthorized({
+          authorization: req.get('authorization'),
+          expectedAudience:
+            process.env.PLAYRUNNER_ORCHESTRATOR_IDENTITY_AUDIENCE,
+          expectedEmail:
+            process.env.PLAYRUNNER_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL,
+          expectedSubject:
+            process.env.PLAYRUNNER_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT,
+        })
+      : isLocalOrchestratorRequestAuthorized(
+          process.env.PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN,
+          req.get(LOCAL_ORCHESTRATOR_AUTH_HEADER),
+        );
+
+  if (authorized) {
+    next();
+    return;
+  }
+  res.status(401).json({ error: 'Unauthorized orchestrator request.' });
+}
+
+export function resolveEditorApiOrigin(
+  _requestedValue: unknown,
+  configuredValue = process.env.EDITOR_API_URL?.trim() || EDITOR_API_URL,
+  required = true,
+): string {
+  const value = getString(configuredValue);
+  if (!value) {
+    if (!required) return '';
+    throw new Error(
+      'EDITOR_API_URL is required for runner callbacks. Set the server-owned callback origin in the orchestrator environment.',
+    );
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('Runner callback origin must be a valid HTTP(S) URL.');
+  }
+  if (
+    (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+    url.username ||
+    url.password
+  ) {
+    throw new Error(
+      'Runner callback origin must be a credential-free HTTP(S) URL.',
+    );
+  }
+  return url.origin;
 }
 
 type WorkflowEventLevel = 'info' | 'error' | 'warn' | 'build' | 'debug';
@@ -42,6 +111,10 @@ type WorkflowNodeState =
 type WorkflowEventPublisher = {
   executionId: string;
   publishEvent: (payload: Record<string, unknown>) => Promise<void>;
+  publishEventStrict: (payload: Record<string, unknown>) => Promise<void>;
+  publishTerminalEvent: (
+    payload: TerminalWorkflowEventPayload,
+  ) => Promise<void>;
   publishLog: (
     message: string,
     level?: WorkflowEventLevel,
@@ -140,18 +213,51 @@ type ActiveProcess = {
   runtimeNodeId: string;
 };
 
-type ActivePreparedPlaywrightRunner = {
+type ActivePreparedRunner = {
   cancel: () => Promise<void>;
   executionId: string;
   nodeId: string;
   runtimeNodeId: string;
 };
 
+type PreparedRunnerCancellationResult = {
+  cancelled: number;
+  failed: number;
+  failureResponse: {
+    error: string;
+    status: 502;
+  } | null;
+};
+
+const PREPARED_RUNNER_CANCELLATION_ERROR =
+  'Failed to stop one or more prepared runners.';
+
+export async function cancelPreparedRunnerMatches(
+  matches: ReadonlyArray<Pick<ActivePreparedRunner, 'cancel'>>,
+): Promise<PreparedRunnerCancellationResult> {
+  const results = await Promise.allSettled(
+    matches.map(async (active) => active.cancel()),
+  );
+  const cancelled = results.filter(
+    (result) => result.status === 'fulfilled',
+  ).length;
+  const failed = results.length - cancelled;
+
+  return {
+    cancelled,
+    failed,
+    failureResponse:
+      failed > 0
+        ? {
+            error: PREPARED_RUNNER_CANCELLATION_ERROR,
+            status: 502,
+          }
+        : null,
+  };
+}
+
 const activeProcesses = new Map<string, ActiveProcess>();
-const activePreparedPlaywrightRunners = new Map<
-  string,
-  ActivePreparedPlaywrightRunner
->();
+const activePreparedRunners = new Map<string, ActivePreparedRunner>();
 
 function activeExecutionKey(executionId: string, nodeId: string): string {
   return JSON.stringify([executionId, nodeId]);
@@ -165,6 +271,149 @@ function getRecord(value: unknown): Record<string, any> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, any>)
     : {};
+}
+
+const CI_CONTEXT_KEYS = new Set([
+  'baseRef',
+  'baseSha',
+  'eventType',
+  'headRef',
+  'headSha',
+  'pullRequestNumber',
+  'repository',
+]);
+const GIT_OBJECT_ID_PATTERN = /^[a-f0-9]{40}(?:[a-f0-9]{24})?$/i;
+
+function validGitRef(value: string): boolean {
+  return (
+    value.length <= 255 &&
+    value !== 'HEAD' &&
+    !value.startsWith('refs/') &&
+    !value.startsWith('/') &&
+    !value.endsWith('/') &&
+    !value.endsWith('.') &&
+    !value.includes('..') &&
+    !value.includes('@{') &&
+    !Array.from(value).some(
+      (character) =>
+        character.charCodeAt(0) <= 32 ||
+        character.charCodeAt(0) === 127 ||
+        '~^:?*[\\'.includes(character),
+    ) &&
+    value
+      .split('/')
+      .every(
+        (part) =>
+          Boolean(part) &&
+          part !== '.' &&
+          part !== '..' &&
+          !part.startsWith('.') &&
+          !part.endsWith('.lock'),
+      )
+  );
+}
+
+function validRepository(value: string): boolean {
+  const parts = value.split('/');
+  return (
+    value.length <= 200 &&
+    parts.length === 2 &&
+    parts.every(
+      (part) =>
+        /^[A-Za-z0-9_.-]+$/.test(part) &&
+        part !== '.' &&
+        part !== '..' &&
+        !part.startsWith('-') &&
+        !part.endsWith('-'),
+    )
+  );
+}
+
+export function resolveCiChangeContext(
+  value: unknown,
+  configuredRepository: unknown,
+): CiChangeContext | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('AI Container CI change context must be an object.');
+  }
+  const source = value as Record<string, unknown>;
+  if (Object.keys(source).some((key) => !CI_CONTEXT_KEYS.has(key))) {
+    throw new Error('AI Container CI change context contains unknown fields.');
+  }
+  const repository = getString(source.repository);
+  const baseSha = getString(source.baseSha);
+  const headSha = getString(source.headSha);
+  const baseRef = getString(source.baseRef);
+  const headRef = getString(source.headRef);
+  const eventType = getString(source.eventType);
+  const expectedRepository = getString(configuredRepository);
+  if (
+    !validRepository(repository) ||
+    !validRepository(expectedRepository) ||
+    repository.toLowerCase() !== expectedRepository.toLowerCase() ||
+    !GIT_OBJECT_ID_PATTERN.test(baseSha) ||
+    !GIT_OBJECT_ID_PATTERN.test(headSha) ||
+    baseSha === headSha ||
+    !validGitRef(baseRef) ||
+    !validGitRef(headRef) ||
+    !['manual', 'pull_request', 'push'].includes(eventType)
+  ) {
+    throw new Error(
+      'AI Container CI change context does not match the configured repository or contains an invalid commit/ref.',
+    );
+  }
+  const pullRequestNumber = Number(source.pullRequestNumber);
+  if (
+    source.pullRequestNumber !== undefined &&
+    (!Number.isSafeInteger(pullRequestNumber) || pullRequestNumber < 1)
+  ) {
+    throw new Error('AI Container CI pull request number is invalid.');
+  }
+  return {
+    baseRef,
+    baseSha: baseSha.toLowerCase(),
+    eventType: eventType as CiChangeContext['eventType'],
+    headRef,
+    headSha: headSha.toLowerCase(),
+    ...(source.pullRequestNumber === undefined ? {} : { pullRequestNumber }),
+    repository,
+  };
+}
+
+function structuredValueDepth(value: unknown, depth = 0): number {
+  if (!value || typeof value !== 'object') return depth;
+  if (depth >= 9) return depth;
+  const children = Array.isArray(value)
+    ? value
+    : Object.values(value as Record<string, unknown>);
+  return children.reduce(
+    (maximum, child) =>
+      Math.max(maximum, structuredValueDepth(child, depth + 1)),
+    depth,
+  );
+}
+
+export function resolveAgentMemory(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('AI Container memory must be a structured object.');
+  }
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    throw new Error('AI Container memory must be JSON serializable.');
+  }
+  if (
+    Buffer.byteLength(serialized, 'utf8') > 64 * 1024 ||
+    structuredValueDepth(value) > 8
+  ) {
+    throw new Error('AI Container memory exceeds its size or depth limit.');
+  }
+  return JSON.parse(serialized) as Record<string, unknown>;
 }
 
 function getErrorMessage(error: unknown): string {
@@ -211,8 +460,11 @@ function getDurationMs(startedAt: string, finishedAt: Date): number {
 async function loadWorkflowDiagnosticHistory(
   reqBody: Record<string, any>,
 ): Promise<Record<string, unknown>> {
-  const editorApiUrl =
-    getString(reqBody.editorApiUrl) || EDITOR_API_URL.replace(/\/+$/, '');
+  const editorApiUrl = resolveEditorApiOrigin(
+    reqBody.editorApiUrl,
+    undefined,
+    false,
+  );
   const executionId = getString(reqBody.testId);
   const executionToken = getString(reqBody.executionAuthToken);
   if (!editorApiUrl || !executionId || !executionToken) {
@@ -435,13 +687,34 @@ function renderNodeTemplate(
   });
 }
 
+function renderNodeTemplateValue(
+  value: unknown,
+  context: Parameters<typeof renderNodeTemplate>[1],
+): unknown {
+  if (typeof value === 'string') {
+    return renderNodeTemplate(value, context);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => renderNodeTemplateValue(entry, context));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [
+        key,
+        renderNodeTemplateValue(entry, context),
+      ]),
+    );
+  }
+  return value;
+}
+
 function isSensitivePayloadKey(key: string): boolean {
   return (
     key.toLowerCase() === 'code' || SENSITIVE_PAYLOAD_KEY_PATTERN.test(key)
   );
 }
 
-function redactSensitivePayload(value: unknown): unknown {
+export function redactSensitivePayload(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) => redactSensitivePayload(entry));
   }
@@ -453,9 +726,18 @@ function redactSensitivePayload(value: unknown): unknown {
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
       key,
-      isSensitivePayloadKey(key)
-        ? REDACTED_VALUE
-        : redactSensitivePayload(entry),
+      key.toLowerCase() === 'environment' &&
+      entry &&
+      typeof entry === 'object' &&
+      !Array.isArray(entry)
+        ? Object.fromEntries(
+            Object.keys(entry as Record<string, unknown>).map(
+              (environmentKey) => [environmentKey, REDACTED_VALUE],
+            ),
+          )
+        : isSensitivePayloadKey(key)
+          ? REDACTED_VALUE
+          : redactSensitivePayload(entry),
     ]),
   );
 }
@@ -482,8 +764,9 @@ function writeWorkflowLogToConsole(
 
 async function publishGcpPubSubEvent(args: {
   accessToken?: string;
+  eventAuthToken?: string;
   executionId: string;
-  executionToken: string;
+  executionToken?: string;
   payload: Record<string, unknown>;
   projectId: string;
   topicName: string;
@@ -493,48 +776,67 @@ async function publishGcpPubSubEvent(args: {
   }
 
   const eventId = getString(args.payload.eventId) || crypto.randomUUID();
-  const payload: Record<string, unknown> = {
-    executionAuthToken: args.executionToken,
+  const unsignedPayload: Record<string, unknown> = {
     executionId: args.executionId,
     testId: args.executionId,
     ...args.payload,
     eventId,
   };
+  const payload: Record<string, unknown> = args.eventAuthToken
+    ? withRunnerProtocolSignature(unsignedPayload, args.eventAuthToken)
+    : {
+        ...unsignedPayload,
+        executionAuthToken: args.executionToken,
+      };
   const eventType = getString(payload.type) || 'event';
-  const response = await fetch(
-    `${getPubSubApiBaseUrl()}/projects/${args.projectId}/topics/${args.topicName}:publish`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(args.accessToken
-          ? { Authorization: `Bearer ${args.accessToken}` }
-          : {}),
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            attributes: {
-              cloudProvider: getString(payload.cloudProvider) || 'GCP',
-              eventId,
-              eventType,
-              executionId: args.executionId,
-              messageKind: 'workflow_event',
+  const apiBaseUrl = getPubSubApiBaseUrl();
+  let response: Response;
+  try {
+    response = await fetch(
+      `${apiBaseUrl}/projects/${args.projectId}/topics/${args.topicName}:publish`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createPubSubAuthorizationHeaders(apiBaseUrl, args.accessToken),
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              attributes: {
+                cloudProvider: getString(payload.cloudProvider) || 'GCP',
+                eventId,
+                eventType,
+                executionId: args.executionId,
+                messageKind: 'workflow_event',
+              },
+              data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
+                'base64',
+              ),
+              orderingKey: args.executionId,
             },
-            data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
-              'base64',
-            ),
-            orderingKey: args.executionId,
-          },
-        ],
-      }),
-    },
-  );
+          ],
+        }),
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+  } catch (error) {
+    throw new WorkflowEventPublishError(
+      'Pub/Sub publish failed before receiving a response.',
+      { cause: error, retryable: true },
+    );
+  }
 
   if (!response.ok) {
     const details = await response.text().catch(() => '');
-    throw new Error(
+    throw new WorkflowEventPublishError(
       `Pub/Sub publish failed (${response.status}): ${details.slice(0, 500)}`,
+      {
+        retryable:
+          response.status === 408 ||
+          response.status === 429 ||
+          response.status >= 500,
+      },
     );
   }
 }
@@ -554,6 +856,7 @@ function createWorkflowEventPublisher(
     typeof reqBody.executionAuthToken === 'string'
       ? reqBody.executionAuthToken
       : '';
+  const eventAuthToken = getString(reqBody.eventAuthToken);
   const eventTransport = reqBody.eventTransport as
     GcpPubSubEventTransport | undefined;
   const gcpAccessToken = getString(reqBody.settings?.gcp?.accessToken);
@@ -562,12 +865,11 @@ function createWorkflowEventPublisher(
     workflowId: reqBody.workflowId || null,
   };
 
-  const publishEvent = async (payload: Record<string, unknown>) => {
-    if (!executionId || !executionToken) {
-      console.warn(
-        'Skipping workflow event publish because execution context is missing.',
+  const publishEventStrict = async (payload: Record<string, unknown>) => {
+    if (!executionId || (!executionToken && !eventAuthToken)) {
+      throw new Error(
+        'Workflow event publish requires an execution authentication context.',
       );
-      return;
     }
 
     const mergedPayload = {
@@ -576,23 +878,28 @@ function createWorkflowEventPublisher(
       eventId: getString(payload.eventId) || crypto.randomUUID(),
     };
 
-    try {
-      if (
-        eventTransport?.type !== 'gcp_pubsub' ||
-        !eventTransport.projectId ||
-        !eventTransport.topicName
-      ) {
-        throw new Error('Pub/Sub event transport is required.');
-      }
+    if (
+      eventTransport?.type !== 'gcp_pubsub' ||
+      !eventTransport.projectId ||
+      !eventTransport.topicName
+    ) {
+      throw new Error('Pub/Sub event transport is required.');
+    }
 
-      await publishGcpPubSubEvent({
-        accessToken: gcpAccessToken,
-        executionId,
-        executionToken,
-        payload: mergedPayload,
-        projectId: eventTransport.projectId,
-        topicName: eventTransport.topicName,
-      });
+    await publishGcpPubSubEvent({
+      accessToken: gcpAccessToken,
+      eventAuthToken,
+      executionId,
+      executionToken,
+      payload: mergedPayload,
+      projectId: eventTransport.projectId,
+      topicName: eventTransport.topicName,
+    });
+  };
+
+  const publishEvent = async (payload: Record<string, unknown>) => {
+    try {
+      await publishEventStrict(payload);
     } catch (error) {
       console.error(
         `Failed to publish workflow event for ${executionId}:`,
@@ -604,6 +911,9 @@ function createWorkflowEventPublisher(
   return {
     executionId,
     publishEvent,
+    publishEventStrict,
+    publishTerminalEvent: async (payload) =>
+      publishTerminalWorkflowEvent(payload, publishEventStrict),
     publishLog: async (message, level = 'info', extra = {}) => {
       writeWorkflowLogToConsole(executionId, message, level);
       const timestamp = new Date().toISOString();
@@ -672,9 +982,19 @@ export async function executeWorkflow(reqBody: any) {
   const eventPublisher = createWorkflowEventPublisher(reqBody, (entry) => {
     captureDiagnosticLog(entry);
   });
-  const { publishEvent, publishLog, publishNodeState } = eventPublisher;
-  let terminalEventPublished = false;
+  const {
+    publishEvent,
+    publishEventStrict,
+    publishLog,
+    publishNodeState,
+    publishTerminalEvent,
+  } = eventPublisher;
+  let terminalEventAttempted = false;
   let workflowFailed = false;
+  const preparedPlaywrightRunners: Record<
+    string,
+    Promise<PreparedPlaywrightRunner>
+  > = {};
 
   try {
     const { nodes, connections, settings, testId, bucketName } = reqBody;
@@ -854,8 +1174,7 @@ export async function executeWorkflow(reqBody: any) {
             testLanguage: runtime,
             playwrightVersion: config.playwrightVersion || 'latest',
             workers,
-            editorApiUrl:
-              reqBody.editorApiUrl || EDITOR_API_URL || requiredEditorApiUrl(),
+            editorApiUrl: resolveEditorApiOrigin(reqBody.editorApiUrl),
             eventTransport: reqBody.eventTransport,
             bucketName: reqBody.bucketName || bucketName || null,
             cloudProvider,
@@ -875,6 +1194,7 @@ export async function executeWorkflow(reqBody: any) {
             globalEnvVars,
             nodeId: runtimeNodeId,
             payloadData,
+            publishEvent: publishEventStrict,
             publishLog: (message, level) =>
               publishLog(message, level, {
                 nodeId: runtimeNodeId,
@@ -897,6 +1217,24 @@ export async function executeWorkflow(reqBody: any) {
       const createAgentExecutionRequest = (
         node: any,
       ): AgentExecutionRequest => {
+        const incomingSourceIds = new Set(
+          processedConnections
+            .filter((connection: any) => connection.targetId === node.id)
+            .map((connection: any) => getString(connection.sourceId))
+            .filter(Boolean),
+        );
+        const directNodeOutputs = Object.fromEntries(
+          [...incomingSourceIds]
+            .map((sourceId) => `node_${sourceId}`)
+            .filter((key) => Object.hasOwn(nodeTemplateOutputs, key))
+            .map((key) => [key, nodeTemplateOutputs[key]]),
+        );
+        const templateContext = {
+          env: globalEnvVars,
+          nodeLogs: nodeDiagnosticLogs,
+          nodeOutputs: directNodeOutputs,
+          workflow: workflowContext,
+        };
         const attachedNodes = attachmentConnections
           .filter((connection: any) => connection.targetId === node.id)
           .map((connection: any) => ({
@@ -922,12 +1260,18 @@ export async function executeWorkflow(reqBody: any) {
             `AI Container ${node.label || node.id} requires at least one Validator attachment.`,
           );
         }
-        const config = node.config || {};
+        const config = renderNodeTemplateValue(
+          node.config || {},
+          templateContext,
+        ) as Record<string, unknown>;
         const agentNodeType = packageExecutorRuntime.nodeType(agents[0].node);
         if (agentNodeType !== 'codex-cli') {
           throw new Error(`Unsupported AI Container Agent: ${agentNodeType}.`);
         }
-        const agentConfig = agents[0].node.config || {};
+        const agentConfig = renderNodeTemplateValue(
+          agents[0].node.config || {},
+          templateContext,
+        ) as Record<string, unknown>;
         const apiKeyEnvVar = String(agentConfig.apiKeyEnvVar || '').trim();
         if (!apiKeyEnvVar) {
           throw new Error(
@@ -946,7 +1290,11 @@ export async function executeWorkflow(reqBody: any) {
           ]),
         );
         const resolvedValidators = validators.map((entry: any) => ({
-          config: entry.node.config || {},
+          config: renderNodeTemplateValue(
+            entry.node.config || {},
+            templateContext,
+          ) as Record<string, unknown>,
+          nodeId: getString(entry.node.id),
           nodeType: packageExecutorRuntime.nodeType(entry.node),
         }));
         const unsupportedValidator = resolvedValidators.find(
@@ -957,15 +1305,55 @@ export async function executeWorkflow(reqBody: any) {
             `Unsupported AI Container Validator: ${unsupportedValidator.nodeType}.`,
           );
         }
+        const runtimeTestId = getString(testId);
+        const runtimeEditorApiUrl = resolveEditorApiOrigin(
+          reqBody.editorApiUrl,
+        );
+        const runtimeExecutionAuthToken = getString(reqBody.executionAuthToken);
+        const runtimeWorkflowId = getString(reqBody.workflowId);
+        if (!runtimeTestId) {
+          throw new Error('AI Container execution requires a testId.');
+        }
+        if (!runtimeExecutionAuthToken) {
+          throw new Error(
+            'AI Container execution requires an executionAuthToken for artifact publication.',
+          );
+        }
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/.test(runtimeWorkflowId)) {
+          throw new Error(
+            'AI Container execution requires a safe trusted workflowId.',
+          );
+        }
+        const changeContext = resolveCiChangeContext(
+          reqBody.ci,
+          config.repository,
+        );
+        const memoryByNodeId = reqBody.agentMemoryByNodeId;
+        if (
+          memoryByNodeId !== undefined &&
+          (!memoryByNodeId ||
+            typeof memoryByNodeId !== 'object' ||
+            Array.isArray(memoryByNodeId))
+        ) {
+          throw new Error('AI Container memory map must be an object.');
+        }
+        const memory = resolveAgentMemory(
+          (memoryByNodeId as Record<string, unknown> | undefined)?.[node.id],
+        );
         return {
           agent: {
             config: agentConfig,
+            nodeId: getString(agents[0].node.id),
             nodeType: agentNodeType,
           },
           config,
+          ...(changeContext ? { changeContext } : {}),
           envKeys,
           globalEnvVars,
           nodeId: node.id,
+          nodeOutputs: structuredClone(directNodeOutputs),
+          ...(memory ? { memory } : {}),
+          publishEvent: publishEventStrict,
           publishLog: (message, level) =>
             publishLog(message, level, { nodeId: node.id }),
           registerActiveProcess: (activeNodeId, process) =>
@@ -975,14 +1363,21 @@ export async function executeWorkflow(reqBody: any) {
               node.id,
             ),
           reqBody,
+          runtime: {
+            ...(getString(bucketName || reqBody.bucketName)
+              ? { bucketName: getString(bucketName || reqBody.bucketName) }
+              : {}),
+            cloudProvider: getString(reqBody.cloudProvider) || 'LOCAL_RUNNER',
+            editorApiUrl: runtimeEditorApiUrl,
+            executionAuthToken: runtimeExecutionAuthToken,
+            nodeId: node.id,
+            testId: runtimeTestId,
+            workflowId: runtimeWorkflowId,
+          },
           validators: resolvedValidators,
         };
       };
 
-      const preparedPlaywrightRunners: Record<
-        string,
-        Promise<PreparedPlaywrightRunner>
-      > = {};
       const playwrightNodes = workflowNodes.filter(
         (node: any) => packageExecutorRuntime.nodeType(node) === 'playwright',
       );
@@ -1004,31 +1399,50 @@ export async function executeWorkflow(reqBody: any) {
             `Starting Playwright Runner preparation for ${node.label || node.id} (${node.id}).`,
             'info',
           );
-          preparedPlaywrightRunners[node.id] =
-            orchestratorRuntime.playwrightExecution
-              .prepare(request)
-              .catch(async (error) => {
-                await publishLog(
-                  `Failed to prepare Playwright Runner for ${node.id}: ${error.message}`,
-                  'error',
-                );
-                throw error;
+          const prewarmActiveKey = activeExecutionKey(testId, node.id);
+          const preparedPromise = orchestratorRuntime.playwrightExecution
+            .prepare(request)
+            .then((runner) => {
+              activePreparedRunners.set(prewarmActiveKey, {
+                cancel: async () => {
+                  await (
+                    runner.cancel ||
+                    runner.cleanup ||
+                    (async () => undefined)
+                  )();
+                },
+                executionId: testId,
+                nodeId: node.id,
+                runtimeNodeId: node.id,
               });
+              return runner;
+            })
+            .catch(async (error) => {
+              await publishLog(
+                `Failed to prepare Playwright Runner for ${node.id}: ${error.message}`,
+                'error',
+              );
+              throw error;
+            });
+          void preparedPromise.catch(() => undefined);
+          preparedPlaywrightRunners[node.id] = preparedPromise;
         }
       }
 
       const runPreparedPlaywrightRequest = async (
         request: PlaywrightExecutionRequest,
+        preparedRunner?: PreparedPlaywrightRunner,
       ) => {
         const runner =
-          await orchestratorRuntime.playwrightExecution.prepare(request);
+          preparedRunner ||
+          (await orchestratorRuntime.playwrightExecution.prepare(request));
         const runtimeNodeId =
           getString(request.payloadData?.data?.nodeId) || request.nodeId;
         const logicalNodeId =
           getString(request.payloadData?.data?.logicalNodeId) || request.nodeId;
         const activeKey = activeExecutionKey(testId, runtimeNodeId);
         let cancellationRequested = false;
-        activePreparedPlaywrightRunners.set(activeKey, {
+        activePreparedRunners.set(activeKey, {
           cancel: async () => {
             cancellationRequested = true;
             await (
@@ -1046,7 +1460,15 @@ export async function executeWorkflow(reqBody: any) {
           if (cancellationRequested) {
             throw new Error('Playwright runner was cancelled.');
           }
+          await request.publishLog(
+            `Prepared Playwright Runner for ${logicalNodeId} is ready. Sending start signal.`,
+            'info',
+          );
           await runner.start();
+          await request.publishLog(
+            `Playwright Runner for ${logicalNodeId} acknowledged start signal.`,
+            'info',
+          );
           const result = await runner.waitForCompletion();
           for (const entry of result.diagnosticLogs || []) {
             captureDiagnosticLog({
@@ -1058,7 +1480,7 @@ export async function executeWorkflow(reqBody: any) {
           }
           return result;
         } finally {
-          activePreparedPlaywrightRunners.delete(activeKey);
+          activePreparedRunners.delete(activeKey);
           await runner.cleanup?.();
         }
       };
@@ -1359,6 +1781,37 @@ export async function executeWorkflow(reqBody: any) {
             );
           } else if (type === 'agent-container') {
             const request = createAgentExecutionRequest(node);
+            const publishAttachmentState = async (
+              state: 'error' | 'warning',
+              message: string,
+            ) => {
+              const timestamp = new Date().toISOString();
+              await Promise.allSettled([
+                request.publishEvent({
+                  level: state === 'error' ? 'error' : 'warn',
+                  message,
+                  nodeId: node.id,
+                  timestamp,
+                  type: 'log',
+                }),
+                request.publishEvent({
+                  nodeId: request.agent.nodeId,
+                  parentNodeId: node.id,
+                  state,
+                  timestamp,
+                  type: 'node_state',
+                }),
+                ...request.validators.map((validator) =>
+                  request.publishEvent({
+                    nodeId: validator.nodeId,
+                    parentNodeId: node.id,
+                    state,
+                    timestamp,
+                    type: 'node_state',
+                  }),
+                ),
+              ]);
+            };
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,
               'info',
@@ -1371,20 +1824,83 @@ export async function executeWorkflow(reqBody: any) {
                 { nodeId: node.id },
               );
             }
-            const preparedRunner =
-              await orchestratorRuntime.agentExecution.prepare(request);
-            await preparedRunner.waitUntilReady();
-            await publishNodeState(node.id, 'running');
-            await preparedRunner.start();
-            const result = await preparedRunner.waitForCompletion();
-            nodeTemplateOutputs[`node_${node.id}`] = result.output;
-            await publishEvent({
+            let preparedRunner;
+            try {
+              preparedRunner =
+                await orchestratorRuntime.agentExecution.prepare(request);
+            } catch (error) {
+              await publishAttachmentState(
+                'error',
+                `AI Container preparation failed: ${getErrorMessage(error)}`,
+              );
+              throw error;
+            }
+            const activeKey = activeExecutionKey(testId, node.id);
+            let cancellationRequested = false;
+            activePreparedRunners.set(activeKey, {
+              cancel: async () => {
+                cancellationRequested = true;
+                await (
+                  preparedRunner.cancel ||
+                  preparedRunner.cleanup ||
+                  (async () => undefined)
+                )();
+              },
+              executionId: testId,
               nodeId: node.id,
-              output: result.output,
-              timestamp: new Date().toISOString(),
-              type: 'node_output',
+              runtimeNodeId: node.id,
             });
-            finalState = result.outcome;
+            try {
+              await preparedRunner.waitUntilReady();
+              if (cancellationRequested) {
+                throw new Error('AI Container runner was cancelled.');
+              }
+              await publishNodeState(node.id, 'running');
+              if (cancellationRequested) {
+                throw new Error('AI Container runner was cancelled.');
+              }
+              await preparedRunner.start();
+              const result = await preparedRunner.waitForCompletion();
+              for (const entry of result.diagnosticLogs || []) {
+                captureDiagnosticLog({
+                  ...entry,
+                  ...(entry.nodeId && entry.nodeId !== node.id
+                    ? { parentNodeId: node.id }
+                    : {}),
+                });
+              }
+              nodeTemplateOutputs[`node_${node.id}`] = result.output;
+              const completedAt = new Date().toISOString();
+              const botPullRequestEvent = createBotPullRequestWorkflowEvent(
+                result,
+                request.changeContext,
+              );
+              await publishEventStrict({
+                nodeId: node.id,
+                output: result.output,
+                timestamp: completedAt,
+                type: 'node_output',
+              });
+              if (botPullRequestEvent) {
+                await publishEventStrict({
+                  ...botPullRequestEvent,
+                  nodeId: node.id,
+                  timestamp: completedAt,
+                });
+              }
+              finalState = result.outcome;
+            } catch (error) {
+              if (!cancellationRequested) {
+                await publishAttachmentState(
+                  'error',
+                  `AI Container failed: ${getErrorMessage(error)}`,
+                );
+              }
+              throw error;
+            } finally {
+              activePreparedRunners.delete(activeKey);
+              await preparedRunner.cleanup?.();
+            }
           } else if (type === 'playwright') {
             const { cpu, injectedEnv, memory, request, workers } =
               createPlaywrightExecutionRequest(node);
@@ -1443,17 +1959,14 @@ export async function executeWorkflow(reqBody: any) {
                   (await orchestratorRuntime.playwrightExecution.prepare(
                     request,
                   ));
-                await preparedRunner.waitUntilReady();
-                await publishLog(
-                  `Prepared Playwright Runner for ${node.id} is ready. Sending start signal.`,
-                  'info',
+                delete preparedPlaywrightRunners[node.id];
+                activePreparedRunners.delete(
+                  activeExecutionKey(testId, node.id),
                 );
-                await preparedRunner.start();
-                await publishLog(
-                  `Playwright Runner for ${node.id} acknowledged start signal.`,
-                  'info',
+                const result = await runPreparedPlaywrightRequest(
+                  request,
+                  preparedRunner,
                 );
-                const result = await preparedRunner.waitForCompletion();
                 nodeTemplateOutputs[`node_${node.id}`] = result.output;
                 finalState = result.outcome;
               }
@@ -1576,18 +2089,11 @@ export async function executeWorkflow(reqBody: any) {
       while (activeNodeCount > 0) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
-
-      await Promise.allSettled(
-        Object.values(preparedPlaywrightRunners).map(async (runnerPromise) => {
-          const runner = await runnerPromise;
-          await runner.cleanup?.();
-        }),
-      );
     }
 
-    terminalEventPublished = true;
     finishWorkflowRun(workflowContext, workflowFailed ? 'failed' : 'completed');
-    await publishEvent({
+    terminalEventAttempted = true;
+    await publishTerminalEvent({
       level: workflowFailed ? 'error' : 'info',
       message: workflowFailed
         ? 'Workflow execution failed.'
@@ -1597,9 +2103,10 @@ export async function executeWorkflow(reqBody: any) {
       workflow: workflowContext,
     });
   } catch (err: any) {
-    if (!terminalEventPublished) {
+    if (!terminalEventAttempted) {
       markWorkflowRunFailed(workflowContext);
-      await publishEvent({
+      terminalEventAttempted = true;
+      await publishTerminalEvent({
         level: 'error',
         message: `Workflow execution failed: ${err?.message || 'Unknown error'}`,
         timestamp: new Date().toISOString(),
@@ -1608,26 +2115,54 @@ export async function executeWorkflow(reqBody: any) {
       });
     }
     throw err;
+  } finally {
+    await Promise.allSettled(
+      Object.entries(preparedPlaywrightRunners).map(
+        async ([nodeId, runnerPromise]) => {
+          try {
+            const runner = await runnerPromise;
+            await runner.cleanup?.();
+          } finally {
+            activePreparedRunners.delete(
+              activeExecutionKey(reqBody.testId, nodeId),
+            );
+            delete preparedPlaywrightRunners[nodeId];
+          }
+        },
+      ),
+    );
   }
 }
 
-app.post('/execute', async (req, res) => {
-  res.status(200).json({ status: 'started' });
-  void executeWorkflow(req.body).catch((error) => {
+const executeRequestCoordinator = new ExecuteRequestCoordinator(
+  async (payload) => executeWorkflow(payload),
+  (error) => {
     console.error('Workflow execution failed:', error);
-  });
+  },
+);
+
+app.post('/execute', requireOrchestratorAuth, (req, res) => {
+  const admission = executeRequestCoordinator.admit(req.body);
+  try {
+    res.status(admission.statusCode).json(admission.body);
+  } finally {
+    void admission.start?.();
+  }
 });
 
 app.get('/health', (req, res) => {
   res.status(200).send('Runner is healthy and in standby.');
 });
 
-app.get('/runtime', (req, res) => {
+app.get('/runtime', requireOrchestratorAuth, (req, res) => {
   const executorDiagnostics = packageExecutorRuntime.diagnostics();
 
   res.status(200).json({
     activePackageExecutorCount: executorDiagnostics.activeExecutions.length,
     eventTransport: 'pubsub',
+    localAuth: process.env.PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN?.trim()
+      ? 'required'
+      : 'disabled',
     orchestratorContributions: executorDiagnostics.contributions,
     orchestratorExecutorTimeoutMs: executorDiagnostics.timeoutMs,
     pubsubEmulatorHost: process.env.PUBSUB_EMULATOR_HOST || null,
@@ -1639,7 +2174,7 @@ app.get('/runtime', (req, res) => {
   });
 });
 
-app.post('/stop', async (req, res) => {
+app.post('/stop', requireOrchestratorAuth, async (req, res) => {
   const nodeId = getString(req.body?.nodeId);
   const requestedExecutionId =
     getString(req.body?.executionId) || getString(req.body?.testId);
@@ -1658,7 +2193,7 @@ app.post('/stop', async (req, res) => {
       (!requestedExecutionId || active.executionId === requestedExecutionId),
   );
   const preparedRunnerMatches = Array.from(
-    activePreparedPlaywrightRunners.values(),
+    activePreparedRunners.values(),
   ).filter(
     (active) =>
       active.nodeId === nodeId &&
@@ -1701,18 +2236,22 @@ app.post('/stop', async (req, res) => {
     stoppedProcesses++;
   }
 
-  const cancelledPreparedRunners = (
-    await Promise.allSettled(
-      preparedRunnerMatches
-        .filter((active) => active.executionId === executionId)
-        .map((active) => active.cancel()),
-    )
-  ).filter((result) => result.status === 'fulfilled').length;
+  const preparedRunnerCancellation = await cancelPreparedRunnerMatches(
+    preparedRunnerMatches.filter(
+      (active) => active.executionId === executionId,
+    ),
+  );
+
+  if (preparedRunnerCancellation.failureResponse) {
+    return res
+      .status(preparedRunnerCancellation.failureResponse.status)
+      .json({ error: preparedRunnerCancellation.failureResponse.error });
+  }
 
   if (
     cancelledExecutors === 0 &&
     stoppedProcesses === 0 &&
-    cancelledPreparedRunners === 0
+    preparedRunnerCancellation.cancelled === 0
   ) {
     return res.status(404).json({ error: 'Node not running' });
   }

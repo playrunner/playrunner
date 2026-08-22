@@ -22,6 +22,7 @@ locals {
     "cloudscheduler.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
     "pubsub.googleapis.com",
     "run.googleapis.com",
     "serviceusage.googleapis.com",
@@ -32,6 +33,10 @@ locals {
     api = {
       repository_id = "api"
       description   = "Docker repository for Playrunner API images"
+    }
+    agent_runner = {
+      repository_id = "agent-runner"
+      description   = "Docker repository for Playrunner AI Container runner images"
     }
     orchestrator = {
       repository_id = "orchestrator"
@@ -48,6 +53,10 @@ locals {
       GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC = var.workflow_events_topic_name
     },
     var.api_environment_variables,
+    {
+      PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL   = google_service_account.api.email
+      PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT = google_service_account.api.unique_id
+    },
   )
 }
 
@@ -113,6 +122,21 @@ resource "google_service_account" "scheduler" {
   }
 }
 
+resource "google_service_account" "api" {
+  project      = var.project_id
+  account_id   = var.api_service_account_id
+  display_name = "Playrunner API"
+  description  = "Dedicated Playrunner API runtime identity. No project role bindings are added; target orchestrator services grant only Cloud Run invocation."
+
+  depends_on = [
+    time_sleep.wait_for_project_services,
+  ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "google_service_account_iam_member" "scheduler_service_account_users" {
   for_each = var.scheduler_service_account_users
 
@@ -128,6 +152,8 @@ resource "google_cloud_run_v2_service" "api" {
   ingress  = var.api_ingress
 
   template {
+    service_account = google_service_account.api.email
+
     scaling {
       min_instance_count = var.api_min_instance_count
       max_instance_count = var.api_max_instance_count
@@ -159,6 +185,7 @@ resource "google_cloud_run_v2_service" "api" {
 
   depends_on = [
     google_artifact_registry_repository.repositories,
+    google_service_account.api,
     time_sleep.wait_for_project_services,
   ]
 

@@ -23,6 +23,7 @@ interface GcpSettingsModalProps {
 }
 
 type GcpCredentialData = {
+  agentImageUriTemplate?: string;
   cloudRunLocation?: string;
   orchestratorCpuIdle?: boolean;
   orchestratorImageUriTemplate?: string;
@@ -43,6 +44,7 @@ type GcpProvisioningStep = {
     | 'repositories'
     | 'pubsub'
     | 'scheduler'
+    | 'agent'
     | 'images';
   label: string;
   items?: GcpProvisioningStepItem[];
@@ -122,16 +124,18 @@ const GCP_PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'artifactregistry.dockerimages.list':
     'Check whether the runner repositories contain images.',
   'artifactregistry.repositories.create':
-    'Create the Orchestrator and Playwright runner repositories.',
+    'Create the Agent, Orchestrator, and Playwright runner repositories.',
   'artifactregistry.repositories.get': 'Inspect existing runner repositories.',
   'cloudscheduler.jobs.create': 'Create workflow schedules.',
   'cloudscheduler.jobs.delete': 'Delete workflow schedules.',
   'cloudscheduler.jobs.get': 'Inspect workflow schedules.',
   'cloudscheduler.jobs.update': 'Update workflow schedules.',
   'iam.serviceAccounts.actAs':
-    'Use the scheduler service account when creating scheduled jobs.',
-  'iam.serviceAccounts.create': 'Create the scheduler service account.',
-  'iam.serviceAccounts.get': 'Inspect the scheduler service account.',
+    'Use the dedicated Scheduler and AI Container service accounts when creating jobs.',
+  'iam.serviceAccounts.create':
+    'Create the Scheduler and dedicated AI Container service accounts.',
+  'iam.serviceAccounts.get':
+    'Inspect the Scheduler and dedicated AI Container service accounts.',
   'pubsub.subscriptions.consume': 'Receive workflow runner events.',
   'pubsub.subscriptions.create':
     'Create execution, control, and status subscriptions.',
@@ -142,12 +146,12 @@ const GCP_PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'pubsub.topics.create': 'Create the shared workflow events topic.',
   'pubsub.topics.get': 'Inspect the shared workflow events topic.',
   'pubsub.topics.publish': 'Publish runner status and workflow events.',
-  'run.jobs.create': 'Create Playwright Cloud Run jobs.',
-  'run.jobs.get': 'Inspect Playwright Cloud Run jobs.',
-  'run.jobs.run': 'Start Playwright Cloud Run jobs.',
+  'run.jobs.create': 'Create runner Cloud Run jobs.',
+  'run.jobs.get': 'Inspect runner Cloud Run jobs.',
+  'run.jobs.run': 'Start runner Cloud Run jobs.',
   'run.jobs.runWithOverrides':
-    'Start Playwright jobs with workflow-specific environment overrides.',
-  'run.jobs.update': 'Update Playwright Cloud Run jobs.',
+    'Start runner jobs with workflow-specific environment overrides.',
+  'run.jobs.update': 'Update runner Cloud Run jobs.',
   'run.services.create': 'Create the Orchestrator Cloud Run service.',
   'run.services.get': 'Inspect the Orchestrator Cloud Run service.',
   'run.services.setIamPolicy':
@@ -200,6 +204,12 @@ function buildPlaywrightTemplate(region: string): string {
   const trimmedRegion = region.trim();
   if (!trimmedRegion) return '';
   return `${trimmedRegion}-docker.pkg.dev/{projectId}/playwright-runner/playrunner-playwright-runner-{runtime}:{version}`;
+}
+
+function buildAgentTemplate(region: string): string {
+  const trimmedRegion = region.trim();
+  if (!trimmedRegion) return '';
+  return `${trimmedRegion}-docker.pkg.dev/{projectId}/agent-runner/playrunner-agent-runner:latest`;
 }
 
 function buildSchedulerServiceAccountEmail(projectId: string): string {
@@ -276,11 +286,6 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 function parsePositiveIntegerInput(value: string): number | null {
   const numberValue = Number(value.trim());
   return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
-}
-
-function parseNonNegativeIntegerInput(value: string): number | null {
-  const numberValue = Number(value.trim());
-  return Number.isInteger(numberValue) && numberValue >= 0 ? numberValue : null;
 }
 
 export function GcpSettingsModal({
@@ -377,6 +382,10 @@ export function GcpSettingsModal({
   const loadCredentialState = React.useCallback((data: any) => {
     data = data?.config ?? {};
     const next: GcpCredentialData = {
+      agentImageUriTemplate:
+        typeof data?.agentImageUriTemplate === 'string'
+          ? data.agentImageUriTemplate
+          : undefined,
       cloudRunLocation:
         typeof data?.cloudRunLocation === 'string'
           ? data.cloudRunLocation
@@ -452,10 +461,18 @@ export function GcpSettingsModal({
       defaultExpandedProvisioningSteps(next.provisioning),
     );
     setProvisioningError('');
-    setRunnerSettingsSaved(
-      Boolean(next.selectedProject?.trim() && next.cloudRunLocation?.trim()),
+    const hasDetachedLifecycleSettings =
+      normalizePositiveInteger(data?.orchestratorMinInstanceCount, 0) >= 1 &&
+      normalizeBoolean(data?.orchestratorCpuIdle, true) === false;
+    const hasRunnerLocation = Boolean(
+      next.selectedProject?.trim() && next.cloudRunLocation?.trim(),
     );
-    setRunnerSettingsError('');
+    setRunnerSettingsSaved(hasRunnerLocation && hasDetachedLifecycleSettings);
+    setRunnerSettingsError(
+      hasRunnerLocation && !hasDetachedLifecycleSettings
+        ? 'Review and save runner defaults: detached workflows require at least one instance and always-allocated CPU.'
+        : '',
+    );
   }, []);
 
   const persistCredentialPatch = React.useCallback(
@@ -713,13 +730,19 @@ export function GcpSettingsModal({
     const normalizedServiceName =
       orchestratorServiceName.trim() || DEFAULT_ORCHESTRATOR_SERVICE_NAME;
 
-    const minInstanceCount = parseNonNegativeIntegerInput(
+    const minInstanceCount = parsePositiveIntegerInput(
       orchestratorMinInstanceCount,
     );
     if (minInstanceCount === null) {
       setRunnerSettingsSaved(false);
+      setRunnerSettingsError('Minimum instances must be a positive integer.');
+      return;
+    }
+
+    if (orchestratorCpuIdle) {
+      setRunnerSettingsSaved(false);
       setRunnerSettingsError(
-        'Minimum instances must be a non-negative integer.',
+        'Always-allocated CPU is required for detached orchestrator workflows.',
       );
       return;
     }
@@ -743,6 +766,7 @@ export function GcpSettingsModal({
     setRunnerSettingsError('');
     try {
       const next = await persistCredentialPatch({
+        agentImageUriTemplate: buildAgentTemplate(normalizedRegion),
         cloudRunLocation: normalizedRegion,
         orchestratorCpuIdle,
         orchestratorImageUriTemplate: buildOrchestratorTemplate(
@@ -1238,6 +1262,11 @@ export function GcpSettingsModal({
               Advanced runner defaults
             </summary>
             <div className="mt-4 space-y-4">
+              <p className="text-xs text-muted">
+                Detached workflows require at least one warm instance and
+                always-allocated CPU after `/execute` responds. Deployments or
+                instance restarts can still interrupt in-flight work.
+              </p>
               <div>
                 <label
                   htmlFor="gcp-connection-field-e"
@@ -1271,7 +1300,7 @@ export function GcpSettingsModal({
                     connectionId="gcp"
                     fieldSlot="f"
                     type="number"
-                    min="0"
+                    min="1"
                     step="1"
                     value={orchestratorMinInstanceCount}
                     onChange={(e) => {
@@ -1307,8 +1336,10 @@ export function GcpSettingsModal({
                   <input
                     type="checkbox"
                     checked={!orchestratorCpuIdle}
-                    onChange={(e) => {
-                      setOrchestratorCpuIdle(!e.target.checked);
+                    disabled={!orchestratorCpuIdle}
+                    onChange={(event) => {
+                      if (!event.target.checked) return;
+                      setOrchestratorCpuIdle(false);
                       setRunnerSettingsSaved(false);
                       setRunnerSettingsError('');
                     }}
@@ -1319,7 +1350,7 @@ export function GcpSettingsModal({
                       Always-allocated CPU
                     </span>
                     <span className="block text-xs text-muted">
-                      Keeps DAG work active after `/execute`.
+                      Required to keep DAG work active after `/execute`.
                     </span>
                   </span>
                 </label>

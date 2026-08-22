@@ -24,6 +24,11 @@ output "api_service_name" {
   value       = google_cloud_run_v2_service.api.name
 }
 
+output "api_service_account_email" {
+  description = "Dedicated service account used by the API to invoke private orchestrator services"
+  value       = google_service_account.api.email
+}
+
 output "api_service_uri" {
   description = "Public URL for the Playrunner API Cloud Run service"
   value       = google_cloud_run_v2_service.api.uri

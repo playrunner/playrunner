@@ -5,6 +5,7 @@ import type {
   WorkflowExecution,
 } from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
+import { persistAgentMemoryFromEvent } from './agent-memory';
 
 export const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
@@ -34,6 +35,7 @@ const SAFE_NODE_STATES = new Set([
   'warning',
 ]);
 const SAFE_LEVELS = new Set(['debug', 'info', 'warn', 'error', 'success']);
+const SAFE_BOT_PULL_REQUEST_STATUSES = new Set(['created', 'existing']);
 const MAX_SAFE_LOG_LENGTH = 10_000;
 
 function normalizeString(value: unknown) {
@@ -86,6 +88,76 @@ export function sanitizeWorkflowLogMessage(value: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function safeGitRef(value: unknown): string | null {
+  if (
+    typeof value !== 'string' ||
+    !/^[A-Za-z0-9][A-Za-z0-9._/-]{0,254}$/.test(value) ||
+    value === 'HEAD' ||
+    value.startsWith('refs/') ||
+    value.includes('..') ||
+    value.includes('//') ||
+    value.includes('@{') ||
+    value.endsWith('/') ||
+    value.endsWith('.') ||
+    value.endsWith('.lock')
+  ) {
+    return null;
+  }
+  return value;
+}
+
+function safeBotPullRequestEvent(payload: Record<string, unknown>): {
+  baseRef: string;
+  draft: true;
+  headRef: string;
+  number: number;
+  repository: string;
+  status: 'created' | 'existing';
+  url: string;
+} | null {
+  const repository = normalizeString(payload.repository);
+  const baseRef = safeGitRef(payload.baseRef);
+  const headRef = safeGitRef(payload.headRef);
+  const number = Number(payload.number);
+  const status = normalizeString(payload.status);
+  const repositoryParts = repository?.split('/') ?? [];
+  if (
+    !repository ||
+    payload.draft !== true ||
+    repository !== repository.toLowerCase() ||
+    repository.length > 200 ||
+    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+    repositoryParts.length !== 2 ||
+    repositoryParts.some(
+      (part) =>
+        part === '.' ||
+        part === '..' ||
+        part.startsWith('-') ||
+        part.endsWith('-'),
+    ) ||
+    !baseRef ||
+    !headRef ||
+    !Number.isSafeInteger(number) ||
+    number < 1 ||
+    number > 2_147_483_647 ||
+    !status ||
+    !SAFE_BOT_PULL_REQUEST_STATUSES.has(status)
+  ) {
+    return null;
+  }
+  const url = `https://github.com/${repository}/pull/${number}`;
+  if (payload.url !== url) return null;
+  return {
+    baseRef,
+    draft: true,
+    headRef,
+    number,
+    repository,
+    status: status as 'created' | 'existing',
+    url,
+  };
 }
 
 function sanitizeJsonRecord(value: Record<string, unknown>) {
@@ -182,6 +254,10 @@ function toStreamableEvent(event: WorkflowEvent): StreamableWorkflowEvent {
 
 export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
   const rawType = normalizeString(event.payload.type) ?? 'event';
+  const botPullRequest =
+    rawType === 'bot_pull_request'
+      ? safeBotPullRequestEvent(event.payload)
+      : null;
   const rawState = normalizeString(event.payload.state);
   const state = rawState && SAFE_NODE_STATES.has(rawState) ? rawState : null;
   const type =
@@ -189,9 +265,11 @@ export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
       ? 'log'
       : rawType === 'node_state' && state
         ? 'node_state'
-        : Object.hasOwn(SAFE_EVENT_MESSAGES, rawType)
-          ? rawType
-          : 'event';
+        : botPullRequest
+          ? 'bot_pull_request'
+          : Object.hasOwn(SAFE_EVENT_MESSAGES, rawType)
+            ? rawType
+            : 'event';
   const rawNodeId = normalizeString(event.payload.nodeId);
   const nodeId =
     rawNodeId && /^[a-zA-Z0-9_-]{1,100}$/.test(rawNodeId) ? rawNodeId : null;
@@ -207,10 +285,13 @@ export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
         ? sanitizeWorkflowLogMessage(event.payload.message)
         : type === 'node_state'
           ? `${nodeId ? `Node ${nodeId}` : 'Node'} is ${state}.`
-          : (SAFE_EVENT_MESSAGES[type] ?? null),
+          : type === 'bot_pull_request' && botPullRequest
+            ? `Generated-test PR #${botPullRequest.number} (${botPullRequest.status}): ${botPullRequest.url}`
+            : (SAFE_EVENT_MESSAGES[type] ?? null),
     nodeId,
     state,
     timestamp: timestamp?.toISOString() ?? null,
+    ...(botPullRequest ? botPullRequest : {}),
   };
 }
 
@@ -330,11 +411,22 @@ class ExecutionEventsService {
           where: { sourceEventId },
         });
         if (existingEvent?.executionId === execution.id) {
+          await persistAgentMemoryFromEvent({
+            event: isRecord(existingEvent.payload) ? existingEvent.payload : {},
+            executionId: execution.id,
+            nodeId: existingEvent.nodeId ?? nodeId,
+          });
           return toStreamableEvent(existingEvent);
         }
       }
       throw error;
     }
+
+    await persistAgentMemoryFromEvent({
+      event,
+      executionId: execution.id,
+      nodeId,
+    });
 
     if (
       type === 'workflow_completed' ||

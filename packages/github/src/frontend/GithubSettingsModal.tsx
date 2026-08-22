@@ -381,8 +381,17 @@ export function GithubSettingsModal({
                 <p className="mt-1 text-xs leading-relaxed text-muted">
                   Use the setup guide to create the GitHub App, configure
                   repository permissions (Issues and Pull requests: Read and
-                  write; Contents: Read), and find the app slug, client ID, and
-                  client secret.
+                  write; Contents: Read and write; Administration: Read and
+                  write), and find the app slug, client ID, and client secret.
+                  Use a dedicated public fork with GitHub Actions disabled and
+                  install the app on both repositories. Administration access
+                  lets Playrunner disable and verify fork Actions before every
+                  generated-test branch push. Generated-test delivery rejects
+                  private/internal repositories and source workflows using
+                  pull_request_target, workflow_run, self-hosted/custom runner
+                  labels, runner groups, dynamic runner expressions, or
+                  reusable-workflow indirection. Use static standard
+                  GitHub-hosted runners for bot PR checks.
                 </p>
                 <a
                   href={GITHUB_SETUP_DOCS_URL}

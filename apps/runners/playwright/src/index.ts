@@ -12,8 +12,30 @@ import {
   type PlaywrightBlobArtifact,
 } from './sharding';
 import { describePlaywrightProcessExit } from './process-exit';
+import {
+  readPlaywrightExecutionEnvironment,
+  readPlaywrightPayload,
+} from './payload';
+import {
+  createGitCredentialEnvironment,
+  normalizeGitHubRepository,
+  resolveRepositoryWorkingDirectory,
+} from './repository';
+import {
+  createRunnerControlClient,
+  type RunnerControlClient,
+  type RunnerControlConfig,
+  type RunnerDiagnosticLog,
+} from '../../shared/runner-control';
 
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
+let selectedExecutionEnvironment: Record<string, string> = {};
+
+function repositoryProcessEnvironment(
+  extra: NodeJS.ProcessEnv = {},
+): NodeJS.ProcessEnv {
+  return { ...process.env, ...selectedExecutionEnvironment, ...extra };
+}
 
 type RunnerEventContext = {
   childKind?: 'aggregate' | 'discovery' | 'shard';
@@ -33,13 +55,6 @@ type RunnerEventContext = {
   testId: string;
 };
 
-type RunnerControlConfig = {
-  controlSubscriptionName: string;
-  projectId: string;
-  topicName: string;
-  type: 'gcp_pubsub';
-};
-
 type PreparedWorkingDirectory = {
   sourceRevision?: string;
   testLanguage: string;
@@ -47,18 +62,8 @@ type PreparedWorkingDirectory = {
 };
 
 let runnerEventContext: RunnerEventContext | null = null;
-const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
-const runnerDiagnosticLogs: Array<{
-  level: 'info' | 'error';
-  message: string;
-  nodeId?: string;
-  timestamp: string;
-}> = [];
-const MAX_RUNNER_DIAGNOSTIC_LOG_BYTES = 64 * 1024;
-const MAX_RUNNER_DIAGNOSTIC_LOG_ENTRIES = 100;
-const MAX_RUNNER_DIAGNOSTIC_MESSAGE_LENGTH = 2_000;
-const CONTROL_POLL_INTERVAL_MS = 1000;
-const CONTROL_SIGNAL_TIMEOUT_MS = 6 * 60 * 60 * 1000;
+let runnerControlClient: RunnerControlClient | null = null;
+const runnerDiagnosticLogs: RunnerDiagnosticLog[] = [];
 
 const BUNDLED_NODE_PACKAGES = new Set([
   '@playwright/test',
@@ -98,192 +103,24 @@ function getString(value: unknown): string {
   return typeof value === 'string' && value.trim() ? value.trim() : '';
 }
 
-function getPubSubApiBaseUrl(): string {
-  const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
-  if (!emulatorHost) {
-    return PUBSUB_API_BASE_URL;
-  }
-
-  const normalizedHost = emulatorHost.replace(/\/+$/, '');
-  return `${normalizedHost.startsWith('http') ? normalizedHost : `http://${normalizedHost}`}/v1`;
-}
-
-function isUsingPubSubEmulator(): boolean {
-  return !!process.env.PUBSUB_EMULATOR_HOST?.trim();
-}
-
-async function publishGcpPubSubEvent(payload: Record<string, unknown>) {
-  const eventTransport = runnerEventContext?.eventTransport;
-  if (!eventTransport) {
-    throw new Error('Runner event transport is required.');
-  }
-
-  if (
-    eventTransport.type !== 'gcp_pubsub' ||
-    !eventTransport.projectId ||
-    !eventTransport.topicName
-  ) {
-    throw new Error('Pub/Sub event transport is missing project or topic.');
-  }
-
-  if (
-    !runnerEventContext?.executionToken ||
-    !runnerEventContext.testId ||
-    (!runnerEventContext.gcpAccessToken && !isUsingPubSubEmulator())
-  ) {
-    throw new Error('Pub/Sub event transport context is incomplete.');
-  }
-
-  const eventId = getString(payload.eventId) || crypto.randomUUID();
-  const eventPayload: Record<string, unknown> = {
-    ...(runnerEventContext.childKind
-      ? { childKind: runnerEventContext.childKind }
-      : {}),
-    executionAuthToken: runnerEventContext.executionToken,
-    executionId: runnerEventContext.testId,
-    ...(runnerEventContext.logicalNodeId
-      ? { parentNodeId: runnerEventContext.logicalNodeId }
-      : {}),
-    nodeId: runnerEventContext.nodeId,
-    ...(runnerEventContext.shardIndex
-      ? { shardIndex: runnerEventContext.shardIndex }
-      : {}),
-    ...(runnerEventContext.shardTotal
-      ? { shardTotal: runnerEventContext.shardTotal }
-      : {}),
-    testId: runnerEventContext.testId,
-    ...payload,
-    eventId,
-  };
-  const eventType = getString(eventPayload.type) || 'event';
-  const response = await fetch(
-    `${getPubSubApiBaseUrl()}/projects/${eventTransport.projectId}/topics/${eventTransport.topicName}:publish`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(runnerEventContext.gcpAccessToken
-          ? { Authorization: `Bearer ${runnerEventContext.gcpAccessToken}` }
-          : {}),
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            attributes: {
-              cloudProvider: runnerEventContext.cloudProvider,
-              eventId,
-              eventType,
-              executionId: runnerEventContext.testId,
-              messageKind: 'workflow_event',
-              nodeId: runnerEventContext.nodeId || '',
-            },
-            data: Buffer.from(JSON.stringify(eventPayload), 'utf8').toString(
-              'base64',
-            ),
-            orderingKey: runnerEventContext.testId,
-          },
-        ],
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const details = await response.text().catch(() => '');
-    throw new Error(
-      `Pub/Sub publish failed (${response.status}): ${details.slice(0, 500)}`,
-    );
-  }
-}
-
 async function publishEvent(payload: Record<string, unknown>) {
-  if (!runnerEventContext?.executionToken || !runnerEventContext.testId) {
-    return;
-  }
-
-  try {
-    await publishGcpPubSubEvent(payload);
-  } catch (error) {
-    console.error('Failed to publish runner event:', error);
-  }
+  await runnerControlClient?.publishEvent(payload);
 }
 
 async function publishLog(message: string, level: 'info' | 'error' = 'info') {
-  const formattedMessage = `[Playwright Runner] ${message}`;
-  const timestamp = new Date().toISOString();
-  runnerDiagnosticLogs.push({
-    level,
-    message: formattedMessage.slice(0, MAX_RUNNER_DIAGNOSTIC_MESSAGE_LENGTH),
-    ...(runnerEventContext?.nodeId
-      ? { nodeId: runnerEventContext.nodeId }
-      : {}),
-    timestamp,
-  });
-  while (
-    runnerDiagnosticLogs.length > MAX_RUNNER_DIAGNOSTIC_LOG_ENTRIES ||
-    Buffer.byteLength(JSON.stringify(runnerDiagnosticLogs), 'utf8') >
-      MAX_RUNNER_DIAGNOSTIC_LOG_BYTES
-  ) {
-    runnerDiagnosticLogs.shift();
-  }
-  if (level === 'error') {
-    console.error(formattedMessage);
+  if (runnerControlClient) {
+    await runnerControlClient.log(message, level);
+  } else if (level === 'error') {
+    console.error(`[Playwright Runner] ${message}`);
   } else {
-    console.log(formattedMessage);
+    console.log(`[Playwright Runner] ${message}`);
   }
-
-  await publishEvent({
-    level,
-    message: formattedMessage,
-    timestamp,
-    type: 'log',
-  });
 }
 
 async function publishNodeState(
-  state: 'idle' | 'pending' | 'running' | 'success' | 'error' | 'warning',
+  state: 'pending' | 'running' | 'success' | 'error' | 'warning',
 ) {
-  await publishEvent({
-    state,
-    timestamp: new Date().toISOString(),
-    type: 'node_state',
-  });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function pubSubRequest<T>(
-  resourcePath: string,
-  accessToken: string | undefined,
-  init: RequestInit = {},
-): Promise<T> {
-  if (!accessToken && !isUsingPubSubEmulator()) {
-    throw new Error('Pub/Sub access token is required.');
-  }
-
-  const response = await fetch(`${getPubSubApiBaseUrl()}/${resourcePath}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(init.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    const details = await response.text().catch(() => '');
-    throw new Error(
-      `Pub/Sub API returned ${response.status}: ${details.slice(0, 500)}`,
-    );
-  }
-
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  const text = await response.text();
-  return (text ? JSON.parse(text) : {}) as T;
+  await runnerControlClient?.publishNodeState(state);
 }
 
 async function publishRunnerStatus(
@@ -298,129 +135,9 @@ async function publishRunnerStatus(
   error?: string,
   output?: Record<string, unknown>,
 ) {
-  if (!control || !runnerEventContext?.testId || !runnerEventContext.nodeId) {
-    return;
+  if (control) {
+    await runnerControlClient?.publishStatus(status, error, output);
   }
-
-  const accessToken = runnerEventContext.gcpAccessToken;
-  const eventId = crypto.randomUUID();
-  const payload = {
-    ...(status === 'completed' ? { diagnosticLogs: runnerDiagnosticLogs } : {}),
-    error,
-    eventId,
-    executionId: runnerEventContext.testId,
-    nodeId: runnerEventContext.nodeId,
-    status,
-    ...(output ? { output } : {}),
-    testId: runnerEventContext.testId,
-    timestamp: new Date().toISOString(),
-    type: 'runner_status',
-  };
-  await pubSubRequest(
-    `projects/${control.projectId}/topics/${control.topicName}:publish`,
-    accessToken,
-    {
-      body: JSON.stringify({
-        messages: [
-          {
-            attributes: {
-              eventId,
-              eventType: 'runner_status',
-              executionId: runnerEventContext.testId,
-              messageKind:
-                status === 'completed' ? 'runner_result' : 'runner_status',
-              nodeId: runnerEventContext.nodeId,
-            },
-            data: Buffer.from(JSON.stringify(payload), 'utf8').toString(
-              'base64',
-            ),
-            orderingKey: `${runnerEventContext.testId}:${runnerEventContext.nodeId}`,
-          },
-        ],
-      }),
-      method: 'POST',
-    },
-  );
-}
-
-function decodePubSubPayload(message: { data?: string }): Record<string, any> {
-  if (!message.data) {
-    return {};
-  }
-  return JSON.parse(Buffer.from(message.data, 'base64').toString('utf8'));
-}
-
-async function acknowledgeControlMessages(args: {
-  ackIds: string[];
-  control: RunnerControlConfig;
-  gcpAccessToken: string | undefined;
-}) {
-  if (args.ackIds.length === 0) {
-    return;
-  }
-
-  await pubSubRequest(
-    `projects/${args.control.projectId}/subscriptions/${args.control.controlSubscriptionName}:acknowledge`,
-    args.gcpAccessToken,
-    {
-      body: JSON.stringify({ ackIds: args.ackIds }),
-      method: 'POST',
-    },
-  );
-}
-
-async function waitForPubSubStartSignal(control: RunnerControlConfig) {
-  const gcpAccessToken = runnerEventContext?.gcpAccessToken;
-  const executionId = runnerEventContext?.testId;
-  const nodeId = runnerEventContext?.nodeId;
-  if (
-    (!gcpAccessToken && !isUsingPubSubEmulator()) ||
-    !executionId ||
-    !nodeId
-  ) {
-    throw new Error('Missing GCP runner control context.');
-  }
-
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < CONTROL_SIGNAL_TIMEOUT_MS) {
-    const response = await pubSubRequest<{
-      receivedMessages?: Array<{
-        ackId: string;
-        message: { data?: string };
-      }>;
-    }>(
-      `projects/${control.projectId}/subscriptions/${control.controlSubscriptionName}:pull`,
-      gcpAccessToken,
-      {
-        body: JSON.stringify({ maxMessages: 10, returnImmediately: true }),
-        method: 'POST',
-      },
-    );
-    const messages = response.receivedMessages || [];
-    const ackIds = messages.map((message) => message.ackId);
-
-    try {
-      for (const message of messages) {
-        const payload = decodePubSubPayload(message.message);
-        if (payload.executionId !== executionId || payload.nodeId !== nodeId) {
-          continue;
-        }
-        if (payload.action === 'start' || payload.action === 'cancel') {
-          return payload.action;
-        }
-      }
-    } finally {
-      await acknowledgeControlMessages({
-        ackIds,
-        control,
-        gcpAccessToken,
-      });
-    }
-
-    await sleep(CONTROL_POLL_INTERVAL_MS);
-  }
-
-  throw new Error('Timed out waiting for Playwright runner start signal.');
 }
 
 async function waitForStartSignal(control: RunnerControlConfig | undefined) {
@@ -428,7 +145,10 @@ async function waitForStartSignal(control: RunnerControlConfig | undefined) {
     return 'start';
   }
 
-  return waitForPubSubStartSignal(control);
+  if (!runnerControlClient) {
+    throw new Error('Playwright runner control client is unavailable.');
+  }
+  return runnerControlClient.waitForStartSignal();
 }
 
 async function installTypescriptDependencies(
@@ -474,7 +194,10 @@ async function installTypescriptDependencies(
       : 'Installing npm dependencies...',
   );
   await new Promise<void>((resolve, reject) => {
-    const install = spawn('npm', args, { cwd: workingDir });
+    const install = spawn('npm', args, {
+      cwd: workingDir,
+      env: repositoryProcessEnvironment(),
+    });
     install.stdout.on('data', (data) =>
       console.log(`[npm]: ${data.toString().trim()}`),
     );
@@ -555,7 +278,7 @@ async function runTypescriptTest(
     const testProc = spawn(command.command, args, {
       cwd: workingDir,
       env: {
-        ...process.env,
+        ...repositoryProcessEnvironment(),
         ...(shard
           ? {
               CI: 'true',
@@ -612,7 +335,7 @@ async function discoverTypescriptTests(
     const discoveryProcess = spawn(command.command, args, {
       cwd: workingDir,
       env: {
-        ...process.env,
+        ...repositoryProcessEnvironment(),
         PLAYWRIGHT_JSON_OUTPUT_FILE: reportPath,
       },
     });
@@ -637,7 +360,10 @@ async function runPythonTest(workingDir: string): Promise<void> {
 
   await publishLog('Running pytest...');
   await new Promise<void>((resolve, reject) => {
-    const testProc = spawn('pytest', [], { cwd: workingDir });
+    const testProc = spawn('pytest', [], {
+      cwd: workingDir,
+      env: repositoryProcessEnvironment(),
+    });
     testProc.stdout.on('data', (data) =>
       console.log(`[pytest]: ${data.toString().trim()}`),
     );
@@ -932,15 +658,14 @@ async function prepareWorkingDirectory(
     (!payload?.data?.action && payload?.data?.repository)
   ) {
     if (payload?.data?.repository) {
-      const repo = payload.data.repository;
+      const repo = normalizeGitHubRepository(payload.data.repository);
       const branch = payload.data.branch || 'main';
       const token = payload?.github?.accessToken;
 
       await publishLog(`Cloning repository ${repo} on branch ${branch}...`);
 
-      const cloneUrl = token
-        ? `https://x-access-token:${token}@github.com/${repo}.git`
-        : `https://github.com/${repo}.git`;
+      const cloneUrl = `https://github.com/${repo}.git`;
+      const gitEnvironment = createGitCredentialEnvironment(token);
 
       try {
         fs.rmSync('/app/repo', { force: true, recursive: true });
@@ -963,7 +688,7 @@ async function prepareWorkingDirectory(
                 cloneUrl,
                 '/app/repo',
               ];
-          const gitProcess = spawn('git', gitArgs);
+          const gitProcess = spawn('git', gitArgs, { env: gitEnvironment });
 
           gitProcess.stdout.on('data', (data) =>
             console.log(`[Git]: ${data.toString().trim()}`),
@@ -995,7 +720,7 @@ async function prepareWorkingDirectory(
                 'origin',
                 sourceRevision,
               ],
-              { stdio: 'inherit' },
+              { env: gitEnvironment, stdio: 'inherit' },
             );
             checkout.on('close', (code) =>
               code === 0
@@ -1040,7 +765,10 @@ async function prepareWorkingDirectory(
           );
         });
         await publishLog('Repository cloned successfully.');
-        workingDir = path.join('/app/repo', payload?.data?.folder || '/');
+        workingDir = resolveRepositoryWorkingDirectory(
+          '/app/repo',
+          payload?.data?.folder,
+        );
         isCloned = true;
       } catch (err: any) {
         throw new Error(`Clone Error: ${err.message}`);
@@ -1087,18 +815,6 @@ async function prepareWorkingDirectory(
     testLanguage,
     workingDir,
   };
-}
-
-async function parsePayload() {
-  if (!process.env.PAYLOAD) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(process.env.PAYLOAD);
-  } catch {
-    return null;
-  }
 }
 
 async function aggregateBlobReports(payload: any, workingDir: string) {
@@ -1159,7 +875,7 @@ async function aggregateBlobReports(payload: any, workingDir: string) {
     const mergeProcess = spawn(command.command, args, {
       cwd: workingDir,
       env: {
-        ...process.env,
+        ...repositoryProcessEnvironment(),
         PLAYWRIGHT_HTML_OPEN: 'never',
         PLAYWRIGHT_HTML_OUTPUT_DIR: path.join(workingDir, 'playwright-report'),
         PLAYWRIGHT_JSON_OUTPUT_FILE: path.join(
@@ -1195,7 +911,8 @@ function requiredEditorApiUrl(value: unknown): string {
 }
 
 async function run() {
-  const payload = await parsePayload();
+  const payload = await readPlaywrightPayload();
+  selectedExecutionEnvironment = readPlaywrightExecutionEnvironment(payload);
   const testId = payload?.data?.testId || crypto.randomUUID();
   const cloudProvider = payload?.data?.cloudProvider || 'LOCAL_RUNNER';
   const executionMode = getString(payload?.data?.executionMode) || 'test';
@@ -1219,6 +936,37 @@ async function run() {
     shardTotal: payload?.data?.shardTotal,
     testId,
   };
+  if (runnerControl) {
+    const nodeId = getString(runnerEventContext.nodeId);
+    if (!nodeId || !runnerEventContext.executionToken) {
+      throw new Error('Playwright runner control context is incomplete.');
+    }
+    runnerControlClient = createRunnerControlClient({
+      config: runnerControl,
+      diagnosticLogs: runnerDiagnosticLogs,
+      executionId: testId,
+      gcpAccessToken: runnerEventContext.gcpAccessToken,
+      logPrefix: '[Playwright Runner]',
+      nodeId,
+      runnerName: 'Playwright runner',
+      workflowEventAttributes: { cloudProvider },
+      workflowEventFields: {
+        cloudProvider,
+        ...(runnerEventContext.childKind
+          ? { childKind: runnerEventContext.childKind }
+          : {}),
+        ...(runnerEventContext.logicalNodeId
+          ? { parentNodeId: runnerEventContext.logicalNodeId }
+          : {}),
+        ...(runnerEventContext.shardIndex
+          ? { shardIndex: runnerEventContext.shardIndex }
+          : {}),
+        ...(runnerEventContext.shardTotal
+          ? { shardTotal: runnerEventContext.shardTotal }
+          : {}),
+      },
+    });
+  }
 
   const envType = cloudProvider === 'GCP' ? 'GCP Cloud Run' : 'Local Docker';
   await publishLog(

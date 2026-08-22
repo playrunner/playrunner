@@ -20,6 +20,12 @@ variable "api_service_name" {
   default     = "playrunner-api"
 }
 
+variable "api_service_account_id" {
+  description = "Dedicated service account ID for the Playrunner API runtime and private orchestrator invocation"
+  type        = string
+  default     = "playrunner-api"
+}
+
 variable "api_image_name" {
   description = "Artifact Registry image name used by push-runners.sh for the Playrunner API"
   type        = string

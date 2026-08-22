@@ -3,8 +3,12 @@ import crypto from 'crypto';
 import { ORCHESTRATOR_URL } from '../config';
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
-import { isOrchestratorHealthy } from '../runtime/orchestrator-runner';
+import {
+  getLocalOrchestratorRequestHeaders,
+  isOrchestratorHealthy,
+} from '../runtime/orchestrator-runner';
 import { requireAccessibleWorkflow } from '../services/workflow-access';
+import { sanitizeInteractiveExecutionBody } from '../services/execution-trust-boundary';
 
 export const workflowsRouter = Router();
 
@@ -15,7 +19,10 @@ workflowsRouter.post('/start', async (req, res) => {
     const testId = crypto.randomUUID();
     const workflowId =
       typeof req.body?.workflowId === 'string' ? req.body.workflowId : '';
-    let body = { ...req.body, testId };
+    const clientBody = sanitizeInteractiveExecutionBody(req.body);
+    // Commit context and durable agent memory are machine-endpoint-owned.
+    // Interactive callers cannot opt into CI delivery or seed future runs.
+    let body = { ...clientBody, testId };
     let resourceOwnerUserId = actorUserId;
 
     if (workflowId && workflowId !== 'current') {
@@ -82,7 +89,10 @@ workflowsRouter.post('/stop-node', async (req, res) => {
   try {
     const response = await fetch(`${ORCHESTRATOR_URL}/stop`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getLocalOrchestratorRequestHeaders(),
+      },
       body: JSON.stringify(req.body),
     });
 

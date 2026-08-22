@@ -6,7 +6,11 @@ import type {
   WorkflowExecutionRequest,
   WorkflowExecutionResult,
 } from './contracts';
-import { ensureOrchestratorService } from './cloudrun';
+import { GoogleAuth } from 'google-auth-library';
+import {
+  ensureOrchestratorService,
+  normalizeGcpEditorApiOrigin,
+} from './cloudrun';
 import { ensureBucket, refreshGcpAccessTokenIfNeeded } from './gcs';
 import type { GcpPubSubEventStreamManager } from './gcp-pubsub-events';
 import {
@@ -14,14 +18,78 @@ import {
   prewarmGcpPlaywrightRunners,
   type PrewarmedGcpPlaywrightRunner,
 } from './playwright-prewarm';
+import { createRunnerProtocolToken } from './runner-protocol';
 
 const ORCHESTRATOR_HEALTH_MAX_ATTEMPTS = 8;
-const ORCHESTRATOR_INVOKE_MAX_ATTEMPTS = 3;
 const ORCHESTRATOR_RETRY_BASE_DELAY_MS = 1000;
 const ORCHESTRATOR_RETRY_MAX_DELAY_MS = 10000;
-const ORCHESTRATOR_RETRYABLE_STATUS_CODES = new Set([
-  408, 429, 500, 502, 503, 504,
-]);
+const MAX_GOOGLE_ID_TOKEN_LENGTH = 16 * 1024;
+
+type GoogleIdentityAuth = Pick<
+  GoogleAuth,
+  'getCredentials' | 'getIdTokenClient'
+>;
+
+class AmbiguousOrchestratorInvocationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AmbiguousOrchestratorInvocationError';
+  }
+}
+
+export function isAmbiguousOrchestratorInvocationError(
+  error: unknown,
+): boolean {
+  return error instanceof AmbiguousOrchestratorInvocationError;
+}
+
+function boundedInvocationErrorMessage(error: unknown): string {
+  const message =
+    error instanceof Error ? error.message : 'Unknown orchestrator error';
+  return (
+    message.trim().replace(/\s+/g, ' ').slice(0, 500) ||
+    'Unknown orchestrator error'
+  );
+}
+
+export function gcpStartFailurePolicy(error: unknown): {
+  cleanupResources: boolean;
+  eventType: 'log' | 'workflow_failed';
+} {
+  const invocationOutcomeUnknown =
+    isAmbiguousOrchestratorInvocationError(error);
+  return {
+    cleanupResources: !invocationOutcomeUnknown,
+    eventType: invocationOutcomeUnknown ? 'log' : 'workflow_failed',
+  };
+}
+
+export function gcpStartFailureResult(
+  error: unknown,
+  testId: string,
+): WorkflowExecutionResult {
+  if (isAmbiguousOrchestratorInvocationError(error)) {
+    return {
+      body: {
+        execution: 'service-invocation',
+        invocationOutcome: 'unknown',
+        message:
+          'The Cloud Run invocation response was lost. The workflow may already be running; poll this execution for updates. It will not be retried automatically.',
+        testId,
+      },
+      status: 202,
+    };
+  }
+
+  const message = boundedInvocationErrorMessage(error);
+  return {
+    body: {
+      error: `Failed to trigger Cloud Run Service: ${message}`,
+      testId,
+    },
+    status: 500,
+  };
+}
 
 function missingRunnerSettings(gcp: Record<string, any>): string[] {
   const missing: string[] = [];
@@ -90,6 +158,85 @@ async function readResponseDetails(response: Response): Promise<string> {
   return `${response.status} ${response.statusText}${renderedDetails}`;
 }
 
+function decodeIdentityTokenPayload(token: string): Record<string, unknown> {
+  if (token.length > MAX_GOOGLE_ID_TOKEN_LENGTH) {
+    throw new Error('Google identity token exceeded the allowed size.');
+  }
+  const segments = token.split('.');
+  if (
+    segments.length !== 3 ||
+    segments.some((segment) => !/^[A-Za-z0-9_-]+$/.test(segment))
+  ) {
+    throw new Error('Google identity provider returned a malformed ID token.');
+  }
+  try {
+    const value = JSON.parse(
+      Buffer.from(segments[1], 'base64url').toString('utf8'),
+    );
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('payload');
+    }
+    return value as Record<string, unknown>;
+  } catch {
+    throw new Error('Google identity provider returned a malformed ID token.');
+  }
+}
+
+export async function createGcpOrchestratorIdentityHeaders(
+  {
+    audience,
+    callerServiceAccountEmail,
+    callerServiceAccountSubject,
+  }: {
+    audience: string;
+    callerServiceAccountEmail: string;
+    callerServiceAccountSubject: string;
+  },
+  googleAuth: GoogleIdentityAuth = new GoogleAuth(),
+): Promise<Record<string, string>> {
+  const expectedEmail = callerServiceAccountEmail.trim().toLowerCase();
+  const expectedSubject = callerServiceAccountSubject.trim();
+  if (!expectedEmail || !expectedSubject) {
+    throw new Error(
+      'The server-owned GCP orchestrator caller identity is not configured.',
+    );
+  }
+
+  const credentials = await googleAuth.getCredentials();
+  if (credentials.client_email?.trim().toLowerCase() !== expectedEmail) {
+    throw new Error(
+      'Application Default Credentials do not match the configured GCP orchestrator caller service account.',
+    );
+  }
+  const idTokenClient = await googleAuth.getIdTokenClient(audience);
+  const requestHeaders = await idTokenClient.getRequestHeaders(audience);
+  const authorization = requestHeaders.get('authorization')?.trim() || '';
+  const match = /^Bearer (\S+)$/.exec(authorization);
+  if (!match) {
+    throw new Error(
+      'Application Default Credentials did not provide a Google identity token.',
+    );
+  }
+  const payload = decodeIdentityTokenPayload(match[1]);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  if (
+    payload.aud !== audience ||
+    (payload.iss !== 'https://accounts.google.com' &&
+      payload.iss !== 'accounts.google.com') ||
+    typeof payload.email !== 'string' ||
+    payload.email.trim().toLowerCase() !== expectedEmail ||
+    payload.email_verified !== true ||
+    payload.sub !== expectedSubject ||
+    typeof payload.exp !== 'number' ||
+    payload.exp <= nowSeconds
+  ) {
+    throw new Error(
+      'Application Default Credentials returned an identity token for an unexpected caller or audience.',
+    );
+  }
+  return { Authorization: authorization };
+}
+
 async function publishGcpWorkflowLog(
   logTransport: LogTransport,
   params: {
@@ -118,11 +265,13 @@ async function publishGcpWorkflowLog(
   }
 }
 
-async function waitForOrchestratorServiceReady(
+export async function waitForOrchestratorServiceReady(
   serviceUri: string,
+  identityHeaders: Readonly<Record<string, string>>,
   logTransport: LogTransport,
   testId: string,
   workflowId?: string,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
   await publishGcpWorkflowLog(logTransport, {
     message: 'Waiting for Cloud Run orchestrator to become ready.',
@@ -134,7 +283,10 @@ async function waitForOrchestratorServiceReady(
 
   for (let attempt = 0; attempt < ORCHESTRATOR_HEALTH_MAX_ATTEMPTS; attempt++) {
     try {
-      const response = await fetch(`${serviceUri}/health`, { method: 'GET' });
+      const response = await fetchImpl(`${serviceUri}/health`, {
+        headers: identityHeaders,
+        method: 'GET',
+      });
       if (response.ok) {
         await publishGcpWorkflowLog(logTransport, {
           message: 'Cloud Run orchestrator is ready.',
@@ -167,52 +319,48 @@ async function waitForOrchestratorServiceReady(
   );
 }
 
-async function invokeOrchestratorService(
+export async function invokeOrchestratorService(
   serviceUri: string,
   requestBody: Record<string, any>,
-  logTransport: LogTransport,
-  testId: string,
-  workflowId?: string,
+  identityHeaders: Readonly<Record<string, string>>,
+  _logTransport: LogTransport,
+  _testId: string,
+  _workflowId?: string,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
-  let lastError = 'No invocation response.';
+  let response: Response;
 
-  for (let attempt = 0; attempt < ORCHESTRATOR_INVOKE_MAX_ATTEMPTS; attempt++) {
-    let response: Response;
-
-    try {
-      response = await fetch(`${serviceUri}/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-    } catch (error: any) {
-      throw new Error(
-        `Failed to execute orchestrator service: ${error?.message || 'Request failed'}`,
-      );
-    }
-
-    if (response.ok) {
-      return;
-    }
-
-    lastError = await readResponseDetails(response);
-    if (
-      !ORCHESTRATOR_RETRYABLE_STATUS_CODES.has(response.status) ||
-      attempt === ORCHESTRATOR_INVOKE_MAX_ATTEMPTS - 1
-    ) {
-      break;
-    }
-
-    const delayMs = getRetryDelayMs(attempt);
-    await publishGcpWorkflowLog(logTransport, {
-      message: `Cloud Run orchestrator invoke returned ${lastError}. Retrying in ${Math.round(delayMs / 1000)}s.`,
-      testId,
-      workflowId,
+  try {
+    response = await fetchImpl(`${serviceUri}/execute`, {
+      method: 'POST',
+      headers: {
+        ...identityHeaders,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
     });
-    await sleep(delayMs);
+  } catch (error: any) {
+    throw new AmbiguousOrchestratorInvocationError(
+      `Failed to execute orchestrator service: ${error?.message || 'Request failed'}`,
+    );
   }
 
-  throw new Error(`Failed to execute orchestrator service: ${lastError}`);
+  if (response.ok) {
+    return;
+  }
+
+  const details = await readResponseDetails(response);
+  if (
+    response.status === 408 ||
+    response.status === 429 ||
+    (response.status >= 500 && response.status <= 599)
+  ) {
+    throw new AmbiguousOrchestratorInvocationError(
+      `Cloud Run orchestrator returned ${details}. The invocation outcome is unknown and will not be retried automatically.`,
+    );
+  }
+
+  throw new Error(`Failed to execute orchestrator service: ${details}`);
 }
 
 export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
@@ -287,7 +435,9 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
-    const editorApiUrl = `${req.protocol}://${req.get('host')}`;
+    const editorApiUrl = normalizeGcpEditorApiOrigin(
+      process.env.PLAYRUNNER_PUBLIC_API_URL,
+    );
 
     this.state.gcpCredentials[testId] = {
       accessToken: gcp.accessToken,
@@ -306,6 +456,8 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
     });
 
     body.executionAuthToken = executionToken;
+    const eventAuthToken = createRunnerProtocolToken();
+    body.eventAuthToken = eventAuthToken;
 
     try {
       await this.logTransport.publish(
@@ -349,6 +501,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         await this.pubSubEventStreamManager.ensureGcpPubSubEventStream({
           creds: this.state.gcpCredentials[testId],
           emulatorHost: null,
+          eventAuthToken,
           executionId: testId,
           projectId: gcp.selectedProject,
         });
@@ -442,16 +595,34 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         refreshedToken,
         {
           cloudRunLocation: gcp.cloudRunLocation,
+          editorApiUrl,
+          orchestratorCallerServiceAccountEmail:
+            process.env
+              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL,
+          orchestratorCallerServiceAccountSubject:
+            process.env
+              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT,
           orchestratorCpuIdle: gcp.orchestratorCpuIdle,
           orchestratorImageUriTemplate: gcp.orchestratorImageUriTemplate,
           orchestratorMaxInstanceCount: gcp.orchestratorMaxInstanceCount,
           orchestratorMinInstanceCount: gcp.orchestratorMinInstanceCount,
+          orchestratorRuntimeServiceAccountEmail: `playrunner-orchestrator-runtime@${gcp.selectedProject}.iam.gserviceaccount.com`,
           orchestratorServiceName: gcp.orchestratorServiceName,
         },
       );
+      const identityHeaders = await createGcpOrchestratorIdentityHeaders({
+        audience: serviceUri,
+        callerServiceAccountEmail:
+          process.env
+            .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL || '',
+        callerServiceAccountSubject:
+          process.env
+            .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT || '',
+      });
 
       await waitForOrchestratorServiceReady(
         serviceUri,
+        identityHeaders,
         this.logTransport,
         testId,
         workflowId,
@@ -473,6 +644,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
           prewarmedPlaywrightRunners,
           testId,
         },
+        identityHeaders,
         this.logTransport,
         testId,
         workflowId,
@@ -504,30 +676,38 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
-      this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
-      const runnersToCancel =
-        Object.keys(prewarmedPlaywrightRunners).length > 0
-          ? prewarmedPlaywrightRunners
-          : prewarmPromise
-            ? await prewarmPromise.catch(() => ({}))
-            : {};
+      const invocationOutcomeUnknown =
+        isAmbiguousOrchestratorInvocationError(err);
+      const failurePolicy = gcpStartFailurePolicy(err);
+      if (failurePolicy.cleanupResources) {
+        this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
+        const runnersToCancel =
+          Object.keys(prewarmedPlaywrightRunners).length > 0
+            ? prewarmedPlaywrightRunners
+            : prewarmPromise
+              ? await prewarmPromise.catch(() => ({}))
+              : {};
 
-      if (Object.keys(runnersToCancel).length > 0) {
-        await cancelPrewarmedGcpPlaywrightRunners({
-          accessToken: refreshedToken,
-          runners: runnersToCancel,
-        });
+        if (Object.keys(runnersToCancel).length > 0) {
+          await cancelPrewarmedGcpPlaywrightRunners({
+            accessToken: refreshedToken,
+            runners: runnersToCancel,
+          });
+        }
       }
 
       try {
+        const failureDetails = boundedInvocationErrorMessage(err);
         await this.logTransport.publish(
           JSON.stringify({
             executionId: testId,
-            level: 'error',
-            message: `Failed to trigger Cloud Run Service: ${err.message}`,
+            level: invocationOutcomeUnknown ? 'warn' : 'error',
+            message: invocationOutcomeUnknown
+              ? `Cloud Run invocation outcome unknown: ${failureDetails}. No automatic retry was attempted; poll this execution for updates.`
+              : `Failed to trigger Cloud Run Service: ${failureDetails}`,
             testId,
             timestamp: new Date().toISOString(),
-            type: 'workflow_failed',
+            type: failurePolicy.eventType,
             workflowId,
           }),
         );
@@ -535,13 +715,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         // Ignore best-effort log transport failures.
       }
 
-      return {
-        body: {
-          error: `Failed to trigger Cloud Run Service: ${err.message}`,
-          testId,
-        },
-        status: 500,
-      };
+      return gcpStartFailureResult(err, testId);
     }
   }
 }

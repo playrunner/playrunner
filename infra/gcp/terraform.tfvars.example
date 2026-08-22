@@ -9,4 +9,5 @@ scheduler_service_account_id = "playrunner-scheduler"
 
 # Defaults used by Playrunner runtime and setup scripts.
 api_service_name           = "playrunner-api"
+api_service_account_id     = "playrunner-api"
 workflow_events_topic_name = "playrunner-workflow-events"

@@ -5,11 +5,16 @@ import prettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: ['dist', 'node_modules'],
+    basePath: '..',
+    ignores: ['**/dist', '**/node_modules'],
   },
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
+  { ...js.configs.recommended, basePath: '..' },
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    basePath: '..',
+  })),
   {
+    basePath: '..',
     files: ['**/*.ts'],
     languageOptions: {
       ecmaVersion: 2022,
@@ -31,5 +36,5 @@ export default [
       ],
     },
   },
-  prettier,
+  { ...prettier, basePath: '..' },
 ];

@@ -317,7 +317,13 @@ githubRouter.get('/repositories', async (req, res) => {
     const github = await createGithubApiClient(req);
     const { connection } = github;
     const configuredRepository = connection.config.repository;
+    const savedInstallationId = connection.config.installationId;
+    const hasSavedInstallationId =
+      (typeof savedInstallationId === 'string' &&
+        Boolean(savedInstallationId)) ||
+      typeof savedInstallationId === 'number';
     if (
+      !hasSavedInstallationId &&
       typeof configuredRepository === 'string' &&
       /^[^/]+\/[^/]+$/.test(configuredRepository)
     ) {
@@ -339,13 +345,9 @@ githubRouter.get('/repositories', async (req, res) => {
         });
       }
     }
-    const savedInstallationId = connection.config.installationId;
     let installationIds: string[] = [];
 
-    if (
-      (typeof savedInstallationId === 'string' && savedInstallationId) ||
-      typeof savedInstallationId === 'number'
-    ) {
+    if (hasSavedInstallationId) {
       installationIds = [String(savedInstallationId)];
     } else {
       const installations = await githubGetAllPages<{

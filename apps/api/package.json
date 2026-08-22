@@ -33,7 +33,7 @@
     "@google-cloud/storage": "^7.19.0",
     "@playrunner/environment": "0.1.5",
     "@playrunner/gcp": "file:../../packages/gcp",
-    "@playrunner/github": "0.2.1",
+    "@playrunner/github": "file:../../packages/github",
     "@playrunner/integration-sdk": "0.1.4",
     "@playrunner/javascript": "^0.1.0",
     "@playrunner/jira": "^0.1.2",

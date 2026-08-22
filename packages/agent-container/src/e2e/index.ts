@@ -21,6 +21,16 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           page.getByTestId('agent-container-tab-resources'),
         ).toBeVisible();
+        const maxDuration = page.getByTestId(
+          'agent-container-max-duration-minutes',
+        );
+        await expect(maxDuration).toHaveValue('30');
+        await expect(maxDuration).toHaveAttribute('min', '1');
+        await expect(maxDuration).toHaveAttribute('max', '45');
+        const attempts = page.getByTestId('agent-container-attempts');
+        await expect(attempts).toHaveValue('3');
+        await expect(attempts).toHaveAttribute('min', '1');
+        await expect(attempts).toHaveAttribute('max', '10');
         await page
           .getByTestId('agent-container-task')
           .fill('Test checkout behavior');
@@ -28,6 +38,11 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(repository).toBeEnabled();
         await expect(repository).toContainText('playrunner/e2e-fixture');
         await repository.selectOption('playrunner/e2e-fixture');
+
+        const botPrFork = page.getByTestId('agent-container-bot-pr-fork');
+        await expect(botPrFork).toBeEnabled();
+        await expect(botPrFork).toContainText('playrunner-bot/e2e-fixture');
+        await botPrFork.selectOption('playrunner-bot/e2e-fixture');
 
         const branch = page.getByTestId('agent-container-branch');
         await expect(branch).toBeEnabled();
@@ -43,9 +58,39 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           page.getByTestId('agent-container-repository'),
         ).toHaveValue('playrunner/e2e-fixture');
+        await expect(
+          page.getByTestId('agent-container-bot-pr-fork'),
+        ).toHaveValue('playrunner-bot/e2e-fixture');
         await expect(page.getByTestId('agent-container-branch')).toHaveValue(
           'main',
         );
+        await expect(
+          page.getByTestId('agent-container-max-duration-minutes'),
+        ).toHaveValue('30');
+
+        await page
+          .getByTestId('agent-container-max-duration-minutes')
+          .fill('90');
+        await expect(
+          page.getByTestId('agent-container-max-duration-minutes'),
+        ).toHaveValue('45');
+        await host.closeNodeSettings();
+        await host.saveWorkflow();
+        await host.reloadWorkflow();
+        await host.openNodeSettings('agent-container');
+        await expect(
+          page.getByTestId('agent-container-max-duration-minutes'),
+        ).toHaveValue('45');
+        await page.getByTestId('agent-container-attempts').fill('0');
+        await expect(page.getByTestId('agent-container-attempts')).toHaveValue(
+          '1',
+        );
+        await page
+          .getByTestId('agent-container-max-duration-minutes')
+          .fill('0');
+        await expect(
+          page.getByTestId('agent-container-max-duration-minutes'),
+        ).toHaveValue('1');
 
         await page.getByTestId('agent-container-tab-env').click();
         await expect(

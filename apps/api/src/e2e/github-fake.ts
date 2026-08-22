@@ -2,6 +2,7 @@ import http from 'node:http';
 
 const port = Number(process.env.PLAYRUNNER_E2E_GITHUB_FAKE_PORT ?? 4010);
 const repository = 'playrunner/e2e-fixture';
+const forkRepository = 'playrunner-bot/e2e-fixture';
 let nextIssueNumber = 1;
 const issues: Array<Record<string, unknown>> = [];
 
@@ -33,7 +34,10 @@ const server = http.createServer(async (request, response) => {
     url.pathname === '/user/installations/1/repositories'
   ) {
     sendJson(response, 200, {
-      repositories: [{ full_name: repository, id: 1 }],
+      repositories: [
+        { full_name: repository, id: 1 },
+        { full_name: forkRepository, id: 2 },
+      ],
     });
     return;
   }

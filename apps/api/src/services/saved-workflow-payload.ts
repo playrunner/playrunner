@@ -8,6 +8,7 @@ type SavedWorkflow = {
 };
 
 export function buildSavedWorkflowExecutionBody(params: {
+  agentMemoryByNodeId?: Record<string, unknown>;
   body?: Record<string, unknown>;
   executionId: string;
   triggerData: Record<string, unknown>;
@@ -15,8 +16,18 @@ export function buildSavedWorkflowExecutionBody(params: {
   workflow: SavedWorkflow;
 }) {
   const cloudProvider = params.workflow.cloudProvider || 'LOCAL_RUNNER';
+  const trustedBody = Object.fromEntries(
+    Object.entries(params.body ?? {}).filter(
+      ([key]) =>
+        key !== 'agentMemoryByNodeId' &&
+        (key !== 'ci' || params.triggerName === 'ci'),
+    ),
+  );
   return {
-    ...params.body,
+    ...trustedBody,
+    ...(params.triggerName === 'ci' && params.agentMemoryByNodeId
+      ? { agentMemoryByNodeId: params.agentMemoryByNodeId }
+      : {}),
     cloudProvider,
     concurrency: params.workflow.concurrency ?? undefined,
     connections: params.workflow.connections ?? [],

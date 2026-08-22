@@ -8,6 +8,7 @@ const REQUIRED_SERVICES = [
   'cloudscheduler.googleapis.com',
   'cloudresourcemanager.googleapis.com',
   'iam.googleapis.com',
+  'iamcredentials.googleapis.com',
   'pubsub.googleapis.com',
   'run.googleapis.com',
   'serviceusage.googleapis.com',
@@ -19,6 +20,7 @@ const SERVICE_LABELS: Record<(typeof REQUIRED_SERVICES)[number], string> = {
   'cloudscheduler.googleapis.com': 'Cloud Scheduler API',
   'cloudresourcemanager.googleapis.com': 'Cloud Resource Manager API',
   'iam.googleapis.com': 'Identity and Access Management API',
+  'iamcredentials.googleapis.com': 'IAM Service Account Credentials API',
   'pubsub.googleapis.com': 'Pub/Sub API',
   'run.googleapis.com': 'Cloud Run Admin API',
   'serviceusage.googleapis.com': 'Service Usage API',
@@ -26,6 +28,10 @@ const SERVICE_LABELS: Record<(typeof REQUIRED_SERVICES)[number], string> = {
 };
 
 const REPOSITORIES = [
+  {
+    description: 'Playrunner AI agent runner images',
+    id: 'agent-runner',
+  },
   {
     description: 'Playrunner orchestrator runner images',
     id: 'orchestrator',
@@ -39,6 +45,10 @@ const REPOSITORIES = [
 const PROJECT_ID_PATTERN = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 const REGION_PATTERN = /^[a-z][a-z0-9-]{1,62}$/;
 const SERVICE_ACCOUNT_ID = 'playrunner-scheduler';
+const AGENT_SERVICE_ACCOUNT_ID = 'playrunner-agent-runner';
+const AGENT_CONTROL_SERVICE_ACCOUNT_ID = 'playrunner-agent-control';
+const ORCHESTRATOR_RUNTIME_SERVICE_ACCOUNT_ID =
+  'playrunner-orchestrator-runtime';
 const TOPIC_NAME = 'playrunner-workflow-events';
 
 type GoogleOperation = {
@@ -66,6 +76,8 @@ export type GcpProvisioningStep = {
     | 'repositories'
     | 'pubsub'
     | 'scheduler'
+    | 'agent'
+    | 'orchestrator'
     | 'images';
   label: string;
   items?: GcpProvisioningStepItem[];
@@ -316,6 +328,207 @@ async function ensureSchedulerServiceAccount(
   return 'created';
 }
 
+async function ensureAgentServiceAccount(
+  projectId: string,
+  accessToken: string,
+): Promise<'created' | 'existing'> {
+  const email = `${AGENT_SERVICE_ACCOUNT_ID}@${projectId}.iam.gserviceaccount.com`;
+  const getUrl = `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts/${email}`;
+  const existing = await fetch(getUrl, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+  if (existing.ok) return 'existing';
+  if (existing.status !== 404) {
+    await readGoogleResponse(
+      existing,
+      'Failed to inspect AI Container runner service account',
+    );
+  }
+
+  const response = await fetch(
+    `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts`,
+    {
+      body: JSON.stringify(createAgentServiceAccountRequest()),
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    },
+  );
+  if (response.status === 409) return 'existing';
+  await readGoogleResponse(
+    response,
+    'Failed to create AI Container runner account',
+  );
+  return 'created';
+}
+
+async function ensureServiceAccount(args: {
+  accessToken: string;
+  accountId: string;
+  description: string;
+  displayName: string;
+  projectId: string;
+}): Promise<'created' | 'existing'> {
+  const email = `${args.accountId}@${args.projectId}.iam.gserviceaccount.com`;
+  const resourceUrl = `https://iam.googleapis.com/v1/projects/${args.projectId}/serviceAccounts/${email}`;
+  const existing = await fetch(resourceUrl, {
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${args.accessToken}`,
+    },
+  });
+  if (existing.ok) return 'existing';
+  if (existing.status !== 404) {
+    await readGoogleResponse(existing, `Failed to inspect ${args.displayName}`);
+  }
+  const response = await fetch(
+    `https://iam.googleapis.com/v1/projects/${args.projectId}/serviceAccounts`,
+    {
+      body: JSON.stringify({
+        accountId: args.accountId,
+        serviceAccount: {
+          description: args.description,
+          displayName: args.displayName,
+        },
+      }),
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${args.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    },
+  );
+  if (response.status === 409) return 'existing';
+  await readGoogleResponse(response, `Failed to create ${args.displayName}`);
+  return 'created';
+}
+
+type IamPolicy = {
+  bindings?: Array<{
+    condition?: unknown;
+    members?: string[];
+    role?: string;
+  }>;
+  etag?: string;
+  version?: number;
+};
+
+export function withAgentControlTokenCreator(
+  policy: IamPolicy | null | undefined,
+  orchestratorRuntimeEmail: string,
+): IamPolicy {
+  const member = `serviceAccount:${orchestratorRuntimeEmail}`;
+  const bindings = (policy?.bindings || [])
+    .map((binding) => ({
+      ...binding,
+      members: (binding.members || []).filter(
+        (candidate) =>
+          candidate !== 'allUsers' &&
+          candidate !== 'allAuthenticatedUsers' &&
+          candidate !== member,
+      ),
+    }))
+    .filter((binding) => binding.members.length > 0);
+  let tokenCreators = bindings.find(
+    (binding) =>
+      binding.role === 'roles/iam.serviceAccountTokenCreator' &&
+      binding.condition === undefined,
+  );
+  if (!tokenCreators) {
+    tokenCreators = {
+      members: [],
+      role: 'roles/iam.serviceAccountTokenCreator',
+    };
+    bindings.push(tokenCreators);
+  }
+  tokenCreators.members = Array.from(
+    new Set([...(tokenCreators.members || []), member]),
+  );
+  return { ...(policy || {}), bindings };
+}
+
+async function ensureAgentControlIdentities(
+  projectId: string,
+  accessToken: string,
+): Promise<{
+  control: 'created' | 'existing';
+  controlEmail: string;
+  runtime: 'created' | 'existing';
+  runtimeEmail: string;
+}> {
+  const runtimeEmail = `${ORCHESTRATOR_RUNTIME_SERVICE_ACCOUNT_ID}@${projectId}.iam.gserviceaccount.com`;
+  const controlEmail = `${AGENT_CONTROL_SERVICE_ACCOUNT_ID}@${projectId}.iam.gserviceaccount.com`;
+  const [runtime, control] = await Promise.all([
+    ensureServiceAccount({
+      accessToken,
+      accountId: ORCHESTRATOR_RUNTIME_SERVICE_ACCOUNT_ID,
+      description:
+        'Roleless runtime identity for the Playrunner orchestrator Cloud Run service.',
+      displayName: 'Playrunner Orchestrator Runtime',
+      projectId,
+    }),
+    ensureServiceAccount({
+      accessToken,
+      accountId: AGENT_CONTROL_SERVICE_ACCOUNT_ID,
+      description:
+        'Short-lived Pub/Sub control identity for Playrunner AI Container jobs. It is never assigned as the job runtime identity.',
+      displayName: 'Playrunner AI Container Control',
+      projectId,
+    }),
+  ]);
+  const policyUrl = `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts/${controlEmail}`;
+  const currentPolicy = await googleRequest<IamPolicy>(
+    `${policyUrl}:getIamPolicy`,
+    accessToken,
+    {
+      body: JSON.stringify({ options: { requestedPolicyVersion: 3 } }),
+      method: 'POST',
+    },
+  );
+  const updatedPolicy = await googleRequest<IamPolicy>(
+    `${policyUrl}:setIamPolicy`,
+    accessToken,
+    {
+      body: JSON.stringify({
+        policy: withAgentControlTokenCreator(currentPolicy, runtimeEmail),
+      }),
+      method: 'POST',
+    },
+  );
+  const runtimeMember = `serviceAccount:${runtimeEmail}`;
+  const runtimeBindings = (updatedPolicy.bindings || []).filter((binding) =>
+    (binding.members || []).includes(runtimeMember),
+  );
+  if (
+    runtimeBindings.length !== 1 ||
+    runtimeBindings[0].role !== 'roles/iam.serviceAccountTokenCreator' ||
+    runtimeBindings[0].condition !== undefined
+  ) {
+    throw new Error(
+      'IAM did not apply the exact Agent control token-creator binding.',
+    );
+  }
+  return { control, controlEmail, runtime, runtimeEmail };
+}
+
+export function createAgentServiceAccountRequest(): Record<string, unknown> {
+  return {
+    accountId: AGENT_SERVICE_ACCOUNT_ID,
+    serviceAccount: {
+      description:
+        'Dedicated runtime identity for isolated Playrunner AI Container Cloud Run jobs. Playrunner does not add IAM role bindings.',
+      displayName: 'Playrunner AI Container Runner',
+    },
+  };
+}
+
 type ArtifactRegistryImage = {
   name?: string;
   tags?: string[];
@@ -393,6 +606,7 @@ function imageHasTags(
 }
 
 async function expectedRunnerImages(args: {
+  agentImageUriTemplate: string;
   basePath?: string;
   orchestratorImageUriTemplate: string;
   playwrightImageUriTemplate: string;
@@ -407,12 +621,26 @@ async function expectedRunnerImages(args: {
     basePath: args.basePath || '.',
     repoRoot,
   });
+  const agentReference = replaceTemplate(args.agentImageUriTemplate, {
+    projectId: args.projectId,
+  });
+  const agentImageName = imageNameFromReference(agentReference);
   const orchestratorReference = replaceTemplate(
     args.orchestratorImageUriTemplate,
     { projectId: args.projectId },
   );
   const orchestratorImageName = imageNameFromReference(orchestratorReference);
   const expected = [
+    {
+      fingerprint: fingerprints.agent.fingerprint,
+      label: 'Agent',
+      repositoryId: 'agent-runner',
+      requiredTags: [
+        agentReference,
+        `${agentImageName}:build-${fingerprints.agent.fingerprint}`,
+      ],
+      value: agentReference,
+    },
     {
       fingerprint: fingerprints.orchestrator.fingerprint,
       label: 'Orchestrator',
@@ -495,6 +723,7 @@ function imageFreshnessItem(
 
 export async function provisionGcpCloudRunners(args: {
   accessToken: string;
+  agentImageUriTemplate?: string;
   basePath?: string;
   orchestratorImageUriTemplate?: string;
   playwrightImageUriTemplate?: string;
@@ -507,6 +736,9 @@ export async function provisionGcpCloudRunners(args: {
   const permissionItems: GcpProvisioningStepItem[] = [];
   const imageCommand =
     './infra/gcp/scripts/push-runners.sh --target both --yes';
+  const agentImageUriTemplate =
+    args.agentImageUriTemplate?.trim() ||
+    `${region}-docker.pkg.dev/{projectId}/agent-runner/playrunner-agent-runner:latest`;
   const orchestratorImageUriTemplate =
     args.orchestratorImageUriTemplate?.trim() ||
     `${region}-docker.pkg.dev/{projectId}/orchestrator/playrunner-orchestrator:latest`;
@@ -587,13 +819,84 @@ export async function provisionGcpCloudRunners(args: {
       completeStep(
         'repositories',
         'Artifact Registry',
-        'Orchestrator and Playwright repositories are ready.',
+        'Agent, Orchestrator, and Playwright repositories are ready.',
         REPOSITORIES.map((repository) => ({
           detail: repository.description,
           label: repository.id,
           state: 'complete',
           value: `projects/${projectId}/locations/${region}/repositories/${repository.id}`,
         })),
+      ),
+    );
+
+    activeStep = { id: 'agent', label: 'AI Container identity' };
+    const agentIdentityResult = await ensureAgentServiceAccount(
+      projectId,
+      args.accessToken,
+    );
+    const agentServiceAccountEmail = `${AGENT_SERVICE_ACCOUNT_ID}@${projectId}.iam.gserviceaccount.com`;
+    permissionItems.push({
+      detail:
+        agentIdentityResult === 'created'
+          ? 'Created a dedicated runtime identity without adding IAM role bindings.'
+          : 'Read the dedicated runtime identity; Playrunner does not add IAM role bindings.',
+      label: 'AI Container service account access',
+      state: 'complete',
+      value: agentServiceAccountEmail,
+    });
+    steps.push(
+      completeStep(
+        'agent',
+        'AI Container identity',
+        `${agentServiceAccountEmail} is ready. Playrunner grants it no project roles.`,
+        [
+          {
+            detail:
+              'Cloud Run uses this dedicated identity for generated code. Playrunner adds no role bindings; runner control uses a separate short-lived scoped identity and artifact access uses the execution-authenticated API. User-managed IAM grants remain the project owner’s responsibility.',
+            label: 'Playrunner AI Container Runner',
+            state: 'complete',
+            value: agentServiceAccountEmail,
+          },
+        ],
+      ),
+    );
+
+    activeStep = {
+      id: 'orchestrator',
+      label: 'Private orchestration identities',
+    };
+    const orchestrationIdentities = await ensureAgentControlIdentities(
+      projectId,
+      args.accessToken,
+    );
+    permissionItems.push({
+      detail:
+        'Reconciled the roleless orchestrator runtime identity and its permission to mint short-lived tokens for the separate AI control identity.',
+      label: 'Orchestrator identity access',
+      state: 'complete',
+      value: orchestrationIdentities.runtimeEmail,
+    });
+    steps.push(
+      completeStep(
+        'orchestrator',
+        'Private orchestration identities',
+        'Dedicated runtime and short-lived AI control identities are ready.',
+        [
+          {
+            detail:
+              'Runs the orchestrator without project-level roles. It can mint tokens only for the dedicated AI control identity.',
+            label: 'Orchestrator runtime',
+            state: 'complete',
+            value: orchestrationIdentities.runtimeEmail,
+          },
+          {
+            detail:
+              'Never runs generated code. At execution time Playrunner grants it only topic publisher and that execution’s control-subscription subscriber access; inherited user-managed grants remain the project owner’s responsibility.',
+            label: 'AI Container control',
+            state: 'complete',
+            value: orchestrationIdentities.controlEmail,
+          },
+        ],
       ),
     );
 
@@ -669,13 +972,14 @@ export async function provisionGcpCloudRunners(args: {
     );
     permissionItems.push({
       detail:
-        'Listed Docker images in both runner repositories through Artifact Registry.',
+        'Listed Docker images in all runner repositories through Artifact Registry.',
       label: 'Runner image access',
       state: 'complete',
       value: `projects/${projectId}/locations/${region}`,
     });
 
     const expectedImages = await expectedRunnerImages({
+      agentImageUriTemplate,
       basePath: args.basePath,
       orchestratorImageUriTemplate,
       playwrightImageUriTemplate,

@@ -101,3 +101,77 @@ test('extracts model-ready failure data and artifact URLs', () => {
     fs.rmSync(workingDir, { force: true, recursive: true });
   }
 });
+
+test('bounds adversarial report summaries below the runner protocol budget', () => {
+  const workingDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'playrunner-report-bounded-'),
+  );
+  const reportPath = path.join(workingDir, 'playwright-report', 'report.json');
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  const largeMessage = 'x'.repeat(10_000);
+  fs.writeFileSync(
+    reportPath,
+    JSON.stringify({
+      suites: [
+        {
+          specs: Array.from({ length: 100 }, (_, index) => ({
+            title: `failure ${index}`,
+            tests: [
+              {
+                projectName: 'chromium',
+                results: [
+                  {
+                    errors: [{ message: largeMessage }],
+                    status: 'failed',
+                    stderr: [largeMessage],
+                    stdout: [largeMessage],
+                    steps: [{ title: largeMessage }],
+                  },
+                ],
+              },
+            ],
+          })),
+        },
+      ],
+    }),
+  );
+
+  try {
+    const report = readPlaywrightReportData({
+      nodeId: 'node-1',
+      reportPath,
+      testId: 'execution-1',
+      workingDir,
+    });
+    assert.ok(report);
+    assert.equal(report.truncation.failuresFound, 100);
+    assert.equal(report.truncation.truncated, true);
+    assert.ok(report.failures.length <= 25);
+    assert.ok(Buffer.byteLength(JSON.stringify(report), 'utf8') <= 1024 * 1024);
+  } finally {
+    fs.rmSync(workingDir, { force: true, recursive: true });
+  }
+});
+
+test('does not read an oversized report file into memory', () => {
+  const workingDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'playrunner-report-oversized-'),
+  );
+  const reportPath = path.join(workingDir, 'playwright-report', 'report.json');
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, '{}');
+  fs.truncateSync(reportPath, 16 * 1024 * 1024 + 1);
+
+  try {
+    const report = readPlaywrightReportData({
+      nodeId: 'node-1',
+      reportPath,
+      testId: 'execution-1',
+      workingDir,
+    });
+    assert.equal(report?.truncation.reportFileTooLarge, true);
+    assert.equal(report?.truncation.truncated, true);
+  } finally {
+    fs.rmSync(workingDir, { force: true, recursive: true });
+  }
+});

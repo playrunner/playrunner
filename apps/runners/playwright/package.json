@@ -2,13 +2,13 @@
   "name": "playrunner-playwright-runner",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "dist/playwright/src/index.js",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "cd .. && playwright/node_modules/.bin/eslint --config playwright/eslint.config.mjs playwright shared",
+    "lint:fix": "cd .. && playwright/node_modules/.bin/eslint --config playwright/eslint.config.mjs playwright shared --fix",
+    "format": "prettier --config .prettierrc.json --write . ../shared",
+    "format:check": "prettier --config .prettierrc.json --check . ../shared",
     "test": "node --require ts-node/register --test src/**/*.test.ts"
   },
   "keywords": [],

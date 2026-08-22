@@ -8,7 +8,9 @@ async function main() {
     configPath && fs.existsSync(configPath)
       ? JSON.parse(fs.readFileSync(configPath, 'utf8'))
       : {};
-  const result = await validatePlaywrightTests(process.cwd(), config);
+  const result = await validatePlaywrightTests(process.cwd(), config, {
+    authoritative: true,
+  });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.passed ? 0 : 1;
 }

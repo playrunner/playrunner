@@ -620,9 +620,11 @@ describe('package orchestrator integration', { concurrency: false }, () => {
 
     test('renders output and workflow diagnostics into downstream node templates', async () => {
       const previousPubSubEmulator = process.env.PUBSUB_EMULATOR_HOST;
+      const previousEditorApiUrl = process.env.EDITOR_API_URL;
       const openAIRequests: Record<string, unknown>[] = [];
 
       process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
+      process.env.EDITOR_API_URL = 'https://editor.test';
       globalThis.fetch = async (input, init) => {
         if (
           String(input) ===
@@ -719,6 +721,11 @@ describe('package orchestrator integration', { concurrency: false }, () => {
           delete process.env.PUBSUB_EMULATOR_HOST;
         } else {
           process.env.PUBSUB_EMULATOR_HOST = previousPubSubEmulator;
+        }
+        if (previousEditorApiUrl === undefined) {
+          delete process.env.EDITOR_API_URL;
+        } else {
+          process.env.EDITOR_API_URL = previousEditorApiUrl;
         }
       }
 

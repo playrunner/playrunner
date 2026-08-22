@@ -82,24 +82,27 @@ node infra/scripts/playwright-runner-config.mjs json
 docker build \
   --platform linux/amd64 \
   -f ./apps/runners/playwright/Dockerfile.typescript \
-  --build-arg PLAYWRIGHT_VERSION=v1.59.0-jammy \
+  --build-arg PLAYWRIGHT_VERSION=v1.62.1-jammy \
+  --build-arg PLAYWRIGHT_NPM_VERSION=1.62.1 \
   -t playrunner-playwright-runner-typescript:latest \
-  -t playrunner-playwright-runner-typescript:v1.59.0-jammy \
-  ./apps/runners/playwright
+  -t playrunner-playwright-runner-typescript:v1.62.1-jammy \
+  ./apps/runners
 
 docker build \
   --platform linux/amd64 \
   -f ./apps/runners/playwright/Dockerfile.python \
-  --build-arg PLAYWRIGHT_VERSION=v1.59.0-jammy \
+  --build-arg PLAYWRIGHT_VERSION=v1.62.1-jammy \
+  --build-arg PLAYWRIGHT_NPM_VERSION=1.62.1 \
+  --build-arg PYTHON_PLAYWRIGHT_VERSION=1.62.0 \
   -t playrunner-playwright-runner-python:latest \
-  -t playrunner-playwright-runner-python:v1.59.0-jammy \
-  ./apps/runners/playwright
+  -t playrunner-playwright-runner-python:v1.62.1-jammy \
+  ./apps/runners
 ```
 
 `start-local.sh`, `infra/gcp/scripts/push-runners.sh`, and the Playwright settings modal all read from `config/playwright-runner-versions.json`.
 
 **Base image:** `mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}`  
-**Entry point:** `node dist/index.js`
+**Entry point:** `node dist/playwright/src/index.js`
 
 ---
 

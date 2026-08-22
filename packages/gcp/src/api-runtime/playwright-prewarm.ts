@@ -1,6 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { LogTransport } from './contracts';
 import type { GcpPubSubEventTransport } from './gcp-pubsub-events';
+import {
+  createRunnerProtocolToken,
+  withRunnerProtocolSignature,
+} from './runner-protocol';
 
 type CloudRunOperation = {
   done?: boolean;
@@ -32,8 +36,15 @@ type CloudRunJob = {
           startupCpuBoost?: boolean;
         };
       }>;
+      timeout?: string;
     };
   };
+};
+
+type PubSubSubscription = {
+  enableMessageOrdering?: boolean;
+  filter?: string;
+  topic?: string;
 };
 
 type WorkflowNodeState =
@@ -46,11 +57,13 @@ type WorkflowNodeState =
 
 export type PrewarmedGcpPlaywrightRunner = {
   controlSubscriptionName: string;
+  eventSubscriptionName: string;
   executionId: string;
   executionName?: string;
   jobPath: string;
   nodeId: string;
   projectId: string;
+  protocolToken: string;
   runRequestedAt: number;
   resultSubscriptionName: string;
   statusSubscriptionName: string;
@@ -68,9 +81,14 @@ const RETRY_BASE_DELAY_MS = 1000;
 const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const RUNNER_CONTROL_ACK_DEADLINE_SECONDS = 60;
 const RUNNER_CONTROL_RETENTION_SECONDS = 24 * 60 * 60;
+const PLAYWRIGHT_TASK_TIMEOUT = '90000s';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function sanitizePubSubId(value: string, fallback: string): string {
@@ -193,6 +211,16 @@ function getRunnerResultSubscriptionName(args: {
   );
 }
 
+function getRunnerEventSubscriptionName(args: {
+  executionId: string;
+  nodeId: string;
+}) {
+  return sanitizePubSubId(
+    `playrunner-runner-event-${args.executionId}-${args.nodeId}`,
+    `playrunner-runner-event-${Date.now()}`,
+  );
+}
+
 function getExecutionCreateTime(execution: CloudRunExecution): number {
   const timestamp =
     execution.createTime || execution.metadata?.creationTimestamp || '';
@@ -224,6 +252,43 @@ function collectGlobalEnvVars(
   }
 
   return globalEnvVars;
+}
+
+function selectPlaywrightEnvironment(
+  keys: readonly unknown[],
+  values: Record<string, string>,
+): Record<string, string> {
+  const selected: Record<string, string> = {};
+  let totalBytes = 0;
+  for (const key of new Set(keys)) {
+    if (typeof key !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(
+        `Playwright Environment variable name is invalid: ${String(key)}`,
+      );
+    }
+    if (
+      /^(?:CODEX_HOME|DOCKER_.+|GCP_PROJECT|HOME|NODE_OPTIONS|PATH|PAYLOAD|PLAYRUNNER_.+|PUBSUB_EMULATOR_HOST)$/i.test(
+        key,
+      )
+    ) {
+      throw new Error(
+        `Playwright Environment variable name is reserved: ${key}`,
+      );
+    }
+    const value = values[key] || '';
+    const valueBytes = Buffer.byteLength(value, 'utf8');
+    if (valueBytes > 64 * 1024) {
+      throw new Error(
+        `Playwright Environment variable ${key} exceeds 65536 UTF-8 bytes.`,
+      );
+    }
+    totalBytes += Buffer.byteLength(key, 'utf8') + valueBytes + 2;
+    if (totalBytes > 512 * 1024 || Object.keys(selected).length >= 100) {
+      throw new Error('Playwright Environment exceeds execution limits.');
+    }
+    selected[key] = value;
+  }
+  return selected;
 }
 
 async function cloudRunRequest<T>(
@@ -465,6 +530,7 @@ async function ensureRunnerSubscription(args: {
       {
         body: JSON.stringify({
           ackDeadlineSeconds: RUNNER_CONTROL_ACK_DEADLINE_SECONDS,
+          enableMessageOrdering: true,
           expirationPolicy: {
             ttl: `${RUNNER_CONTROL_RETENTION_SECONDS}s`,
           },
@@ -478,6 +544,21 @@ async function ensureRunnerSubscription(args: {
   } catch (error: any) {
     if (!error.message?.includes('Pub/Sub API returned 409')) {
       throw error;
+    }
+    const existing = await pubSubRequest<PubSubSubscription>(
+      `projects/${args.projectId}/subscriptions/${args.subscriptionName}`,
+      args.accessToken,
+      { method: 'GET' },
+    );
+    if (
+      existing.topic !==
+        `projects/${args.projectId}/topics/${args.topicName}` ||
+      existing.filter !== args.filter ||
+      existing.enableMessageOrdering !== true
+    ) {
+      throw new Error(
+        `Existing runner subscription ${args.subscriptionName} has an incompatible topic or filter.`,
+      );
     }
   }
 }
@@ -506,18 +587,22 @@ async function publishRunnerControlMessage(args: {
   executionId: string;
   nodeId: string;
   projectId: string;
+  protocolToken: string;
   topicName: string;
 }) {
   const eventId = randomUUID();
-  const payload = {
-    action: args.action,
-    eventId,
-    executionId: args.executionId,
-    nodeId: args.nodeId,
-    testId: args.executionId,
-    timestamp: new Date().toISOString(),
-    type: 'runner_control',
-  };
+  const payload = withRunnerProtocolSignature(
+    {
+      action: args.action,
+      eventId,
+      executionId: args.executionId,
+      nodeId: args.nodeId,
+      testId: args.executionId,
+      timestamp: new Date().toISOString(),
+      type: 'runner_control',
+    },
+    args.protocolToken,
+  );
 
   await pubSubRequest(
     `projects/${args.projectId}/topics/${args.topicName}:publish`,
@@ -548,6 +633,7 @@ async function publishRunnerControlMessage(args: {
 async function ensureRunnerControlSubscriptions(args: {
   accessToken: string;
   controlSubscriptionName: string;
+  eventSubscriptionName: string;
   executionId: string;
   nodeId: string;
   projectId: string;
@@ -555,29 +641,46 @@ async function ensureRunnerControlSubscriptions(args: {
   statusSubscriptionName: string;
   topicName: string;
 }) {
-  await Promise.all([
-    ensureRunnerSubscription({
-      accessToken: args.accessToken,
+  const subscriptions = [
+    {
       filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_control"`,
-      projectId: args.projectId,
       subscriptionName: args.controlSubscriptionName,
-      topicName: args.topicName,
-    }),
-    ensureRunnerSubscription({
-      accessToken: args.accessToken,
+    },
+    {
       filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_status"`,
-      projectId: args.projectId,
       subscriptionName: args.statusSubscriptionName,
-      topicName: args.topicName,
-    }),
-    ensureRunnerSubscription({
-      accessToken: args.accessToken,
+    },
+    {
       filter: `attributes.executionId = "${args.executionId}" AND attributes.nodeId = "${args.nodeId}" AND attributes.messageKind = "runner_result"`,
-      projectId: args.projectId,
       subscriptionName: args.resultSubscriptionName,
-      topicName: args.topicName,
-    }),
-  ]);
+    },
+    {
+      filter: `attributes.executionId = "${args.executionId}" AND attributes.runnerNodeId = "${args.nodeId}" AND attributes.messageKind = "runner_event"`,
+      subscriptionName: args.eventSubscriptionName,
+    },
+  ];
+  try {
+    for (const subscription of subscriptions) {
+      await ensureRunnerSubscription({
+        accessToken: args.accessToken,
+        filter: subscription.filter,
+        projectId: args.projectId,
+        subscriptionName: subscription.subscriptionName,
+        topicName: args.topicName,
+      });
+    }
+  } catch (error) {
+    await Promise.allSettled(
+      subscriptions.map((subscription) =>
+        deleteRunnerSubscription({
+          accessToken: args.accessToken,
+          projectId: args.projectId,
+          subscriptionName: subscription.subscriptionName,
+        }),
+      ),
+    );
+    throw error;
+  }
 }
 
 async function ensurePlaywrightJob(args: {
@@ -601,7 +704,8 @@ async function ensurePlaywrightJob(args: {
     const hasRequestedTemplate =
       container?.image === args.imageUri &&
       limits.cpu === `${args.cpu}` &&
-      limits.memory === `${args.memory}Gi`;
+      limits.memory === `${args.memory}Gi` &&
+      existingJob.template?.template?.timeout === PLAYWRIGHT_TASK_TIMEOUT;
 
     if (hasRequestedTemplate) {
       return jobPath;
@@ -630,6 +734,7 @@ async function ensurePlaywrightJob(args: {
                 },
               ],
               maxRetries: 0,
+              timeout: PLAYWRIGHT_TASK_TIMEOUT,
             },
           },
         }),
@@ -661,6 +766,7 @@ async function ensurePlaywrightJob(args: {
               },
             ],
             maxRetries: 0,
+            timeout: PLAYWRIGHT_TASK_TIMEOUT,
           },
         },
       }),
@@ -674,8 +780,6 @@ async function ensurePlaywrightJob(args: {
 async function startPlaywrightJob(args: {
   accessToken: string;
   cpu: number;
-  envKeys: string[];
-  globalEnvVars: Record<string, string>;
   imageUri: string;
   jobName: string;
   location: string;
@@ -693,10 +797,6 @@ async function startPlaywrightJob(args: {
     { name: 'PAYLOAD', value: JSON.stringify(args.payloadData) },
     { name: 'GCP_PROJECT', value: args.projectId },
     { name: 'PLAYWRIGHT_WORKERS', value: String(args.workers) },
-    ...args.envKeys.map((key) => ({
-      name: key,
-      value: args.globalEnvVars[key] || '',
-    })),
   ];
 
   const runRequestedAt = Date.now();
@@ -744,6 +844,10 @@ async function prewarmPlaywrightNode(args: {
   const envKeys = Array.isArray(config.envVars) ? config.envVars : [];
   const playwrightVersion = config.playwrightVersion || 'latest';
   const gcpSettings = args.body.settings?.gcp || {};
+  const selectedEnvironment = selectPlaywrightEnvironment(
+    envKeys,
+    args.globalEnvVars,
+  );
   const controlSubscriptionName = getRunnerControlSubscriptionName({
     executionId: args.testId,
     nodeId: args.node.id,
@@ -756,9 +860,15 @@ async function prewarmPlaywrightNode(args: {
     executionId: args.testId,
     nodeId: args.node.id,
   });
+  const eventSubscriptionName = getRunnerEventSubscriptionName({
+    executionId: args.testId,
+    nodeId: args.node.id,
+  });
+  const protocolToken = createRunnerProtocolToken();
   const runnerControl = {
     controlSubscriptionName,
     projectId: args.projectId,
+    protocolToken,
     topicName: args.eventTransport.topicName,
     type: 'gcp_pubsub' as const,
   };
@@ -778,6 +888,7 @@ async function prewarmPlaywrightNode(args: {
   await ensureRunnerControlSubscriptions({
     accessToken: args.accessToken,
     controlSubscriptionName,
+    eventSubscriptionName,
     executionId: args.testId,
     nodeId: args.node.id,
     projectId: args.projectId,
@@ -801,6 +912,7 @@ async function prewarmPlaywrightNode(args: {
       workers,
       editorApiUrl: args.editorApiUrl,
       eventTransport: args.eventTransport,
+      environment: selectedEnvironment,
       bucketName: args.bucketName || null,
       cloudProvider: 'GCP',
       runnerControl,
@@ -827,8 +939,6 @@ async function prewarmPlaywrightNode(args: {
   const { executionName, jobPath, runRequestedAt } = await startPlaywrightJob({
     accessToken: args.accessToken,
     cpu,
-    envKeys,
-    globalEnvVars: args.globalEnvVars,
     imageUri,
     jobName,
     location: gcpSettings.cloudRunLocation,
@@ -849,11 +959,13 @@ async function prewarmPlaywrightNode(args: {
 
   return {
     controlSubscriptionName,
+    eventSubscriptionName,
     executionId: args.testId,
     executionName,
     jobPath,
     nodeId: args.node.id,
     projectId: args.projectId,
+    protocolToken,
     runRequestedAt,
     resultSubscriptionName,
     statusSubscriptionName,
@@ -877,7 +989,8 @@ export async function prewarmGcpPlaywrightRunners(args: {
   const nodes = Array.isArray(args.body.nodes) ? args.body.nodes : [];
   const playwrightNodes = nodes.filter(
     (node: Record<string, any>) =>
-      String(node.nodeType || node.label || '').toLowerCase() === 'playwright' &&
+      String(node.nodeType || node.label || '').toLowerCase() ===
+        'playwright' &&
       node.config?.shardingMode !== 'auto' &&
       node.config?.shardingMode !== 'manual',
   );
@@ -930,20 +1043,33 @@ export async function cancelPrewarmedGcpPlaywrightRunners(args: {
 }) {
   await Promise.allSettled(
     Object.values(args.runners).map(async (runner) => {
-      await publishRunnerControlMessage({
-        accessToken: args.accessToken,
-        action: 'cancel',
-        executionId: runner.executionId,
-        nodeId: runner.nodeId,
-        projectId: runner.projectId,
-        topicName: runner.topicName,
-      });
-      await Promise.allSettled([
-        deleteRunnerSubscription({
+      let executionCancelled = false;
+      if (runner.executionName) {
+        try {
+          await cloudRunRequest(
+            `${runner.executionName}:cancel`,
+            args.accessToken,
+            { body: JSON.stringify({}), method: 'POST' },
+          );
+          executionCancelled = true;
+        } catch (error) {
+          console.warn(
+            `Failed to cancel prewarmed Cloud Run execution ${runner.executionName}: ${getErrorMessage(error)}`,
+          );
+        }
+      }
+      if (!executionCancelled) {
+        await publishRunnerControlMessage({
           accessToken: args.accessToken,
+          action: 'cancel',
+          executionId: runner.executionId,
+          nodeId: runner.nodeId,
           projectId: runner.projectId,
-          subscriptionName: runner.controlSubscriptionName,
-        }),
+          protocolToken: runner.protocolToken,
+          topicName: runner.topicName,
+        });
+      }
+      const cleanupSubscriptions = [
         deleteRunnerSubscription({
           accessToken: args.accessToken,
           projectId: runner.projectId,
@@ -954,7 +1080,22 @@ export async function cancelPrewarmedGcpPlaywrightRunners(args: {
           projectId: runner.projectId,
           subscriptionName: runner.resultSubscriptionName,
         }),
-      ]);
+        deleteRunnerSubscription({
+          accessToken: args.accessToken,
+          projectId: runner.projectId,
+          subscriptionName: runner.eventSubscriptionName,
+        }),
+      ];
+      if (executionCancelled) {
+        cleanupSubscriptions.push(
+          deleteRunnerSubscription({
+            accessToken: args.accessToken,
+            projectId: runner.projectId,
+            subscriptionName: runner.controlSubscriptionName,
+          }),
+        );
+      }
+      await Promise.allSettled(cleanupSubscriptions);
     }),
   );
 }

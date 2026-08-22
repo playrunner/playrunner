@@ -143,11 +143,31 @@ export async function getOrchestratorBuildFingerprint({
     await localPackageDirectories(resolvedAppDirectory);
   return hashInputs({
     descriptors: ['runner=orchestrator', `basePath=${basePath}`],
-    directories: [resolvedAppDirectory, ...packageDirectories],
+    directories: [
+      resolvedAppDirectory,
+      path.join(repoRoot, 'apps/runners/shared'),
+      ...packageDirectories,
+    ],
     files: [
       path.join(repoRoot, '.dockerignore'),
+      path.join(repoRoot, 'apps/runners/.dockerignore'),
       path.join(repoRoot, 'apps/runners/orchestrator/Dockerfile'),
       path.join(repoRoot, 'infra/scripts/generate-integration-composition.mjs'),
+    ],
+    repoRoot,
+  });
+}
+
+export async function getAgentBuildFingerprint({ repoRoot }) {
+  const appDirectory = path.join(repoRoot, 'apps/runners/agent');
+  return hashInputs({
+    descriptors: ['runner=agent'],
+    directories: [appDirectory, path.join(repoRoot, 'apps/runners/shared')],
+    files: [
+      path.join(repoRoot, '.dockerignore'),
+      path.join(repoRoot, 'apps/runners/.dockerignore'),
+      path.join(repoRoot, 'apps/runners/agent/Dockerfile'),
+      path.join(repoRoot, 'config/playwright-runner-versions.json'),
     ],
     repoRoot,
   });
@@ -168,9 +188,10 @@ export async function getPlaywrightBuildFingerprint({
       `runtime=${runtime}`,
       `version=${version}`,
     ],
-    directories: [appDirectory],
+    directories: [appDirectory, path.join(repoRoot, 'apps/runners/shared')],
     files: [
       path.join(repoRoot, '.dockerignore'),
+      path.join(repoRoot, 'apps/runners/.dockerignore'),
       path.join(repoRoot, `apps/runners/playwright/Dockerfile.${runtime}`),
       path.join(repoRoot, 'config/playwright-runner-versions.json'),
     ],
@@ -203,6 +224,9 @@ export async function getRunnerBuildFingerprints({ basePath = '.', repoRoot }) {
     }
   }
   return {
+    agent: {
+      fingerprint: await getAgentBuildFingerprint({ repoRoot }),
+    },
     orchestrator: {
       fingerprint: await getOrchestratorBuildFingerprint({
         basePath,
@@ -226,7 +250,9 @@ async function runCli() {
     (await findPlayrunnerRepoRoot(process.cwd()));
   if (!repoRoot) throw new Error('Unable to locate the Playrunner repo root.');
 
-  if (target === 'orchestrator') {
+  if (target === 'agent') {
+    console.log(await getAgentBuildFingerprint({ repoRoot }));
+  } else if (target === 'orchestrator') {
     console.log(
       await getOrchestratorBuildFingerprint({
         basePath: readArgument('--base-path', '.'),
@@ -252,7 +278,7 @@ async function runCli() {
     );
   } else {
     throw new Error(
-      'Usage: runner-build-fingerprints.mjs orchestrator|playwright|json [options]',
+      'Usage: runner-build-fingerprints.mjs agent|orchestrator|playwright|json [options]',
     );
   }
 }

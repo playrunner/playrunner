@@ -1,24 +1,30 @@
-ARG PLAYWRIGHT_VERSION
-ARG PLAYWRIGHT_NPM_VERSION
+ARG PLAYWRIGHT_VERSION=v1.62.1-jammy
+ARG PLAYWRIGHT_NPM_VERSION=1.62.1
 FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION} AS builder
 
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /app/playwright
+COPY playwright/package*.json ./
 RUN npm ci
-COPY . .
+COPY playwright .
+COPY shared ../shared
 RUN npm run build
 
 FROM mcr.microsoft.com/playwright:${PLAYWRIGHT_VERSION}
 ARG PLAYWRIGHT_NPM_VERSION
 
 WORKDIR /app
-COPY package*.json ./
+COPY playwright/package*.json ./
 RUN node -e \
       "const fs = require('fs'); const manifest = require('./package.json'); delete manifest.devDependencies; manifest.dependencies['@playwright/test'] = '${PLAYWRIGHT_NPM_VERSION}'; manifest.dependencies.playwright = '${PLAYWRIGHT_NPM_VERSION}'; fs.writeFileSync('package.json', JSON.stringify(manifest));" && \
     npm install --omit=dev --package-lock=false
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/playwright/dist ./dist
+
+RUN chown -R pwuser:pwuser /app
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV HOME=/home/pwuser
 
-CMD ["node", "dist/index.js"]
+USER pwuser
+
+CMD ["node", "dist/playwright/src/index.js"]

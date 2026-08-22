@@ -1,4 +1,7 @@
 export type RunnerBuildFingerprints = {
+  agent: {
+    fingerprint: string;
+  };
   orchestrator: {
     fingerprint: string;
   };
@@ -13,6 +16,10 @@ export type RunnerBuildFingerprints = {
 export function findPlayrunnerRepoRoot(
   startDirectory?: string,
 ): Promise<string | null>;
+
+export function getAgentBuildFingerprint(args: {
+  repoRoot: string;
+}): Promise<string>;
 
 export function getOrchestratorBuildFingerprint(args: {
   basePath?: string;

@@ -1,202 +1,557 @@
-import fs from 'fs';
-import path from 'path';
-import { createCodexEnvironment } from './codex-auth';
+import fs from 'node:fs';
+import { loadAgentPayload } from './bootstrap';
+import {
+  stageAgentArtifacts,
+  uploadAgentArtifacts,
+  type AgentArtifactRefs,
+} from './artifacts';
+import {
+  createAgentAttachmentEvents,
+  publishAttachmentCancelled,
+  publishAttachmentFailure,
+  publishAttachmentOutcome,
+  publishAttachmentPending,
+  publishSupervisorProgress,
+} from './attachment-events';
+import { createCredentialFreeEnvironment } from './codex-auth';
+import { runCodex } from './codex';
+import { deliverBotPullRequest, type BotPrDeliveryResult } from './bot-pr';
+import {
+  createInitialPrompt,
+  materializeAgentContext,
+  mergeValidatorConfigs,
+  normalizeGitHubRepository,
+} from './payload';
 import { runProcess } from './process';
-import { validatePlaywrightTests, type ValidationResult } from './validator';
+import {
+  containsProhibitedExactValue,
+  credentialSafeErrorMessage,
+  CREDENTIAL_LEAK_MESSAGE,
+  normalizeProhibitedExactValues,
+} from './secret-values';
+import {
+  getAgentIdentity,
+  prepareRepository,
+  type PreparedRepository,
+} from './repository';
+import {
+  boundInlineAgentResult,
+  createInlineAttemptHistory,
+  truncateInlinePatch,
+} from './result';
+import { createRunnerControlClient } from '../../shared/runner-control';
+import { runSupervisor, type SupervisorResult } from './supervisor';
+import {
+  createStructuredMemory,
+  type TerminalFailureKind,
+} from './structured-memory';
+import { validatePlaywrightTests } from './validator';
 
-type Payload = {
-  agent: { config?: Record<string, unknown>; nodeType: string };
-  config: Record<string, any>;
-  github?: { accessToken?: string };
-  validators: Array<{ config?: Record<string, unknown>; nodeType: string }>;
-};
+const INLINE_PATCH_BYTES = 500_000;
+const MAX_PATCH_CAPTURE_BYTES = 50 * 1_024 * 1_024;
+const HARD_STOP_REPORT_TIMEOUT_MS = 35_000;
 
-const RESULT_PREFIX = 'PLAYRUNNER_AGENT_RESULT:';
-
-function encodeResult(value: unknown) {
-  return Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+function boundedInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
 }
 
-async function cloneRepository(payload: Payload) {
-  const repository = String(payload.config.repository || '').trim();
-  if (!repository)
-    throw new Error('AI Container requires a GitHub repository.');
-  const branch = String(payload.config.branch || 'main');
-  const token = payload.github?.accessToken;
-  const url = token
-    ? `https://x-access-token:${token}@github.com/${repository}.git`
-    : `https://github.com/${repository}.git`;
-  fs.rmSync('/workspace/repo', { recursive: true, force: true });
-  fs.mkdirSync('/workspace', { recursive: true });
-  console.log(`[AI Container] Cloning ${repository} (${branch}).`);
-  const clone = await runProcess(
-    'git',
-    [
-      'clone',
-      '--depth',
-      '1',
-      '--branch',
-      branch,
-      '--single-branch',
-      url,
-      '/workspace/repo',
-    ],
-    { stream: true },
+function runnerFailureResult(
+  error: string,
+  stopReason: string,
+  supervisor?: SupervisorResult,
+): Record<string, unknown> {
+  return boundInlineAgentResult(
+    {
+      attemptHistory: supervisor ? createInlineAttemptHistory(supervisor) : [],
+      attempts: supervisor?.attempts || 0,
+      patch: '',
+      patchBytes: 0,
+      patchTruncated: false,
+      repositoryStatus: '',
+      runnerError: error,
+      status: 'failed',
+      stopReason,
+      validation: supervisor?.validation || null,
+    },
+    supervisor?.validation || null,
   );
-  if (clone.code !== 0)
-    throw new Error(`Git clone failed with code ${clone.code}.`);
-  const folder = String(payload.config.folder || '.');
-  const repositoryRoot = '/workspace/repo';
-  const workingDirectory = path.resolve(repositoryRoot, folder);
-  if (
-    (workingDirectory !== repositoryRoot &&
-      !workingDirectory.startsWith(`${repositoryRoot}${path.sep}`)) ||
-    !fs.existsSync(workingDirectory)
-  ) {
-    throw new Error(
-      `Working folder does not exist in the repository: ${folder}`,
-    );
-  }
-  return workingDirectory;
-}
-
-function createPrompt(payload: Payload) {
-  const agentConfig = payload.agent.config || {};
-  return [
-    'You are running inside a Playrunner AI Container with Playwright and browsers installed.',
-    'Work autonomously in the checked-out repository. Inspect the application, install its dependencies when needed, write or improve valuable Playwright end-to-end tests, run them, and iterate until they pass.',
-    'The command `playrunner-validator` is available as a tool. Run it before reporting completion and address its precise feedback.',
-    'Do not merely make tests green: cover meaningful positive and negative behavior and use observable assertions.',
-    `Task:\n${String(payload.config.task || 'Write valuable Playwright end-to-end tests.')}`,
-    agentConfig.instructions
-      ? `Additional instructions:\n${String(agentConfig.instructions)}`
-      : '',
-  ]
-    .filter(Boolean)
-    .join('\n\n');
-}
-
-function mergeValidatorConfigs(payload: Payload) {
-  const configs = payload.validators.map((validator) => {
-    if (validator.nodeType !== 'validator') {
-      throw new Error(
-        `Unsupported Validator attachment: ${validator.nodeType}`,
-      );
-    }
-    return validator.config || {};
-  });
-  const minimumKeys = [
-    'lineCoverage',
-    'branchCoverage',
-    'requirementCoverage',
-    'assertionQuality',
-  ];
-  return {
-    failOn: Array.from(
-      new Set(configs.flatMap((config: any) => config.failOn || [])),
-    ),
-    minimum: Object.fromEntries(
-      minimumKeys.map((key) => [
-        key,
-        Math.max(
-          0,
-          ...configs.map((config: any) => Number(config.minimum?.[key]) || 0),
-        ),
-      ]),
-    ),
-    requirements: configs
-      .map((config: any) => String(config.requirements || '').trim())
-      .filter(Boolean)
-      .join('\n'),
-  };
-}
-
-async function runCodex(
-  cwd: string,
-  payload: Payload,
-  prompt: string,
-  resume: boolean,
-) {
-  if (payload.agent.nodeType !== 'codex-cli') {
-    throw new Error(`Unsupported agent attachment: ${payload.agent.nodeType}`);
-  }
-  const config = payload.agent.config || {};
-  // The container itself is the security boundary. Full in-container access is
-  // required for package installation, browsers, and target-environment traffic.
-  const args = ['exec', '--json', '--dangerously-bypass-approvals-and-sandbox'];
-  if (config.model) args.push('--model', String(config.model));
-  if (config.reasoningEffort) {
-    args.push(
-      '-c',
-      `model_reasoning_effort=${JSON.stringify(String(config.reasoningEffort))}`,
-    );
-  }
-  if (resume) args.push('resume', '--last');
-  args.push(prompt);
-  const result = await runProcess('codex', args, {
-    cwd,
-    env: createCodexEnvironment(config),
-    stream: true,
-  });
-  if (result.code !== 0)
-    throw new Error(`Codex CLI exited with code ${result.code}.`);
 }
 
 async function main() {
-  const rawPayload = process.env.PAYLOAD;
-  if (!rawPayload) throw new Error('PAYLOAD is required.');
-  const payload = JSON.parse(rawPayload) as Payload;
-  if (!payload.agent) throw new Error('Connect one Agent to the AI Container.');
-  if (!payload.validators?.length)
-    throw new Error('Connect at least one Validator to the AI Container.');
-  const cwd = await cloneRepository(payload);
-  const validatorConfig = mergeValidatorConfigs(payload);
-  const validatorConfigPath = '/tmp/playrunner-validator-config.json';
-  fs.writeFileSync(validatorConfigPath, JSON.stringify(validatorConfig));
-  process.env.PLAYRUNNER_VALIDATOR_CONFIG = validatorConfigPath;
-  const maximumAttempts = Math.max(
-    1,
-    Math.min(10, Number(payload.config.maxValidationAttempts) || 3),
-  );
-  let validation: ValidationResult | null = null;
-  let attempts = 0;
-  while (attempts < maximumAttempts) {
-    attempts += 1;
-    console.log(
-      `[AI Container] Agent attempt ${attempts} of ${maximumAttempts}.`,
-    );
-    await runCodex(
-      cwd,
-      payload,
-      attempts === 1
-        ? createPrompt(payload)
-        : `The authoritative Playrunner Validator rejected the previous attempt. Continue in the same repository and fix every blocking issue, then run playrunner-validator again.\n\n${validation?.feedback}`,
-      attempts > 1,
-    );
-    console.log('[AI Container] Running authoritative validation.');
-    validation = await validatePlaywrightTests(cwd, validatorConfig);
-    console.log(validation.feedback);
-    if (validation.passed) break;
+  const loaded = await loadAgentPayload();
+  if (loaded.action === 'cancel') return;
+  const payload = loaded.payload;
+  if (payload.agent.nodeType !== 'codex-cli') {
+    throw new Error(`Unsupported Agent attachment: ${payload.agent.nodeType}`);
   }
-  await runProcess('git', ['add', '--intent-to-add', '.'], { cwd });
-  const diff = await runProcess('git', ['diff', '--binary', '--no-ext-diff'], {
-    cwd,
+  const agentConfig = payload.agent.config || {};
+  const apiKeyEnvironmentVariable = String(
+    agentConfig.apiKeyEnvVar || '',
+  ).trim();
+  const prohibitedExactValues = normalizeProhibitedExactValues([
+    apiKeyEnvironmentVariable
+      ? payload.environment[apiKeyEnvironmentVariable]
+      : undefined,
+    payload.github?.accessToken,
+    payload.gcpAccessToken,
+    payload.runtime.executionAuthToken,
+    payload.runnerControl.protocolToken,
+  ]);
+  const safeErrorMessage = (error: unknown) =>
+    credentialSafeErrorMessage(error, prohibitedExactValues);
+  const runnerControl = createRunnerControlClient({
+    config: payload.runnerControl,
+    executionId: payload.runtime.testId,
+    gcpAccessToken: payload.gcpAccessToken,
+    logPrefix: '[AI Container]',
+    nodeId: payload.runtime.nodeId,
+    runnerName: 'AI Container',
+    workflowEventAttributes: {
+      cloudProvider: payload.runtime.cloudProvider,
+    },
+    workflowEventFields: { cloudProvider: payload.runtime.cloudProvider },
   });
-  const status = await runProcess('git', ['status', '--short'], { cwd });
-  const result = {
-    attempts,
-    patch: diff.stdout.slice(0, 2_000_000),
-    repositoryStatus: status.stdout,
-    status: validation?.passed ? 'passed' : 'failed',
-    validation,
+  const attachments = createAgentAttachmentEvents({
+    agentNodeId: payload.agent.nodeId,
+    containerNodeId: payload.runtime.nodeId,
+    validatorNodeIds: payload.validators.map((validator) => validator.nodeId),
+  });
+  await publishAttachmentPending(runnerControl, attachments);
+  const maximumAttempts = boundedInteger(
+    payload.config.maxValidationAttempts,
+    3,
+    1,
+    10,
+  );
+  const maximumDurationMinutes = boundedInteger(
+    payload.config.maxDurationMinutes,
+    60,
+    1,
+    1440,
+  );
+  const identity = getAgentIdentity();
+  const baseAgentEnvironment = { ...process.env, HOME: identity.home };
+  const repositoryEnvironment = createCredentialFreeEnvironment(
+    agentConfig,
+    baseAgentEnvironment,
+  );
+
+  let cwd: string;
+  let agentContext: ReturnType<typeof materializeAgentContext>;
+  let baselineRevision: string;
+  let prepared: PreparedRepository;
+  let validatorConfig: ReturnType<typeof mergeValidatorConfigs>;
+  try {
+    await runnerControl.log(
+      'Preparing the repository and authoritative validator.',
+    );
+    prepared = await prepareRepository(payload, {
+      environment: repositoryEnvironment,
+      identity,
+    });
+    cwd = prepared.workingDirectory;
+    agentContext = materializeAgentContext(payload, prepared.changeManifest);
+    validatorConfig = mergeValidatorConfigs(payload);
+    baselineRevision = prepared.headRevision;
+    await runnerControl.log('Prepared and waiting for a start signal.');
+    await runnerControl.publishStatus('ready');
+  } catch (error) {
+    const message = safeErrorMessage(error);
+    await runnerControl.log(`Preparation failed: ${message}`, 'error');
+    await publishAttachmentFailure(runnerControl, attachments, message);
+    await runnerControl.publishNodeState('error');
+    await runnerControl.publishStatus('prepare_failed', message);
+    throw new Error(message);
+  }
+
+  let action: 'cancel' | 'start';
+  try {
+    action = await runnerControl.waitForStartSignal();
+  } catch (error) {
+    const message = safeErrorMessage(error);
+    await runnerControl.log(`Runner control failed: ${message}`, 'error');
+    await publishAttachmentFailure(runnerControl, attachments, message);
+    await runnerControl.publishNodeState('error');
+    await runnerControl.publishStatus('failed', message);
+    throw new Error(message);
+  }
+  if (action === 'cancel') {
+    await runnerControl.log('Cancelled before the agent started.');
+    await publishAttachmentCancelled(runnerControl, attachments);
+    await runnerControl.publishNodeState('warning');
+    await runnerControl.publishStatus('cancelled');
+    return;
+  }
+
+  const hardDeadline = Date.now() + maximumDurationMinutes * 60_000;
+  let supervisor: SupervisorResult | undefined;
+  let attachmentOutcomePublished = false;
+  let terminalPublish: Promise<void> | null = null;
+  const publishTerminal = (
+    error: string | undefined,
+    output: Record<string, unknown>,
+  ): Promise<void> => {
+    terminalPublish ||= (async () => {
+      await runnerControl.publishNodeState(error ? 'error' : 'success');
+      await runnerControl.publishStatus('completed', error, output);
+    })();
+    return terminalPublish;
   };
-  console.log(`${RESULT_PREFIX}${encodeResult(result)}`);
-  if (!validation?.passed) process.exitCode = 2;
+  const hardStop = setTimeout(() => {
+    const message = `Hard duration limit of ${maximumDurationMinutes} minutes exceeded.`;
+    console.error(`[AI Container] ${message}`);
+    const reported = (async () => {
+      await publishAttachmentFailure(runnerControl, attachments, message);
+      await publishTerminal(
+        message,
+        runnerFailureResult(message, 'max_duration', supervisor),
+      );
+    })().then(
+      () => true,
+      () => false,
+    );
+    const reportTimeout = new Promise<false>((resolve) => {
+      setTimeout(() => resolve(false), HARD_STOP_REPORT_TIMEOUT_MS).unref();
+    });
+    void Promise.race([reported, reportTimeout]).then((published) => {
+      process.exit(published ? 0 : 124);
+    });
+  }, maximumDurationMinutes * 60_000);
+  hardStop.unref();
+
+  await runnerControl.publishStatus('started');
+  await runnerControl.publishNodeState('running');
+  await runnerControl.log(
+    `Start signal received. Running up to ${maximumAttempts} validation attempt${maximumAttempts === 1 ? '' : 's'}.`,
+  );
+
+  const validatorConfigPath = `/tmp/playrunner-validator-${process.pid}.json`;
+  try {
+    fs.writeFileSync(
+      validatorConfigPath,
+      `${JSON.stringify(validatorConfig, null, 2)}\n`,
+      { mode: 0o444 },
+    );
+    process.env.PLAYRUNNER_VALIDATOR_CONFIG = validatorConfigPath;
+    const codexEnvironment = {
+      ...baseAgentEnvironment,
+      ...payload.environment,
+      PLAYRUNNER_VALIDATOR_CONFIG: validatorConfigPath,
+    };
+    const validationEnvironment = createCredentialFreeEnvironment(
+      agentConfig,
+      codexEnvironment,
+    );
+    supervisor = await runSupervisor({
+      initialPrompt: createInitialPrompt(payload, agentContext),
+      maximumAttempts,
+      maximumDurationMs: Math.max(1, hardDeadline - Date.now()),
+      onProgress: (event) =>
+        publishSupervisorProgress(runnerControl, attachments, event),
+      runAgent: ({ prompt, resumeSessionId, timeoutMs }) =>
+        runCodex({
+          config: agentConfig,
+          cwd,
+          environment: codexEnvironment,
+          gid: identity.gid,
+          prompt,
+          prohibitedExactValues,
+          ...(resumeSessionId ? { resumeSessionId } : {}),
+          timeoutMs,
+          uid: identity.uid,
+        }),
+      validate: ({ attempt, timeoutMs }) =>
+        validatePlaywrightTests(cwd, validatorConfig, {
+          attempt,
+          authoritative: true,
+          changeManifest: prepared.changeManifest,
+          repositoryRoot: prepared.repositoryRoot,
+          runCommand: (command, workingDirectory, commandTimeoutMs) =>
+            runProcess('/bin/sh', ['-c', command], {
+              cwd: workingDirectory,
+              env: validationEnvironment,
+              gid: identity.gid,
+              maxOutputBytes: 1_000_000,
+              timeoutMs: commandTimeoutMs,
+              uid: identity.uid,
+            }),
+          timeoutMs,
+        }),
+    });
+    if (
+      containsProhibitedExactValue(
+        JSON.stringify(supervisor),
+        prohibitedExactValues,
+      )
+    ) {
+      supervisor = undefined;
+      throw new Error(CREDENTIAL_LEAK_MESSAGE);
+    }
+    await publishAttachmentOutcome(runnerControl, attachments, supervisor);
+    attachmentOutcomePublished = true;
+
+    let botDelivery: BotPrDeliveryResult | undefined;
+    let deliveryError: string | undefined;
+    if (prepared.changeContext && supervisor.status === 'passed') {
+      try {
+        const githubToken = payload.github?.accessToken?.trim();
+        if (!githubToken) {
+          throw new Error(
+            'Connect a GitHub App installed on the public source and dedicated public fork with Contents, Pull requests, and Administration read/write access. Keep GitHub Actions disabled on the fork so Playrunner can publish generated tests safely.',
+          );
+        }
+        const forkRepository = normalizeGitHubRepository(
+          payload.config.botPullRequestForkRepository,
+          'config.botPullRequestForkRepository',
+        );
+        if (
+          forkRepository.toLowerCase() ===
+          prepared.changeContext.repository.toLowerCase()
+        ) {
+          throw new Error(
+            'Configure a distinct public GitHub fork for generated-test bot PRs; the fork cannot be the source repository.',
+          );
+        }
+        await runnerControl.log(
+          'Validation passed. Inspecting the generated patch for bot PR delivery.',
+        );
+        botDelivery = await deliverBotPullRequest({
+          cwd,
+          developerHeadRef: prepared.changeContext.headRef,
+          developerHeadSha: prepared.changeContext.headSha,
+          environment: repositoryEnvironment,
+          executionId: payload.runtime.testId,
+          forkRepository,
+          githubToken,
+          identity,
+          nodeId: payload.runtime.nodeId,
+          prohibitedExactValues,
+          repository: prepared.changeContext.repository,
+          workflowId: payload.runtime.workflowId,
+        });
+        if (botDelivery.status === 'no_changes') {
+          await runnerControl.log(
+            'Changed behavior is already covered; no generated-test PR was needed.',
+          );
+        } else {
+          await runnerControl.log(
+            `${botDelivery.status === 'created' ? 'Opened' : 'Reused'} generated-test PR #${botDelivery.pullRequest.number}: ${botDelivery.pullRequest.url}`,
+          );
+        }
+      } catch (error) {
+        deliveryError = safeErrorMessage(error);
+        await runnerControl.log(
+          `Bot PR delivery failed: ${deliveryError}`,
+          'error',
+        );
+      }
+    }
+
+    const intentToAdd = await runProcess(
+      'git',
+      ['add', '--intent-to-add', '.'],
+      {
+        cwd,
+        env: repositoryEnvironment,
+        gid: identity.gid,
+        timeoutMs: 60_000,
+        uid: identity.uid,
+      },
+    );
+    const repositoryErrors: string[] = [];
+    if (intentToAdd.code !== 0 || intentToAdd.timedOut) {
+      repositoryErrors.push(
+        'Could not include untracked paths in the generated patch.',
+      );
+      await runnerControl.log(
+        `Could not stage untracked paths for the patch: ${safeErrorMessage(intentToAdd.stderr.slice(-2_000))}`,
+        'error',
+      );
+    }
+    const diff = await runProcess(
+      'git',
+      ['diff', '--binary', '--no-ext-diff', baselineRevision],
+      {
+        cwd,
+        env: repositoryEnvironment,
+        gid: identity.gid,
+        maxOutputBytes: MAX_PATCH_CAPTURE_BYTES,
+        timeoutMs: 2 * 60_000,
+        uid: identity.uid,
+      },
+    );
+    if (diff.code !== 0 || diff.timedOut || diff.stdoutTruncated) {
+      repositoryErrors.push(
+        diff.stdoutTruncated
+          ? 'The generated repository patch exceeded the 50 MiB capture limit.'
+          : 'Could not generate a complete repository patch.',
+      );
+    }
+    const status = await runProcess('git', ['status', '--short'], {
+      cwd,
+      env: repositoryEnvironment,
+      gid: identity.gid,
+      maxOutputBytes: 2_000_000,
+      timeoutMs: 60_000,
+      uid: identity.uid,
+    });
+    if (status.code !== 0 || status.timedOut || status.stdoutTruncated) {
+      repositoryErrors.push(
+        status.stdoutTruncated
+          ? 'The repository status exceeded the 2 MB capture limit.'
+          : 'Could not inspect the final repository status.',
+      );
+    }
+    const repositoryError = repositoryErrors.join(' ');
+    const completePatch =
+      diff.code === 0 && !diff.timedOut && !diff.stdoutTruncated
+        ? diff.stdout
+        : '';
+
+    let credentialLeakDetected =
+      containsProhibitedExactValue(completePatch, prohibitedExactValues) ||
+      containsProhibitedExactValue(status.stdout, prohibitedExactValues) ||
+      deliveryError === CREDENTIAL_LEAK_MESSAGE;
+    let artifacts: AgentArtifactRefs | undefined;
+    let artifactError: string | undefined;
+    if (credentialLeakDetected) {
+      artifactError = CREDENTIAL_LEAK_MESSAGE;
+      await runnerControl.log(CREDENTIAL_LEAK_MESSAGE, 'error');
+    } else {
+      try {
+        const staged = stageAgentArtifacts({
+          directory: '/workspace/playrunner-artifacts',
+          patch: completePatch,
+          prohibitedExactValues,
+          repositoryStatus: status.stdout,
+          supervisor,
+          workspace: cwd,
+        });
+        artifacts = await uploadAgentArtifacts(staged, payload.runtime);
+        await runnerControl.log('Uploaded validation and workspace artifacts.');
+      } catch (error) {
+        artifactError = safeErrorMessage(error);
+        credentialLeakDetected = artifactError === CREDENTIAL_LEAK_MESSAGE;
+        await runnerControl.log(artifactError, 'error');
+      }
+    }
+
+    if (credentialLeakDetected) {
+      const failure = CREDENTIAL_LEAK_MESSAGE;
+      await publishTerminal(
+        failure,
+        runnerFailureResult(failure, 'credential_leak'),
+      );
+      return;
+    }
+
+    const patchBytes = Buffer.byteLength(completePatch, 'utf8');
+    const inlinePatch = truncateInlinePatch(completePatch, INLINE_PATCH_BYTES);
+    const effectiveStatus =
+      artifactError || repositoryError || deliveryError
+        ? 'failed'
+        : supervisor.status;
+    const terminalFailureKind: TerminalFailureKind | undefined = artifactError
+      ? 'artifact'
+      : repositoryError
+        ? 'repository'
+        : deliveryError
+          ? 'delivery'
+          : undefined;
+    const memory = createStructuredMemory({
+      delivery: botDelivery,
+      effectiveStatus,
+      prepared,
+      supervisor,
+      ...(terminalFailureKind ? { terminalFailureKind } : {}),
+    });
+    const result = boundInlineAgentResult(
+      {
+        ...(artifactError ? { artifactError } : {}),
+        ...(artifacts ? { artifacts } : {}),
+        attemptHistory: createInlineAttemptHistory(supervisor),
+        attempts: supervisor.attempts,
+        ...(botDelivery ? { botDelivery } : {}),
+        ...(botDelivery && botDelivery.status !== 'no_changes'
+          ? {
+              botPullRequest: {
+                ...botDelivery.pullRequest,
+                branchName: botDelivery.branchName,
+                commitSha: botDelivery.commitSha,
+                status: botDelivery.status,
+              },
+            }
+          : {}),
+        ...(deliveryError ? { deliveryError } : {}),
+        ...(memory ? { memory } : {}),
+        patch: inlinePatch,
+        patchBytes,
+        patchTruncated:
+          Boolean(repositoryError) || patchBytes > INLINE_PATCH_BYTES,
+        ...(repositoryError ? { repositoryError } : {}),
+        repositoryStatus: status.stdout,
+        status: effectiveStatus,
+        stopReason: artifactError
+          ? 'artifact_failed'
+          : repositoryError
+            ? 'repository_inspection_failed'
+            : deliveryError
+              ? 'delivery_failed'
+              : supervisor.stopReason,
+        validation: supervisor.validation,
+      },
+      supervisor.validation,
+    );
+    if (
+      containsProhibitedExactValue(
+        JSON.stringify(result),
+        prohibitedExactValues,
+      )
+    ) {
+      const failure = CREDENTIAL_LEAK_MESSAGE;
+      await publishTerminal(
+        failure,
+        runnerFailureResult(failure, 'credential_leak'),
+      );
+      return;
+    }
+    const failure =
+      effectiveStatus === 'passed'
+        ? undefined
+        : artifactError ||
+          repositoryError ||
+          deliveryError ||
+          supervisor.error ||
+          supervisor.validation?.feedback.summary ||
+          'AI Container validation failed.';
+    if (failure) await runnerControl.log(failure, 'error');
+    else await runnerControl.log('AI Container validation passed.');
+    await publishTerminal(failure, result);
+  } catch (error) {
+    const message = safeErrorMessage(error);
+    await runnerControl.log(`Runner failed: ${message}`, 'error');
+    if (!attachmentOutcomePublished) {
+      await publishAttachmentFailure(runnerControl, attachments, message);
+    }
+    await publishTerminal(
+      message,
+      runnerFailureResult(message, 'runner_failed', supervisor),
+    );
+  } finally {
+    clearTimeout(hardStop);
+    fs.rmSync(validatorConfigPath, { force: true });
+    delete process.env.PLAYRUNNER_VALIDATOR_CONFIG;
+  }
 }
 
-main().catch((error) => {
-  console.error(
-    `[AI Container] ${error instanceof Error ? error.message : String(error)}`,
-  );
+void main().catch(() => {
+  console.error('[AI Container] Runner failed before terminal reporting.');
   process.exitCode = 1;
 });

@@ -10,6 +10,7 @@ import type {
   PreparedPlaywrightRunner,
 } from './contracts';
 import { LocalAgentExecutionBackend } from './agent-local';
+import { GcpAgentExecutionBackend } from './agent-gcp';
 import { GcpPlaywrightExecutionBackend } from './playwright-gcp';
 import { LocalPlaywrightExecutionBackend } from './playwright-local';
 
@@ -63,7 +64,7 @@ class PlaywrightExecutionRegistry {
   }
 }
 
-class AgentExecutionRegistry {
+export class AgentExecutionRegistry {
   constructor(private readonly backends: AgentExecutionBackend[]) {}
 
   async prepare(request: AgentExecutionRequest) {
@@ -84,9 +85,14 @@ class AgentExecutionRegistry {
   }
 }
 
-const agentExecution = new AgentExecutionRegistry([
-  new LocalAgentExecutionBackend(),
-]);
+export function createDefaultAgentExecutionRegistry(): AgentExecutionRegistry {
+  return new AgentExecutionRegistry([
+    new LocalAgentExecutionBackend(),
+    new GcpAgentExecutionBackend(),
+  ]);
+}
+
+const agentExecution = createDefaultAgentExecutionRegistry();
 
 const playwrightExecution = new PlaywrightExecutionRegistry([
   new LocalPlaywrightExecutionBackend(),

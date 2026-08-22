@@ -2,7 +2,6 @@ import { Router } from 'express';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { spawn } from 'child_process';
 import {
   EXECUTION_TOKEN_HEADER,
   executionEvents,
@@ -10,15 +9,20 @@ import {
 import { state } from '../state';
 import { apiRuntime } from '../runtime';
 import { loadWorkflowHistory } from '../services/workflow-history';
+import {
+  encodeRelativeOutputPath,
+  findSafeOutputMedia,
+  isSafeOutputPathSegment,
+} from './output-paths';
+import {
+  extractOutputArchiveAtomically,
+  OutputArchiveValidationError,
+} from './output-archive';
 
 export const outputsRouter = Router();
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function isSafePathSegment(value: string) {
-  return value !== '.' && value !== '..' && path.basename(value) === value;
 }
 
 outputsRouter.get('/:testId/diagnostics/history', async (req, res) => {
@@ -67,9 +71,9 @@ outputsRouter.get(
       return res.status(403).json({ error: 'Invalid execution token.' });
     }
     if (
-      !isSafePathSegment(testId) ||
-      !isSafePathSegment(nodeId) ||
-      !isSafePathSegment(fileName) ||
+      !isSafeOutputPathSegment(testId) ||
+      !isSafeOutputPathSegment(nodeId) ||
+      !isSafeOutputPathSegment(fileName) ||
       !fileName.endsWith('.zip')
     ) {
       return res.status(400).json({ error: 'Invalid blob report file name.' });
@@ -98,6 +102,10 @@ outputsRouter.post(
     const bucketName = (req.query as any)?.bucketName as string | undefined;
     const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
 
+    if (!isSafeOutputPathSegment(testId) || !isSafeOutputPathSegment(nodeId)) {
+      return res.status(400).json({ error: 'Invalid output path.' });
+    }
+
     if (!executionToken) {
       return res
         .status(401)
@@ -116,32 +124,26 @@ outputsRouter.post(
       `Received outputs for node ${nodeId}, test ${testId}, size: ${req.body?.length || 0} bytes`,
     );
 
-    const outputsDir = path.join(
-      __dirname,
-      '../../public/outputs',
-      testId,
-      nodeId,
-    );
-    fs.mkdirSync(outputsDir, { recursive: true });
-
-    if (req.body && req.body.length > 0) {
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const extractProcess = spawn('tar', ['-xzf', '-'], {
-            cwd: outputsDir,
-          });
-          extractProcess.stdin.write(req.body);
-          extractProcess.stdin.end();
-          extractProcess.on('close', (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Tar extraction failed with code ${code}`));
-          });
+    const outputRoot = path.join(__dirname, '../../public/outputs');
+    let outputsDir: string;
+    try {
+      outputsDir = extractOutputArchiveAtomically(
+        req.body,
+        outputRoot,
+        testId,
+        nodeId,
+      );
+      console.log(`Extracted outputs for node ${nodeId}, test ${testId}`);
+    } catch (err) {
+      console.error('Failed to extract outputs:', err);
+      return res
+        .status(err instanceof OutputArchiveValidationError ? 400 : 500)
+        .json({
+          error:
+            err instanceof OutputArchiveValidationError
+              ? err.message
+              : 'Failed to extract outputs',
         });
-        console.log(`Extracted outputs for node ${nodeId}, test ${testId}`);
-      } catch (err) {
-        console.error('Failed to extract outputs:', err);
-        return res.status(500).json({ error: 'Failed to extract outputs' });
-      }
     }
 
     const outputData: any = {};
@@ -176,28 +178,20 @@ outputsRouter.post(
       }
     }
 
-    const testResultsDir = path.join(outputsDir, 'test-results');
-    if (fs.existsSync(testResultsDir)) {
-      const findVideos = (dir: string): string[] => {
-        let results: string[] = [];
-        const list = fs.readdirSync(dir);
-        list.forEach((file) => {
-          const fileRoute = path.join(dir, file);
-          const stat = fs.statSync(fileRoute);
-          if (stat && stat.isDirectory()) {
-            results = results.concat(findVideos(fileRoute));
-          } else if (file.endsWith('.webm') || file.endsWith('.png')) {
-            results.push(fileRoute);
-          }
-        });
-        return results;
-      };
-      const mediaFiles = findVideos(testResultsDir);
+    try {
+      const mediaFiles = findSafeOutputMedia(outputsDir);
       if (mediaFiles.length > 0) {
         outputData.media = mediaFiles.map(
-          (v) => `/outputs/${testId}/${nodeId}/${path.relative(outputsDir, v)}`,
+          (file) =>
+            `/outputs/${testId}/${nodeId}/${encodeRelativeOutputPath(outputsDir, file)}`,
         );
       }
+    } catch (err) {
+      console.error(
+        `Failed to inspect output media for ${testId}/${nodeId}:`,
+        err,
+      );
+      return res.status(500).json({ error: 'Failed to inspect output media.' });
     }
 
     try {

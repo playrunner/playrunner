@@ -36,9 +36,50 @@ model Workflow {
   schedules        WorkflowSchedule[]
   teamShares       WorkflowTeamShare[]
   webhookEndpoints WorkflowWebhookEndpoint[]
+  ciExecutions     WorkflowCiExecution[]
+  agentMemories    WorkflowAgentMemory[]
 
   @@index([userId])
   @@index([projectId])
+}
+
+model WorkflowCiExecution {
+  id                String   @id @default(cuid())
+  workflowId        String
+  executionId       String   @unique
+  repository        String
+  baseSha           String
+  headSha           String
+  baseRef           String
+  headRef           String
+  eventType         String
+  pullRequestNumber Int?
+  status            String   @default("starting")
+  failureHttpStatus Int?
+  failureMessage    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  workflow          Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, headSha])
+  @@index([workflowId, repository, headRef])
+}
+
+model WorkflowAgentMemory {
+  id                       String   @id @default(cuid())
+  workflowId               String
+  nodeId                   String
+  repository               String
+  changeScope              String
+  headSha                  String
+  sourceExecutionCreatedAt DateTime
+  memory                   Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  workflow                 Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, nodeId, repository, changeScope])
+  @@index([workflowId, repository, changeScope])
 }
 
 model WorkflowWebhookEndpoint {

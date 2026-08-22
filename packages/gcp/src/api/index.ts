@@ -269,6 +269,7 @@ gcpRouter.post('/provision', async (req, res) => {
     const region = connection.config.cloudRunLocation;
     const orchestratorImageUriTemplate =
       connection.config.orchestratorImageUriTemplate;
+    const agentImageUriTemplate = connection.config.agentImageUriTemplate;
     const playwrightImageUriTemplate =
       connection.config.playwrightImageUriTemplate;
     if (typeof accessToken !== 'string' || !accessToken) {
@@ -282,6 +283,10 @@ gcpRouter.post('/provision', async (req, res) => {
 
     const provisioning = await provisionGcpCloudRunners({
       accessToken,
+      agentImageUriTemplate:
+        typeof agentImageUriTemplate === 'string'
+          ? agentImageUriTemplate
+          : undefined,
       orchestratorImageUriTemplate:
         typeof orchestratorImageUriTemplate === 'string'
           ? orchestratorImageUriTemplate

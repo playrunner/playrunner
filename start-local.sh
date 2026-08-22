@@ -656,7 +656,7 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
             -t playrunner-playwright-runner-typescript:latest \
             -t "playrunner-playwright-runner-typescript:${version}" \
-            "${BASE_DIR}/apps/runners/playwright"
+            "${BASE_DIR}/apps/runners"
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
@@ -665,7 +665,7 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --build-arg "PYTHON_PLAYWRIGHT_VERSION=${PYTHON_PLAYWRIGHT_VERSION}" \
             -t playrunner-playwright-runner-python:latest \
             -t "playrunner-playwright-runner-python:${version}" \
-            "${BASE_DIR}/apps/runners/playwright"
+            "${BASE_DIR}/apps/runners"
     else
         docker build \
             --platform linux/amd64 \
@@ -673,7 +673,7 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --build-arg "PLAYWRIGHT_VERSION=${version}" \
             --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
             -t "playrunner-playwright-runner-typescript:${version}" \
-            "${BASE_DIR}/apps/runners/playwright"
+            "${BASE_DIR}/apps/runners"
         docker build \
             --platform linux/amd64 \
             -f "${BASE_DIR}/apps/runners/playwright/Dockerfile.python" \
@@ -681,17 +681,19 @@ for version in "${PLAYWRIGHT_VERSIONS[@]}"; do
             --build-arg "PLAYWRIGHT_NPM_VERSION=${PLAYWRIGHT_NPM_VERSION}" \
             --build-arg "PYTHON_PLAYWRIGHT_VERSION=${PYTHON_PLAYWRIGHT_VERSION}" \
             -t "playrunner-playwright-runner-python:${version}" \
-            "${BASE_DIR}/apps/runners/playwright"
+            "${BASE_DIR}/apps/runners"
     fi
 done
 
 echo "🤖 Building AI Container Docker image..."
+AGENT_PLAYWRIGHT_NPM_VERSION=$(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" npm-version "${PLAYWRIGHT_LATEST_TAG}")
 docker build \
     --platform linux/amd64 \
     -f "${BASE_DIR}/apps/runners/agent/Dockerfile" \
     --build-arg "PLAYWRIGHT_VERSION=${PLAYWRIGHT_LATEST_TAG}" \
+    --build-arg "PLAYWRIGHT_NPM_VERSION=${AGENT_PLAYWRIGHT_NPM_VERSION}" \
     -t playrunner-agent-runner:latest \
-    "${BASE_DIR}/apps/runners/agent"
+    "${BASE_DIR}/apps/runners"
 
 # 4. Ensure concurrently is installed
 if ! command -v concurrently &> /dev/null

@@ -18,6 +18,7 @@ ORCHESTRATOR_MIN_INSTANCE_COUNT=""
 ORCHESTRATOR_MAX_INSTANCE_COUNT=""
 ORCHESTRATOR_CPU_IDLE=""
 ORCHESTRATOR_TEMPLATE=""
+AGENT_TEMPLATE=""
 PLAYWRIGHT_TEMPLATE=""
 USER_ID=""
 TARGET=""
@@ -46,10 +47,10 @@ while [ $# -gt 0 ]; do
             cat <<EOF
 Usage: $(basename "$0") [options]
 
-Builds and pushes Playrunner API, orchestrator, and Playwright runner images to
-Google Artifact Registry, configures Docker auth for the target registry host,
-redeploys the API and orchestrator Cloud Run services, and deletes stale
-Playwright Cloud Run Jobs so they pick up the new image.
+Builds and pushes Playrunner API, orchestrator, Agent, and Playwright runner
+images to Google Artifact Registry, configures Docker auth for the target
+registry host, redeploys the API and orchestrator Cloud Run services, and
+deletes stale runner Cloud Run Jobs so they pick up the new image.
 
 GCP settings (project, region, service settings, and generated image URI
 templates) are read from the GCP connection config that the Integrations modal
@@ -67,7 +68,7 @@ Options:
   --orchestrator-max-instances <n>  Maximum Cloud Run service instances
   --orchestrator-cpu-idle <bool>    Whether Cloud Run can idle CPU between requests
   --user-id <id>                    Filter Postgres lookup to a specific user
-  --target api|orchestrator|playwright|both|all
+  --target api|orchestrator|agent|playwright|both|all
                                     Skip the interactive menu
   --base-path <path>                BASE_PATH build arg for orchestrator (default ".")
   --skip-docker-cleanup             Do not remove stale local Playrunner Artifact Registry tags
@@ -103,21 +104,23 @@ if [ -z "$TARGET" ]; then
     echo "1) API"
     echo "2) Orchestrator"
     echo "3) Playwright Runner"
-    echo "4) Both runners (orchestrator + Playwright)"
-    echo "5) All (API + runners)"
-    read -r -p "Enter choice [1-5]: " CHOICE
+    echo "4) Agent Runner"
+    echo "5) All runners (orchestrator + Agent + Playwright)"
+    echo "6) All (API + runners)"
+    read -r -p "Enter choice [1-6]: " CHOICE
     case "$CHOICE" in
         1) TARGET="api" ;;
         2) TARGET="orchestrator" ;;
         3) TARGET="playwright" ;;
-        4) TARGET="both" ;;
-        5) TARGET="all" ;;
+        4) TARGET="agent" ;;
+        5) TARGET="both" ;;
+        6) TARGET="all" ;;
         *) echo "Invalid choice. Exiting." >&2; exit 1 ;;
     esac
 fi
 
 case "$TARGET" in
-    api|orchestrator|playwright|both|all) ;;
+    api|orchestrator|agent|playwright|both|all) ;;
     *) echo "Unknown target: $TARGET" >&2; exit 1 ;;
 esac
 
@@ -131,6 +134,13 @@ includes_orchestrator() {
 includes_playwright() {
     case "$TARGET" in
         playwright|both|all) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+includes_agent() {
+    case "$TARGET" in
+        agent|both|all) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -163,6 +173,10 @@ fi
 
 if includes_playwright; then
     PLAYWRIGHT_TEMPLATE="$(settings playwright-image-uri-template)"
+fi
+
+if includes_agent; then
+    AGENT_TEMPLATE="$(settings agent-image-uri-template)"
 fi
 
 substitute() {
@@ -201,7 +215,7 @@ cleanup_stale_artifact_registry_tags() {
     while IFS= read -r image; do
         case "$image" in
             "${REGION}-docker.pkg.dev/${PROJECT_ID}/"*) continue ;;
-            *".pkg.dev/"*"/api/playrunner-"*|*".pkg.dev/"*"/orchestrator/playrunner-"*|*".pkg.dev/"*"/playwright-runner/playrunner-"*)
+            *".pkg.dev/"*"/api/playrunner-"*|*".pkg.dev/"*"/orchestrator/playrunner-"*|*".pkg.dev/"*"/agent-runner/playrunner-"*|*".pkg.dev/"*"/playwright-runner/playrunner-"*)
                 stale_images+=("$image")
                 ;;
         esac
@@ -217,6 +231,9 @@ cleanup_stale_artifact_registry_tags() {
 
 if includes_orchestrator; then
     ORCHESTRATOR_IMAGE_URI="$(substitute "$ORCHESTRATOR_TEMPLATE" "projectId=${PROJECT_ID}")"
+fi
+if includes_agent; then
+    AGENT_IMAGE_URI="$(substitute "$AGENT_TEMPLATE" "projectId=${PROJECT_ID}")"
 fi
 [ -z "$API_IMAGE_URI" ] && API_IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/api/${API_IMAGE_NAME}:${API_IMAGE_TAG}"
 
@@ -235,6 +252,9 @@ if includes_orchestrator; then
 fi
 if includes_playwright; then
     echo "Playwright Template:       $(substitute "$PLAYWRIGHT_TEMPLATE" "projectId=${PROJECT_ID}")"
+fi
+if includes_agent; then
+    echo "Agent Image:               $AGENT_IMAGE_URI"
 fi
 echo "Build Base Path:           $BASE_PATH"
 echo ""
@@ -319,6 +339,56 @@ push_orchestrator() {
         "${cpu_throttling_flag}"
 }
 
+push_agent() {
+    echo ""
+    echo "======================================"
+    echo "Building Agent Runner..."
+    echo "======================================"
+    configure_docker_auth "$(image_registry_host "${AGENT_IMAGE_URI}")"
+
+    local default_tag npm_version agent_fingerprint agent_fingerprint_uri
+    default_tag="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" default-tag)"
+    npm_version="$(node "${PLAYWRIGHT_CONFIG_SCRIPT}" npm-version "${default_tag}")"
+    agent_fingerprint="$(node "${RUNNER_FINGERPRINT_SCRIPT}" agent \
+        --repo-root "${REPO_ROOT}")"
+    agent_fingerprint_uri="${AGENT_IMAGE_URI%:*}:build-${agent_fingerprint}"
+    echo "Build fingerprint: ${agent_fingerprint}"
+
+    docker build \
+        --platform linux/amd64 \
+        --build-arg PLAYWRIGHT_VERSION="${default_tag}" \
+        --build-arg PLAYWRIGHT_NPM_VERSION="${npm_version}" \
+        --label "dev.playrunner.build-fingerprint=${agent_fingerprint}" \
+        -f "${REPO_ROOT}/apps/runners/agent/Dockerfile" \
+        -t "${AGENT_IMAGE_URI}" \
+        -t "${agent_fingerprint_uri}" \
+        "${REPO_ROOT}/apps/runners"
+
+    echo "Pushing Agent Runner..."
+    docker push "${AGENT_IMAGE_URI}"
+    docker push "${agent_fingerprint_uri}"
+
+    echo ""
+    echo "Cleaning up cached Agent Cloud Run Jobs..."
+    local jobs
+    jobs="$(gcloud run jobs list \
+        --project "${PROJECT_ID}" \
+        --region "${REGION}" \
+        --format='value(name)' | grep '^playrunner-agent' || true)"
+    if [ -n "$jobs" ]; then
+        echo "$jobs" | xargs -n 1 -I {} gcloud run jobs delete {} \
+            --project "${PROJECT_ID}" \
+            --region "${REGION}" \
+            --quiet
+        echo "Deleted old Agent jobs. They will be dynamically recreated with the new image."
+    else
+        echo "No existing cached Agent jobs found."
+    fi
+
+    echo "Agent Runner pushed successfully."
+    echo "Cloud Run Jobs will automatically use this image on the next execution."
+}
+
 push_playwright() {
     echo ""
     echo "======================================"
@@ -339,7 +409,8 @@ push_playwright() {
         versions+=("$version")
     done < <(node "${PLAYWRIGHT_CONFIG_SCRIPT}" tags)
 
-    local pw_ctx="${REPO_ROOT}/apps/runners/playwright"
+    local runners_ctx="${REPO_ROOT}/apps/runners"
+    local pw_ctx="${runners_ctx}/playwright"
     local built_images=()
 
     for runtime in typescript python; do
@@ -383,7 +454,7 @@ push_playwright() {
                 --build-arg PYTHON_PLAYWRIGHT_VERSION="${python_version}" \
                 --label "dev.playrunner.build-fingerprint=${fingerprint}" \
                 "${tag_args[@]}" \
-                "${pw_ctx}"
+                "${runners_ctx}"
         done
     done
 
@@ -403,7 +474,7 @@ push_playwright() {
     jobs="$(gcloud run jobs list \
         --project "${PROJECT_ID}" \
         --region "${REGION}" \
-        --format='value(name)' | grep '^playrunner-' || true)"
+        --format='value(name)' | grep -E '^playrunner-(typescript|python)' || true)"
     if [ -n "$jobs" ]; then
         echo "$jobs" | xargs -n 1 -I {} gcloud run jobs delete {} \
             --project "${PROJECT_ID}" \
@@ -421,9 +492,10 @@ push_playwright() {
 case "$TARGET" in
     api)          push_api ;;
     orchestrator) push_orchestrator ;;
+    agent)        push_agent ;;
     playwright)   push_playwright ;;
-    both)         push_orchestrator; push_playwright ;;
-    all)          push_api; push_orchestrator; push_playwright ;;
+    both)         push_orchestrator; push_agent; push_playwright ;;
+    all)          push_api; push_orchestrator; push_agent; push_playwright ;;
     *) echo "Unknown target: $TARGET" >&2; exit 1 ;;
 esac
 

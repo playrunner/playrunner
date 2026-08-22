@@ -25,7 +25,7 @@
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
     "@huggingface/inference": "^4.13.23",
-    "@playrunner/github": "0.2.1",
+    "@playrunner/github": "file:../../../packages/github",
     "@playrunner/huggingface": "file:../../../packages/huggingface",
     "@playrunner/integration-sdk": "0.1.4",
     "@playrunner/javascript": "file:../../../packages/javascript",
@@ -35,7 +35,8 @@
     "@playrunner/slack": "^0.1.2",
     "@playrunner/webhooks": "file:../../../packages/webhooks",
     "axios": "^1.18.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "google-auth-library": "^10.6.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

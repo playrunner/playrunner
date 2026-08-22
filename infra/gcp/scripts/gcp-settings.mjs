@@ -11,10 +11,12 @@ const apiEnvPath = path.join(apiDir, ".env");
 const terraformDir = path.join(repoRoot, "infra", "gcp");
 const defaultTerraformTfvarsPath = path.join(terraformDir, "terraform.tfvars");
 const DEFAULT_API_SERVICE_NAME = "playrunner-api";
+const DEFAULT_API_SERVICE_ACCOUNT_ID = "playrunner-api";
 const DEFAULT_ORCHESTRATOR_SERVICE_NAME = "playrunner-orchestrator";
 const DEFAULT_ORCHESTRATOR_MIN_INSTANCE_COUNT = 1;
 const DEFAULT_ORCHESTRATOR_MAX_INSTANCE_COUNT = 10;
 const DEFAULT_ORCHESTRATOR_CPU_IDLE = false;
+const DEFAULT_AGENT_RUNNER_REPOSITORY = "agent-runner";
 const DEFAULT_PLAYWRIGHT_RUNNER_REPOSITORY = "playwright-runner";
 const DEFAULT_SCHEDULER_SERVICE_ACCOUNT_ID = "playrunner-scheduler";
 const DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME = "playrunner-workflow-events";
@@ -151,6 +153,9 @@ function emit(cmd, data) {
         "orchestratorImageUriTemplate",
       );
       break;
+    case "agent-image-uri-template":
+      printRequired(data.agentImageUriTemplate, "agentImageUriTemplate");
+      break;
     case "playwright-image-uri-template":
       printRequired(
         data.playwrightImageUriTemplate,
@@ -174,7 +179,7 @@ function emit(cmd, data) {
       break;
     default:
       fail(
-        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|playwright-image-uri-template|scheduler-service-account-email|terraform-tfvars|write-terraform-tfvars|json> [--user-id <id>] [--out <path>] [--force]",
+        "Usage: node infra/gcp/scripts/gcp-settings.mjs <project-id|region|orchestrator-service-name|orchestrator-min-instance-count|orchestrator-max-instance-count|orchestrator-cpu-idle|orchestrator-image-uri-template|agent-image-uri-template|playwright-image-uri-template|scheduler-service-account-email|terraform-tfvars|write-terraform-tfvars|json> [--user-id <id>] [--out <path>] [--force]",
       );
   }
 }
@@ -205,6 +210,9 @@ function normalizeConfig(data) {
     orchestratorImageUriTemplate:
       normalizeString(data.orchestratorImageUriTemplate) ||
       buildOrchestratorTemplate(cloudRunLocation, orchestratorServiceName),
+    agentImageUriTemplate:
+      normalizeString(data.agentImageUriTemplate) ||
+      buildAgentTemplate(cloudRunLocation),
     playwrightImageUriTemplate:
       normalizeString(data.playwrightImageUriTemplate) ||
       buildPlaywrightTemplate(cloudRunLocation),
@@ -223,6 +231,7 @@ function publicConfig(data) {
     orchestratorMaxInstanceCount: data.orchestratorMaxInstanceCount ?? null,
     orchestratorCpuIdle: data.orchestratorCpuIdle ?? null,
     orchestratorImageUriTemplate: data.orchestratorImageUriTemplate || null,
+    agentImageUriTemplate: data.agentImageUriTemplate || null,
     playwrightImageUriTemplate: data.playwrightImageUriTemplate || null,
     schedulerServiceAccountEmail: data.schedulerServiceAccountEmail || null,
   };
@@ -244,6 +253,7 @@ function renderTerraformTfvars(data) {
     "",
     "# Defaults used by Playrunner runtime and setup scripts.",
     `api_service_name           = ${hclString(DEFAULT_API_SERVICE_NAME)}`,
+    `api_service_account_id     = ${hclString(DEFAULT_API_SERVICE_ACCOUNT_ID)}`,
     `workflow_events_topic_name = ${hclString(DEFAULT_WORKFLOW_EVENTS_TOPIC_NAME)}`,
     "",
   ].join("\n");
@@ -273,6 +283,11 @@ function buildOrchestratorTemplate(region, serviceName) {
 function buildPlaywrightTemplate(region) {
   if (!region) return "";
   return `${region}-docker.pkg.dev/{projectId}/${DEFAULT_PLAYWRIGHT_RUNNER_REPOSITORY}/playrunner-playwright-runner-{runtime}:{version}`;
+}
+
+function buildAgentTemplate(region) {
+  if (!region) return "";
+  return `${region}-docker.pkg.dev/{projectId}/${DEFAULT_AGENT_RUNNER_REPOSITORY}/playrunner-agent-runner:latest`;
 }
 
 function buildSchedulerServiceAccountEmail(projectId) {

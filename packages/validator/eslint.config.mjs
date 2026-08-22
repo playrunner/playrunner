@@ -21,7 +21,10 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true, allowExportNames: ['validatorIntegration'] },
+        {
+          allowConstantExport: true,
+          allowExportNames: ['validatorIntegration'],
+        },
       ],
       '@typescript-eslint/no-explicit-any': 'off',
       'react/prop-types': 'off',

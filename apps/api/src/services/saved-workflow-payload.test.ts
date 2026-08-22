@@ -5,6 +5,7 @@ import { buildSavedWorkflowExecutionBody } from './saved-workflow-payload';
 test('saved workflow executions publish events under the API execution ID', () => {
   const body = buildSavedWorkflowExecutionBody({
     body: {
+      agentMemoryByNodeId: { agent: { summary: 'untrusted override' } },
       cloudProvider: 'GCP',
       nodes: ['untrusted override'],
       testId: 'untrusted override',
@@ -24,8 +25,76 @@ test('saved workflow executions publish events under the API execution ID', () =
 
   assert.equal(body.testId, 'execution-123');
   assert.equal(body.cloudProvider, 'LOCAL_RUNNER');
+  assert.equal(Object.hasOwn(body, 'agentMemoryByNodeId'), false);
   assert.deepEqual(body.nodes, [{ id: 'a' }, { id: 'b' }]);
   assert.equal(body.workflow.run.trigger, 'ci');
+});
+
+test('saved workflow executions inject only server-owned agent memory', () => {
+  const ci = {
+    baseRef: 'main',
+    baseSha: 'a'.repeat(40),
+    eventType: 'push',
+    headRef: 'main',
+    headSha: 'b'.repeat(40),
+    repository: 'playrunner/playrunner',
+  };
+  const body = buildSavedWorkflowExecutionBody({
+    agentMemoryByNodeId: {
+      agent: { schemaVersion: 1, summary: 'Prior CI run context.' },
+    },
+    body: {
+      agentMemoryByNodeId: { agent: { summary: 'client override' } },
+      ci,
+    },
+    executionId: 'execution-memory',
+    triggerData: ci,
+    triggerName: 'ci',
+    workflow: {
+      cloudProvider: 'LOCAL_RUNNER',
+      concurrency: 1,
+      connections: [],
+      id: 'workflow-memory',
+      nodes: [{ id: 'agent' }],
+      title: 'Memory workflow',
+    },
+  });
+
+  assert.deepEqual(body.agentMemoryByNodeId, {
+    agent: { schemaVersion: 1, summary: 'Prior CI run context.' },
+  });
+  assert.deepEqual(body.ci, ci);
+  assert.deepEqual(body.trigger, ci);
+  assert.deepEqual(body.workflow.trigger, ci);
+});
+
+test('non-CI saved executions cannot carry CI context or agent memory', () => {
+  const body = buildSavedWorkflowExecutionBody({
+    agentMemoryByNodeId: {
+      agent: { schemaVersion: 1, summary: 'server memory' },
+    },
+    body: {
+      agentMemoryByNodeId: { agent: { summary: 'client memory' } },
+      ci: { headSha: 'untrusted' },
+      webhookInput: 'preserved',
+    },
+    executionId: 'execution-webhook',
+    triggerData: { webhookInput: 'preserved' },
+    triggerName: 'webhook',
+    workflow: {
+      cloudProvider: 'LOCAL_RUNNER',
+      concurrency: 1,
+      connections: [],
+      id: 'workflow-webhook',
+      nodes: [{ id: 'agent' }],
+      title: 'Webhook workflow',
+    },
+  });
+
+  assert.equal(Object.hasOwn(body, 'ci'), false);
+  assert.equal(Object.hasOwn(body, 'agentMemoryByNodeId'), false);
+  assert.equal(body.webhookInput, 'preserved');
+  assert.equal(body.workflow.run.trigger, 'webhook');
 });
 
 test('saved workflow executions preserve registered cloud providers', () => {

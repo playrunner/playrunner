@@ -1,4 +1,5 @@
 import { execFile, spawn } from 'child_process';
+import crypto from 'crypto';
 import { promisify } from 'util';
 import {
   EDITOR_API_URL_DOCKER,
@@ -11,15 +12,62 @@ import { state } from '../state';
 
 const execFileAsync = promisify(execFile);
 const LOCAL_ORCHESTRATOR_CONTAINER_NAME = 'playrunner-orchestrator-local';
+export const LOCAL_ORCHESTRATOR_AUTH_HEADER = 'x-playrunner-orchestrator-token';
+const LOCAL_ORCHESTRATOR_AUTH_ENV = 'PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN';
+const localOrchestratorAuthToken = crypto.randomBytes(32).toString('base64url');
 const WORKFLOW_EVENTS_TOPIC =
   process.env.GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC || 'playrunner-workflow-events';
 
 interface OrchestratorRuntimeMetadata {
   eventTransport?: string;
+  localAuth?: string;
   pubsubEmulatorHost?: string | null;
   runnerControl?: string;
   service?: string;
   workflowEventsTopic?: string;
+}
+
+export function getLocalOrchestratorRequestHeaders(): Record<string, string> {
+  return { [LOCAL_ORCHESTRATOR_AUTH_HEADER]: localOrchestratorAuthToken };
+}
+
+export function createLocalOrchestratorDockerArgs(): string[] {
+  return [
+    'run',
+    '--rm',
+    '--init',
+    '--pids-limit',
+    '512',
+    '--cap-drop',
+    'ALL',
+    '--security-opt',
+    'no-new-privileges',
+    '--ulimit',
+    'nofile=4096:4096',
+    '--add-host',
+    'host.docker.internal:host-gateway',
+    '--name',
+    LOCAL_ORCHESTRATOR_CONTAINER_NAME,
+    '--label',
+    'playrunner.component=orchestrator',
+    '--label',
+    'playrunner.runner=local',
+    '-p',
+    `127.0.0.1:${ORCHESTRATOR_PORT}:8080`,
+    '-e',
+    'PORT=8080',
+    '-e',
+    `EDITOR_API_URL=${EDITOR_API_URL_DOCKER}`,
+    '-e',
+    `PUBSUB_EMULATOR_HOST=${PUBSUB_EMULATOR_HOST_DOCKER}`,
+    '-e',
+    `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=${WORKFLOW_EVENTS_TOPIC}`,
+    '-e',
+    LOCAL_ORCHESTRATOR_AUTH_ENV,
+    '-v',
+    '/var/run/docker.sock:/var/run/docker.sock',
+    LOCAL_ORCHESTRATOR_IMAGE,
+  ];
 }
 
 function sleep(ms: number) {
@@ -31,7 +79,10 @@ async function fetchJson<T>(url: string, timeoutMs = 1500): Promise<T | null> {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, {
+      headers: getLocalOrchestratorRequestHeaders(),
+      signal: controller.signal,
+    });
     if (!response.ok) {
       return null;
     }
@@ -51,6 +102,7 @@ export async function isOrchestratorHealthy(
 
   try {
     const response = await fetch(`${ORCHESTRATOR_URL}/health`, {
+      headers: getLocalOrchestratorRequestHeaders(),
       signal: controller.signal,
     });
     return response.ok;
@@ -65,16 +117,48 @@ async function getOrchestratorRuntimeMetadata(): Promise<OrchestratorRuntimeMeta
   return fetchJson<OrchestratorRuntimeMetadata>(`${ORCHESTRATOR_URL}/runtime`);
 }
 
-function isExpectedLocalOrchestrator(
+export function isExpectedLocalOrchestrator(
   metadata: OrchestratorRuntimeMetadata | null,
 ): boolean {
   return (
     metadata?.service === 'playrunner-orchestrator' &&
     metadata.eventTransport === 'pubsub' &&
+    metadata.localAuth === 'required' &&
     metadata.runnerControl === 'pubsub' &&
     metadata.pubsubEmulatorHost === PUBSUB_EMULATOR_HOST_DOCKER &&
     metadata.workflowEventsTopic === WORKFLOW_EVENTS_TOPIC
   );
+}
+
+async function rejectsInvalidLocalOrchestratorToken(
+  timeoutMs = 1500,
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${ORCHESTRATOR_URL}/runtime`, {
+      headers: {
+        [LOCAL_ORCHESTRATOR_AUTH_HEADER]: crypto
+          .randomBytes(32)
+          .toString('base64url'),
+      },
+      signal: controller.signal,
+    });
+    return response.status === 401;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function isExpectedLocalOrchestratorRunning(
+  timeoutMs = 1500,
+): Promise<boolean> {
+  if (!(await isOrchestratorHealthy(timeoutMs))) return false;
+  const metadata = await getOrchestratorRuntimeMetadata();
+  if (!isExpectedLocalOrchestrator(metadata)) return false;
+  return rejectsInvalidLocalOrchestratorToken(timeoutMs);
 }
 
 async function stopContainersPublishingOrchestratorPort() {
@@ -121,10 +205,7 @@ async function waitForExpectedOrchestrator(
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < timeoutMs) {
-    if (
-      (await isOrchestratorHealthy()) &&
-      isExpectedLocalOrchestrator(await getOrchestratorRuntimeMetadata())
-    ) {
+    if (await isExpectedLocalOrchestratorRunning()) {
       return true;
     }
 
@@ -139,7 +220,7 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
   ok: boolean;
 }> {
   if (await isOrchestratorHealthy()) {
-    if (isExpectedLocalOrchestrator(await getOrchestratorRuntimeMetadata())) {
+    if (await isExpectedLocalOrchestratorRunning()) {
       return {
         message: 'Runner is already running with local Pub/Sub messaging.',
         ok: true,
@@ -172,37 +253,13 @@ export async function ensureLocalOrchestratorRunning(): Promise<{
   console.log('Starting orchestrator runner in a Docker container...');
 
   let spawnError: Error | null = null;
-  const runnerProcess = spawn(
-    'docker',
-    [
-      'run',
-      '--rm',
-      '--add-host',
-      'host.docker.internal:host-gateway',
-      '--name',
-      LOCAL_ORCHESTRATOR_CONTAINER_NAME,
-      '--label',
-      'playrunner.component=orchestrator',
-      '--label',
-      'playrunner.runner=local',
-      '-p',
-      `${ORCHESTRATOR_PORT}:8080`,
-      '-e',
-      'PORT=8080',
-      '-e',
-      `EDITOR_API_URL=${EDITOR_API_URL_DOCKER}`,
-      '-e',
-      `PUBSUB_EMULATOR_HOST=${PUBSUB_EMULATOR_HOST_DOCKER}`,
-      '-e',
-      `GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC=${WORKFLOW_EVENTS_TOPIC}`,
-      '-v',
-      '/var/run/docker.sock:/var/run/docker.sock',
-      LOCAL_ORCHESTRATOR_IMAGE,
-    ],
-    {
-      stdio: 'inherit',
+  const runnerProcess = spawn('docker', createLocalOrchestratorDockerArgs(), {
+    env: {
+      ...process.env,
+      [LOCAL_ORCHESTRATOR_AUTH_ENV]: localOrchestratorAuthToken,
     },
-  );
+    stdio: 'inherit',
+  });
 
   runnerProcess.on('error', (error) => {
     spawnError = error;

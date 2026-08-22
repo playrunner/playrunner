@@ -5,16 +5,304 @@ import {
   IntegrationConfigField,
   type Integration,
   type IntegrationConfigPanelProps,
+  type IntegrationOutputVariable,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
 
 const DEFAULT_CONFIG = {
+  botPullRequestForkRepository: '',
   branch: 'main',
   cpu: 4,
   folder: '.',
+  maxDurationMinutes: 30,
   maxValidationAttempts: 3,
   memory: 8,
 };
+
+const MAX_DURATION_MINUTES = 45;
+const CPU_OPTIONS = [1, 2, 4, 8] as const;
+const MEMORY_OPTIONS = [2, 4, 8, 16, 32] as const;
+
+function boundedInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.floor(parsed)));
+}
+
+function normalizedStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? Array.from(
+        new Set(
+          value
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim())
+            .filter(Boolean),
+        ),
+      )
+    : [];
+}
+
+const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
+  {
+    path: 'status',
+    type: 'string',
+    description: 'Final AI Container execution status',
+  },
+  {
+    path: 'stopReason',
+    type: 'string',
+    description: 'Why the supervisor stopped the feedback loop',
+  },
+  {
+    path: 'attempts',
+    type: 'number',
+    description: 'Agent and validator feedback attempts used',
+  },
+  {
+    path: 'attemptHistory',
+    type: 'array',
+    description: 'Agent and validation details for every feedback-loop attempt',
+  },
+  {
+    path: 'repositoryStatus',
+    type: 'string',
+    description: 'Final Git working-tree status',
+  },
+  {
+    path: 'botPullRequest',
+    type: 'object',
+    description: 'Generated-test bot pull request, when changes were needed',
+  },
+  {
+    path: 'botDelivery',
+    type: 'object',
+    description: 'Bot delivery status, including when no PR was necessary',
+  },
+  {
+    path: 'botPullRequest.url',
+    type: 'string',
+    description: 'URL of the generated-test pull request',
+  },
+  {
+    path: 'memory',
+    type: 'object',
+    description: 'Bounded durable outcome used by the next CI execution',
+  },
+  {
+    path: 'validation',
+    type: 'object',
+    description: 'Authoritative structured validation report',
+  },
+  {
+    path: 'validation.schemaVersion',
+    type: 'string',
+    description: 'Validation result schema version',
+  },
+  {
+    path: 'validation.status',
+    type: 'string',
+    description: 'Passed or failed validation status',
+  },
+  {
+    path: 'validation.passed',
+    type: 'boolean',
+    description: 'Whether every blocking validation rule passed',
+  },
+  {
+    path: 'validation.attempt',
+    type: 'number',
+    description: 'Attempt that produced this validation result',
+  },
+  {
+    path: 'validation.durationMs',
+    type: 'number',
+    description: 'Validation duration in milliseconds',
+  },
+  {
+    path: 'validation.feedbackText',
+    type: 'string',
+    description: 'Prioritized feedback returned to the coding agent',
+  },
+  {
+    path: 'validation.feedbackTextTruncated',
+    type: 'boolean',
+    description: 'Whether inline validator feedback text was shortened',
+  },
+  {
+    path: 'validation.inlineTruncation',
+    type: 'object',
+    description: 'Sections compacted in the inline validation result',
+  },
+  {
+    path: 'validation.dimensions',
+    type: 'object',
+    description: 'Coverage and assertion-quality threshold results',
+  },
+  {
+    path: 'validation.dimensions.changedLineCoverage',
+    type: 'object',
+    description: 'Coverage threshold for executable lines changed by CI',
+  },
+  {
+    path: 'validation.changedCoverage',
+    type: 'object',
+    description: 'Changed-line coverage gaps and instrumentation details',
+  },
+  {
+    path: 'validation.requirements',
+    type: 'object',
+    description: 'Requirement coverage and supporting test evidence',
+  },
+  {
+    path: 'validation.testRun',
+    type: 'object',
+    description: 'Clean test command result and failure details',
+  },
+  {
+    path: 'validation.violations',
+    type: 'array',
+    description:
+      'Reported validator findings; inspect truncation metadata for totals',
+  },
+  {
+    path: 'validation.artifacts',
+    type: 'object',
+    description: 'Supervisor-owned validation artifact references',
+  },
+  {
+    path: 'validation.artifacts.validationReport',
+    type: 'string',
+    description: 'Structured validation report path',
+  },
+  {
+    path: 'validation.artifacts.coverage',
+    type: 'string',
+    description: 'Coverage artifact path',
+  },
+  {
+    path: 'validation.artifacts.playwrightReport',
+    type: 'string',
+    description: 'Playwright HTML report path',
+  },
+  {
+    path: 'validation.artifacts.testResults',
+    type: 'string',
+    description: 'Playwright test-results directory path',
+  },
+  {
+    path: 'validation.artifacts.traces',
+    type: 'array',
+    description: 'Playwright trace artifact paths',
+  },
+  {
+    path: 'artifacts',
+    type: 'object',
+    description: 'Final supervisor-owned artifact references',
+  },
+  {
+    path: 'artifacts.validationHistory',
+    type: 'string',
+    description: 'Complete validation-attempt history report reference',
+  },
+  {
+    path: 'artifacts.artifactsTruncated',
+    type: 'boolean',
+    description: 'Whether optional artifact files were omitted by bounds',
+  },
+  {
+    path: 'artifacts.artifactTruncation',
+    type: 'string',
+    description: 'Artifact truncation manifest reference',
+  },
+  {
+    path: 'artifacts.validationReport',
+    type: 'string',
+    description: 'Final structured validation report reference',
+  },
+  {
+    path: 'artifacts.patch',
+    type: 'string',
+    description: 'Generated repository patch artifact reference',
+  },
+  {
+    path: 'artifacts.coverage',
+    type: 'string',
+    description: 'Final coverage artifact reference',
+  },
+  {
+    path: 'artifacts.playwrightReport',
+    type: 'string',
+    description: 'Final Playwright HTML report reference',
+  },
+  {
+    path: 'artifacts.testResults',
+    type: 'string',
+    description: 'Final Playwright test-results reference',
+  },
+  {
+    path: 'artifacts.repositoryStatus',
+    type: 'string',
+    description: 'Repository status artifact reference',
+  },
+  {
+    path: 'artifacts.traces',
+    type: 'array',
+    description: 'Final Playwright trace artifact references',
+  },
+  {
+    path: 'patch',
+    type: 'string',
+    description:
+      'Inline Git patch; inspect patchTruncated and artifacts.patch for the complete result',
+  },
+  {
+    path: 'patchBytes',
+    type: 'number',
+    description: 'Captured patch size in bytes',
+  },
+  {
+    path: 'patchTruncated',
+    type: 'boolean',
+    description:
+      'Whether the inline patch is truncated; use its artifact when true',
+  },
+  {
+    path: 'artifactError',
+    type: 'string',
+    description:
+      'Artifact upload error, when artifact publication did not complete',
+  },
+  {
+    path: 'runnerError',
+    type: 'string',
+    description: 'Runner preparation or control error',
+  },
+  {
+    path: 'repositoryError',
+    type: 'string',
+    description: 'Repository inspection or patch-capture error',
+  },
+  {
+    path: 'deliveryError',
+    type: 'string',
+    description: 'Actionable bot branch or pull-request delivery error',
+  },
+  {
+    path: 'validationTruncated',
+    type: 'boolean',
+    description: 'Whether the inline validation report was compacted',
+  },
+  {
+    path: 'repositoryStatusTruncated',
+    type: 'boolean',
+    description: 'Whether inline repository status was shortened',
+  },
+];
 
 export const AgentContainerConfigPanel: React.FC<
   IntegrationConfigPanelProps
@@ -43,13 +331,46 @@ export const AgentContainerConfigPanel: React.FC<
   const [activeTab, setActiveTab] = React.useState<
     'config' | 'env' | 'resources'
   >('config');
+  const configuredEnvVars = normalizedStringList(config.envVars);
+  const configuredAuthProvider =
+    typeof config.authProvider === 'string' ? config.authProvider : '';
+  const configuredRepository =
+    typeof config.repository === 'string' ? config.repository : '';
+  const configuredForkRepository =
+    typeof config.botPullRequestForkRepository === 'string'
+      ? config.botPullRequestForkRepository
+      : '';
 
   useEffect(() => {
-    const missing = Object.fromEntries(
-      Object.entries(DEFAULT_CONFIG).filter(([key]) => config[key] == null),
-    );
-    if (Object.keys(missing).length) {
-      onChange(nodeId, { ...DEFAULT_CONFIG, ...config });
+    const normalized = {
+      ...DEFAULT_CONFIG,
+      ...config,
+      cpu: CPU_OPTIONS.includes(
+        Number(config.cpu) as (typeof CPU_OPTIONS)[number],
+      )
+        ? Number(config.cpu)
+        : DEFAULT_CONFIG.cpu,
+      maxDurationMinutes: boundedInteger(
+        config.maxDurationMinutes,
+        DEFAULT_CONFIG.maxDurationMinutes,
+        1,
+        MAX_DURATION_MINUTES,
+      ),
+      maxValidationAttempts: boundedInteger(
+        config.maxValidationAttempts,
+        DEFAULT_CONFIG.maxValidationAttempts,
+        1,
+        10,
+      ),
+      memory: MEMORY_OPTIONS.includes(
+        Number(config.memory) as (typeof MEMORY_OPTIONS)[number],
+      )
+        ? Number(config.memory)
+        : DEFAULT_CONFIG.memory,
+      envVars: normalizedStringList(config.envVars),
+    };
+    if (JSON.stringify(normalized) !== JSON.stringify(config)) {
+      onChange(nodeId, normalized);
     }
   }, [config, nodeId, onChange]);
 
@@ -191,7 +512,7 @@ export const AgentContainerConfigPanel: React.FC<
               data-testid="agent-container-task"
               rows={5}
               placeholder="Write and improve end-to-end tests for the checkout flow."
-              value={config.task || ''}
+              value={typeof config.task === 'string' ? config.task : ''}
               onChange={(event) => update('task', event.target.value)}
             />
           </IntegrationConfigField>
@@ -239,7 +560,7 @@ export const AgentContainerConfigPanel: React.FC<
               />
               <span className="text-sm text-[var(--foreground)]">
                 {isConnected
-                  ? `Connected (${config.authProvider ? config.authProvider.charAt(0).toUpperCase() + config.authProvider.slice(1) : 'GitHub'})`
+                  ? `Connected (${configuredAuthProvider ? configuredAuthProvider.charAt(0).toUpperCase() + configuredAuthProvider.slice(1) : 'GitHub'})`
                   : 'Not Connected'}
               </span>
             </div>
@@ -251,14 +572,19 @@ export const AgentContainerConfigPanel: React.FC<
           <IntegrationConfigField label="Repository">
             <Select
               data-testid="agent-container-repository"
-              value={config.repository || ''}
-              onChange={(event) =>
+              value={configuredRepository}
+              onChange={(event) => {
+                const repository = event.target.value;
                 onChange(nodeId, {
                   ...config,
-                  repository: event.target.value,
+                  repository,
                   branch: '',
-                })
-              }
+                  ...(configuredForkRepository.toLowerCase() ===
+                  repository.toLowerCase()
+                    ? { botPullRequestForkRepository: '' }
+                    : {}),
+                });
+              }}
               disabled={isLoadingRepos || !isConnected}
             >
               <option value="">
@@ -276,12 +602,42 @@ export const AgentContainerConfigPanel: React.FC<
               <p className="text-[10px] text-red-400">{repositoryError}</p>
             ) : null}
           </IntegrationConfigField>
+          <IntegrationConfigField
+            label="Bot PR public fork"
+            hint="Required for CI-generated tests. Choose a dedicated public fork with GitHub Actions disabled. Install the GitHub App on both repositories with Contents and Pull requests read/write; Administration read/write lets Playrunner disable and verify fork Actions before every push. Private/internal forks, privileged workflow triggers, and self-hosted or indirect runners are rejected; use static standard GitHub-hosted runners."
+          >
+            <Select
+              data-testid="agent-container-bot-pr-fork"
+              value={configuredForkRepository}
+              onChange={(event) =>
+                update('botPullRequestForkRepository', event.target.value)
+              }
+              disabled={isLoadingRepos || !isConnected}
+            >
+              <option value="">
+                {isLoadingRepos
+                  ? 'Loading repositories...'
+                  : 'Select Public Fork'}
+              </option>
+              {repositories
+                .filter(
+                  (repository) =>
+                    repository.full_name.toLowerCase() !==
+                    configuredRepository.toLowerCase(),
+                )
+                .map((repository) => (
+                  <option key={repository.id} value={repository.full_name}>
+                    {repository.full_name}
+                  </option>
+                ))}
+            </Select>
+          </IntegrationConfigField>
           <IntegrationConfigField label="Branch">
             <Select
               data-testid="agent-container-branch"
-              value={config.branch || ''}
+              value={typeof config.branch === 'string' ? config.branch : ''}
               onChange={(event) => update('branch', event.target.value)}
-              disabled={isLoadingBranches || !config.repository}
+              disabled={isLoadingBranches || !configuredRepository}
             >
               <option value="">
                 {isLoadingBranches ? 'Loading branches...' : 'Select Branch'}
@@ -302,10 +658,14 @@ export const AgentContainerConfigPanel: React.FC<
           >
             <Input
               data-testid="agent-container-folder"
-              value={config.folder || DEFAULT_CONFIG.folder}
+              value={
+                typeof config.folder === 'string' && config.folder
+                  ? config.folder
+                  : DEFAULT_CONFIG.folder
+              }
               onChange={(event) => update('folder', event.target.value)}
               placeholder="."
-              disabled={!config.repository}
+              disabled={!configuredRepository}
             />
           </IntegrationConfigField>
           <IntegrationConfigField
@@ -320,11 +680,31 @@ export const AgentContainerConfigPanel: React.FC<
               min={1}
               max={10}
               value={
-                config.maxValidationAttempts ||
+                config.maxValidationAttempts ??
                 DEFAULT_CONFIG.maxValidationAttempts
               }
               onChange={(event) =>
                 update('maxValidationAttempts', Number(event.target.value))
+              }
+            />
+          </IntegrationConfigField>
+          <IntegrationConfigField
+            label="Maximum duration (minutes)"
+            hint="Hard wall-clock limit across all agent and validation attempts (up to 45 minutes)."
+            htmlFor="agent-container-max-duration-minutes"
+          >
+            <Input
+              id="agent-container-max-duration-minutes"
+              data-testid="agent-container-max-duration-minutes"
+              type="number"
+              min={1}
+              max={MAX_DURATION_MINUTES}
+              step={1}
+              value={
+                config.maxDurationMinutes ?? DEFAULT_CONFIG.maxDurationMinutes
+              }
+              onChange={(event) =>
+                update('maxDurationMinutes', Number(event.target.value))
               }
             />
           </IntegrationConfigField>
@@ -342,13 +722,13 @@ export const AgentContainerConfigPanel: React.FC<
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
           >
-            {!config.envVars?.length ? (
+            {!configuredEnvVars.length ? (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-muted">
                 Drag variables from the Input panel here
               </div>
             ) : (
               <div className="relative z-10 flex flex-wrap gap-2">
-                {config.envVars.map((key: string) => (
+                {configuredEnvVars.map((key) => (
                   <div
                     key={key}
                     className="group/tag flex cursor-default items-center gap-2 rounded border border-subtle bg-surface-hover px-2 py-1"
@@ -364,9 +744,7 @@ export const AgentContainerConfigPanel: React.FC<
                       onClick={() =>
                         update(
                           'envVars',
-                          config.envVars.filter(
-                            (value: string) => value !== key,
-                          ),
+                          configuredEnvVars.filter((value) => value !== key),
                         )
                       }
                     >
@@ -443,16 +821,7 @@ export const agentContainerIntegration: Integration = {
   executionRole: 'workflow',
   acceptsAttachments: ['agent', 'tool'],
   ConfigPanel: AgentContainerConfigPanel,
-  getOutputVariables: () => [
-    { path: 'status', type: 'string', description: 'Final validation status' },
-    { path: 'attempts', type: 'number', description: 'Agent attempts used' },
-    { path: 'validation', type: 'object', description: 'Validator result' },
-    {
-      path: 'patch',
-      type: 'string',
-      description: 'Generated repository patch',
-    },
-  ],
+  getOutputVariables: () => OUTPUT_VARIABLES,
 };
 
 export default agentContainerIntegration;

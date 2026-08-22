@@ -1,5 +1,6 @@
 import { type GcpTokenRefresh, refreshGcpAccessTokenIfNeeded } from './gcs';
 import type { GcpExecutionEvents } from './contracts';
+import { verifyRunnerProtocolPayload } from './runner-protocol';
 
 type PubSubEventStream = {
   creds: GcpTokenRefresh;
@@ -35,6 +36,7 @@ export type GcpPubSubEventStreamManager = {
   ensureGcpPubSubEventStream(params: {
     creds: GcpTokenRefresh;
     emulatorHost?: string | null;
+    eventAuthToken?: string;
     executionId: string;
     projectId: string;
   }): Promise<GcpPubSubEventTransport>;
@@ -59,6 +61,8 @@ class PubSubRequestError extends Error {
     super(message);
   }
 }
+
+class PermanentPubSubMessageError extends Error {}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -323,19 +327,42 @@ async function deleteSubscription(params: {
   }
 }
 
-function decodeMessagePayload(message: PubSubMessage['message']) {
+function decodeMessagePayload(
+  message: PubSubMessage['message'],
+  eventAuthToken?: string,
+) {
   if (!message.data) {
-    throw new Error('Pub/Sub message is missing data.');
+    throw new PermanentPubSubMessageError('Pub/Sub message is missing data.');
   }
 
-  const decoded = Buffer.from(message.data, 'base64').toString('utf8');
-  const parsed = JSON.parse(decoded) as Record<string, unknown>;
-  const { executionAuthToken: _executionAuthToken, ...event } = parsed;
+  let parsed: Record<string, unknown>;
+  try {
+    const decoded = Buffer.from(message.data, 'base64').toString('utf8');
+    const value: unknown = JSON.parse(decoded);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new Error('not an object');
+    }
+    parsed = value as Record<string, unknown>;
+  } catch {
+    throw new PermanentPubSubMessageError(
+      'Pub/Sub message data is not a valid event object.',
+    );
+  }
+  if (eventAuthToken && !verifyRunnerProtocolPayload(parsed, eventAuthToken)) {
+    throw new PermanentPubSubMessageError(
+      'Pub/Sub event signature was rejected.',
+    );
+  }
+  const {
+    executionAuthToken: _executionAuthToken,
+    protocolSignature: _protocolSignature,
+    ...event
+  } = parsed;
 
   return {
     event,
     executionAuthToken:
-      typeof parsed.executionAuthToken === 'string'
+      !eventAuthToken && typeof parsed.executionAuthToken === 'string'
         ? parsed.executionAuthToken
         : '',
   };
@@ -343,6 +370,7 @@ function decodeMessagePayload(message: PubSubMessage['message']) {
 
 async function processMessage(params: {
   executionEvents: GcpExecutionEvents;
+  eventAuthToken?: string;
   expectedExecutionId: string;
   message: PubSubMessage;
 }) {
@@ -357,6 +385,7 @@ async function processMessage(params: {
 
   const { event, executionAuthToken } = decodeMessagePayload(
     params.message.message,
+    params.eventAuthToken,
   );
   const executionId =
     typeof event.executionId === 'string'
@@ -366,22 +395,28 @@ async function processMessage(params: {
         : '';
 
   if (executionId !== params.expectedExecutionId) {
-    throw new Error(
+    throw new PermanentPubSubMessageError(
       `Pub/Sub event executionId ${executionId || '<missing>'} does not match ${params.expectedExecutionId}.`,
     );
   }
 
-  if (!executionAuthToken) {
-    throw new Error('Pub/Sub event is missing executionAuthToken.');
+  if (!params.eventAuthToken && !executionAuthToken) {
+    throw new PermanentPubSubMessageError(
+      'Pub/Sub event is missing executionAuthToken.',
+    );
   }
 
-  const execution = await params.executionEvents.verifyExecutionToken(
-    executionId,
-    executionAuthToken,
-  );
+  const execution = params.eventAuthToken
+    ? { id: executionId }
+    : await params.executionEvents.verifyExecutionToken(
+        executionId,
+        executionAuthToken,
+      );
 
   if (!execution) {
-    throw new Error(`Pub/Sub event token rejected for ${executionId}.`);
+    throw new PermanentPubSubMessageError(
+      `Pub/Sub event token rejected for ${executionId}.`,
+    );
   }
 
   await params.executionEvents.appendEvent(execution.id, event);
@@ -392,6 +427,7 @@ function startSubscriber(params: {
   creds: GcpTokenRefresh;
   emulatorHost: string | null;
   executionEvents: GcpExecutionEvents;
+  eventAuthToken?: string;
   executionId: string;
   projectId: string;
   subscriptionName: string;
@@ -435,6 +471,7 @@ function startSubscriber(params: {
           try {
             const { eventType } = await processMessage({
               executionEvents: params.executionEvents,
+              eventAuthToken: params.eventAuthToken,
               expectedExecutionId: params.executionId,
               message,
             });
@@ -456,6 +493,21 @@ function startSubscriber(params: {
               `[PubSub] Failed to persist message for ${params.executionId}:`,
               error,
             );
+            if (error instanceof PermanentPubSubMessageError) {
+              await acknowledgeMessage({
+                ackId: message.ackId,
+                creds: params.creds,
+                emulatorHost: params.emulatorHost,
+                projectId: params.projectId,
+                subscriptionName: params.subscriptionName,
+              }).catch((ackError) => {
+                console.error(
+                  `[PubSub] Failed to acknowledge rejected message for ${params.executionId}:`,
+                  ackError,
+                );
+              });
+              continue;
+            }
             await nackMessage({
               ackId: message.ackId,
               creds: params.creds,
@@ -490,6 +542,7 @@ async function ensureGcpPubSubEventStream(
   params: {
     creds: GcpTokenRefresh;
     emulatorHost?: string | null;
+    eventAuthToken?: string;
     executionId: string;
     projectId: string;
   },
@@ -524,6 +577,7 @@ async function ensureGcpPubSubEventStream(
     creds: params.creds,
     emulatorHost,
     executionEvents,
+    eventAuthToken: params.eventAuthToken,
     executionId: params.executionId,
     projectId: params.projectId,
     subscriptionName,
@@ -560,6 +614,7 @@ export function createGcpPubSubEventStreamManager(
     ensureGcpPubSubEventStream: (params: {
       creds: GcpTokenRefresh;
       emulatorHost?: string | null;
+      eventAuthToken?: string;
       executionId: string;
       projectId: string;
     }) => ensureGcpPubSubEventStream(params, executionEvents),
