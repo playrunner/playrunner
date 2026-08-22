@@ -157,7 +157,13 @@ async function main() {
       identity,
     });
     cwd = prepared.workingDirectory;
-    agentContext = materializeAgentContext(payload, prepared.changeManifest);
+    agentContext = materializeAgentContext(
+      payload,
+      prepared.changeManifest,
+      '/workspace/inputs',
+      prepared.supportingRepositories,
+      prepared.repositoryRoot,
+    );
     validatorConfig = mergeValidatorConfigs(payload);
     baselineRevision = prepared.headRevision;
     await runnerControl.log('Prepared and waiting for a start signal.');
@@ -496,7 +502,24 @@ async function main() {
         patchTruncated:
           Boolean(repositoryError) || patchBytes > INLINE_PATCH_BYTES,
         ...(repositoryError ? { repositoryError } : {}),
+        repositories: [
+          {
+            editable: true,
+            headRevision: prepared.headRevision,
+            repository: String(payload.config.repository),
+            role: 'primary',
+          },
+          ...(prepared.supportingRepositories || []).map((repository) => ({
+            editable: false,
+            headRevision: repository.headRevision,
+            repository: repository.repository,
+            role: 'supporting',
+          })),
+        ],
         repositoryStatus: status.stdout,
+        requirementSources: (payload.requirements || []).map(
+          ({ id, source, title, url }) => ({ id, source, title, url }),
+        ),
         status: effectiveStatus,
         stopReason: artifactError
           ? 'artifact_failed'

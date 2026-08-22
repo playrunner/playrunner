@@ -116,6 +116,53 @@ test('reads a bounded runner payload from stdin', async () => {
   assert.deepEqual(result.nodeOutputs, {});
 });
 
+test('materializes external requirements and adds them to the prompt and validator', async () => {
+  const value = payload();
+  value.config = {
+    branch: 'main',
+    folder: '.',
+    repository: 'playrunner/example',
+    task: 'Test checkout behavior.',
+  };
+  value.requirements = [
+    {
+      body: 'Declined cards show an actionable error.',
+      id: 'PAY-42',
+      source: 'jira',
+      title: 'Handle declined cards',
+      url: 'https://playrunner.atlassian.net/browse/PAY-42',
+    },
+  ];
+  const normalized = await readAgentPayload(
+    Readable.from([JSON.stringify(value)]),
+  );
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'agent-requirements-'),
+  );
+  try {
+    const context = materializeAgentContext(normalized, undefined, directory);
+    assert.ok(context.requirementsPath);
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(context.requirementsPath, 'utf8')),
+      value.requirements,
+    );
+    assert.match(
+      createInitialPrompt(normalized, context),
+      /requirements\.json/,
+    );
+    assert.match(
+      createInitialPrompt(normalized, context),
+      /external requirements/i,
+    );
+    assert.match(
+      String(mergeValidatorConfigs(normalized).requirements),
+      /PAY-42: Handle declined cards/,
+    );
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
 test('rejects reserved Environment keys in the trusted payload', async () => {
   const value = payload();
   value.environment = { DOCKER_HOST: 'tcp://attacker.test' };

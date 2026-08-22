@@ -15,6 +15,8 @@ import { isRunnerProtocolToken } from '../../shared/runner-protocol';
 export const MAX_AGENT_PAYLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_AGENT_MEMORY_BYTES = 64 * 1024;
 export const AGENT_MEMORY_SCHEMA_VERSION = '1.0' as const;
+const MAX_EXTERNAL_REQUIREMENTS = 20;
+const MAX_REQUIREMENT_TEXT_BYTES = 64 * 1024;
 
 export type CiChangeContext = {
   baseRef: string;
@@ -61,6 +63,13 @@ export type AgentRunnerPayload = {
   github?: { accessToken?: string };
   memory?: AgentStructuredMemory;
   nodeOutputs?: Readonly<Record<string, unknown>>;
+  requirements?: Array<{
+    body: string;
+    id: string;
+    source: 'github' | 'jira';
+    title: string;
+    url: string;
+  }>;
   runnerControl: RunnerControlConfig;
   runtime: {
     bucketName?: string;
@@ -82,6 +91,8 @@ export type MaterializedAgentContext = {
   changeManifestPath?: string;
   memoryPath?: string;
   nodeOutputsPath: string;
+  requirementsPath?: string;
+  repositoriesPath?: string;
 };
 
 const CHANGE_CONTEXT_KEYS = new Set([
@@ -246,6 +257,58 @@ function requiredBoundedText(
     throw new Error(`AI Container ${field} is missing or too large.`);
   }
   return text;
+}
+
+function normalizeRequirements(
+  value: unknown,
+): NonNullable<AgentRunnerPayload['requirements']> {
+  if (!Array.isArray(value) || value.length > MAX_EXTERNAL_REQUIREMENTS) {
+    throw new Error(
+      `AI Container requirements must contain at most ${MAX_EXTERNAL_REQUIREMENTS} entries.`,
+    );
+  }
+  return value.map((candidate, index) => {
+    const requirement = record(candidate);
+    assertOnlyKeys(
+      requirement,
+      new Set(['body', 'id', 'source', 'title', 'url']),
+      `requirements[${index}]`,
+    );
+    if (requirement.source !== 'github' && requirement.source !== 'jira') {
+      throw new Error(
+        `AI Container requirements[${index}].source is unsupported.`,
+      );
+    }
+    const body = typeof requirement.body === 'string' ? requirement.body : '';
+    if (Buffer.byteLength(body, 'utf8') > MAX_REQUIREMENT_TEXT_BYTES) {
+      throw new Error(`AI Container requirements[${index}].body is too large.`);
+    }
+    const url = requiredBoundedText(
+      requirement.url,
+      `requirements[${index}].url`,
+      2_048,
+    );
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error(`AI Container requirements[${index}].url is invalid.`);
+    }
+    if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+      throw new Error(`AI Container requirements[${index}].url is invalid.`);
+    }
+    return {
+      body,
+      id: requiredBoundedText(requirement.id, `requirements[${index}].id`, 256),
+      source: requirement.source,
+      title: requiredBoundedText(
+        requirement.title,
+        `requirements[${index}].title`,
+        1_024,
+      ),
+      url,
+    };
+  });
 }
 
 function normalizeLineRanges(
@@ -709,6 +772,9 @@ export function parseAgentPayload(value: unknown): AgentRunnerPayload {
   }
   payload.gcpAccessToken = payload.gcpAccessToken?.trim() || undefined;
   payload.nodeOutputs = record(payload.nodeOutputs);
+  if (payload.requirements !== undefined) {
+    payload.requirements = normalizeRequirements(payload.requirements);
+  }
   payload.runnerControl = {
     controlSubscriptionName: requiredPubSubSegment(
       runnerControl.controlSubscriptionName,
@@ -840,8 +906,12 @@ export function mergeValidatorConfigs(
         ),
       ),
     },
-    requirements: configs
-      .map((config) => String(config.requirements || '').trim())
+    requirements: [
+      ...configs.map((config) => String(config.requirements || '').trim()),
+      ...(payload.requirements || []).map(
+        (requirement) => `${requirement.id}: ${requirement.title}`,
+      ),
+    ]
       .filter(Boolean)
       .join('\n'),
     runTests: true,
@@ -879,6 +949,15 @@ export function materializeAgentContext(
   payload: AgentRunnerPayload,
   changeManifest?: ChangeManifest,
   directory = '/workspace/inputs',
+  supportingRepositories: Array<{
+    branch: string;
+    folder: string;
+    headRevision: string;
+    repository: string;
+    repositoryRoot: string;
+    workingDirectory: string;
+  }> = [],
+  primaryRepositoryRoot = '/workspace/repo',
 ): MaterializedAgentContext {
   if (Boolean(payload.changeContext) !== Boolean(changeManifest)) {
     throw new Error(
@@ -918,10 +997,41 @@ export function materializeAgentContext(
         path.join(directory, 'previous-memory.json'),
       )
     : undefined;
+  const requirementsPath = payload.requirements?.length
+    ? materializeReadOnlyJson(
+        payload.requirements,
+        path.join(directory, 'requirements.json'),
+      )
+    : undefined;
+  const repositoriesPath = materializeReadOnlyJson(
+    [
+      {
+        branch: String(payload.config.branch || 'main'),
+        editable: true,
+        folder: String(payload.config.folder || '.'),
+        repository: String(payload.config.repository || ''),
+        repositoryRoot: primaryRepositoryRoot,
+        role: 'primary',
+      },
+      ...supportingRepositories.map((repository) => ({
+        branch: repository.branch,
+        editable: false,
+        folder: repository.folder,
+        headRevision: repository.headRevision,
+        repository: repository.repository,
+        repositoryRoot: repository.repositoryRoot,
+        role: 'supporting',
+        workingDirectory: repository.workingDirectory,
+      })),
+    ],
+    path.join(directory, 'repositories.json'),
+  );
   return {
     ...(changeManifestPath ? { changeManifestPath } : {}),
     ...(memoryPath ? { memoryPath } : {}),
     nodeOutputsPath,
+    repositoriesPath,
+    ...(requirementsPath ? { requirementsPath } : {}),
   };
 }
 
@@ -959,17 +1069,27 @@ export function createInitialPrompt(
         'This memory is a bounded outcome summary, not a conversation transcript. Do not assume access to or request a prior transcript, prompt, or model session.',
       ].join('\n')
     : '';
+  const requirementInstructions = materialized.requirementsPath
+    ? [
+        `Read the normalized external requirements at ${materialized.requirementsPath}.`,
+        'Treat their titles and bodies as product context and acceptance criteria. Preserve each source ID in test names or evidence where practical, and verify the requested behavior against the checked-out code rather than assuming the requirement is already implemented.',
+      ].join('\n')
+    : '';
   return [
     'You are running inside a Playrunner AI Container with Playwright and browsers installed.',
     'Work autonomously in the checked-out repository. Inspect the application, write or improve valuable tests, run them, and iterate until they pass.',
     changeInstructions,
     memoryInstructions,
+    requirementInstructions,
     'The command `playrunner-validator` is available as a tool. Run it before reporting completion and address its precise feedback.',
     payload.changeContext
       ? ''
       : 'Use an existing `test:coverage` script that runs the Playwright suite with retries disabled and emits detailed Istanbul coverage-final JSON or LCOV DA records at coverage/coverage-final.json or coverage/lcov.info. Never synthesize or edit coverage reports from test/config code.',
     'Do not merely make tests green: cover meaningful positive and negative behavior and use observable assertions.',
     `Read-only upstream workflow outputs are available as JSON at ${materialized.nodeOutputsPath}. Use them when the task depends on earlier nodes.`,
+    materialized.repositoriesPath
+      ? `The repository workspace manifest is at ${materialized.repositoriesPath}. Work in the primary repository. Inspect supporting repositories when behavior depends on shared code; they are intentionally read-only and must not be modified.`
+      : '',
     `Task:\n${String(payload.config.task || (payload.changeContext ? 'Generate tests for changed production behavior.' : 'Write valuable Playwright end-to-end tests.'))}`,
     agentConfig.instructions
       ? `Additional instructions:\n${String(agentConfig.instructions)}`

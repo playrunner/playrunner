@@ -71,6 +71,16 @@ export type PreparedRepository = {
   changeManifest?: ChangeManifest;
   headRevision: string;
   repositoryRoot: string;
+  supportingRepositories?: PreparedSupportingRepository[];
+  workingDirectory: string;
+};
+
+export type PreparedSupportingRepository = {
+  branch: string;
+  folder: string;
+  headRevision: string;
+  repository: string;
+  repositoryRoot: string;
   workingDirectory: string;
 };
 
@@ -92,6 +102,124 @@ type RawChangedFile = {
   previousPath?: string;
   status: ChangeManifestFile['status'];
 };
+
+type SupportingRepositoryConfig = {
+  branch: string;
+  folder: string;
+  repository: string;
+};
+
+function supportingRepositoryConfigs(
+  payload: AgentRunnerPayload,
+): SupportingRepositoryConfig[] {
+  const configured = payload.config.supportingRepositories;
+  if (configured === undefined) return [];
+  if (!Array.isArray(configured) || configured.length > 10) {
+    throw new Error(
+      'AI Container supportingRepositories must contain at most 10 repositories.',
+    );
+  }
+  const primary = normalizeGitHubRepository(payload.config.repository);
+  const repositories = configured.map((candidate, index) => {
+    if (
+      !candidate ||
+      typeof candidate !== 'object' ||
+      Array.isArray(candidate)
+    ) {
+      throw new Error(
+        `AI Container supportingRepositories[${index}] must be an object.`,
+      );
+    }
+    const config = candidate as Record<string, unknown>;
+    const repository = normalizeGitHubRepository(
+      config.repository,
+      `config.supportingRepositories[${index}].repository`,
+    );
+    const branch = String(config.branch || 'main').trim() || 'main';
+    const folder = String(config.folder || '.').trim() || '.';
+    return { branch, folder, repository };
+  });
+  const names = [
+    primary,
+    ...repositories.map(({ repository }) => repository),
+  ].map((repository) => repository.toLowerCase());
+  if (new Set(names).size !== names.length) {
+    throw new Error('AI Container repositories must be unique.');
+  }
+  return repositories;
+}
+
+function makeTreeReadOnly(target: string): void {
+  const stat = fs.lstatSync(target);
+  if (stat.isSymbolicLink()) return;
+  if (stat.isDirectory()) {
+    for (const entry of fs.readdirSync(target)) {
+      makeTreeReadOnly(path.join(target, entry));
+    }
+  }
+  fs.chmodSync(target, stat.mode & ~0o222);
+}
+
+async function prepareSupportingRepositories(
+  payload: AgentRunnerPayload,
+  primaryRoot: string,
+  options: RepositoryOptions,
+): Promise<PreparedSupportingRepository[]> {
+  const configs = supportingRepositoryConfigs(payload);
+  if (!configs.length) return [];
+  const supportingRoot = assertSafeRepositoryRoot(
+    path.join(path.dirname(primaryRoot), 'supporting'),
+  );
+  const identity = options.identity || getAgentIdentity();
+  resetRepositoryRoot(supportingRoot, identity);
+  const prepared: PreparedSupportingRepository[] = [];
+  for (const [index, config] of configs.entries()) {
+    const repositoryRoot = path.join(supportingRoot, `repository-${index + 1}`);
+    const supportingPayload: AgentRunnerPayload = {
+      ...payload,
+      changeContext: undefined,
+      config: {
+        branch: config.branch,
+        folder: config.folder,
+        repository: config.repository,
+      },
+      memory: undefined,
+    };
+    const workingDirectory = await cloneRepository(supportingPayload, {
+      ...options,
+      identity,
+      repositoryRoot,
+    });
+    const head = await runGitData(
+      options.runCommand || runProcess,
+      repositoryRoot,
+      ['rev-parse', '--verify', 'HEAD^{commit}'],
+      {
+        environment: createGitEnvironment(
+          undefined,
+          identity,
+          options.environment,
+        ),
+        identity,
+        label: `Git cloned head verification for ${config.repository}`,
+      },
+    );
+    const headRevision = head.stdout.trim().toLowerCase();
+    if (!GIT_OBJECT_ID_PATTERN.test(headRevision)) {
+      throw new Error(
+        `Git returned an invalid cloned head revision for ${config.repository}.`,
+      );
+    }
+    makeTreeReadOnly(repositoryRoot);
+    prepared.push({
+      ...config,
+      headRevision,
+      repositoryRoot,
+      workingDirectory,
+    });
+  }
+  return prepared;
+}
 
 function positiveInteger(value: unknown, fallback: number): number {
   const parsed = Number(value);
@@ -853,7 +981,16 @@ export async function prepareRepository(
 ): Promise<PreparedRepository> {
   if (payload.changeContext) {
     const context = normalizeCiChangeContext(payload.changeContext);
-    return prepareCiRepository(payload, context, options);
+    const primary = await prepareCiRepository(payload, context, options);
+    const supportingRepositories = await prepareSupportingRepositories(
+      payload,
+      primary.repositoryRoot,
+      options,
+    );
+    return {
+      ...primary,
+      ...(supportingRepositories.length ? { supportingRepositories } : {}),
+    };
   }
   const repository = normalizeGitHubRepository(payload.config.repository);
   if (
@@ -887,5 +1024,15 @@ export async function prepareRepository(
   if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(headRevision)) {
     throw new Error('Git returned an invalid cloned head revision.');
   }
-  return { headRevision, repositoryRoot, workingDirectory };
+  const supportingRepositories = await prepareSupportingRepositories(
+    payload,
+    repositoryRoot,
+    options,
+  );
+  return {
+    headRevision,
+    repositoryRoot,
+    ...(supportingRepositories.length ? { supportingRepositories } : {}),
+    workingDirectory,
+  };
 }

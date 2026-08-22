@@ -34,6 +34,10 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await page
           .getByTestId('agent-container-task')
           .fill('Test checkout behavior');
+        await page.getByTestId('agent-container-jira-issue').fill('PAY-42');
+        await page
+          .getByTestId('agent-container-github-issue')
+          .fill('playrunner/e2e-fixture#18');
         const repository = page.getByTestId('agent-container-repository');
         await expect(repository).toBeEnabled();
         await expect(repository).toContainText('playrunner/e2e-fixture');
@@ -48,6 +52,15 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(branch).toBeEnabled();
         await expect(branch).toContainText('main');
         await branch.selectOption('main');
+        await page
+          .getByTestId('agent-container-add-supporting-repository')
+          .click();
+        await page
+          .getByTestId('agent-container-supporting-repository-select-0')
+          .selectOption('playrunner-bot/e2e-fixture');
+        await page
+          .getByTestId('agent-container-supporting-branch-0')
+          .fill('library-main');
         await host.closeNodeSettings();
         await host.saveWorkflow();
         await host.reloadWorkflow();
@@ -55,6 +68,12 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(page.getByTestId('agent-container-task')).toHaveValue(
           'Test checkout behavior',
         );
+        await expect(
+          page.getByTestId('agent-container-jira-issue'),
+        ).toHaveValue('PAY-42');
+        await expect(
+          page.getByTestId('agent-container-github-issue'),
+        ).toHaveValue('playrunner/e2e-fixture#18');
         await expect(
           page.getByTestId('agent-container-repository'),
         ).toHaveValue('playrunner/e2e-fixture');
@@ -64,6 +83,12 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(page.getByTestId('agent-container-branch')).toHaveValue(
           'main',
         );
+        await expect(
+          page.getByTestId('agent-container-supporting-repository-select-0'),
+        ).toHaveValue('playrunner-bot/e2e-fixture');
+        await expect(
+          page.getByTestId('agent-container-supporting-branch-0'),
+        ).toHaveValue('library-main');
         await expect(
           page.getByTestId('agent-container-max-duration-minutes'),
         ).toHaveValue('30');

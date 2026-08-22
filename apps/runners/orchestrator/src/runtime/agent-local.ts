@@ -32,6 +32,7 @@ export interface AgentRunnerPayload {
   github?: Record<string, unknown>;
   memory?: AgentExecutionRequest['memory'];
   nodeOutputs: AgentExecutionRequest['nodeOutputs'];
+  requirements?: AgentExecutionRequest['requirements'];
   runnerControl: PubSubRunnerControl['payload'];
   runtime: AgentExecutionRequest['runtime'];
   validators: AgentExecutionRequest['validators'];
@@ -554,6 +555,9 @@ export function createAgentRunnerPayload(
     github: request.reqBody.settings?.github,
     ...(request.memory ? { memory: request.memory } : {}),
     nodeOutputs: request.nodeOutputs,
+    ...(request.requirements?.length
+      ? { requirements: request.requirements }
+      : {}),
     runnerControl,
     runtime: request.runtime,
     validators: request.validators,

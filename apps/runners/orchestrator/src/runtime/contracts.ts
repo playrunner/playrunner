@@ -19,6 +19,13 @@ export interface AgentExecutionRequest {
   nodeId: string;
   nodeOutputs: Readonly<Record<string, unknown>>;
   memory?: Record<string, unknown>;
+  requirements?: Array<{
+    body: string;
+    id: string;
+    source: 'github' | 'jira';
+    title: string;
+    url: string;
+  }>;
   publishEvent: (event: Record<string, unknown>) => Promise<void>;
   publishLog: (
     message: string,

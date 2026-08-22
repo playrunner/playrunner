@@ -4,6 +4,7 @@ import express from 'express';
 import { withRunnerProtocolSignature } from '../../shared/runner-protocol';
 import { orchestratorRuntime } from './runtime';
 import { createBotPullRequestWorkflowEvent } from './runtime/agent-local';
+import { resolveAgentRequirements } from './runtime/agent-requirements';
 import type {
   AgentExecutionRequest,
   CiChangeContext,
@@ -1781,6 +1782,10 @@ export async function executeWorkflow(reqBody: any) {
             );
           } else if (type === 'agent-container') {
             const request = createAgentExecutionRequest(node);
+            request.requirements = await resolveAgentRequirements(
+              request.config,
+              getRecord(request.reqBody.settings),
+            );
             const publishAttachmentState = async (
               state: 'error' | 'warning',
               message: string,

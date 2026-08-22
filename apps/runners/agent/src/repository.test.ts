@@ -256,6 +256,111 @@ test('rejects a configured folder that escapes the repository through a symlink'
   }
 });
 
+test('prepares multiple supporting repositories as read-only context', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-multi-repo-'));
+  const repositoryRoot = path.join(root, 'repo');
+  const identity = {
+    gid: process.getgid?.() || 1001,
+    home: root,
+    uid: process.getuid?.() || 1001,
+  };
+  const value: AgentRunnerPayload = {
+    agent: { nodeId: 'codex-agent', nodeType: 'codex-cli' },
+    config: {
+      branch: 'main',
+      folder: '.',
+      repository: 'playrunner/application',
+      supportingRepositories: [
+        {
+          branch: 'stable',
+          folder: 'packages/client',
+          repository: 'playrunner/shared-library',
+        },
+        {
+          branch: 'main',
+          folder: '.',
+          repository: 'playrunner/contracts',
+        },
+      ],
+    },
+    environment: {},
+    github: { accessToken: 'github-secret' },
+    runtime: {
+      cloudProvider: 'LOCAL_RUNNER',
+      editorApiUrl: 'http://editor.test',
+      executionAuthToken: 'execution-token',
+      nodeId: 'agent-node',
+      testId: 'execution-1',
+      workflowId: 'workflow-1',
+    },
+    runnerControl: {
+      controlSubscriptionName: 'agent-control',
+      projectId: 'test-project',
+      protocolToken: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      topicName: 'workflow-events',
+      type: 'gcp_pubsub',
+    },
+    validators: [{ nodeId: 'test-validator', nodeType: 'validator' }],
+  };
+
+  try {
+    const prepared = await prepareRepository(value, {
+      identity,
+      repositoryRoot,
+      runCommand: async (command, args) => {
+        assert.equal(command, 'git');
+        if (args[0] === 'clone') {
+          const target = args.at(-1)!;
+          fs.mkdirSync(target, { recursive: true });
+          const repositoryUrl = args.at(-2) || '';
+          if (repositoryUrl.includes('shared-library')) {
+            fs.mkdirSync(path.join(target, 'packages/client'), {
+              recursive: true,
+            });
+          }
+          fs.writeFileSync(path.join(target, 'README.md'), 'fixture');
+        }
+        return {
+          code: 0,
+          durationMs: 1,
+          signal: null,
+          stderr: '',
+          stdout: args[0] === 'rev-parse' ? `${'a'.repeat(40)}\n` : '',
+          timedOut: false,
+        };
+      },
+    });
+
+    assert.equal(prepared.supportingRepositories?.length, 2);
+    assert.equal(
+      prepared.supportingRepositories?.[0].repository,
+      'playrunner/shared-library',
+    );
+    assert.equal(
+      prepared.supportingRepositories?.[0].workingDirectory,
+      path.join(root, 'supporting/repository-1/packages/client'),
+    );
+    assert.equal(
+      fs.statSync(path.join(root, 'supporting/repository-1/README.md')).mode &
+        0o222,
+      0,
+    );
+  } finally {
+    const restoreWriteAccess = (target: string) => {
+      if (!fs.existsSync(target) || fs.lstatSync(target).isSymbolicLink())
+        return;
+      fs.chmodSync(target, 0o700);
+      if (fs.statSync(target).isDirectory()) {
+        for (const entry of fs.readdirSync(target)) {
+          restoreWriteAccess(path.join(target, entry));
+        }
+      }
+    };
+    restoreWriteAccess(root);
+    fs.rmSync(root, { force: true, recursive: true });
+  }
+});
+
 test('rejects a clone that times out even if the child reports exit code 0', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-clone-timeout-'));
   const repositoryRoot = path.join(root, 'repo');

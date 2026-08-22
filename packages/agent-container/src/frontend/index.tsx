@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Bot, Container } from 'lucide-react';
+import { Bot, Container, Plus, Trash2 } from 'lucide-react';
 import { GithubSettingsModal } from '@playrunner/github';
 import {
   IntegrationConfigField,
@@ -14,14 +14,23 @@ const DEFAULT_CONFIG = {
   branch: 'main',
   cpu: 4,
   folder: '.',
+  githubIssue: '',
+  jiraIssue: '',
   maxDurationMinutes: 30,
   maxValidationAttempts: 3,
   memory: 8,
+  supportingRepositories: [] as SupportingRepositoryConfig[],
 };
 
 const MAX_DURATION_MINUTES = 45;
 const CPU_OPTIONS = [1, 2, 4, 8] as const;
 const MEMORY_OPTIONS = [2, 4, 8, 16, 32] as const;
+
+type SupportingRepositoryConfig = {
+  branch: string;
+  folder: string;
+  repository: string;
+};
 
 function boundedInteger(
   value: unknown,
@@ -45,6 +54,29 @@ function normalizedStringList(value: unknown): string[] {
         ),
       )
     : [];
+}
+
+function normalizedSupportingRepositories(
+  value: unknown,
+): SupportingRepositoryConfig[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 10).map((candidate) => {
+    const entry =
+      candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+        ? (candidate as Record<string, unknown>)
+        : {};
+    return {
+      branch:
+        typeof entry.branch === 'string' && entry.branch.trim()
+          ? entry.branch
+          : 'main',
+      folder:
+        typeof entry.folder === 'string' && entry.folder.trim()
+          ? entry.folder
+          : '.',
+      repository: typeof entry.repository === 'string' ? entry.repository : '',
+    };
+  });
 }
 
 const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
@@ -92,6 +124,16 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     path: 'memory',
     type: 'object',
     description: 'Bounded durable outcome used by the next CI execution',
+  },
+  {
+    path: 'repositories',
+    type: 'array',
+    description: 'Primary and supporting repository revisions used by the run',
+  },
+  {
+    path: 'requirementSources',
+    type: 'array',
+    description: 'Jira and GitHub requirement source metadata used by the run',
   },
   {
     path: 'validation',
@@ -316,6 +358,7 @@ export const AgentContainerConfigPanel: React.FC<
 }) => {
   const { auth, ui } = useIntegrationHost();
   const Input = ui.Input;
+  const Button = ui.Button!;
   const Select = ui.Select;
   const Textarea = ui.Textarea;
   const [repositories, setRepositories] = React.useState<
@@ -340,6 +383,9 @@ export const AgentContainerConfigPanel: React.FC<
     typeof config.botPullRequestForkRepository === 'string'
       ? config.botPullRequestForkRepository
       : '';
+  const configuredSupportingRepositories = normalizedSupportingRepositories(
+    config.supportingRepositories,
+  );
 
   useEffect(() => {
     const normalized = {
@@ -368,6 +414,9 @@ export const AgentContainerConfigPanel: React.FC<
         ? Number(config.memory)
         : DEFAULT_CONFIG.memory,
       envVars: normalizedStringList(config.envVars),
+      supportingRepositories: normalizedSupportingRepositories(
+        config.supportingRepositories,
+      ),
     };
     if (JSON.stringify(normalized) !== JSON.stringify(config)) {
       onChange(nodeId, normalized);
@@ -449,6 +498,16 @@ export const AgentContainerConfigPanel: React.FC<
   const update = (field: string, value: unknown) =>
     onChange(nodeId, { ...config, [field]: value });
 
+  const updateSupportingRepository = (
+    index: number,
+    patch: Partial<SupportingRepositoryConfig>,
+  ) => {
+    const next = configuredSupportingRepositories.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, ...patch } : entry,
+    );
+    update('supportingRepositories', next);
+  };
+
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const value = event.dataTransfer.getData('text/plain').trim();
@@ -516,6 +575,49 @@ export const AgentContainerConfigPanel: React.FC<
               onChange={(event) => update('task', event.target.value)}
             />
           </IntegrationConfigField>
+          <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+            <div>
+              <h4 className="text-sm font-medium text-[var(--foreground)]">
+                Optional requirement sources
+              </h4>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Add either source, both, or neither. The orchestrator loads the
+                issue title and description before the isolated agent starts.
+              </p>
+            </div>
+            <IntegrationConfigField
+              label="Jira issue"
+              hint="Issue key or Jira browse URL, for example PAY-42."
+              htmlFor="agent-container-jira-issue"
+            >
+              <Input
+                id="agent-container-jira-issue"
+                data-testid="agent-container-jira-issue"
+                value={
+                  typeof config.jiraIssue === 'string' ? config.jiraIssue : ''
+                }
+                onChange={(event) => update('jiraIssue', event.target.value)}
+                placeholder="PAY-42"
+              />
+            </IntegrationConfigField>
+            <IntegrationConfigField
+              label="GitHub issue or pull request"
+              hint="GitHub URL or owner/repository#number."
+              htmlFor="agent-container-github-issue"
+            >
+              <Input
+                id="agent-container-github-issue"
+                data-testid="agent-container-github-issue"
+                value={
+                  typeof config.githubIssue === 'string'
+                    ? config.githubIssue
+                    : ''
+                }
+                onChange={(event) => update('githubIssue', event.target.value)}
+                placeholder="owner/repository#123"
+              />
+            </IntegrationConfigField>
+          </div>
           <div className="space-y-4 rounded-lg border border-subtle bg-[var(--background)] p-4">
             <div className="flex items-center justify-between border-b border-subtle pb-2">
               <h4 className="text-sm font-medium text-[var(--foreground)]">
@@ -579,6 +681,10 @@ export const AgentContainerConfigPanel: React.FC<
                   ...config,
                   repository,
                   branch: '',
+                  supportingRepositories:
+                    configuredSupportingRepositories.filter(
+                      (candidate) => candidate.repository !== repository,
+                    ),
                   ...(configuredForkRepository.toLowerCase() ===
                   repository.toLowerCase()
                     ? { botPullRequestForkRepository: '' }
@@ -668,6 +774,137 @@ export const AgentContainerConfigPanel: React.FC<
               disabled={!configuredRepository}
             />
           </IntegrationConfigField>
+          <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-[var(--foreground)]">
+                  Supporting repositories
+                </h4>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Checkout related libraries alongside the primary repository.
+                  Supporting repositories are read-only and provide context;
+                  validation and patches remain scoped to the primary
+                  repository.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                data-testid="agent-container-add-supporting-repository"
+                disabled={
+                  !isConnected || configuredSupportingRepositories.length >= 10
+                }
+                onClick={() =>
+                  update('supportingRepositories', [
+                    ...configuredSupportingRepositories,
+                    { branch: 'main', folder: '.', repository: '' },
+                  ])
+                }
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Add repository
+              </Button>
+            </div>
+            {configuredSupportingRepositories.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-muted">
+                No supporting repositories configured.
+              </p>
+            ) : null}
+            {configuredSupportingRepositories.map((entry, index) => (
+              <div
+                key={`${index}-${entry.repository}`}
+                className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
+                data-testid={`agent-container-supporting-repository-${index}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Repository {index + 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Remove supporting repository ${index + 1}`}
+                    title={`Remove supporting repository ${index + 1}`}
+                    data-testid={`agent-container-remove-supporting-repository-${index}`}
+                    onClick={() =>
+                      update(
+                        'supportingRepositories',
+                        configuredSupportingRepositories.filter(
+                          (_, entryIndex) => entryIndex !== index,
+                        ),
+                      )
+                    }
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Button>
+                </div>
+                <IntegrationConfigField label="Repository">
+                  <Select
+                    data-testid={`agent-container-supporting-repository-select-${index}`}
+                    value={entry.repository}
+                    disabled={isLoadingRepos || !isConnected}
+                    onChange={(event) =>
+                      updateSupportingRepository(index, {
+                        branch: 'main',
+                        repository: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Select Repository</option>
+                    {repositories
+                      .filter(
+                        (repository) =>
+                          repository.full_name !== configuredRepository &&
+                          !configuredSupportingRepositories.some(
+                            (candidate, candidateIndex) =>
+                              candidateIndex !== index &&
+                              candidate.repository === repository.full_name,
+                          ),
+                      )
+                      .map((repository) => (
+                        <option
+                          key={repository.id}
+                          value={repository.full_name}
+                        >
+                          {repository.full_name}
+                        </option>
+                      ))}
+                  </Select>
+                </IntegrationConfigField>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <IntegrationConfigField label="Branch">
+                    <Input
+                      data-testid={`agent-container-supporting-branch-${index}`}
+                      value={entry.branch}
+                      onChange={(event) =>
+                        updateSupportingRepository(index, {
+                          branch: event.target.value,
+                        })
+                      }
+                      placeholder="main"
+                    />
+                  </IntegrationConfigField>
+                  <IntegrationConfigField
+                    label="Folder"
+                    hint="Optional working folder within this repository."
+                  >
+                    <Input
+                      data-testid={`agent-container-supporting-folder-${index}`}
+                      value={entry.folder}
+                      onChange={(event) =>
+                        updateSupportingRepository(index, {
+                          folder: event.target.value,
+                        })
+                      }
+                      placeholder="."
+                    />
+                  </IntegrationConfigField>
+                </div>
+              </div>
+            ))}
+          </div>
           <IntegrationConfigField
             label="Maximum validation attempts"
             hint="The supervisor resumes the same agent session with validator feedback."
