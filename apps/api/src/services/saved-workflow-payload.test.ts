@@ -68,7 +68,7 @@ test('saved workflow executions inject only server-owned agent memory', () => {
   assert.deepEqual(body.workflow.trigger, ci);
 });
 
-test('non-CI saved executions cannot carry CI context or agent memory', () => {
+test('non-CI saved executions receive only server-owned agent memory', () => {
   const body = buildSavedWorkflowExecutionBody({
     agentMemoryByNodeId: {
       agent: { schemaVersion: 1, summary: 'server memory' },
@@ -92,7 +92,9 @@ test('non-CI saved executions cannot carry CI context or agent memory', () => {
   });
 
   assert.equal(Object.hasOwn(body, 'ci'), false);
-  assert.equal(Object.hasOwn(body, 'agentMemoryByNodeId'), false);
+  assert.deepEqual(body.agentMemoryByNodeId, {
+    agent: { schemaVersion: 1, summary: 'server memory' },
+  });
   assert.equal(body.webhookInput, 'preserved');
   assert.equal(body.workflow.run.trigger, 'webhook');
 });

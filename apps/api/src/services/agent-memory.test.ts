@@ -1,59 +1,67 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  agentMemoryChangeScope,
-  assertAgentMemoryMatchesCiExecution,
   extractAgentMemoryFromEvent,
   isAgentContainerWorkflowNode,
   MAX_AGENT_MEMORY_BYTES,
   MAX_AGENT_MEMORY_DEPTH,
   parseAgentMemory,
+  resolveMemoryBinding,
 } from './agent-memory';
 
-test('isolates pull request memory from same-named fork branches', () => {
-  const sharedBranch = 'feature/validator';
+test('binds attached memory to the project and repository by default', () => {
+  const workflow = {
+    connections: [
+      {
+        attachmentPort: 'memory',
+        role: 'attachment',
+        sourceId: 'memory-1',
+        targetId: 'container-1',
+      },
+    ],
+    id: 'workflow-1',
+    nodes: [
+      {
+        config: { repository: 'playrunner/playrunner' },
+        id: 'container-1',
+        nodeType: 'agent-container',
+      },
+      {
+        config: { namespace: 'architecture', scope: 'project' },
+        id: 'memory-1',
+        nodeType: 'project-memory',
+      },
+    ],
+    projectId: 'project-1',
+    userId: 'user-1',
+  };
+  assert.deepEqual(resolveMemoryBinding(workflow, 'container-1'), {
+    namespace: 'architecture',
+    repository: 'playrunner/playrunner',
+    scopeId: 'project-1',
+    scopeKind: 'project',
+  });
   assert.equal(
-    agentMemoryChangeScope({
-      eventType: 'pull_request',
-      headRef: sharedBranch,
-      pullRequestNumber: 41,
-    }),
-    'pr:41',
+    resolveMemoryBinding({ ...workflow, connections: [] }, 'container-1'),
+    null,
   );
-  assert.equal(
-    agentMemoryChangeScope({
-      eventType: 'pull_request',
-      headRef: sharedBranch,
-      pullRequestNumber: 42,
-    }),
-    'pr:42',
-  );
-  assert.equal(
-    agentMemoryChangeScope({
-      eventType: 'push',
-      headRef: sharedBranch,
-    }),
-    `ref:${sharedBranch}`,
-  );
-});
-
-test('fails closed when change identity cannot produce one memory scope', () => {
-  assert.throws(
-    () =>
-      agentMemoryChangeScope({
-        eventType: 'pull_request',
-        headRef: 'feature/validator',
-      }),
-    /requires a positive 32-bit pull request number/,
-  );
-  assert.throws(
-    () =>
-      agentMemoryChangeScope({
-        eventType: 'manual',
-        headRef: 'feature/validator',
-        pullRequestNumber: 42,
-      }),
-    /cannot contain a pull request number/,
+  assert.deepEqual(
+    resolveMemoryBinding(
+      {
+        ...workflow,
+        nodes: [
+          workflow.nodes[0],
+          { ...workflow.nodes[1], config: { scope: 'workflow' } },
+        ],
+      },
+      'container-1',
+    ),
+    {
+      namespace: 'project',
+      repository: 'playrunner/playrunner',
+      scopeId: 'workflow-1',
+      scopeKind: 'workflow',
+    },
   );
 });
 
@@ -82,42 +90,6 @@ test('recognizes memory only for the matching AI Container workflow node', () =>
   assert.equal(isAgentContainerWorkflowNode(nodes, 'agent-container-1'), true);
   assert.equal(isAgentContainerWorkflowNode(nodes, 'javascript-1'), false);
   assert.equal(isAgentContainerWorkflowNode({}, 'agent-container-1'), false);
-});
-
-test('binds durable memory identity to its authoritative CI execution', () => {
-  const memory = {
-    lastProcessedHeadSha: 'b'.repeat(40),
-    repository: 'playrunner/playrunner',
-    schemaVersion: '1.0',
-  };
-  assert.doesNotThrow(() =>
-    assertAgentMemoryMatchesCiExecution(memory, {
-      headSha: 'b'.repeat(40),
-      repository: 'playrunner/playrunner',
-    }),
-  );
-  assert.throws(
-    () =>
-      assertAgentMemoryMatchesCiExecution(
-        { ...memory, repository: 'other/private' },
-        {
-          headSha: 'b'.repeat(40),
-          repository: 'playrunner/playrunner',
-        },
-      ),
-    /repository does not match/,
-  );
-  assert.throws(
-    () =>
-      assertAgentMemoryMatchesCiExecution(
-        { ...memory, lastProcessedHeadSha: 'c'.repeat(40) },
-        {
-          headSha: 'b'.repeat(40),
-          repository: 'playrunner/playrunner',
-        },
-      ),
-    /head SHA does not match/,
-  );
 });
 
 test('ignores non-output events and outputs without memory', () => {

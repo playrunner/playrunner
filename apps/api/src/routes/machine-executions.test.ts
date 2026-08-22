@@ -7,11 +7,11 @@ import {
 
 test('machine execution body parser errors are bounded JSON responses', () => {
   assert.deepEqual(machineExecutionJsonError({ type: 'entity.parse.failed' }), {
-    error: 'Invalid CI change context JSON.',
+    error: 'Invalid workflow run JSON.',
     status: 400,
   });
   assert.deepEqual(machineExecutionJsonError({ type: 'entity.too.large' }), {
-    error: 'CI change context exceeds 8192 bytes.',
+    error: 'Workflow run request exceeds 131072 bytes.',
     status: 413,
   });
   assert.equal(machineExecutionJsonError(new Error('database failure')), null);

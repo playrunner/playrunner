@@ -4,7 +4,10 @@ import express from 'express';
 import { withRunnerProtocolSignature } from '../../shared/runner-protocol';
 import { orchestratorRuntime } from './runtime';
 import { createBotPullRequestWorkflowEvent } from './runtime/agent-local';
-import { resolveAgentRequirements } from './runtime/agent-requirements';
+import {
+  requirementsFromConnectedOutputs,
+  requirementsFromWorkflowInput,
+} from './runtime/connected-requirements';
 import type {
   AgentExecutionRequest,
   CiChangeContext,
@@ -176,6 +179,7 @@ type WorkflowTemplateContext = {
     logs: WorkflowDiagnosticLogs;
     runs: WorkflowHistoryRun[];
   };
+  inputs: Record<string, unknown>;
 };
 
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
@@ -521,6 +525,7 @@ function createWorkflowTemplateContext(
         getString(reqBody.title) ||
         'Untitled Workflow',
     },
+    inputs: getRecord(reqBody.inputs),
     run: {
       diagnostics: {
         sharding: [],
@@ -1219,8 +1224,13 @@ export async function executeWorkflow(reqBody: any) {
         node: any,
       ): AgentExecutionRequest => {
         const incomingSourceIds = new Set(
-          processedConnections
-            .filter((connection: any) => connection.targetId === node.id)
+          [...processedConnections, ...attachmentConnections]
+            .filter(
+              (connection: any) =>
+                connection.targetId === node.id &&
+                (connection.role !== 'attachment' ||
+                  connection.attachmentPort === 'tool'),
+            )
             .map((connection: any) => getString(connection.sourceId))
             .filter(Boolean),
         );
@@ -1248,8 +1258,15 @@ export async function executeWorkflow(reqBody: any) {
         const agents = attachedNodes.filter(
           (entry: any) => entry.connection.attachmentPort === 'agent',
         );
-        const validators = attachedNodes.filter(
+        const tools = attachedNodes.filter(
           (entry: any) => entry.connection.attachmentPort === 'tool',
+        );
+        const memories = attachedNodes.filter(
+          (entry: any) => entry.connection.attachmentPort === 'memory',
+        );
+        const validators = tools.filter(
+          (entry: any) =>
+            packageExecutorRuntime.nodeType(entry.node) === 'validator',
         );
         if (agents.length !== 1) {
           throw new Error(
@@ -1258,7 +1275,20 @@ export async function executeWorkflow(reqBody: any) {
         }
         if (validators.length < 1) {
           throw new Error(
-            `AI Container ${node.label || node.id} requires at least one Validator attachment.`,
+            `AI Container ${node.label || node.id} requires a Test Validator tool.`,
+          );
+        }
+        if (memories.length > 1) {
+          throw new Error(
+            `AI Container ${node.label || node.id} accepts at most one Memory attachment; found ${memories.length}.`,
+          );
+        }
+        if (
+          memories.length === 1 &&
+          packageExecutorRuntime.nodeType(memories[0].node) !== 'project-memory'
+        ) {
+          throw new Error(
+            `Unsupported AI Container Memory: ${packageExecutorRuntime.nodeType(memories[0].node)}.`,
           );
         }
         const config = renderNodeTemplateValue(
@@ -1298,14 +1328,6 @@ export async function executeWorkflow(reqBody: any) {
           nodeId: getString(entry.node.id),
           nodeType: packageExecutorRuntime.nodeType(entry.node),
         }));
-        const unsupportedValidator = resolvedValidators.find(
-          (validator: any) => validator.nodeType !== 'validator',
-        );
-        if (unsupportedValidator) {
-          throw new Error(
-            `Unsupported AI Container Validator: ${unsupportedValidator.nodeType}.`,
-          );
-        }
         const runtimeTestId = getString(testId);
         const runtimeEditorApiUrl = resolveEditorApiOrigin(
           reqBody.editorApiUrl,
@@ -1377,6 +1399,80 @@ export async function executeWorkflow(reqBody: any) {
           },
           validators: resolvedValidators,
         };
+      };
+
+      const executeAgentRequirementTools = async (containerNode: any) => {
+        const tools = attachmentConnections
+          .filter(
+            (connection: any) =>
+              connection.targetId === containerNode.id &&
+              connection.attachmentPort === 'tool',
+          )
+          .map((connection: any) => ({
+            node: nodes.find(
+              (candidate: any) => candidate.id === connection.sourceId,
+            ),
+          }))
+          .filter(
+            (entry: any) =>
+              entry.node &&
+              packageExecutorRuntime.nodeType(entry.node) !== 'validator',
+          );
+
+        for (const entry of tools) {
+          const toolNode = entry.node;
+          const toolType = packageExecutorRuntime.nodeType(toolNode);
+          await publishNodeState(toolNode.id, 'running', {
+            parentNodeId: containerNode.id,
+          });
+          try {
+            const result = await packageExecutorRuntime.execute({
+              executionId: testId,
+              workflowId: workflowContext.definition.id,
+              node: toolNode,
+              settings,
+              env: globalEnvVars,
+              nodeOutputs: nodeTemplateOutputs,
+              workflow: workflowContext as unknown as Record<string, unknown>,
+              renderTemplate: (value) =>
+                renderNodeTemplate(value, {
+                  env: globalEnvVars,
+                  nodeLogs: nodeDiagnosticLogs,
+                  nodeOutputs: nodeTemplateOutputs,
+                  workflow: workflowContext,
+                }),
+              log: (message, level) =>
+                publishLog(message, level, {
+                  nodeId: toolNode.id,
+                  parentNodeId: containerNode.id,
+                }),
+            });
+            const output = getRecord(result.output);
+            if (output.acceptanceCriteria === undefined) {
+              throw new Error(
+                `${toolNode.label || toolType} must use an action that returns acceptance criteria, such as Get Issue.`,
+              );
+            }
+            nodeTemplateOutputs[`node_${toolNode.id}`] = result.output;
+            await publishEvent({
+              nodeId: toolNode.id,
+              output: result.output,
+              parentNodeId: containerNode.id,
+              timestamp: new Date().toISOString(),
+              type: 'node_output',
+            });
+            await publishNodeState(toolNode.id, 'success', {
+              parentNodeId: containerNode.id,
+            });
+          } catch (error) {
+            await publishNodeState(toolNode.id, 'error', {
+              parentNodeId: containerNode.id,
+            });
+            throw new Error(
+              `AI Container tool ${toolNode.label || toolType} failed: ${getErrorMessage(error)}`,
+            );
+          }
+        }
       };
 
       const playwrightNodes = workflowNodes.filter(
@@ -1781,11 +1877,15 @@ export async function executeWorkflow(reqBody: any) {
               { nodeId: node.id },
             );
           } else if (type === 'agent-container') {
+            await executeAgentRequirementTools(node);
             const request = createAgentExecutionRequest(node);
-            request.requirements = await resolveAgentRequirements(
-              request.config,
-              getRecord(request.reqBody.settings),
-            );
+            const requirements = [
+              ...requirementsFromConnectedOutputs(request.nodeOutputs),
+              ...requirementsFromWorkflowInput(
+                request.reqBody.acceptanceCriteria,
+              ),
+            ];
+            if (requirements.length) request.requirements = requirements;
             const publishAttachmentState = async (
               state: 'error' | 'warning',
               message: string,

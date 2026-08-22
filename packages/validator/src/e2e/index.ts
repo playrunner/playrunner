@@ -29,7 +29,7 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
           ).toHaveValue('100');
           await expect(
             page.getByTestId('validator-validation-command'),
-          ).toHaveValue('npm run test:coverage -- --reporter=line --retries=0');
+          ).toHaveValue('playwright test --reporter=line --retries=0');
           const validationTimeout = page.getByTestId(
             'validator-validation-timeout-minutes',
           );
@@ -95,7 +95,7 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
         await page.getByTestId('validator-assertionQuality').fill('90');
         await page
           .getByTestId('validator-validation-command')
-          .fill('npm run custom:coverage -- --reporter=line --retries=0');
+          .fill('playwright test tests/custom --reporter=line --retries=0');
         await page
           .getByTestId('validator-validation-timeout-minutes')
           .fill('45');
@@ -129,7 +129,9 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
         ).toHaveValue('90');
         await expect(
           page.getByTestId('validator-validation-command'),
-        ).toHaveValue('npm run custom:coverage -- --reporter=line --retries=0');
+        ).toHaveValue(
+          'playwright test tests/custom --reporter=line --retries=0',
+        );
         await expect(
           page.getByTestId('validator-validation-timeout-minutes'),
         ).toHaveValue('45');
@@ -156,7 +158,7 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
         await page.getByTestId('validator-validation-command').fill('');
         await expect(
           page.getByTestId('validator-validation-command'),
-        ).toHaveValue('npm run test:coverage -- --reporter=line --retries=0');
+        ).toHaveValue('playwright test --reporter=line --retries=0');
         await page
           .getByTestId('validator-validation-timeout-minutes')
           .fill('0');

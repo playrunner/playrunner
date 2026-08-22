@@ -1,6 +1,6 @@
 {
   "name": "playrunner",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Run saved Playrunner workflows from CI/CD.",
   "keywords": [
     "playrunner",

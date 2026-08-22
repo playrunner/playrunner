@@ -149,7 +149,7 @@ function workflowRequest(testId: string) {
           envVars: ['TARGET_NAME'],
           metadata: { requirement: '{{node_context.requirement}}' },
           repository: 'playrunner/example',
-          task: 'Test {{node_context.requirement}} for {{env.TARGET_NAME}} in {{workflow.definition.name}}.',
+          task: 'Test {{node_context.requirement}} for {{env.TARGET_NAME}} in {{workflow.definition.name}} using ticket {{workflow.inputs.ticket}}.',
         },
         id: 'agent-container',
         label: 'AI Container',
@@ -626,8 +626,40 @@ describe('local AI Container execution', { concurrency: false }, () => {
 
   test('renders workflow inputs and always cleans up a successful runner', async () => {
     process.env.PUBSUB_EMULATOR_HOST = '127.0.0.1:8681';
-    globalThis.fetch = async () => new Response('{}', { status: 200 });
+    globalThis.fetch = async (input) =>
+      String(input).startsWith('https://github.test/')
+        ? Response.json({
+            body: 'Checkout must reject a declined payment',
+            html_url: 'https://github.com/playrunner/example/issues/46',
+            number: 46,
+            state: 'open',
+            title: 'Declined checkout',
+            url: 'https://api.github.com/repos/playrunner/example/issues/46',
+          })
+        : new Response('{}', { status: 200 });
     const request: any = workflowRequest('agent-success');
+    request.connections.push({
+      attachmentPort: 'tool',
+      role: 'attachment',
+      sourceId: 'github-requirement',
+      targetId: 'agent-container',
+    });
+    request.nodes.push({
+      config: {
+        action: 'read',
+        issueNumber: '{{workflow.inputs.ticket}}',
+        repository: 'playrunner/example',
+      },
+      id: 'github-requirement',
+      label: 'GitHub requirement',
+      nodeType: 'github',
+    });
+    request.settings = {
+      github: {
+        accessToken: 'github-secret',
+        apiBaseUrl: 'https://github.test',
+      },
+    };
     request.ci = {
       baseRef: 'main',
       baseSha: '1'.repeat(40),
@@ -644,13 +676,15 @@ describe('local AI Container execution', { concurrency: false }, () => {
         schemaVersion: '1.0',
       },
     };
+    request.inputs = { ticket: '46' };
+    request.acceptanceCriteria = ['Ticket #46 is the acceptance criteria'];
 
     await executeWorkflow(request);
 
     assert.ok(capturedRequest);
     assert.equal(
       capturedRequest.config.task,
-      'Test declined checkout for Playrunner in AI workflow.',
+      'Test declined checkout for Playrunner in AI workflow using ticket 46.',
     );
     assert.deepEqual(capturedRequest.config.metadata, {
       requirement: 'declined checkout',
@@ -665,9 +699,37 @@ describe('local AI Container execution', { concurrency: false }, () => {
       capturedRequest.validators[0]?.config.requirements,
       'CHECKOUT: declined checkout',
     );
-    assert.deepEqual(capturedRequest.nodeOutputs, {
-      node_context: { requirement: 'declined checkout' },
-    });
+    assert.equal(
+      (capturedRequest.nodeOutputs.node_context as Record<string, unknown>)
+        .requirement,
+      'declined checkout',
+    );
+    assert.equal(
+      (
+        (
+          capturedRequest.nodeOutputs['node_github-requirement'] as Record<
+            string,
+            unknown
+          >
+        ).acceptanceCriteria as Record<string, unknown>
+      ).id,
+      'playrunner/example#46',
+    );
+    assert.deepEqual(capturedRequest.requirements, [
+      {
+        body: 'Checkout must reject a declined payment',
+        id: 'playrunner/example#46',
+        source: 'github',
+        title: 'Declined checkout',
+        url: 'https://github.com/playrunner/example/issues/46',
+      },
+      {
+        body: 'Ticket #46 is the acceptance criteria',
+        id: 'CLI-1',
+        source: 'workflow',
+        title: 'Ticket #46 is the acceptance criteria',
+      },
+    ]);
     assert.deepEqual(capturedRequest.changeContext, request.ci);
     assert.deepEqual(
       capturedRequest.memory,

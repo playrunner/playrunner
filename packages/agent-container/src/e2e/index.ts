@@ -17,6 +17,9 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           page.getByTestId('agent-container-tab-config'),
         ).toBeVisible();
+        await expect(
+          page.getByTestId('agent-container-tab-requirements'),
+        ).toHaveCount(0);
         await expect(page.getByTestId('agent-container-tab-env')).toBeVisible();
         await expect(
           page.getByTestId('agent-container-tab-resources'),
@@ -34,27 +37,32 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await page
           .getByTestId('agent-container-task')
           .fill('Test checkout behavior');
-        await page.getByTestId('agent-container-jira-issue').fill('PAY-42');
-        await page
-          .getByTestId('agent-container-github-issue')
-          .fill('playrunner/e2e-fixture#18');
+        await expect(
+          page.getByTestId('agent-container-jira-issue'),
+        ).toHaveCount(0);
+        await expect(
+          page.getByTestId('agent-container-github-issue'),
+        ).toHaveCount(0);
         const repository = page.getByTestId('agent-container-repository');
         await expect(repository).toBeEnabled();
         await expect(repository).toContainText('playrunner/e2e-fixture');
         await repository.selectOption('playrunner/e2e-fixture');
-
-        const botPrFork = page.getByTestId('agent-container-bot-pr-fork');
-        await expect(botPrFork).toBeEnabled();
-        await expect(botPrFork).toContainText('playrunner-bot/e2e-fixture');
-        await botPrFork.selectOption('playrunner-bot/e2e-fixture');
+        await expect(
+          page.getByTestId('agent-container-bot-pr-fork'),
+        ).toHaveCount(0);
 
         const branch = page.getByTestId('agent-container-branch');
         await expect(branch).toBeEnabled();
         await expect(branch).toContainText('main');
         await branch.selectOption('main');
-        await page
-          .getByTestId('agent-container-add-supporting-repository')
-          .click();
+        const addSupportingRepository = page.getByTestId(
+          'agent-container-add-supporting-repository',
+        );
+        await expect(addSupportingRepository).toHaveCSS(
+          'white-space',
+          'nowrap',
+        );
+        await addSupportingRepository.click();
         await page
           .getByTestId('agent-container-supporting-repository-select-0')
           .selectOption('playrunner-bot/e2e-fixture');
@@ -70,16 +78,13 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         );
         await expect(
           page.getByTestId('agent-container-jira-issue'),
-        ).toHaveValue('PAY-42');
+        ).toHaveCount(0);
         await expect(
           page.getByTestId('agent-container-github-issue'),
-        ).toHaveValue('playrunner/e2e-fixture#18');
+        ).toHaveCount(0);
         await expect(
           page.getByTestId('agent-container-repository'),
         ).toHaveValue('playrunner/e2e-fixture');
-        await expect(
-          page.getByTestId('agent-container-bot-pr-fork'),
-        ).toHaveValue('playrunner-bot/e2e-fixture');
         await expect(page.getByTestId('agent-container-branch')).toHaveValue(
           'main',
         );
@@ -138,8 +143,13 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
           containerNode.getByText('Agent', { exact: true }),
         ).toBeVisible();
         await expect(
-          containerNode.getByText('Validator', { exact: true }),
+          containerNode.getByText('Tools', { exact: true }),
         ).toBeVisible();
+        await expect(
+          containerNode.getByText('Memory', { exact: true }),
+        ).toBeVisible();
+        await expect(page.getByTestId('canvas-node-project-memory')).toBeVisible();
+        await expect(page.getByTestId('canvas-attachment-memory')).toHaveCount(1);
         await expect(containerNode).toHaveCSS('height', '128px');
 
         const containerBox = await containerNode.boundingBox();
@@ -152,6 +162,11 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         expect(containerBox).not.toBeNull();
         expect(agentSocketBox).not.toBeNull();
         expect(validatorSocketBox).not.toBeNull();
+        expect(
+          await page
+            .getByTestId('agent-container-memory-socket')
+            .boundingBox(),
+        ).not.toBeNull();
         expect(
           Math.abs(
             agentSocketBox!.y +
@@ -219,12 +234,18 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         ).toBeLessThanOrEqual(2);
 
         await page.getByTestId('agent-container-add-tool').click();
-        const validatorDialog = page.getByRole('dialog', {
-          name: 'Add Validator',
+        const toolDialog = page.getByRole('dialog', {
+          name: 'Add Tool',
         });
-        await expect(validatorDialog).toBeVisible();
+        await expect(toolDialog).toBeVisible();
         await expect(
           page.getByTestId('node-selector-option-validator'),
+        ).toBeVisible();
+        await expect(
+          page.getByTestId('node-selector-option-github'),
+        ).toBeVisible();
+        await expect(
+          page.getByTestId('node-selector-option-jira'),
         ).toBeVisible();
         await expect(
           page.getByTestId('node-selector-option-codex-cli'),

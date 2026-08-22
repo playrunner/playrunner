@@ -145,17 +145,6 @@ function productionChangeManifest(
   };
 }
 
-function writePackageScripts(
-  directory: string,
-  scripts: Record<string, string>,
-): string {
-  return writeProjectFile(
-    directory,
-    'package.json',
-    `${JSON.stringify({ scripts }, null, 2)}\n`,
-  );
-}
-
 function findViolation(
   result: ValidationResult,
   code: string,
@@ -184,9 +173,6 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
       'tests/dashboard.spec.ts',
       meaningfulTest('REQ-DASHBOARD renders the dashboard'),
     );
-    writePackageScripts(directory, {
-      'test:coverage': 'playwright test',
-    });
     const coveragePath = writeProjectFile(
       directory,
       'coverage/coverage-final.json',
@@ -223,7 +209,8 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
           requirementCoverage: 100,
         },
         requirements: 'REQ-DASHBOARD: Show the dashboard heading',
-        validationCommand: 'npm run test:coverage -- --retries=0',
+        validationCommand:
+          'npm run test:coverage -- --reporter=line --retries=0',
         validationTimeoutMinutes: 2,
       },
       {
@@ -231,7 +218,7 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
         authoritative: true,
         runCommand: async (command, cwd, timeoutMs) => {
           invoked = true;
-          assert.equal(command, 'npm run test:coverage -- --retries=0');
+          assert.equal(command, 'playwright test --reporter=line --retries=0');
           assert.equal(cwd, directory);
           assert.equal(timeoutMs, 120_000);
           assert.equal(fs.existsSync(coveragePath), false);
@@ -283,7 +270,7 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
       traces: ['test-results/dashboard/trace.zip'],
     });
     assert.deepEqual(result.testRun, {
-      command: 'npm run test:coverage -- --retries=0',
+      command: 'playwright test --reporter=line --retries=0',
       durationMs: 47,
       exitCode: 0,
       failedTests: [],
@@ -2066,45 +2053,42 @@ test('retry enforcement rejects comments, nonzero values, and conflicting flags'
   const directory = createProject();
   try {
     writeProjectFile(directory, 'tests/retry-policy.spec.ts', meaningfulTest());
-    writePackageScripts(directory, {
-      'test:coverage': 'playwright test',
-    });
     const commands = [
       {
-        command: 'npm run test:coverage # --retries=0',
+        command: 'playwright test # --retries=0',
         message: /shell comment/,
       },
       {
-        command: 'npm run test:coverage -- --retries=2',
+        command: 'playwright test --retries=2',
         message: /nonzero --retries/,
       },
       {
-        command: 'npm run test:coverage -- --retries=0 --retries=2',
+        command: 'playwright test --retries=0 --retries=2',
         message: /conflicting, or nonzero --retries/,
       },
       {
-        command: 'echo --retries=0; npm run test:coverage',
+        command: 'echo --retries=0; playwright test',
         message: /one simple command/,
       },
       {
-        command: 'npm run "$COVERAGE_SCRIPT" -- --retries=0',
+        command: 'playwright "$TEST_ACTION" --retries=0',
         message: /cannot use shell expansion/,
       },
       {
-        command: "sh -c 'npx playwright test --retries=1' ignored --retries=0",
+        command: "sh -c 'playwright test --retries=1' ignored --retries=0",
         message: /cannot invoke sh/,
       },
       {
         command:
-          "command /bin/bash -c 'npx playwright test --retries=1' ignored --retries=0",
+          "command /bin/bash -c 'playwright test --retries=1' ignored --retries=0",
         message: /cannot invoke bash/,
       },
       {
-        command: "eval 'npx playwright test --retries=1 # hidden' --retries=0",
+        command: "eval 'playwright test --retries=1 # hidden' --retries=0",
         message: /cannot invoke eval/,
       },
       {
-        command: `env -S "sh -c 'npx playwright test --retries=1' ignored" --retries=0`,
+        command: `env -S "sh -c 'playwright test --retries=1' ignored" --retries=0`,
         message: /env command-string splitting/,
       },
     ];
@@ -2143,7 +2127,7 @@ test('retry enforcement rejects comments, nonzero values, and conflicting flags'
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: 'npm run test:coverage -- --retries 0',
+        validationCommand: 'playwright test --retries 0',
       },
       { runCommand: async () => successfulProcess() },
     );
@@ -2157,104 +2141,58 @@ test('retry enforcement rejects comments, nonzero values, and conflicting flags'
   }
 });
 
-test('retry enforcement resolves npm scripts and rejects hidden or swallowed arguments', async () => {
+test('validation is independent of package.json scripts', async () => {
   const directory = createProject();
   try {
-    writeProjectFile(directory, 'tests/npm-policy.spec.ts', meaningfulTest());
-    const scripts = [
-      {
-        command: 'playwright test --retries=1 --',
-        message: /nonzero --retries/,
-      },
-      {
-        command: 'playwright test --',
-        message: /does not pass an explicit --retries=0/,
-      },
-      {
-        command: "sh -c 'playwright test --retries=1' ignored",
-        message: /cannot invoke sh/,
-      },
-      {
-        command: 'node scripts/run-coverage.js',
-        message: /must statically resolve to one direct playwright test/,
-      },
-      {
-        command: './playwright test',
-        message: /must statically resolve to one direct playwright test/,
-      },
-    ];
+    writeProjectFile(
+      directory,
+      'tests/direct-policy.spec.ts',
+      meaningfulTest(),
+    );
+    writeProjectFile(
+      directory,
+      'package.json',
+      `${JSON.stringify({ scripts: { test: 'exit 99', 'test:coverage': 'exit 98' } }, null, 2)}\n`,
+    );
 
-    for (const { command, message } of scripts) {
-      writePackageScripts(directory, { 'test:coverage': command });
-      let invoked = false;
-      const result = await validatePlaywrightTests(
-        directory,
-        {
-          failOn: [],
-          minimum: ZERO_MINIMUMS,
-          validationCommand:
-            'npm run test:coverage -- --reporter=line --retries=0',
-        },
-        {
-          runCommand: async () => {
-            invoked = true;
-            return successfulProcess();
-          },
-        },
-      );
-
-      assert.equal(invoked, false, command);
-      assert.equal(result.passed, false, command);
-      assert.match(
-        findViolation(result, 'retry_policy_not_enforced').message,
-        message,
-      );
-    }
-
-    writePackageScripts(directory, {
-      pretest: 'node scripts/replace-playwright.js',
-      test: 'playwright test',
-    });
-    let lifecycleInvoked = false;
-    const lifecycle = await validatePlaywrightTests(
+    let directInvoked = false;
+    const direct = await validatePlaywrightTests(
       directory,
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: 'npm test -- --retries=0',
+        validationCommand: 'playwright test --reporter=line --retries=0',
       },
       {
         runCommand: async () => {
-          lifecycleInvoked = true;
+          directInvoked = true;
           return successfulProcess();
         },
       },
     );
-    assert.equal(lifecycleInvoked, false);
-    assert.equal(lifecycle.passed, false);
-    assert.match(
-      findViolation(lifecycle, 'retry_policy_not_enforced').message,
-      /cannot use npm lifecycle script pretest/,
-    );
+    assert.equal(directInvoked, true);
+    assert.equal(direct.passed, true);
 
-    writePackageScripts(directory, {
-      'test:coverage':
-        'cross-env CI=true c8 --reporter=json-summary -- playwright test',
-    });
-    const valid = await validatePlaywrightTests(
+    let packageScriptInvoked = false;
+    const packageScript = await validatePlaywrightTests(
       directory,
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand:
-          'npm run test:coverage -- --reporter=line --retries=0',
+        validationCommand: 'npm run test:coverage -- --retries=0',
       },
-      { runCommand: async () => successfulProcess() },
+      {
+        runCommand: async () => {
+          packageScriptInvoked = true;
+          return successfulProcess();
+        },
+      },
     );
-    assert.equal(valid.passed, true);
-    assert.equal(
-      valid.violations.some(({ code }) => code === 'retry_policy_not_enforced'),
-      false,
+    assert.equal(packageScriptInvoked, false);
+    assert.equal(packageScript.passed, false);
+    assert.match(
+      findViolation(packageScript, 'retry_policy_not_enforced').message,
+      /container-owned.*package scripts/i,
     );
   } finally {
     fs.rmSync(directory, { force: true, recursive: true });
@@ -2276,7 +2214,7 @@ test('an oversized validation command fails closed without execution or inline e
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: `npm run test:coverage -- --retries=0 ${'X'.repeat(VALIDATOR_LIMITS.validationCommandBytes)}`,
+        validationCommand: `playwright test --retries=0 ${'X'.repeat(VALIDATOR_LIMITS.validationCommandBytes)}`,
       },
       {
         runCommand: async () => {
@@ -2322,7 +2260,7 @@ test('process output, failed test names, and remediation remain bounded', async 
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: 'npx playwright test --retries=0',
+        validationCommand: 'playwright test --retries=0',
       },
       {
         runCommand: async () =>
@@ -2369,7 +2307,7 @@ test('a failed validation command returns actionable output and failed test name
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: 'npx playwright test --reporter=line --retries=0',
+        validationCommand: 'playwright test --reporter=line --retries=0',
         validationTimeoutMinutes: 4,
       },
       {
@@ -2388,13 +2326,13 @@ test('a failed validation command returns actionable output and failed test name
     );
 
     assert.deepEqual(invocation, [
-      'npx playwright test --reporter=line --retries=0',
+      'playwright test --reporter=line --retries=0',
       directory,
       240_000,
     ]);
     assert.equal(result.passed, false);
     assert.deepEqual(result.testRun, {
-      command: 'npx playwright test --reporter=line --retries=0',
+      command: 'playwright test --reporter=line --retries=0',
       durationMs: 321,
       exitCode: 7,
       failedTests: [
@@ -2429,7 +2367,7 @@ test('a timed-out validation command fails even when a TERM trap exits zero', as
       {
         failOn: [],
         minimum: ZERO_MINIMUMS,
-        validationCommand: 'npx playwright test --retries=0',
+        validationCommand: 'playwright test --retries=0',
         validationTimeoutMinutes: 1,
       },
       {

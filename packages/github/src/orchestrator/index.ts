@@ -172,6 +172,20 @@ function successfulOutput(data: Record<string, unknown>) {
   };
 }
 
+function issueAcceptanceCriteria(
+  repository: string,
+  issueNumber: string,
+  issue: GithubResourceResponse,
+) {
+  return {
+    body: optionalString(issue.body) ?? '',
+    id: `${repository}#${issueNumber}`,
+    source: 'github',
+    title: optionalString(issue.title) ?? `GitHub issue #${issueNumber}`,
+    ...(optionalString(issue.html_url) ? { url: issue.html_url } : {}),
+  };
+}
+
 function commentOutput(comment: GithubResourceResponse) {
   return {
     id: comment.id,
@@ -262,7 +276,17 @@ async function executeGithubRead(
       `Successfully read GitHub issue #${issueNumber}.`,
       'info',
     );
-    return { outcome: 'success', output: successfulOutput(issueOutput(issue)) };
+    return {
+      outcome: 'success',
+      output: {
+        ...successfulOutput(issueOutput(issue)),
+        acceptanceCriteria: issueAcceptanceCriteria(
+          repository,
+          issueNumber,
+          issue,
+        ),
+      },
+    };
   } catch (error) {
     throw actionFailure(context, error);
   }

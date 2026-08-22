@@ -7,6 +7,15 @@ import { GithubSettingsModal } from './GithubSettingsModal';
 import { GithubIcon } from './GithubIcon';
 
 const issueOutputVariables: readonly IntegrationOutputVariable[] = [
+  {
+    path: 'acceptanceCriteria',
+    type: 'object',
+    description:
+      'Normalized issue acceptance criteria for a connected AI Container',
+  },
+  { path: 'acceptanceCriteria.id', type: 'string' },
+  { path: 'acceptanceCriteria.title', type: 'string' },
+  { path: 'acceptanceCriteria.body', type: 'string' },
   { path: 'result.status', type: 'string' },
   { path: 'result.data', type: 'object', description: 'GitHub issue' },
   {
@@ -46,6 +55,7 @@ export const githubIntegration: Integration = {
   icon: GithubIcon,
   nodeType: 'action',
   nodeSelectorOrder: 35,
+  attachmentKind: 'tool',
   iconRenderMode: 'mask',
   getAuthPath: (uid) => `users/${uid}/integrations/github`,
   getOutputVariables: (config) =>

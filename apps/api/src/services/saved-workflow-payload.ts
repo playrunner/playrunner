@@ -25,7 +25,7 @@ export function buildSavedWorkflowExecutionBody(params: {
   );
   return {
     ...trustedBody,
-    ...(params.triggerName === 'ci' && params.agentMemoryByNodeId
+    ...(params.agentMemoryByNodeId
       ? { agentMemoryByNodeId: params.agentMemoryByNodeId }
       : {}),
     cloudProvider,

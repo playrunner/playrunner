@@ -11,12 +11,13 @@ datasource db {
 }
 
 model Project {
-  id        String     @id
+  id        String          @id
   userId    String
   title     String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
   workflows Workflow[]
+  memories  ProjectMemory[]
 
   @@index([userId])
 }
@@ -37,7 +38,7 @@ model Workflow {
   teamShares       WorkflowTeamShare[]
   webhookEndpoints WorkflowWebhookEndpoint[]
   ciExecutions     WorkflowCiExecution[]
-  agentMemories    WorkflowAgentMemory[]
+  memories         ProjectMemory[]
 
   @@index([userId])
   @@index([projectId])
@@ -65,21 +66,30 @@ model WorkflowCiExecution {
   @@index([workflowId, repository, headRef])
 }
 
-model WorkflowAgentMemory {
-  id                       String   @id @default(cuid())
-  workflowId               String
-  nodeId                   String
+model ProjectMemory {
+  id                       String    @id @default(cuid())
+  ownerUserId              String
+  providerId               String    @default("project-memory")
+  scopeKind                String
+  scopeId                  String
+  projectId                String?
+  workflowId               String?
   repository               String
-  changeScope              String
-  headSha                  String
+  namespace                String
+  revision                 Int       @default(1)
+  sourceHeadSha            String?
+  sourceExecutionId        String
   sourceExecutionCreatedAt DateTime
-  memory                   Json
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
-  workflow                 Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  state                    Json
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  project                  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflow                 Workflow? @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
-  @@unique([workflowId, nodeId, repository, changeScope])
-  @@index([workflowId, repository, changeScope])
+  @@unique([ownerUserId, providerId, scopeKind, scopeId, repository, namespace])
+  @@index([ownerUserId, scopeKind, scopeId, repository])
+  @@index([projectId])
+  @@index([workflowId])
 }
 
 model WorkflowWebhookEndpoint {

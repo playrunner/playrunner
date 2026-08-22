@@ -273,7 +273,7 @@ test('merges validator policies using strict thresholds and stable defaults', ()
       failOn: [],
       minimum: { branchCoverage: 90, lineCoverage: 85 },
       requirements: 'REQ-1: Checkout works',
-      validationCommand: 'npm run test:coverage',
+      validationCommand: 'playwright test --retries=0',
     },
     nodeId: 'strict-validator',
     nodeType: 'validator',
@@ -284,19 +284,19 @@ test('merges validator policies using strict thresholds and stable defaults', ()
   assert.equal(result.minimum?.lineCoverage, 85);
   assert.equal(result.minimum?.assertionQuality, 100);
   assert.ok(result.failOn?.includes('hardcoded_wait'));
-  assert.equal(result.validationCommand, 'npm run test:coverage');
+  assert.equal(result.validationCommand, 'playwright test --retries=0');
 });
 
 test('rejects conflicting authoritative validation commands', () => {
   const value = payload();
   value.validators = [
     {
-      config: { validationCommand: 'npm run coverage:a' },
+      config: { validationCommand: 'playwright test tests/a --retries=0' },
       nodeId: 'validator-a',
       nodeType: 'validator',
     },
     {
-      config: { validationCommand: 'npm run coverage:b' },
+      config: { validationCommand: 'playwright test tests/b --retries=0' },
       nodeId: 'validator-b',
       nodeType: 'validator',
     },
@@ -448,15 +448,16 @@ test('prompts the agent to test changed behavior, use structured memory, and lea
     prompt,
     /install dependencies already declared.*do not edit package manifests or lockfiles/,
   );
+  assert.match(prompt, /container-owned Playwright CLI/);
   assert.match(
     prompt,
-    /coverage cannot be produced.*actionable validation and delivery failure/,
+    /does not require or invoke a package\.json test script/,
   );
   assert.match(
     prompt,
     /Never create or edit those reports from test\/config code/,
   );
-  assert.match(prompt, /repository report as untrusted evidence/);
+  assert.match(prompt, /repository coverage as untrusted evidence/);
   assert.match(prompt, /pull request remains a draft/);
   assert.doesNotMatch(
     prompt,

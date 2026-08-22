@@ -22,9 +22,9 @@ export interface AgentExecutionRequest {
   requirements?: Array<{
     body: string;
     id: string;
-    source: 'github' | 'jira';
+    source: 'github' | 'jira' | 'workflow';
     title: string;
-    url: string;
+    url?: string;
   }>;
   publishEvent: (event: Record<string, unknown>) => Promise<void>;
   publishLog: (

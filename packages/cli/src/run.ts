@@ -1,4 +1,6 @@
-const VERSION = '0.1.3';
+import { runWorkflowCreateCli } from './workflow-create.js';
+
+const VERSION = '0.1.4';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const EVENT_PAGE_SIZE = 100;
@@ -12,6 +14,7 @@ export type CliDependencies = {
   env?: NodeJS.ProcessEnv;
   fetch?: typeof globalThis.fetch;
   now?: () => number;
+  readFile?: (path: string, encoding: 'utf8') => Promise<string>;
   signal?: AbortSignal;
   stderr?: (line: string) => void;
   stdout?: (line: string) => void;
@@ -19,6 +22,7 @@ export type CliDependencies = {
 };
 
 type Options = {
+  acceptanceCriteria: string[];
   apiKey: string;
   baseRef: string;
   baseSha: string;
@@ -26,6 +30,7 @@ type Options = {
   headRef: string;
   headSha: string;
   json: boolean;
+  inputs: Record<string, string>;
   pullRequestNumber?: number;
   repository: { name: string; owner: string };
   timeoutMs: number;
@@ -36,6 +41,10 @@ type Options = {
 
 function usage() {
   return `Usage: playrunner <workflow-id> [options]
+       playrunner workflow create --file <path> [options]
+
+Commands:
+  workflow create      Create or update a workflow from a JSON definition
 
 Options:
   --url <url>          Playrunner server URL (or PLAYRUNNER_URL)
@@ -46,6 +55,8 @@ Options:
   --head-ref <ref>     Developer branch name
   --event-type <type>  push, pull_request, or manual
   --pull-request <n>   Source pull request number, when applicable
+  --input <name=value> Workflow input; repeat for multiple values
+  --acceptance-criteria <text> Acceptance criterion; repeat as needed
   --no-wait            Return after the workflow starts
   --timeout <duration> Wait timeout, for example 30s, 10m, or 1h
   --json               Emit newline-delimited JSON
@@ -111,6 +122,8 @@ function parseOptions(
         ? 'push'
         : 'manual');
   let pullRequest = env.PLAYRUNNER_PULL_REQUEST_NUMBER?.trim() || '';
+  const inputs: Record<string, string> = {};
+  const acceptanceCriteria: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -127,13 +140,29 @@ function parseOptions(
         '--repository',
         '--timeout',
         '--url',
+        '--input',
+        '--acceptance-criteria',
       ].includes(arg)
     ) {
       const value = args[index + 1];
       if (!value) throw new Error(`${arg} requires a value.`);
       index += 1;
       if (arg === '--url') url = value;
-      else if (arg === '--timeout') timeoutMs = parseDuration(value);
+      else if (arg === '--acceptance-criteria') acceptanceCriteria.push(value);
+      else if (arg === '--input') {
+        const separator = value.indexOf('=');
+        const name = separator > 0 ? value.slice(0, separator) : '';
+        const inputValue = separator > 0 ? value.slice(separator + 1) : '';
+        if (
+          !/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(name) ||
+          inputValue.length > 4_096
+        ) {
+          throw new Error(
+            '--input must use name=value with a safe name and at most 4096 characters.',
+          );
+        }
+        inputs[name] = inputValue;
+      } else if (arg === '--timeout') timeoutMs = parseDuration(value);
       else if (arg === '--repository') repository = value;
       else if (arg === '--base-sha') baseSha = value;
       else if (arg === '--head-sha') headSha = value;
@@ -151,6 +180,16 @@ function parseOptions(
   if (!workflowId) throw new Error('A workflow ID is required.');
   if (!url) throw new Error('PLAYRUNNER_URL or --url is required.');
   if (!apiKey) throw new Error('PLAYRUNNER_API_KEY is required.');
+  if (
+    acceptanceCriteria.length > 20 ||
+    acceptanceCriteria.some(
+      (item) => item.length > 4_096 || item.includes('\0'),
+    )
+  ) {
+    throw new Error(
+      '--acceptance-criteria may be repeated at most 20 times and each value must be at most 4096 characters.',
+    );
+  }
 
   const repositoryMatch =
     /^([A-Za-z0-9][A-Za-z0-9_.-]{0,99})\/([A-Za-z0-9][A-Za-z0-9_.-]{0,99})$/.exec(
@@ -239,6 +278,7 @@ function parseOptions(
   parsedUrl.hash = '';
 
   return {
+    acceptanceCriteria,
     apiKey,
     baseRef,
     baseSha: baseSha.toLowerCase(),
@@ -246,6 +286,7 @@ function parseOptions(
     headRef,
     headSha: headSha.toLowerCase(),
     json,
+    inputs,
     ...(pullRequestNumber ? { pullRequestNumber } : {}),
     repository: { name: repositoryMatch[2], owner: repositoryMatch[1] },
     timeoutMs,
@@ -306,6 +347,16 @@ export async function runCli(
   const fetchImpl = dependencies.fetch ?? globalThis.fetch;
   const now = dependencies.now ?? Date.now;
   const waitFor = dependencies.wait ?? defaultWait;
+
+  if (args[0] === 'workflow' && args[1] === 'create') {
+    return runWorkflowCreateCli(args.slice(2), {
+      env,
+      fetch: fetchImpl,
+      readFile: dependencies.readFile,
+      stderr: outputError,
+      stdout: output,
+    });
+  }
 
   let options: Options | 'help' | 'version';
   try {
@@ -380,6 +431,12 @@ export async function runCli(
           ? { pullRequestNumber: options.pullRequestNumber }
           : {}),
         repository: options.repository,
+        ...(Object.keys(options.inputs).length
+          ? { inputs: options.inputs }
+          : {}),
+        ...(options.acceptanceCriteria.length
+          ? { acceptanceCriteria: options.acceptanceCriteria }
+          : {}),
       }),
       signal: controller.signal,
     });

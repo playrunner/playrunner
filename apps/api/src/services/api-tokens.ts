@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 
 export const API_TOKEN_PREFIX = 'pr_live_';
 export const WORKFLOW_EXECUTE_SCOPE = 'workflow:execute';
+export const WORKFLOW_WRITE_SCOPE = 'workflow:write';
 const TOKEN_BYTES = 32;
 
 type TokenRecord = {
@@ -46,6 +47,15 @@ export function tokenCanExecuteWorkflow(
   const allowedWorkflowIds = stringArray(token.allowedWorkflowIds);
   return (
     allowedWorkflowIds.length === 0 || allowedWorkflowIds.includes(workflowId)
+  );
+}
+
+export function tokenCanWriteWorkflows(
+  token: Pick<TokenRecord, 'allowedWorkflowIds' | 'scopes'>,
+) {
+  return (
+    stringArray(token.scopes).includes(WORKFLOW_WRITE_SCOPE) &&
+    stringArray(token.allowedWorkflowIds).length === 0
   );
 }
 
@@ -94,7 +104,10 @@ export const apiTokens = {
         name: params.name,
         tokenHash: hashApiToken(plaintext),
         displayPrefix: plaintext.slice(0, API_TOKEN_PREFIX.length + 8),
-        scopes: jsonStringArray([WORKFLOW_EXECUTE_SCOPE]),
+        scopes: jsonStringArray([
+          WORKFLOW_EXECUTE_SCOPE,
+          ...(params.allowedWorkflowIds?.length ? [] : [WORKFLOW_WRITE_SCOPE]),
+        ]),
         allowedWorkflowIds: params.allowedWorkflowIds?.length
           ? jsonStringArray(params.allowedWorkflowIds)
           : undefined,
@@ -129,7 +142,12 @@ export const apiTokens = {
           name: existing.name,
           tokenHash: hashApiToken(plaintext),
           displayPrefix: plaintext.slice(0, API_TOKEN_PREFIX.length + 8),
-          scopes: jsonStringArray([WORKFLOW_EXECUTE_SCOPE]),
+          scopes: jsonStringArray([
+            WORKFLOW_EXECUTE_SCOPE,
+            ...(stringArray(existing.allowedWorkflowIds).length
+              ? []
+              : [WORKFLOW_WRITE_SCOPE]),
+          ]),
           allowedWorkflowIds: stringArray(existing.allowedWorkflowIds).length
             ? jsonStringArray(stringArray(existing.allowedWorkflowIds))
             : undefined,

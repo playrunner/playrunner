@@ -16,6 +16,8 @@ const DEFAULT_MINIMUM = {
 };
 
 const DEFAULT_VALIDATION_COMMAND =
+  'playwright test --reporter=line --retries=0';
+const LEGACY_VALIDATION_COMMAND =
   'npm run test:coverage -- --reporter=line --retries=0';
 const DEFAULT_VALIDATION_TIMEOUT_MINUTES = 30;
 
@@ -69,6 +71,13 @@ function normalizedStringList(value: unknown): string[] {
     : [];
 }
 
+function normalizedValidationCommand(value: unknown): string {
+  const command = String(value || '').trim();
+  return !command || command === LEGACY_VALIDATION_COMMAND
+    ? DEFAULT_VALIDATION_COMMAND
+    : command;
+}
+
 export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   config,
   nodeId,
@@ -100,9 +109,7 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         ? normalizedStringList(config.failOn)
         : [...DEFAULT_FAIL_ON],
       minimum,
-      validationCommand:
-        String(config.validationCommand || '').trim() ||
-        DEFAULT_VALIDATION_COMMAND,
+      validationCommand: normalizedValidationCommand(config.validationCommand),
       validationTimeoutMinutes: boundedValidationTimeout(
         config.validationTimeoutMinutes,
       ),
@@ -160,14 +167,14 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       <IntegrationConfigField
         label="Validation command"
         htmlFor="validator-validation-command"
-        hint="Run from the repository root with retries disabled. When coverage thresholds are enabled, this command must generate one of the fixed detailed reports below."
+        hint="Runs the container-owned Playwright CLI from the repository root; no package.json script is required. Retries must remain disabled."
       >
         <Input
           id="validator-validation-command"
           data-testid="validator-validation-command"
           value={
             typeof config.validationCommand === 'string'
-              ? config.validationCommand
+              ? normalizedValidationCommand(config.validationCommand)
               : DEFAULT_VALIDATION_COMMAND
           }
           onChange={(event) => update('validationCommand', event.target.value)}

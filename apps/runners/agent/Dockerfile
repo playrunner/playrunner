@@ -30,7 +30,8 @@ RUN apt-get update && \
     chmod +x /app/agent/dist/agent/src/validator-cli.js && \
     ln -s /app/agent/dist/agent/src/validator-cli.js /usr/local/bin/playrunner-validator && \
     ln -s /app/agent/node_modules/.bin/codex /usr/local/bin/codex && \
-    git --version && codex --version
+    ln -s /app/agent/node_modules/.bin/playwright /usr/local/bin/playwright && \
+    git --version && codex --version && playwright --version
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1

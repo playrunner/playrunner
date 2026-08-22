@@ -56,7 +56,8 @@ test('records the effective passed terminal status', () => {
 test('records artifact, repository, and delivery failures after validation passed', () => {
   const expected: Record<TerminalFailureKind, RegExp> = {
     artifact: /Artifact publication failed.*artifact storage/,
-    delivery: /Bot PR delivery failed.*public fork/,
+    delivery:
+      /Bot PR delivery failed.*source-repository GitHub App permissions/,
     repository: /Repository inspection failed.*Git can read/,
   };
 

@@ -71,9 +71,9 @@ interface NodeData {
 }
 
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
-type AttachmentKind = 'agent' | 'tool';
+type AttachmentKind = 'agent' | 'memory' | 'tool';
 
-const AI_CONTAINER_WIDTH = 280;
+const AI_CONTAINER_WIDTH = 360;
 const AI_CONTAINER_HEIGHT = 128;
 // Retain the per-node controls so they can be restored without rebuilding the
 // execution handlers or context-menu layout.
@@ -166,7 +166,7 @@ interface Connection {
   targetPort?: PortPosition;
   type?: ConnectionType;
   role?: 'execution' | 'attachment';
-  attachmentPort?: 'agent' | 'tool';
+  attachmentPort?: AttachmentKind;
 }
 
 interface DrawingConnection {
@@ -2200,8 +2200,9 @@ export default function Editor() {
     const pos =
       nodeSelectorPos ||
       screenToCanvas(window.innerWidth / 2, window.innerHeight / 2);
+    const createdAt = Date.now();
     const newNode: NodeData = {
-      id: `n_${Date.now()}`,
+      id: `n_${createdAt}`,
       nodeType: data.typeId,
       label: data.label,
       x:
@@ -2214,9 +2215,45 @@ export default function Editor() {
           : pos.y,
       width: data.typeId === 'agent-container' ? AI_CONTAINER_WIDTH : 128,
       height: data.typeId === 'agent-container' ? AI_CONTAINER_HEIGHT : 128,
+      ...(pendingAttachmentKind === 'tool' &&
+      (data.typeId === 'github' || data.typeId === 'jira')
+        ? { config: { action: 'read' } }
+        : {}),
     };
 
-    setNodes((prev) => [...prev, newNode]);
+    const defaultMemoryNode: NodeData | null =
+      data.typeId === 'agent-container'
+        ? {
+            id: `memory_${createdAt}`,
+            nodeType: 'project-memory',
+            label: 'Project Memory',
+            x: newNode.x + AI_CONTAINER_WIDTH * 0.5 - 64,
+            y: newNode.y + AI_CONTAINER_HEIGHT + 104,
+            width: 128,
+            height: 128,
+            config: { namespace: 'project', scope: 'project' },
+          }
+        : null;
+
+    setNodes((prev) => [
+      ...prev,
+      newNode,
+      ...(defaultMemoryNode ? [defaultMemoryNode] : []),
+    ]);
+    if (defaultMemoryNode) {
+      setConnections((previous) => [
+        ...previous,
+        {
+          id: `c_memory_${createdAt}`,
+          sourceId: defaultMemoryNode.id,
+          sourcePort: 'top',
+          targetId: newNode.id,
+          targetPort: 'bottom',
+          role: 'attachment',
+          attachmentPort: 'memory',
+        },
+      ]);
+    }
 
     if (pendingConnectionSource && pendingAttachmentKind) {
       const targetNode = nodes.find(
@@ -2289,7 +2326,12 @@ export default function Editor() {
     attachmentKind: AttachmentKind,
   ) => {
     const dimensions = getNodeDimensions(node);
-    const horizontalRatio = attachmentKind === 'agent' ? 0.26 : 0.74;
+    const horizontalRatio =
+      attachmentKind === 'agent'
+        ? 0.18
+        : attachmentKind === 'memory'
+          ? 0.5
+          : 0.82;
     setPendingConnectionSource({
       fixedNodeId: node.id,
       fixedPort: 'bottom',
@@ -2485,10 +2527,16 @@ export default function Editor() {
         const dimensions = getNodeDimensions(target);
         const toolIndex = attachmentIndexByTarget.get(target.id) || 0;
         const isTool = connection.attachmentPort === 'tool';
+        const ratio =
+          connection.attachmentPort === 'agent'
+            ? 0.18
+            : connection.attachmentPort === 'memory'
+              ? 0.5
+              : 0.82;
         newPositions.set(connection.sourceId, {
           x:
             targetPosition.x +
-            dimensions.width * (isTool ? 0.74 : 0.26) -
+            dimensions.width * ratio -
             64 +
             (isTool ? toolIndex * 144 : 0),
           y: targetPosition.y + dimensions.height + 104,
@@ -2537,8 +2585,14 @@ export default function Editor() {
     offset = 0,
   ) => {
     const dimensions = getNodeDimensions(node);
+    const ratio =
+      attachmentKind === 'agent'
+        ? 0.18
+        : attachmentKind === 'memory'
+          ? 0.5
+          : 0.82;
     return {
-      x: node.x + dimensions.width * (attachmentKind === 'agent' ? 0.26 : 0.74),
+      x: node.x + dimensions.width * ratio,
       y: node.y + dimensions.height + offset,
     };
   };
@@ -3438,9 +3492,14 @@ export default function Editor() {
                     attachments.some(
                       (connection) => connection.attachmentPort === 'agent',
                     ) &&
-                    attachments.some(
-                      (connection) => connection.attachmentPort === 'tool',
-                    )
+                    attachments.some((connection) => {
+                      if (connection.attachmentPort !== 'tool') return false;
+                      return (
+                        nodes.find(
+                          (candidate) => candidate.id === connection.sourceId,
+                        )?.nodeType === 'validator'
+                      );
+                    })
                   );
                 }
                 if (!n.config) return false;
@@ -3461,7 +3520,12 @@ export default function Editor() {
 
               const isScheduleNode = node.nodeType === 'schedule';
               const isAttachmentNode =
-                getNodeType(node.nodeType)?.executionRole === 'attachment';
+                getNodeType(node.nodeType)?.executionRole === 'attachment' ||
+                connections.some(
+                  (connection) =>
+                    connection.role === 'attachment' &&
+                    connection.sourceId === node.id,
+                );
               const isAIContainer = node.nodeType === 'agent-container';
 
               const renderPort = (
@@ -3511,6 +3575,12 @@ export default function Editor() {
                   connection.role === 'attachment' &&
                   connection.targetId === node.id &&
                   connection.attachmentPort === 'tool',
+              ).length;
+              const attachedMemoryCount = connections.filter(
+                (connection) =>
+                  connection.role === 'attachment' &&
+                  connection.targetId === node.id &&
+                  connection.attachmentPort === 'memory',
               ).length;
 
               return (
@@ -3792,13 +3862,19 @@ export default function Editor() {
                               kind: 'agent' as const,
                               label: 'Agent',
                               count: attachedAgentCount,
-                              ratio: 0.26,
+                              ratio: 0.18,
+                            },
+                            {
+                              kind: 'memory' as const,
+                              label: 'Memory',
+                              count: attachedMemoryCount,
+                              ratio: 0.5,
                             },
                             {
                               kind: 'tool' as const,
-                              label: 'Validator',
+                              label: 'Tools',
                               count: attachedToolCount,
-                              ratio: 0.74,
+                              ratio: 0.82,
                             },
                           ] as const
                         ).map((attachment) => (

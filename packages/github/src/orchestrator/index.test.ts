@@ -147,10 +147,18 @@ test('reads a GitHub issue by number', async () => {
     'https://api.github.com/repos/playrunner/playrunner/issues/7',
   );
   const output = result.output as {
+    acceptanceCriteria?: Record<string, unknown>;
     result?: { data?: { number?: unknown; state?: unknown } };
   };
   assert.equal(output.result?.data?.number, 7);
   assert.equal(output.result?.data?.state, 'closed');
+  assert.deepEqual(output.acceptanceCriteria, {
+    body: '',
+    id: 'playrunner/playrunner#7',
+    source: 'github',
+    title: 'Existing issue',
+    url: 'https://github.com/playrunner/playrunner/issues/7',
+  });
 });
 
 test('requires a numeric issue number for reads', async () => {

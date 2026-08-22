@@ -66,9 +66,9 @@ export type AgentRunnerPayload = {
   requirements?: Array<{
     body: string;
     id: string;
-    source: 'github' | 'jira';
+    source: 'github' | 'jira' | 'workflow';
     title: string;
-    url: string;
+    url?: string;
   }>;
   runnerControl: RunnerControlConfig;
   runtime: {
@@ -274,7 +274,11 @@ function normalizeRequirements(
       new Set(['body', 'id', 'source', 'title', 'url']),
       `requirements[${index}]`,
     );
-    if (requirement.source !== 'github' && requirement.source !== 'jira') {
+    if (
+      requirement.source !== 'github' &&
+      requirement.source !== 'jira' &&
+      requirement.source !== 'workflow'
+    ) {
       throw new Error(
         `AI Container requirements[${index}].source is unsupported.`,
       );
@@ -283,19 +287,20 @@ function normalizeRequirements(
     if (Buffer.byteLength(body, 'utf8') > MAX_REQUIREMENT_TEXT_BYTES) {
       throw new Error(`AI Container requirements[${index}].body is too large.`);
     }
-    const url = requiredBoundedText(
-      requirement.url,
-      `requirements[${index}].url`,
-      2_048,
-    );
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      throw new Error(`AI Container requirements[${index}].url is invalid.`);
-    }
-    if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
-      throw new Error(`AI Container requirements[${index}].url is invalid.`);
+    const url = typeof requirement.url === 'string' ? requirement.url.trim() : '';
+    if (url) {
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(url);
+      } catch {
+        throw new Error(`AI Container requirements[${index}].url is invalid.`);
+      }
+      if (
+        url.length > 2_048 ||
+        (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:')
+      ) {
+        throw new Error(`AI Container requirements[${index}].url is invalid.`);
+      }
     }
     return {
       body,
@@ -306,7 +311,7 @@ function normalizeRequirements(
         `requirements[${index}].title`,
         1_024,
       ),
-      url,
+      ...(url ? { url } : {}),
     };
   });
 }
@@ -1059,7 +1064,7 @@ export function createInitialPrompt(
         `Read the deterministic change manifest at ${materialized.changeManifestPath}. Start with changed production files and their inclusive changed-line ranges, then inspect enough surrounding code to understand each observable behavior.`,
         'For every changed production behavior, find direct existing test evidence or add focused tests. Do not duplicate tests when current coverage already proves the behavior, and do not manufacture tests for config-only changes.',
         'Keep generated work scoped to tests and approved standalone test configuration. You may install dependencies already declared by the repository for this run, but do not edit package manifests or lockfiles and do not add dependencies. Do not push, commit, or open a pull request; Playrunner will publish the resulting patch through a bot PR.',
-        'Use an existing coverage command that emits detailed Istanbul coverage-final JSON or LCOV DA records at coverage/coverage-final.json or coverage/lcov.info. Never create or edit those reports from test/config code, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run and treats the resulting repository report as untrusted evidence for feedback; any generated pull request remains a draft for human or trusted CI review. If coverage cannot be produced without changing a dependency manifest or lockfile, stop and report the missing command or artifact as an actionable validation and delivery failure.',
+        'The validator independently runs the container-owned Playwright CLI; it does not require or invoke a package.json test script. Detailed Istanbul coverage-final JSON or LCOV DA records already produced at coverage/coverage-final.json or coverage/lcov.info are consumed as additional evidence. Never create or edit those reports from test/config code, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run and treats repository coverage as untrusted evidence; any generated pull request remains a draft for human or trusted CI review.',
       ].join('\n')
     : '';
   const memoryInstructions = payload.memory
@@ -1084,7 +1089,7 @@ export function createInitialPrompt(
     'The command `playrunner-validator` is available as a tool. Run it before reporting completion and address its precise feedback.',
     payload.changeContext
       ? ''
-      : 'Use an existing `test:coverage` script that runs the Playwright suite with retries disabled and emits detailed Istanbul coverage-final JSON or LCOV DA records at coverage/coverage-final.json or coverage/lcov.info. Never synthesize or edit coverage reports from test/config code.',
+      : 'The validator independently runs the container-owned Playwright CLI with retries disabled; it does not require or invoke a package.json test script. Detailed Istanbul coverage-final JSON or LCOV DA records already produced at coverage/coverage-final.json or coverage/lcov.info are consumed as additional evidence. Never synthesize or edit coverage reports from test/config code.',
     'Do not merely make tests green: cover meaningful positive and negative behavior and use observable assertions.',
     `Read-only upstream workflow outputs are available as JSON at ${materialized.nodeOutputsPath}. Use them when the task depends on earlier nodes.`,
     materialized.repositoriesPath

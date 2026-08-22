@@ -129,7 +129,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const issueNumberField = (label = 'Issue Number') => (
     <IntegrationConfigField
       label={label}
-      hint="Use the repository-scoped issue number. From a Create Issue node, drag result.data.number here."
+      hint="Use a repository issue number or a workflow input such as {{workflow.inputs.ticket}}."
     >
       <Input
         data-testid="github-node-issue-number"
@@ -137,7 +137,7 @@ export const GithubConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
           updateConfig({ issueNumber: event.target.value });
         }}
-        placeholder="123 or {{node_previous.result.data.number}}"
+        placeholder="123 or {{workflow.inputs.ticket}}"
       />
     </IntegrationConfigField>
   );

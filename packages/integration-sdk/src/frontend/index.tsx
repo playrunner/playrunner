@@ -29,8 +29,8 @@ export interface Integration {
     config: Record<string, unknown>,
   ) => readonly IntegrationOutputVariable[];
   executionRole?: 'workflow' | 'attachment';
-  attachmentKind?: 'agent' | 'tool';
-  acceptsAttachments?: readonly ('agent' | 'tool')[];
+  attachmentKind?: 'agent' | 'memory' | 'tool';
+  acceptsAttachments?: readonly ('agent' | 'memory' | 'tool')[];
 }
 
 export interface IntegrationOutputVariable {

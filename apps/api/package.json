@@ -36,7 +36,7 @@
     "@playrunner/github": "file:../../packages/github",
     "@playrunner/integration-sdk": "0.1.4",
     "@playrunner/javascript": "^0.1.0",
-    "@playrunner/jira": "^0.1.2",
+    "@playrunner/jira": "file:../../packages/jira",
     "@playrunner/openai": "^0.1.3",
     "@playrunner/playwright": "0.1.4",
     "@playrunner/resend": "0.1.1",

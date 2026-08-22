@@ -79,14 +79,15 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           }}
         >
           <option value="create">Create Issue</option>
+          <option value="read">Get Issue</option>
           <option value="update">Update Issue</option>
         </Select>
       </IntegrationConfigField>
 
-      {config.action === 'update' ? (
+      {config.action === 'update' || config.action === 'read' ? (
         <IntegrationConfigField
           label="Issue Key"
-          hint="The Jira issue key to update."
+          hint={`The Jira issue key to ${config.action === 'read' ? 'read' : 'update'}.`}
         >
           <Input
             data-testid="jira-node-issue-key"
@@ -94,7 +95,7 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
               onChange(nodeId, { ...config, issueKey: event.target.value });
             }}
-            placeholder="PROJ-123 or {{trigger.issueKey}}"
+            placeholder="PROJ-123 or {{workflow.inputs.ticket}}"
           />
         </IntegrationConfigField>
       ) : (
@@ -149,34 +150,38 @@ export const JiraConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         </>
       )}
 
-      <IntegrationConfigField
-        label="Summary"
-        hint="You can use {{variables}} here."
-      >
-        <Input
-          data-testid="jira-node-summary"
-          value={config.summary || ''}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            onChange(nodeId, { ...config, summary: event.target.value });
-          }}
-          placeholder="Summary of the issue..."
-        />
-      </IntegrationConfigField>
+      {config.action !== 'read' && (
+        <IntegrationConfigField
+          label="Summary"
+          hint="You can use {{variables}} here."
+        >
+          <Input
+            data-testid="jira-node-summary"
+            value={config.summary || ''}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              onChange(nodeId, { ...config, summary: event.target.value });
+            }}
+            placeholder="Summary of the issue..."
+          />
+        </IntegrationConfigField>
+      )}
 
-      <IntegrationConfigField
-        label="Description"
-        hint="You can use {{variables}} here."
-      >
-        <Textarea
-          data-testid="jira-node-description"
-          value={config.description || ''}
-          onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
-            onChange(nodeId, { ...config, description: event.target.value });
-          }}
-          placeholder="Detailed description..."
-          className="min-h-[120px]"
-        />
-      </IntegrationConfigField>
+      {config.action !== 'read' && (
+        <IntegrationConfigField
+          label="Description"
+          hint="You can use {{variables}} here."
+        >
+          <Textarea
+            data-testid="jira-node-description"
+            value={config.description || ''}
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) => {
+              onChange(nodeId, { ...config, description: event.target.value });
+            }}
+            placeholder="Detailed description..."
+            className="min-h-[120px]"
+          />
+        </IntegrationConfigField>
+      )}
     </div>
   );
 };

@@ -9,6 +9,7 @@ import {
 } from '../runtime/orchestrator-runner';
 import { requireAccessibleWorkflow } from '../services/workflow-access';
 import { sanitizeInteractiveExecutionBody } from '../services/execution-trust-boundary';
+import { loadAgentMemoryByNodeId } from '../services/agent-memory';
 
 export const workflowsRouter = Router();
 
@@ -28,6 +29,12 @@ workflowsRouter.post('/start', async (req, res) => {
     if (workflowId && workflowId !== 'current') {
       const workflow = await requireAccessibleWorkflow(actorUserId, workflowId);
       resourceOwnerUserId = workflow.userId;
+      const agentMemoryByNodeId = await loadAgentMemoryByNodeId({
+        connections: clientBody.connections,
+        nodes: clientBody.nodes,
+        workflowId,
+      });
+      body = { ...body, agentMemoryByNodeId };
       if (workflow.userId !== actorUserId) {
         const cloudProvider = workflow.cloudProvider || 'LOCAL_RUNNER';
         body = {

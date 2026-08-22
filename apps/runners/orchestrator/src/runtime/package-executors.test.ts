@@ -351,11 +351,32 @@ describe('package orchestrator integration', { concurrency: false }, () => {
       );
     });
 
-    test('executes default Jira create and explicit update requests', async () => {
+    test('executes Jira create, update, and acceptance-criteria read requests', async () => {
       const requests: Array<{ input: string; init?: RequestInit }> = [];
       globalThis.fetch = async (input, init) => {
         requests.push({ input: String(input), init });
-        return new Response(JSON.stringify({ key: 'PR-18' }), {
+        const body =
+          init?.method === 'GET'
+            ? {
+                key: 'PR-18',
+                self: 'https://jira.example/rest/api/3/issue/PR-18',
+                fields: {
+                  summary: 'Checkout acceptance criteria',
+                  description: {
+                    type: 'doc',
+                    content: [
+                      {
+                        type: 'paragraph',
+                        content: [
+                          { type: 'text', text: 'Must complete checkout' },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              }
+            : { key: 'PR-18' };
+        return new Response(JSON.stringify(body), {
           headers: { 'Content-Type': 'application/json' },
           status: 200,
         });
@@ -373,6 +394,20 @@ describe('package orchestrator integration', { concurrency: false }, () => {
               projectId: '10000',
               issueType: 'Task',
               summary: 'Created by {{env.NAME}}',
+            },
+          },
+          settings: jiraSettings,
+        }),
+      );
+      const readResult = await runtime.execute(
+        executionInput({
+          node: {
+            id: 'jira-read',
+            nodeType: 'jira',
+            config: {
+              action: 'read',
+              cloudId: 'cloud-1',
+              issueKey: 'PR-18',
             },
           },
           settings: jiraSettings,
@@ -405,9 +440,24 @@ describe('package orchestrator integration', { concurrency: false }, () => {
       );
       assert.equal(
         requests[1]?.input,
+        'https://api.atlassian.com/ex/jira/cloud-1/rest/api/3/issue/PR-18?fields=summary,description',
+      );
+      assert.equal(requests[1]?.init?.method, 'GET');
+      assert.equal(
+        requests[2]?.input,
         'https://api.atlassian.com/ex/jira/cloud-1/rest/api/3/issue/PR-18',
       );
-      assert.equal(requests[1]?.init?.method, 'PUT');
+      assert.equal(requests[2]?.init?.method, 'PUT');
+      assert.deepEqual(
+        (readResult.output as Record<string, unknown>)?.acceptanceCriteria,
+        {
+          body: 'Must complete checkout',
+          id: 'PR-18',
+          source: 'jira',
+          title: 'Checkout acceptance criteria',
+          url: 'https://jira.example/rest/api/3/issue/PR-18',
+        },
+      );
     });
 
     test('does not expose raw provider response bodies in failures', async () => {

@@ -300,13 +300,6 @@ function options(
   git: FakeGit,
   overrides: Partial<BotPrDeliveryOptions> = {},
   boundary: {
-    fork?: Record<string, unknown>;
-    forkActions?: unknown;
-    forkActionsAfterDisable?: unknown;
-    forkActionsAfterDisableStatus?: number;
-    forkActionsDisableStatus?: number;
-    forkActionsStatus?: number;
-    forkStatus?: number;
     requests?: Array<{ init?: RequestInit; url: string }>;
     defaultBranchSha?: string;
     defaultBranchShaAfterInspection?: string;
@@ -331,7 +324,6 @@ function options(
       PATH: '/usr/bin:/bin',
     },
     executionId: 'execution-42',
-    forkRepository: 'playrunner-bot/example',
     githubToken: TOKEN,
     identity: {
       gid: agentUid,
@@ -345,28 +337,16 @@ function options(
     ...overrides,
   };
   const sourceRepository = result.repository.replace(/\.git$/i, '');
-  const forkRepository = result.forkRepository.replace(/\.git$/i, '');
   const sourceMetadata = {
     default_branch: 'main',
     full_name: 'playrunner/example',
     owner: { login: 'playrunner' },
-    private: false,
-    visibility: 'public',
+    permissions: { push: true },
+    private: true,
+    visibility: 'private',
     ...boundary.source,
   };
-  const forkMetadata = {
-    fork: true,
-    full_name: 'playrunner-bot/example',
-    owner: { login: 'playrunner-bot' },
-    parent: { full_name: 'playrunner/example' },
-    permissions: { push: true },
-    private: false,
-    visibility: 'public',
-    ...boundary.fork,
-  };
   const workflows = boundary.workflows || [];
-  let forkActionsDisabledByRequest = false;
-  let forkActionsReadCount = 0;
   let defaultBranchReadCount = 0;
   const workflowBySha = new Map(
     workflows.map((workflow) => [
@@ -380,35 +360,6 @@ function options(
     boundary.requests?.push({ init, url: url.toString() });
     if (url.pathname === `/repos/${sourceRepository}`) {
       return jsonResponse(sourceMetadata, boundary.sourceStatus ?? 200);
-    }
-    if (url.pathname === `/repos/${forkRepository}`) {
-      return jsonResponse(forkMetadata, boundary.forkStatus ?? 200);
-    }
-    if (
-      url.pathname.toLowerCase() ===
-      `/repos/${forkRepository}/actions/permissions`.toLowerCase()
-    ) {
-      if (init?.method === 'PUT') {
-        const status = boundary.forkActionsDisableStatus ?? 204;
-        if (status === 204) forkActionsDisabledByRequest = true;
-        return status === 204
-          ? new Response(null, { status })
-          : jsonResponse({ message: 'Could not update Actions.' }, status);
-      }
-      const isVerification = forkActionsReadCount > 0;
-      forkActionsReadCount += 1;
-      const status = isVerification
-        ? (boundary.forkActionsAfterDisableStatus ??
-          boundary.forkActionsStatus ??
-          200)
-        : (boundary.forkActionsStatus ?? 200);
-      const response = isVerification
-        ? (boundary.forkActionsAfterDisable ??
-          (forkActionsDisabledByRequest
-            ? { enabled: false }
-            : (boundary.forkActions ?? { enabled: false })))
-        : (boundary.forkActions ?? { enabled: false });
-      return jsonResponse(response, status);
     }
     if (
       url.pathname ===
@@ -584,8 +535,8 @@ test('commits test-only changes and creates a credential-safe bot PR', async () 
     const body = JSON.parse(String(requests[0].init?.body));
     assert.equal(body.base, 'feature/widget');
     assert.equal(body.draft, true);
-    assert.equal(body.head, `playrunner-bot:${result.branchName}`);
-    assert.equal(body.head_repo, 'playrunner-bot/example');
+    assert.equal(body.head, result.branchName);
+    assert.equal(body.head_repo, undefined);
     assert.match(body.title, new RegExp(DEVELOPER_SHA));
     assert.match(body.body, new RegExp(DEVELOPER_SHA));
     assert.match(body.body, /execution-42/);
@@ -617,8 +568,8 @@ test('refuses to share the untrusted agent identity with bot delivery', async ()
   }
 });
 
-test('uses the verified fork metadata owner for the cross-repository PR head', async () => {
-  const repository = temporaryRepository('bot-pr-verified-owner-');
+test('pushes a bot branch to the private source repository', async () => {
+  const repository = temporaryRepository('bot-pr-source-branch-');
   try {
     writeFile(repository.root, 'tests/widget.spec.ts');
     const git = new FakeGit(repository.root, [
@@ -626,230 +577,45 @@ test('uses the verified fork metadata owner for the cross-repository PR head', a
     ]);
     let requestBody: Record<string, unknown> | undefined;
     const result = await deliverBotPullRequest(
-      options(
-        repository.root,
-        git,
-        {
-          fetcher: async (_input, init) => {
-            requestBody = JSON.parse(String(init?.body));
-            return jsonResponse({ draft: true, number: 18 }, 201);
-          },
-          forkRepository: 'PLAYRUNNER-BOT/example',
+      options(repository.root, git, {
+        fetcher: async (_input, init) => {
+          requestBody = JSON.parse(String(init?.body));
+          return jsonResponse({ draft: true, number: 18 }, 201);
         },
-        {
-          fork: {
-            full_name: 'playrunner-bot/example',
-            owner: { login: 'playrunner-bot' },
-          },
-        },
-      ),
+      }),
     );
     if (result.status === 'no_changes') assert.fail('Expected a PR result.');
-    assert.equal(requestBody?.head, `playrunner-bot:${result.branchName}`);
-    assert.equal(requestBody?.head_repo, 'playrunner-bot/example');
+    assert.equal(requestBody?.head, result.branchName);
+    assert.equal(requestBody?.head_repo, undefined);
     const push = git.calls.find(({ args }) => args.includes('push'));
-    assert.ok(
-      push?.args.includes('https://github.com/playrunner-bot/example.git'),
-    );
+    assert.ok(push?.args.includes('https://github.com/playrunner/example.git'));
   } finally {
     repository.cleanup();
   }
 });
 
-test('requires a distinct verified public fork with push access', async () => {
-  const repository = temporaryRepository('bot-pr-fork-boundary-');
+test('requires source-repository push access', async () => {
+  const repository = temporaryRepository('bot-pr-source-permissions-');
   try {
     writeFile(repository.root, 'tests/widget.spec.ts');
-
-    const sameRepositoryGit = new FakeGit(repository.root, [
+    const git = new FakeGit(repository.root, [
       { path: 'tests/widget.spec.ts' },
     ]);
     await assert.rejects(
       deliverBotPullRequest(
-        options(repository.root, sameRepositoryGit, {
-          forkRepository: 'playrunner/example',
-        }),
+        options(
+          repository.root,
+          git,
+          {},
+          {
+            source: { permissions: { push: false } },
+          },
+        ),
       ),
-      /requires a distinct public fork/,
+      /cannot push.*Contents: read and write/,
     );
-    assert.equal(sameRepositoryGit.committed, false);
-
-    const cases: Array<{
-      boundary: Parameters<typeof options>[3];
-      message: RegExp;
-    }> = [
-      {
-        boundary: {
-          source: { private: true, visibility: 'private' },
-        },
-        message: /source repository must be public/,
-      },
-      {
-        boundary: {
-          fork: { private: true, visibility: 'private' },
-        },
-        message: /fork repository must be public/,
-      },
-      {
-        boundary: {
-          fork: { parent: { full_name: 'someone/else' } },
-        },
-        message: /must be a direct GitHub fork/,
-      },
-      {
-        boundary: { fork: { permissions: { push: false } } },
-        message: /cannot push.*Contents: read and write/,
-      },
-    ];
-    for (const item of cases) {
-      const git = new FakeGit(repository.root, [
-        { path: 'tests/widget.spec.ts' },
-      ]);
-      await assert.rejects(
-        deliverBotPullRequest(options(repository.root, git, {}, item.boundary)),
-        item.message,
-      );
-      assert.equal(git.committed, false);
-      assert.equal(git.pushed, false);
-    }
-  } finally {
-    repository.cleanup();
-  }
-});
-
-test('disables and re-verifies Actions on the dedicated fork before pushing', async () => {
-  const repository = temporaryRepository('bot-pr-fork-actions-disable-');
-  try {
-    writeFile(repository.root, 'tests/widget.spec.ts');
-    const requests: Array<{ init?: RequestInit; url: string }> = [];
-    const actionsRequests = () =>
-      requests.filter(({ url }) =>
-        new URL(url).pathname.endsWith('/actions/permissions'),
-      );
-    const git = new FakeGit(
-      repository.root,
-      [{ path: 'tests/widget.spec.ts' }],
-      {
-        onPush: () => {
-          assert.deepEqual(
-            actionsRequests().map(({ init }) => init?.method),
-            ['GET', 'PUT', 'GET'],
-          );
-        },
-      },
-    );
-    await deliverBotPullRequest(
-      options(
-        repository.root,
-        git,
-        {
-          fetcher: async () => jsonResponse({ draft: true, number: 19 }, 201),
-        },
-        {
-          forkActions: { enabled: true },
-          requests,
-        },
-      ),
-    );
-
-    assert.equal(git.pushed, true);
-    assert.deepEqual(
-      actionsRequests().map(({ init }) => init?.method),
-      ['GET', 'PUT', 'GET'],
-    );
-    assert.deepEqual(JSON.parse(String(actionsRequests()[1].init?.body)), {
-      enabled: false,
-    });
-  } finally {
-    repository.cleanup();
-  }
-});
-
-test('accepts an already-disabled dedicated fork without changing settings', async () => {
-  const repository = temporaryRepository('bot-pr-fork-actions-disabled-');
-  try {
-    writeFile(repository.root, 'tests/widget.spec.ts');
-    const requests: Array<{ init?: RequestInit; url: string }> = [];
-    const git = new FakeGit(
-      repository.root,
-      [{ path: 'tests/widget.spec.ts' }],
-      {
-        onPush: () => {
-          assert.equal(
-            requests.filter(({ url }) =>
-              new URL(url).pathname.endsWith('/actions/permissions'),
-            ).length,
-            1,
-          );
-        },
-      },
-    );
-    await deliverBotPullRequest(
-      options(
-        repository.root,
-        git,
-        {
-          fetcher: async () => jsonResponse({ draft: true, number: 20 }, 201),
-        },
-        { forkActions: { enabled: false }, requests },
-      ),
-    );
-    assert.equal(git.pushed, true);
-    assert.equal(
-      requests.some(
-        ({ init, url }) =>
-          new URL(url).pathname.endsWith('/actions/permissions') &&
-          init?.method === 'PUT',
-      ),
-      false,
-    );
-  } finally {
-    repository.cleanup();
-  }
-});
-
-test('fails closed when dedicated-fork Actions cannot be verified or disabled', async () => {
-  const repository = temporaryRepository('bot-pr-fork-actions-failure-');
-  try {
-    writeFile(repository.root, 'tests/widget.spec.ts');
-    const cases: Array<{
-      boundary: Parameters<typeof options>[3];
-      name: string;
-    }> = [
-      {
-        boundary: { forkActionsStatus: 403 },
-        name: 'permission read denied',
-      },
-      {
-        boundary: { forkActions: { allowed_actions: 'all' } },
-        name: 'malformed permission response',
-      },
-      {
-        boundary: {
-          forkActions: { enabled: true },
-          forkActionsDisableStatus: 403,
-        },
-        name: 'disable denied',
-      },
-      {
-        boundary: {
-          forkActions: { enabled: true },
-          forkActionsAfterDisable: { enabled: true },
-        },
-        name: 'disable not effective',
-      },
-    ];
-    for (const item of cases) {
-      const git = new FakeGit(repository.root, [
-        { path: 'tests/widget.spec.ts' },
-      ]);
-      await assert.rejects(
-        deliverBotPullRequest(options(repository.root, git, {}, item.boundary)),
-        /requires GitHub Actions to be disabled.*Settings > Actions > General.*Administration: read and write/,
-        item.name,
-      );
-      assert.equal(git.pushed, false, item.name);
-    }
+    assert.equal(git.committed, false);
+    assert.equal(git.pushed, false);
   } finally {
     repository.cleanup();
   }
@@ -1084,15 +850,14 @@ test('resolves an existing open PR after GitHub returns an idempotency conflict'
         fetcher: async (input, init) => {
           requestCount += 1;
           if (requestCount === 1) {
-            const qualifiedHead = String(JSON.parse(String(init?.body)).head);
-            assert.match(qualifiedHead, /^playrunner-bot:/);
-            branchName = qualifiedHead.slice('playrunner-bot:'.length);
+            branchName = String(JSON.parse(String(init?.body)).head);
+            assert.match(branchName, /^playrunner\/tests\//);
             return jsonResponse({ message: 'already exists' }, 422);
           }
           assert.match(String(input), /state=open/);
           assert.match(
             String(input),
-            /head=playrunner-bot%3Aplayrunner%2Ftests%2F/,
+            /head=playrunner%3Aplayrunner%2Ftests%2F/,
           );
           return jsonResponse(
             [
@@ -1101,8 +866,8 @@ test('resolves an existing open PR after GitHub returns an idempotency conflict'
                 head: {
                   ref: branchName,
                   repo: {
-                    full_name: 'playrunner-bot/example',
-                    owner: { login: 'playrunner-bot' },
+                    full_name: 'playrunner/example',
+                    owner: { login: 'playrunner' },
                   },
                 },
                 draft: true,
@@ -1154,10 +919,7 @@ test('reconciles retries with a fresh execution ID onto the same bot PR', async 
         fetcher: async (_input, init) => {
           requestCount += 1;
           if (requestCount === 1) {
-            assert.equal(
-              JSON.parse(String(init?.body)).head,
-              `playrunner-bot:${first.branchName}`,
-            );
+            assert.equal(JSON.parse(String(init?.body)).head, first.branchName);
             return jsonResponse({ message: 'already exists' }, 422);
           }
           return jsonResponse(
@@ -1167,8 +929,8 @@ test('reconciles retries with a fresh execution ID onto the same bot PR', async 
                 head: {
                   ref: first.branchName,
                   repo: {
-                    full_name: 'playrunner-bot/example',
-                    owner: { login: 'playrunner-bot' },
+                    full_name: 'playrunner/example',
+                    owner: { login: 'playrunner' },
                   },
                 },
                 draft: true,

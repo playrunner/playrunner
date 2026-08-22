@@ -1,42 +1,35 @@
 import type { Prisma } from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
-import type { CiChangeContext } from './ci-change-context';
 
 export const MAX_AGENT_MEMORY_BYTES = 64 * 1024;
 export const MAX_AGENT_MEMORY_DEPTH = 8;
-const MAX_AGENT_MEMORY_ENTRIES = 20_000;
-const MAX_AGENT_MEMORY_KEY_LENGTH = 100;
-const MAX_AGENT_MEMORY_STRING_BYTES = 16 * 1024;
-const MAX_AGENT_MEMORIES_PER_WORKFLOW = 100;
-const MAX_LOADED_AGENT_MEMORY_BYTES = 512 * 1024;
-const SAFE_NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
-const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const MAX_ENTRIES = 20_000;
+const MAX_STRING_BYTES = 16 * 1024;
+const MAX_LOADED_BYTES = 512 * 1024;
+const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+const SAFE_NAMESPACE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 type JsonRecord = Record<string, unknown>;
-type AgentMemoryChangeContext = Pick<
-  CiChangeContext,
-  'eventType' | 'headRef' | 'pullRequestNumber' | 'repository'
->;
-type AgentMemoryScopeContext = {
-  eventType: string;
-  headRef: string;
-  pullRequestNumber?: number | null;
+type WorkflowGraph = {
+  connections: unknown;
+  id: string;
+  nodes: unknown;
+  projectId: string | null;
+  userId: string;
+};
+type MemoryBinding = {
+  namespace: string;
+  repository: string;
+  scopeId: string;
+  scopeKind: 'project' | 'workflow';
 };
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isPrismaUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    error.code === 'P2002'
-  );
-}
-
-function validateJsonValue(
+function validateJson(
   value: unknown,
   depth: number,
   state: { entries: number },
@@ -54,36 +47,29 @@ function validateJsonValue(
     return;
   }
   if (typeof value === 'string') {
-    if (Buffer.byteLength(value, 'utf8') > MAX_AGENT_MEMORY_STRING_BYTES) {
+    if (Buffer.byteLength(value, 'utf8') > MAX_STRING_BYTES) {
       throw new Error('Agent memory contains an oversized string.');
     }
     return;
   }
-  if (Array.isArray(value)) {
-    state.entries += value.length;
-    if (state.entries > MAX_AGENT_MEMORY_ENTRIES) {
-      throw new Error('Agent memory contains too many entries.');
-    }
-    for (const item of value) validateJsonValue(item, depth + 1, state);
-    return;
-  }
-  if (!isRecord(value)) {
-    throw new Error('Agent memory must contain only JSON values.');
-  }
-  const entries = Object.entries(value);
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [String(index), item] as const)
+    : isRecord(value)
+      ? Object.entries(value)
+      : null;
+  if (!entries) throw new Error('Agent memory must contain only JSON values.');
   state.entries += entries.length;
-  if (state.entries > MAX_AGENT_MEMORY_ENTRIES) {
+  if (state.entries > MAX_ENTRIES) {
     throw new Error('Agent memory contains too many entries.');
   }
   for (const [key, item] of entries) {
     if (
-      !key ||
-      key.length > MAX_AGENT_MEMORY_KEY_LENGTH ||
-      UNSAFE_OBJECT_KEYS.has(key)
+      !Array.isArray(value) &&
+      (!key || key.length > 100 || UNSAFE_KEYS.has(key))
     ) {
       throw new Error('Agent memory contains an invalid object key.');
     }
-    validateJsonValue(item, depth + 1, state);
+    validateJson(item, depth + 1, state);
   }
 }
 
@@ -91,13 +77,8 @@ export function parseAgentMemory(value: unknown): JsonRecord {
   if (!isRecord(value)) {
     throw new Error('Agent node output.memory must be a JSON object.');
   }
-  validateJsonValue(value, 0, { entries: 0 });
-  let serialized: string;
-  try {
-    serialized = JSON.stringify(value);
-  } catch {
-    throw new Error('Agent memory must be serializable JSON.');
-  }
+  validateJson(value, 0, { entries: 0 });
+  const serialized = JSON.stringify(value);
   if (Buffer.byteLength(serialized, 'utf8') > MAX_AGENT_MEMORY_BYTES) {
     throw new Error(`Agent memory exceeds ${MAX_AGENT_MEMORY_BYTES} bytes.`);
   }
@@ -108,8 +89,9 @@ export function extractAgentMemoryFromEvent(
   event: Record<string, unknown>,
 ): JsonRecord | null {
   if (event.type !== 'node_output' || !isRecord(event.output)) return null;
-  if (!Object.hasOwn(event.output, 'memory')) return null;
-  return parseAgentMemory(event.output.memory);
+  return Object.hasOwn(event.output, 'memory')
+    ? parseAgentMemory(event.output.memory)
+    : null;
 }
 
 export function isAgentContainerWorkflowNode(
@@ -127,49 +109,109 @@ export function isAgentContainerWorkflowNode(
   );
 }
 
-export function assertAgentMemoryMatchesCiExecution(
-  memory: JsonRecord,
-  ciExecution: { headSha: string; repository: string },
-) {
-  if (memory.schemaVersion !== '1.0') {
-    throw new Error('Agent memory has an unsupported schemaVersion.');
+export function resolveMemoryBinding(
+  workflow: WorkflowGraph,
+  containerNodeId: string,
+): MemoryBinding | null {
+  if (!Array.isArray(workflow.nodes) || !Array.isArray(workflow.connections)) {
+    return null;
   }
-  if (memory.repository !== ciExecution.repository) {
-    throw new Error('Agent memory repository does not match the CI execution.');
-  }
-  if (memory.lastProcessedHeadSha !== ciExecution.headSha) {
-    throw new Error('Agent memory head SHA does not match the CI execution.');
-  }
+  const container = workflow.nodes.find(
+    (node) =>
+      isRecord(node) &&
+      node.id === containerNodeId &&
+      node.nodeType === 'agent-container',
+  );
+  if (!isRecord(container)) return null;
+  const memoryIds = workflow.connections
+    .filter(
+      (connection) =>
+        isRecord(connection) &&
+        connection.role === 'attachment' &&
+        connection.attachmentPort === 'memory' &&
+        connection.targetId === containerNodeId &&
+        typeof connection.sourceId === 'string',
+    )
+    .map((connection) => String((connection as JsonRecord).sourceId));
+  if (memoryIds.length !== 1) return null;
+  const memoryNode = workflow.nodes.find(
+    (node) =>
+      isRecord(node) &&
+      node.id === memoryIds[0] &&
+      node.nodeType === 'project-memory',
+  );
+  if (!isRecord(memoryNode)) return null;
+  const containerConfig = isRecord(container.config) ? container.config : {};
+  const repository =
+    typeof containerConfig.repository === 'string'
+      ? containerConfig.repository.trim()
+      : '';
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
+  const config = isRecord(memoryNode.config) ? memoryNode.config : {};
+  const requestedNamespace =
+    typeof config.namespace === 'string' ? config.namespace.trim() : '';
+  const namespace = SAFE_NAMESPACE.test(requestedNamespace)
+    ? requestedNamespace
+    : 'project';
+  const projectScoped = config.scope !== 'workflow' && workflow.projectId;
+  return {
+    namespace,
+    repository,
+    scopeId: projectScoped ? workflow.projectId! : workflow.id,
+    scopeKind: projectScoped ? 'project' : 'workflow',
+  };
 }
 
-export function agentMemoryChangeScope(
-  context: AgentMemoryScopeContext,
-): string {
-  if (context.eventType === 'pull_request') {
-    if (
-      !Number.isSafeInteger(context.pullRequestNumber) ||
-      Number(context.pullRequestNumber) < 1 ||
-      Number(context.pullRequestNumber) > 2_147_483_647
-    ) {
-      throw new Error(
-        'Agent memory pull request scope requires a positive 32-bit pull request number.',
-      );
-    }
-    return `pr:${context.pullRequestNumber}`;
+async function findWorkflow(workflowId: string): Promise<WorkflowGraph | null> {
+  return prisma.workflow.findUnique({
+    select: {
+      connections: true,
+      id: true,
+      nodes: true,
+      projectId: true,
+      userId: true,
+    },
+    where: { id: workflowId },
+  });
+}
+
+export async function loadAgentMemoryByNodeId(params: {
+  connections?: unknown;
+  nodes?: unknown;
+  workflowId: string;
+}): Promise<Record<string, JsonRecord>> {
+  const saved = await findWorkflow(params.workflowId);
+  if (!saved) return {};
+  const workflow: WorkflowGraph = {
+    ...saved,
+    connections: params.connections ?? saved.connections,
+    nodes: params.nodes ?? saved.nodes,
+  };
+  const result: Record<string, JsonRecord> = Object.create(null);
+  let loadedBytes = 2;
+  for (const node of Array.isArray(workflow.nodes) ? workflow.nodes : []) {
+    if (!isRecord(node) || node.nodeType !== 'agent-container') continue;
+    const nodeId = typeof node.id === 'string' ? node.id : '';
+    if (!SAFE_ID.test(nodeId)) continue;
+    const binding = resolveMemoryBinding(workflow, nodeId);
+    if (!binding) continue;
+    const row = await prisma.projectMemory.findUnique({
+      where: {
+        ownerUserId_providerId_scopeKind_scopeId_repository_namespace: {
+          ...binding,
+          ownerUserId: workflow.userId,
+          providerId: 'project-memory',
+        },
+      },
+    });
+    if (!row) continue;
+    const memory = parseAgentMemory(row.state);
+    const bytes = Buffer.byteLength(JSON.stringify({ [nodeId]: memory }));
+    if (loadedBytes + bytes > MAX_LOADED_BYTES) break;
+    result[nodeId] = memory;
+    loadedBytes += bytes;
   }
-  if (
-    context.pullRequestNumber !== undefined &&
-    context.pullRequestNumber !== null
-  ) {
-    throw new Error(
-      'Agent memory ref scope cannot contain a pull request number.',
-    );
-  }
-  const headRef = context.headRef.trim();
-  if (!headRef || Buffer.byteLength(headRef, 'utf8') > 255) {
-    throw new Error('Agent memory ref scope requires a bounded head ref.');
-  }
-  return `ref:${headRef}`;
+  return result;
 }
 
 export async function persistAgentMemoryFromEvent(params: {
@@ -177,97 +219,59 @@ export async function persistAgentMemoryFromEvent(params: {
   executionId: string;
   nodeId?: string;
 }) {
-  if (params.event.type !== 'node_output' || !isRecord(params.event.output)) {
-    return;
-  }
-  if (!Object.hasOwn(params.event.output, 'memory')) return;
-  const nodeId = params.nodeId?.trim();
-  if (!nodeId || !SAFE_NODE_ID_PATTERN.test(nodeId)) {
+  const memory = extractAgentMemoryFromEvent(params.event);
+  if (!memory) return;
+  const nodeId = params.nodeId?.trim() || '';
+  if (!SAFE_ID.test(nodeId)) {
     throw new Error('Agent memory event is missing a safe node ID.');
   }
-  const ciExecution = await prisma.workflowCiExecution.findUnique({
-    select: {
-      createdAt: true,
-      eventType: true,
-      headRef: true,
-      headSha: true,
-      pullRequestNumber: true,
-      repository: true,
-      workflowId: true,
-      workflow: { select: { nodes: true } },
-    },
-    where: { executionId: params.executionId },
+  const execution = await prisma.workflowExecution.findUnique({
+    select: { createdAt: true, userId: true, workflowId: true },
+    where: { id: params.executionId },
   });
-  if (!ciExecution) return;
-  if (!isAgentContainerWorkflowNode(ciExecution.workflow.nodes, nodeId)) return;
-  const memory = parseAgentMemory(params.event.output.memory);
-  assertAgentMemoryMatchesCiExecution(memory, ciExecution);
-  const changeScope = agentMemoryChangeScope(ciExecution);
-
+  if (!execution?.workflowId) return;
+  const workflow = await findWorkflow(execution.workflowId);
+  if (!workflow || workflow.userId !== execution.userId) return;
+  const binding = resolveMemoryBinding(workflow, nodeId);
+  if (!binding) return;
+  if (memory.repository !== binding.repository) {
+    throw new Error('Agent memory repository does not match its Memory scope.');
+  }
+  const unique = {
+    ...binding,
+    ownerUserId: workflow.userId,
+    providerId: 'project-memory',
+  };
+  const data = {
+    ...unique,
+    projectId: binding.scopeKind === 'project' ? binding.scopeId : null,
+    sourceExecutionCreatedAt: execution.createdAt,
+    sourceExecutionId: params.executionId,
+    sourceHeadSha:
+      typeof memory.lastProcessedHeadSha === 'string'
+        ? memory.lastProcessedHeadSha
+        : null,
+    state: memory as Prisma.InputJsonValue,
+    workflowId: binding.scopeKind === 'workflow' ? binding.scopeId : null,
+  };
   try {
-    await prisma.workflowAgentMemory.create({
-      data: {
-        changeScope,
-        headSha: ciExecution.headSha,
-        memory: memory as Prisma.InputJsonValue,
-        nodeId,
-        repository: ciExecution.repository,
-        sourceExecutionCreatedAt: ciExecution.createdAt,
-        workflowId: ciExecution.workflowId,
-      },
-    });
+    await prisma.projectMemory.create({ data });
   } catch (error) {
-    if (!isPrismaUniqueConstraintError(error)) throw error;
-    // Concurrent runs on one branch may complete out of order. Only a run
-    // reserved at least as recently as the stored run may advance memory.
-    await prisma.workflowAgentMemory.updateMany({
+    if (!isRecord(error) || error.code !== 'P2002') {
+      throw error;
+    }
+    await prisma.projectMemory.updateMany({
       data: {
-        headSha: ciExecution.headSha,
-        memory: memory as Prisma.InputJsonValue,
-        sourceExecutionCreatedAt: ciExecution.createdAt,
+        revision: { increment: 1 },
+        sourceExecutionCreatedAt: data.sourceExecutionCreatedAt,
+        sourceExecutionId: data.sourceExecutionId,
+        sourceHeadSha: data.sourceHeadSha,
+        state: data.state,
       },
       where: {
-        changeScope,
-        nodeId,
-        repository: ciExecution.repository,
-        sourceExecutionCreatedAt: { lte: ciExecution.createdAt },
-        workflowId: ciExecution.workflowId,
+        ...unique,
+        sourceExecutionCreatedAt: { lte: execution.createdAt },
       },
     });
   }
-}
-
-export async function loadAgentMemoryByNodeId(params: {
-  changeContext: AgentMemoryChangeContext;
-  workflowId: string;
-}): Promise<Record<string, JsonRecord>> {
-  const changeScope = agentMemoryChangeScope(params.changeContext);
-  const rows = await prisma.workflowAgentMemory.findMany({
-    orderBy: { updatedAt: 'desc' },
-    take: MAX_AGENT_MEMORIES_PER_WORKFLOW,
-    where: {
-      changeScope,
-      repository: params.changeContext.repository,
-      workflowId: params.workflowId,
-    },
-  });
-  const result: Record<string, JsonRecord> = Object.create(null);
-  let bytes = 2;
-  for (const row of rows) {
-    if (
-      !SAFE_NODE_ID_PATTERN.test(row.nodeId) ||
-      Object.hasOwn(result, row.nodeId)
-    ) {
-      continue;
-    }
-    const memory = parseAgentMemory(row.memory);
-    const entryBytes = Buffer.byteLength(
-      JSON.stringify({ [row.nodeId]: memory }),
-      'utf8',
-    );
-    if (bytes + entryBytes > MAX_LOADED_AGENT_MEMORY_BYTES) break;
-    result[row.nodeId] = memory;
-    bytes += entryBytes;
-  }
-  return result;
 }

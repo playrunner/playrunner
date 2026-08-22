@@ -2,12 +2,16 @@ import crypto from 'node:crypto';
 import express, { Router, type ErrorRequestHandler } from 'express';
 import { requireApiToken } from '../auth/api-token.middleware';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '../generated/prisma/client.cts';
 import {
   executionEvents,
   sanitizeWorkflowLogMessage,
 } from '../services/execution-events';
-import { apiTokens, tokenCanExecuteWorkflow } from '../services/api-tokens';
-import { loadAgentMemoryByNodeId } from '../services/agent-memory';
+import {
+  apiTokens,
+  tokenCanExecuteWorkflow,
+  tokenCanWriteWorkflows,
+} from '../services/api-tokens';
 import {
   CiChangeContextValidationError,
   MAX_CI_CHANGE_CONTEXT_BYTES,
@@ -23,11 +27,28 @@ import {
 } from '../services/ci-workflow-executions';
 import { executeSavedWorkflow } from '../services/saved-workflow-execution';
 import { machineExecutionCiPolicyError } from '../services/execution-trust-boundary';
+import {
+  MAX_WORKFLOW_RUN_BODY_BYTES,
+  parseWorkflowRunInputs,
+  WorkflowRunInputValidationError,
+} from '../services/workflow-run-inputs';
+import {
+  MAX_WORKFLOW_DEFINITION_BYTES,
+  parseWorkflowDefinition,
+  WorkflowDefinitionValidationError,
+  workflowDefinitionIds,
+} from '../services/workflow-definitions';
 
 export const machineExecutionsRouter = Router();
 machineExecutionsRouter.use(requireApiToken);
 machineExecutionsRouter.use(
-  express.json({ limit: MAX_CI_CHANGE_CONTEXT_BYTES }),
+  express.json({
+    limit: Math.max(
+      MAX_CI_CHANGE_CONTEXT_BYTES,
+      MAX_WORKFLOW_DEFINITION_BYTES,
+      MAX_WORKFLOW_RUN_BODY_BYTES,
+    ),
+  }),
 );
 
 function canAccess(
@@ -49,6 +70,77 @@ function failureHttpStatus(status: number | null) {
     ? status
     : 502;
 }
+
+machineExecutionsRouter.put('/definitions/:workflowKey', async (req, res) => {
+  const token = req.apiToken!;
+  if (!tokenCanWriteWorkflows(token)) {
+    res.status(403).json({
+      error:
+        'This API token cannot manage workflows. Use an unrestricted token with workflow:write.',
+    });
+    return;
+  }
+
+  try {
+    const definition = parseWorkflowDefinition(req.body);
+    if (definition.workflow.key !== req.params.workflowKey) {
+      res.status(400).json({
+        error: 'The workflow key in the URL and definition must match.',
+      });
+      return;
+    }
+    const ids = workflowDefinitionIds(token.userId, definition);
+    const existing = await prisma.workflow.findUnique({
+      where: { id: ids.workflowId },
+      select: { id: true },
+    });
+    await prisma.$transaction([
+      prisma.project.upsert({
+        where: { id: ids.projectId },
+        create: {
+          id: ids.projectId,
+          userId: token.userId,
+          title: definition.project.title,
+        },
+        update: { title: definition.project.title },
+      }),
+      prisma.workflow.upsert({
+        where: { id: ids.workflowId },
+        create: {
+          id: ids.workflowId,
+          userId: token.userId,
+          projectId: ids.projectId,
+          title: definition.workflow.title,
+          nodes: definition.workflow.nodes as Prisma.InputJsonValue,
+          connections: definition.workflow.connections as Prisma.InputJsonValue,
+          cloudProvider: definition.workflow.cloudProvider,
+          concurrency: definition.workflow.concurrency ?? null,
+        },
+        update: {
+          projectId: ids.projectId,
+          title: definition.workflow.title,
+          nodes: definition.workflow.nodes as Prisma.InputJsonValue,
+          connections: definition.workflow.connections as Prisma.InputJsonValue,
+          cloudProvider: definition.workflow.cloudProvider,
+          concurrency: definition.workflow.concurrency ?? null,
+        },
+      }),
+    ]);
+    res.status(existing ? 200 : 201).json({
+      created: !existing,
+      editorPath: `/workflow/${ids.workflowId}`,
+      projectId: ids.projectId,
+      workflowId: ids.workflowId,
+    });
+  } catch (error) {
+    if (error instanceof WorkflowDefinitionValidationError) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error('Machine workflow definition error:', error);
+    res.status(500).json({ error: 'The workflow could not be saved.' });
+  }
+});
 
 export function machineExecutionReplayResponse(params: {
   executionId: string;
@@ -95,14 +187,20 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   }
 
   let ci;
+  let runInputs;
   try {
-    ci = parseCiChangeContext(req.body);
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const { inputs: _inputs, acceptanceCriteria: _criteria, ...ciBody } = body;
+    ci = parseCiChangeContext(ciBody);
+    runInputs = parseWorkflowRunInputs(body);
   } catch (error) {
     res.status(400).json({
       error:
         error instanceof CiChangeContextValidationError
           ? error.message
-          : 'Invalid CI change context.',
+          : error instanceof WorkflowRunInputValidationError
+            ? error.message
+            : 'Invalid CI change context.',
     });
     return;
   }
@@ -163,13 +261,16 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   }
 
   try {
-    const agentMemoryByNodeId = await loadAgentMemoryByNodeId({
-      changeContext: ci,
-      workflowId,
-    });
     const started = await executeSavedWorkflow({
-      agentMemoryByNodeId,
-      body: { ci },
+      body: {
+        ci,
+        ...(Object.keys(runInputs.inputs).length
+          ? { inputs: runInputs.inputs }
+          : {}),
+        ...(runInputs.acceptanceCriteria.length
+          ? { acceptanceCriteria: runInputs.acceptanceCriteria }
+          : {}),
+      },
       executionId: reservation.executionId,
       req,
       trigger: { data: ci, name: 'ci' },
@@ -362,12 +463,12 @@ export function machineExecutionJsonError(error: unknown): {
       : '';
   if (errorType === 'entity.too.large') {
     return {
-      error: `CI change context exceeds ${MAX_CI_CHANGE_CONTEXT_BYTES} bytes.`,
+      error: `Workflow run request exceeds ${MAX_WORKFLOW_RUN_BODY_BYTES} bytes.`,
       status: 413,
     };
   }
   if (errorType === 'entity.parse.failed') {
-    return { error: 'Invalid CI change context JSON.', status: 400 };
+    return { error: 'Invalid workflow run JSON.', status: 400 };
   }
   return null;
 }

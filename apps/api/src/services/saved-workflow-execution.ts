@@ -5,6 +5,7 @@ import { apiRuntime } from '../runtime';
 import { state } from '../state';
 import { buildSavedWorkflowExecutionBody } from './saved-workflow-payload';
 import { machineExecutionCiPolicyError } from './execution-trust-boundary';
+import { loadAgentMemoryByNodeId } from './agent-memory';
 
 type SavedWorkflowTrigger = {
   data?: Record<string, unknown>;
@@ -31,7 +32,6 @@ type SavedWorkflowExecutionDependencies = {
 
 export async function executeSavedWorkflow(
   params: {
-    agentMemoryByNodeId?: Record<string, unknown>;
     body?: Record<string, unknown>;
     executionId?: string;
     req: Request;
@@ -70,11 +70,16 @@ export async function executeSavedWorkflow(
   }
   state.testCloudProviders[executionId] = cloudProvider;
   const triggerData = params.trigger.data ?? {};
+  const agentMemoryByNodeId = await loadAgentMemoryByNodeId({
+    connections: workflow.connections,
+    nodes: workflow.nodes,
+    workflowId: workflow.id,
+  });
   const result = await (
     dependencies?.executeWorkflow ?? apiRuntime.workflowExecution.execute
   )({
     body: buildSavedWorkflowExecutionBody({
-      agentMemoryByNodeId: params.agentMemoryByNodeId,
+      agentMemoryByNodeId,
       body: params.body,
       executionId,
       triggerData,

@@ -59,7 +59,6 @@ export type BotPrDeliveryOptions = {
   environment?: NodeJS.ProcessEnv;
   executionId: string;
   fetcher?: BotPrFetcher;
-  forkRepository: string;
   githubToken: string;
   identity?: AgentIdentity;
   nodeId: string;
@@ -118,9 +117,7 @@ type GitHubResponse = {
   status: number;
 };
 
-type VerifiedPublicRepositories = {
-  forkOwner: string;
-  forkRepository: string;
+type VerifiedSourceRepository = {
   sourceDefaultBranch: string;
   sourceRepository: string;
 };
@@ -1111,9 +1108,7 @@ function credentialConfigEnvironment(
 async function pushBranch(
   context: DeliveryContext,
   botIdentity: AgentIdentity,
-  fetcher: BotPrFetcher,
   sourceRepository: string,
-  forkRepository: string,
   branchName: string,
   commitSha: string,
   developerHeadRef: string,
@@ -1121,7 +1116,7 @@ async function pushBranch(
   githubToken: string,
   files: ValidatedChangedFile[],
 ): Promise<void> {
-  const forkRemoteUrl = `https://github.com/${forkRepository}.git`;
+  const sourceRemoteUrl = `https://github.com/${sourceRepository}.git`;
   await assertRemoteDeveloperBranchUnchanged(
     context,
     sourceRepository,
@@ -1138,7 +1133,7 @@ async function pushBranch(
         'http.sslVerify=true',
         'ls-remote',
         '--heads',
-        forkRemoteUrl,
+        sourceRemoteUrl,
         `refs/heads/${branchName}`,
       ],
       'checking the remote bot branch',
@@ -1154,7 +1149,6 @@ async function pushBranch(
     files,
   );
   try {
-    await ensureForkActionsDisabled(fetcher, githubToken, forkRepository);
     const credentials = credentialConfigEnvironment(
       isolated.context,
       isolated.directory,
@@ -1176,7 +1170,7 @@ async function pushBranch(
           'push',
           '--porcelain',
           `--force-with-lease=refs/heads/${branchName}:${existingSha}`,
-          forkRemoteUrl,
+          sourceRemoteUrl,
           `${commitSha}:refs/heads/${branchName}`,
         ],
         'pushing the bot branch',
@@ -1297,67 +1291,6 @@ async function githubRequest(
   return { body, status: response.status };
 }
 
-function forkActionsSetupError(forkRepository: string, detail: string): Error {
-  return new Error(
-    `Bot PR requires GitHub Actions to be disabled on the dedicated public fork ${forkRepository}. ${detail} Disable Actions manually under Settings > Actions > General, or grant the GitHub App Administration: read and write so Playrunner can disable and verify it before every push.`,
-  );
-}
-
-async function readForkActionsEnabled(
-  fetcher: BotPrFetcher,
-  githubToken: string,
-  forkRepository: string,
-): Promise<boolean> {
-  const response = await githubRequest(
-    fetcher,
-    githubToken,
-    `/repos/${forkRepository}/actions/permissions`,
-    { method: 'GET' },
-  );
-  if (response.status !== 200) {
-    throw forkActionsSetupError(
-      forkRepository,
-      `GitHub could not inspect the fork Actions permission (${response.status}).`,
-    );
-  }
-  const permissions = githubRecord(response.body);
-  if (!permissions || typeof permissions.enabled !== 'boolean') {
-    throw forkActionsSetupError(
-      forkRepository,
-      'GitHub returned an invalid Actions permission response.',
-    );
-  }
-  return permissions.enabled;
-}
-
-async function ensureForkActionsDisabled(
-  fetcher: BotPrFetcher,
-  githubToken: string,
-  forkRepository: string,
-): Promise<void> {
-  if (!(await readForkActionsEnabled(fetcher, githubToken, forkRepository))) {
-    return;
-  }
-  const disabled = await githubRequest(
-    fetcher,
-    githubToken,
-    `/repos/${forkRepository}/actions/permissions`,
-    { body: JSON.stringify({ enabled: false }), method: 'PUT' },
-  );
-  if (disabled.status !== 204) {
-    throw forkActionsSetupError(
-      forkRepository,
-      `GitHub could not disable Actions on the fork (${disabled.status}).`,
-    );
-  }
-  if (await readForkActionsEnabled(fetcher, githubToken, forkRepository)) {
-    throw forkActionsSetupError(
-      forkRepository,
-      'GitHub still reports Actions enabled after the disable request.',
-    );
-  }
-}
-
 function githubRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1367,11 +1300,10 @@ function githubRecord(value: unknown): Record<string, unknown> | null {
 function repositoryMetadata(
   value: unknown,
   expectedRepository: string,
-  label: 'fork' | 'source',
+  label: 'source',
 ): {
   defaultBranch?: string;
   fullName: string;
-  owner: string;
   record: Record<string, unknown>;
 } {
   const metadata = githubRecord(value);
@@ -1399,43 +1331,20 @@ function repositoryMetadata(
   ) {
     throw new Error(`GitHub returned invalid ${label} repository ownership.`);
   }
-  const verifiedOwner = normalizeRepository(
-    `${owner.login}/${normalized.name}`,
-  ).owner;
   return {
     ...(typeof metadata.default_branch === 'string'
       ? { defaultBranch: metadata.default_branch }
       : {}),
     fullName: normalized.repository,
-    owner: verifiedOwner,
     record: metadata,
   };
 }
 
-function assertPublicRepository(
-  metadata: Record<string, unknown>,
-  label: 'fork' | 'source',
-): void {
-  if (metadata.private !== false || metadata.visibility !== 'public') {
-    throw new Error(
-      `Bot PR ${label} repository must be public. Private and internal repositories are not supported by the generated-test fork workflow.`,
-    );
-  }
-}
-
-async function verifyPublicRepositories(
+async function verifySourceRepository(
   fetcher: BotPrFetcher,
   githubToken: string,
   sourceRepository: string,
-  configuredForkRepository: string,
-): Promise<VerifiedPublicRepositories> {
-  if (
-    sourceRepository.toLowerCase() === configuredForkRepository.toLowerCase()
-  ) {
-    throw new Error(
-      'Bot PR requires a distinct public fork; the fork cannot be the source repository.',
-    );
-  }
+): Promise<VerifiedSourceRepository> {
   const sourceResponse = await githubRequest(
     fetcher,
     githubToken,
@@ -1444,7 +1353,7 @@ async function verifyPublicRepositories(
   );
   if (sourceResponse.status !== 200) {
     throw new Error(
-      `GitHub could not verify the source repository (${sourceResponse.status}). Ensure the GitHub App is installed on the public source repository.`,
+      `GitHub could not verify the source repository (${sourceResponse.status}). Ensure the GitHub App is installed with Contents and Pull requests read/write access.`,
     );
   }
   const source = repositoryMetadata(
@@ -1452,46 +1361,14 @@ async function verifyPublicRepositories(
     sourceRepository,
     'source',
   );
-  assertPublicRepository(source.record, 'source');
   const sourceDefaultBranch = normalizeHeadRef(source.defaultBranch || '');
-
-  const forkResponse = await githubRequest(
-    fetcher,
-    githubToken,
-    `/repos/${configuredForkRepository}`,
-    { method: 'GET' },
-  );
-  if (forkResponse.status !== 200) {
-    throw new Error(
-      `GitHub could not verify the bot PR fork (${forkResponse.status}). Install the GitHub App on the distinct public fork with Contents: read and write.`,
-    );
-  }
-  const fork = repositoryMetadata(
-    forkResponse.body,
-    configuredForkRepository,
-    'fork',
-  );
-  assertPublicRepository(fork.record, 'fork');
-  const parent = githubRecord(fork.record.parent);
-  if (
-    fork.record.fork !== true ||
-    !parent ||
-    typeof parent.full_name !== 'string' ||
-    parent.full_name.toLowerCase() !== source.fullName.toLowerCase()
-  ) {
-    throw new Error(
-      `Bot PR fork ${fork.fullName} must be a direct GitHub fork of ${source.fullName}.`,
-    );
-  }
-  const permissions = githubRecord(fork.record.permissions);
+  const permissions = githubRecord(source.record.permissions);
   if (!permissions || permissions.push !== true) {
     throw new Error(
-      `The GitHub connection cannot push to ${fork.fullName}. Install the GitHub App on the public fork with Contents: read and write.`,
+      `The GitHub connection cannot push to ${source.fullName}. Install the GitHub App with Contents: read and write.`,
     );
   }
   return {
-    forkOwner: fork.owner,
-    forkRepository: fork.fullName,
     sourceDefaultBranch,
     sourceRepository: source.fullName,
   };
@@ -1638,7 +1515,7 @@ function maskQuotedYaml(value: string): string {
 
 function unsafeRunnerError(workflowPath: string): Error {
   return new Error(
-    `Bot PR source workflow ${workflowPath} must use only statically declared standard GitHub-hosted runs-on labels. Self-hosted/custom runners, runner groups, expressions, matrices, anchors, and reusable-workflow job indirection are not supported by the public-fork v1 safety boundary.`,
+    `Bot PR source workflow ${workflowPath} must use only statically declared standard GitHub-hosted runs-on labels. Self-hosted/custom runners, runner groups, expressions, matrices, anchors, and reusable-workflow job indirection are not supported by the generated-test safety boundary.`,
   );
 }
 
@@ -1903,7 +1780,6 @@ async function assertDefaultBranchInspectionStillCurrent(
     sourceRepository,
     'source',
   );
-  assertPublicRepository(source.record, 'source');
   const currentDefaultBranch = normalizeHeadRef(source.defaultBranch || '');
   if (currentDefaultBranch !== expectedDefaultBranch) {
     throw new Error(
@@ -1950,8 +1826,6 @@ async function createPullRequest(
   fetcher: BotPrFetcher,
   githubToken: string,
   repository: string,
-  forkOwner: string,
-  forkRepository: string,
   branchName: string,
   developerHeadRef: string,
   developerHeadSha: string,
@@ -1961,13 +1835,12 @@ async function createPullRequest(
   metadata: BotPullRequestMetadata;
   status: 'created' | 'existing';
 }> {
-  const qualifiedHead = `${forkOwner}:${branchName}`;
   const title = `test: generate coverage for ${developerHeadSha}`;
   const body = [
     'Automated tests generated and validated by Playrunner.',
     '',
     '> [!WARNING]',
-    '> This is a draft. Coverage was reported by repository-controlled test code and is not a trusted attestation. A human must review the generated tests, and source-repository CI must pass, before this PR is marked ready or merged.',
+    '> This is a draft from a bot branch in the source repository. Coverage was reported by repository-controlled test code and is not a trusted attestation. Workflows must withhold deployment and production secrets from `playrunner/tests/**` branches. A human must review the generated tests, and source-repository CI must pass, before this PR is marked ready or merged.',
     '',
     `- Developer head: \`${developerHeadSha}\``,
     `- Base ref: \`${developerHeadRef}\``,
@@ -1983,8 +1856,7 @@ async function createPullRequest(
         base: developerHeadRef,
         body,
         draft: true,
-        head: qualifiedHead,
-        head_repo: forkRepository,
+        head: branchName,
         maintainer_can_modify: true,
         title,
       }),
@@ -2019,7 +1891,7 @@ async function createPullRequest(
 
   const parameters = new URLSearchParams({
     base: developerHeadRef,
-    head: qualifiedHead,
+    head: `${normalizeRepository(repository).owner}:${branchName}`,
     per_page: '10',
     state: 'open',
   });
@@ -2039,17 +1911,12 @@ async function createPullRequest(
     const head = githubRecord(record.head);
     const base = githubRecord(record.base);
     const headRepository = head ? githubRecord(head.repo) : null;
-    const headRepositoryOwner = headRepository
-      ? githubRecord(headRepository.owner)
-      : null;
     return (
       pullRequestNumber(record) !== null &&
       head?.ref === branchName &&
       base?.ref === developerHeadRef &&
       typeof headRepository?.full_name === 'string' &&
-      headRepository.full_name.toLowerCase() === forkRepository.toLowerCase() &&
-      typeof headRepositoryOwner?.login === 'string' &&
-      headRepositoryOwner.login.toLowerCase() === forkOwner.toLowerCase()
+      headRepository.full_name.toLowerCase() === repository.toLowerCase()
     );
   });
   const candidate = githubRecord(matchingCandidate);
@@ -2077,9 +1944,6 @@ export async function deliverBotPullRequest(
   options: BotPrDeliveryOptions,
 ): Promise<BotPrDeliveryResult> {
   const { repository } = normalizeRepository(options.repository);
-  const { repository: configuredForkRepository } = normalizeRepository(
-    options.forkRepository,
-  );
   const developerHeadSha = normalizeHeadSha(options.developerHeadSha);
   const developerHeadRef = normalizeHeadRef(options.developerHeadRef);
   const executionId = requiredIdentifier(options.executionId, 'executionId');
@@ -2147,11 +2011,10 @@ export async function deliverBotPullRequest(
     prohibitedExactValues,
   );
   const fetcher = options.fetcher || fetch;
-  const verified = await verifyPublicRepositories(
+  const verified = await verifySourceRepository(
     fetcher,
     githubToken,
     repository,
-    configuredForkRepository,
   );
   await assertNoPrivilegedWorkflowAtDeveloperHead(context, developerHeadSha);
   const inspectedDefaultBranchSha = await assertSafeDefaultBranchWorkflows(
@@ -2178,9 +2041,7 @@ export async function deliverBotPullRequest(
   await pushBranch(
     context,
     botIdentity,
-    fetcher,
     verified.sourceRepository,
-    verified.forkRepository,
     branchName,
     commitSha,
     developerHeadRef,
@@ -2205,8 +2066,6 @@ export async function deliverBotPullRequest(
     fetcher,
     githubToken,
     verified.sourceRepository,
-    verified.forkOwner,
-    verified.forkRepository,
     branchName,
     developerHeadRef,
     developerHeadSha,

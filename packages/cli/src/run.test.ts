@@ -48,7 +48,32 @@ test('--version reports the package version', async () => {
   const run = harness([]);
 
   assert.equal(await runCli(['--version'], run.dependencies), 0);
-  assert.deepEqual(run.stdout, ['0.1.3']);
+  assert.deepEqual(run.stdout, ['0.1.4']);
+});
+
+test('passes workflow inputs and acceptance criteria to the start request', async () => {
+  const run = harness([
+    jsonResponse({ executionId: 'execution-inputs', status: 'running' }, 202),
+  ]);
+  assert.equal(
+    await runCli(
+      [
+        'workflow-1',
+        '--no-wait',
+        '--input',
+        'ticket=46',
+        '--acceptance-criteria',
+        'Ticket #46 is the acceptance criteria',
+      ],
+      run.dependencies,
+    ),
+    0,
+  );
+  const body = JSON.parse(String(run.calls[0].init?.body));
+  assert.deepEqual(body.inputs, { ticket: '46' });
+  assert.deepEqual(body.acceptanceCriteria, [
+    'Ticket #46 is the acceptance criteria',
+  ]);
 });
 
 test('waits for success, streams safe messages, and authenticates by header', async () => {

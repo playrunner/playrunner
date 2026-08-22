@@ -6,8 +6,10 @@ import {
   generateApiToken,
   hashApiToken,
   tokenCanExecuteWorkflow,
+  tokenCanWriteWorkflows,
   tokenIsActive,
   WORKFLOW_EXECUTE_SCOPE,
+  WORKFLOW_WRITE_SCOPE,
 } from './api-tokens';
 import {
   sanitizeWorkflowLogMessage,
@@ -21,6 +23,30 @@ test('generates high-entropy recognizable tokens and stores comparable hashes', 
   assert.ok(token.length >= API_TOKEN_PREFIX.length + 43);
   assert.equal(apiTokenHashesMatch(token, hashApiToken(token)), true);
   assert.equal(apiTokenHashesMatch(`${token}x`, hashApiToken(token)), false);
+});
+
+test('allows only unrestricted write-scoped tokens to manage definitions', () => {
+  assert.equal(
+    tokenCanWriteWorkflows({
+      scopes: [WORKFLOW_WRITE_SCOPE],
+      allowedWorkflowIds: null,
+    }),
+    true,
+  );
+  assert.equal(
+    tokenCanWriteWorkflows({
+      scopes: [WORKFLOW_EXECUTE_SCOPE],
+      allowedWorkflowIds: null,
+    }),
+    false,
+  );
+  assert.equal(
+    tokenCanWriteWorkflows({
+      scopes: [WORKFLOW_WRITE_SCOPE],
+      allowedWorkflowIds: ['workflow-a'],
+    }),
+    false,
+  );
 });
 
 test('enforces scope and optional workflow restrictions', () => {

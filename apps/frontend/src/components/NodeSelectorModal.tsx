@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { INTEGRATIONS } from '../integrations/registry';
 
 interface NodeSelectorModalProps {
-  attachmentKind?: 'agent' | 'tool' | null;
+  attachmentKind?: 'agent' | 'memory' | 'tool' | null;
   isOpen: boolean;
   onClose: () => void;
   onSelect: (data: { typeId: string; label: string }) => void;
@@ -23,8 +23,8 @@ export type AppNodeType = {
   nodeSelectorOrder?: number;
   acceptsInboundConnection: boolean;
   executionRole: 'workflow' | 'attachment';
-  attachmentKind?: 'agent' | 'tool';
-  acceptsAttachments: readonly ('agent' | 'tool')[];
+  attachmentKind?: 'agent' | 'memory' | 'tool';
+  acceptsAttachments: readonly ('agent' | 'memory' | 'tool')[];
 };
 
 export const NODE_TYPES: AppNodeType[] = [
@@ -153,8 +153,10 @@ export function NodeSelectorModal({
         aria-label={
           attachmentKind === 'agent'
             ? 'Add Agent'
+            : attachmentKind === 'memory'
+              ? 'Add Memory'
             : attachmentKind === 'tool'
-              ? 'Add Validator'
+              ? 'Add Tool'
               : 'Add node'
         }
         aria-modal="true"
@@ -171,9 +173,11 @@ export function NodeSelectorModal({
               placeholder={
                 attachmentKind === 'agent'
                   ? 'Search agents...'
+                  : attachmentKind === 'memory'
+                    ? 'Search memory providers...'
                   : attachmentKind === 'tool'
-                    ? 'Search validators...'
-                    : 'Search tools...'
+                    ? 'Search tools...'
+                    : 'Search nodes...'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}

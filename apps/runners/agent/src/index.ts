@@ -20,7 +20,6 @@ import {
   createInitialPrompt,
   materializeAgentContext,
   mergeValidatorConfigs,
-  normalizeGitHubRepository,
 } from './payload';
 import { runProcess } from './process';
 import {
@@ -310,19 +309,7 @@ async function main() {
         const githubToken = payload.github?.accessToken?.trim();
         if (!githubToken) {
           throw new Error(
-            'Connect a GitHub App installed on the public source and dedicated public fork with Contents, Pull requests, and Administration read/write access. Keep GitHub Actions disabled on the fork so Playrunner can publish generated tests safely.',
-          );
-        }
-        const forkRepository = normalizeGitHubRepository(
-          payload.config.botPullRequestForkRepository,
-          'config.botPullRequestForkRepository',
-        );
-        if (
-          forkRepository.toLowerCase() ===
-          prepared.changeContext.repository.toLowerCase()
-        ) {
-          throw new Error(
-            'Configure a distinct public GitHub fork for generated-test bot PRs; the fork cannot be the source repository.',
+            'Connect a GitHub App installed on the source repository with Contents and Pull requests read/write access so Playrunner can create a bot branch and draft pull request.',
           );
         }
         await runnerControl.log(
@@ -334,7 +321,6 @@ async function main() {
           developerHeadSha: prepared.changeContext.headSha,
           environment: repositoryEnvironment,
           executionId: payload.runtime.testId,
-          forkRepository,
           githubToken,
           identity,
           nodeId: payload.runtime.nodeId,
@@ -475,6 +461,7 @@ async function main() {
       delivery: botDelivery,
       effectiveStatus,
       prepared,
+      repository: String(payload.config.repository),
       supervisor,
       ...(terminalFailureKind ? { terminalFailureKind } : {}),
     });

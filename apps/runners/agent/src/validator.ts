@@ -37,6 +37,8 @@ const FIXED_DETAILED_COVERAGE_PATHS = new Set<string>(
 );
 
 export const DEFAULT_VALIDATION_COMMAND =
+  'playwright test --reporter=line --retries=0';
+const LEGACY_VALIDATION_COMMAND =
   'npm run test:coverage -- --reporter=line --retries=0';
 
 export const VALIDATOR_LIMITS = {
@@ -458,9 +460,12 @@ function normalizeConfig(config: ValidatorConfig): NormalizedValidatorConfig {
     },
     requirements: String(config.requirements || ''),
     runTests: config.runTests !== false,
-    validationCommand:
-      String(config.validationCommand || '').trim() ||
-      DEFAULT_VALIDATION_COMMAND,
+    validationCommand: (() => {
+      const command = String(config.validationCommand || '').trim();
+      return !command || command === LEGACY_VALIDATION_COMMAND
+        ? DEFAULT_VALIDATION_COMMAND
+        : command;
+    })(),
     validationTimeoutMinutes: Math.min(
       120,
       Math.max(1, Number(config.validationTimeoutMinutes) || 30),
@@ -771,211 +776,24 @@ function staticCommandSyntaxProblem(
 }
 
 const ENVIRONMENT_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
-const COVERAGE_WRAPPERS = new Set(['c8', 'nyc']);
-const COVERAGE_WRAPPER_BOOLEAN_OPTIONS = new Set([
-  '--all',
-  '--allow-external',
-  '--check-coverage',
-  '--clean',
-  '--complete-copy',
-  '--exclude-after-remap',
-  '--exclude-node-modules',
-  '--hook-run-in-context',
-  '--show-process-tree',
-  '--silent',
-  '--skip-full',
-]);
-
-function playwrightArguments(
-  inputTokens: string[],
-  depth = 0,
-): string[] | null {
-  if (depth > 5) return null;
+function playwrightArguments(inputTokens: string[]): string[] | null {
   let index = 0;
   while (ENVIRONMENT_ASSIGNMENT.test(inputTokens[index] || '')) index += 1;
   const executableToken = inputTokens[index] || '';
   const executable = commandBasename(inputTokens[index] || '');
-  if (executable === 'playwright') {
-    if (executableToken !== executable) return null;
-    return inputTokens[index + 1] === 'test'
-      ? inputTokens.slice(index + 2)
-      : null;
-  }
-  if (executable === 'cross-env') {
-    if (executableToken !== executable) return null;
-    index += 1;
-    while (ENVIRONMENT_ASSIGNMENT.test(inputTokens[index] || '')) index += 1;
-    if (inputTokens[index] === '--') index += 1;
-    return playwrightArguments(inputTokens.slice(index), depth + 1);
-  }
-  if (COVERAGE_WRAPPERS.has(executable)) {
-    if (executableToken !== executable) return null;
-    index += 1;
-    while (index < inputTokens.length) {
-      const token = inputTokens[index];
-      if (token === '--') {
-        index += 1;
-        break;
-      }
-      if (!token.startsWith('-')) break;
-      if (token.includes('=') || COVERAGE_WRAPPER_BOOLEAN_OPTIONS.has(token)) {
-        index += 1;
-        continue;
-      }
-      return null;
-    }
-    return playwrightArguments(inputTokens.slice(index), depth + 1);
-  }
-  if (executable === 'npx' || executable === 'bunx') {
-    if (executableToken !== executable) return null;
-    index += 1;
-    while (
-      ['--no-install', '--quiet', '--yes', '-q', '-y'].includes(
-        inputTokens[index] || '',
-      )
-    ) {
-      index += 1;
-    }
-    if (inputTokens[index] === '--') index += 1;
-    return playwrightArguments(inputTokens.slice(index), depth + 1);
-  }
-  if (executable === 'npm' && inputTokens[index + 1] === 'exec') {
-    if (executableToken !== executable) return null;
-    index += 2;
-    if (inputTokens[index] === '--') index += 1;
-    return playwrightArguments(inputTokens.slice(index), depth + 1);
-  }
-  if (
-    executable === 'pnpm' &&
-    ['dlx', 'exec'].includes(inputTokens[index + 1] || '')
-  ) {
-    if (executableToken !== executable) return null;
-    index += 2;
-    if (inputTokens[index] === '--') index += 1;
-    return playwrightArguments(inputTokens.slice(index), depth + 1);
-  }
-  return null;
-}
-
-function npmRunScript(
-  tokens: string[],
-  cwd: string,
-): { problem?: string; tokens?: string[] } | null {
-  let index = 0;
-  while (ENVIRONMENT_ASSIGNMENT.test(tokens[index] || '')) index += 1;
-  const npmToken = tokens[index] || '';
-  if (commandBasename(npmToken) !== 'npm') return null;
-  if (npmToken !== 'npm') {
-    return {
-      problem:
-        'The validation command must invoke npm by its static command name, not a path-qualified replacement.',
-    };
-  }
-  index += 1;
-  while (
-    ['--silent', '-s'].includes(tokens[index] || '') ||
-    /^--loglevel=/.test(tokens[index] || '')
-  ) {
-    index += 1;
-  }
-  const subcommand = tokens[index];
-  let scriptName: string | undefined;
-  if (subcommand === 'run' || subcommand === 'run-script') {
-    index += 1;
-    while (['--silent', '-s'].includes(tokens[index] || '')) index += 1;
-    scriptName = tokens[index];
-    index += 1;
-  } else if (subcommand === 'test') {
-    scriptName = 'test';
-    index += 1;
-  } else {
+  if (executable !== 'playwright' || executableToken !== executable)
     return null;
-  }
-  if (!scriptName || scriptName.startsWith('-')) {
-    return {
-      problem: 'The validation command is missing its npm script name.',
-    };
-  }
-  let appendedArguments: string[] = [];
-  if (index < tokens.length) {
-    if (tokens[index] !== '--') {
-      return {
-        problem:
-          'The validation command must place npm script arguments after an explicit -- separator.',
-      };
-    }
-    appendedArguments = tokens.slice(index + 1);
-  }
-
-  const packagePath = path.join(cwd, 'package.json');
-  let script: unknown;
-  let lifecycleHook: string | null = null;
-  try {
-    const stat = fs.lstatSync(packagePath);
-    if (
-      !stat.isFile() ||
-      stat.isSymbolicLink() ||
-      stat.size > MAX_TEST_FILE_BYTES ||
-      !resolvesInsideWorkspace(cwd, packagePath)
-    ) {
-      throw new Error('package.json is not a bounded regular file.');
-    }
-    const manifest: unknown = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    const scripts =
-      manifest && typeof manifest === 'object' && !Array.isArray(manifest)
-        ? (manifest as Record<string, unknown>).scripts
-        : null;
-    const scriptRecord =
-      scripts && typeof scripts === 'object' && !Array.isArray(scripts)
-        ? (scripts as Record<string, unknown>)
-        : null;
-    script = scriptRecord?.[scriptName];
-    for (const hookName of [`pre${scriptName}`, `post${scriptName}`]) {
-      if (
-        typeof scriptRecord?.[hookName] === 'string' &&
-        scriptRecord[hookName].trim()
-      ) {
-        lifecycleHook = hookName;
-        break;
-      }
-    }
-  } catch (error) {
-    return {
-      problem: `The validation command cannot resolve package.json safely: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
-  if (typeof script !== 'string' || !script.trim()) {
-    return {
-      problem: `The validation command references missing npm script ${scriptName}.`,
-    };
-  }
-  if (lifecycleHook) {
-    return {
-      problem: `The validation command cannot use npm lifecycle script ${lifecycleHook} because it adds another repository-controlled command around the authoritative Playwright invocation.`,
-    };
-  }
-  if (utf8Bytes(script) > VALIDATOR_LIMITS.validationCommandBytes) {
-    return {
-      problem: `The npm script ${scriptName} exceeds ${VALIDATOR_LIMITS.validationCommandBytes} UTF-8 bytes.`,
-    };
-  }
-  const resolved = staticCommandSyntaxProblem(
-    script,
-    `npm script ${scriptName}`,
-  );
-  if (resolved.problem) return { problem: resolved.problem };
-  return { tokens: [...resolved.tokens, ...appendedArguments] };
+  return inputTokens[index + 1] === 'test'
+    ? inputTokens.slice(index + 2)
+    : null;
 }
 
-function retryPolicyProblem(command: string, cwd: string): string | null {
+function retryPolicyProblem(command: string): string | null {
   const outer = staticCommandSyntaxProblem(command);
   if (outer.problem) return outer.problem;
-  const npmScript = npmRunScript(outer.tokens, cwd);
-  if (npmScript?.problem) return npmScript.problem;
-  const effectiveTokens = npmScript?.tokens || outer.tokens;
-  const invocationArguments = playwrightArguments(effectiveTokens);
+  const invocationArguments = playwrightArguments(outer.tokens);
   if (!invocationArguments) {
-    return 'The validation command must statically resolve to one direct playwright test invocation, optionally through npm exec, npx, cross-env, c8, or nyc.';
+    return 'The validation command must directly invoke the container-owned `playwright test` CLI; repository package scripts and package-manager wrappers are not supported.';
   }
   const values: Array<string | undefined> = [];
   for (let index = 0; index < invocationArguments.length; index += 1) {
@@ -2928,7 +2746,7 @@ export async function validatePlaywrightTests(
 
   const retryProblem =
     config.runTests && configuration.commandCanRun
-      ? retryPolicyProblem(config.validationCommand, cwd)
+      ? retryPolicyProblem(config.validationCommand)
       : null;
   const commandCanRun = configuration.commandCanRun && !retryProblem;
   if (retryProblem) {

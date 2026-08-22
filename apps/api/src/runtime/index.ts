@@ -64,26 +64,6 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
     if (nodeType === 'playwright' || nodeType === 'agent-container') {
       providers.add('github');
     }
-    if (
-      nodeType === 'agent-container' &&
-      node.config &&
-      typeof node.config === 'object' &&
-      ((typeof node.config.jiraIssue === 'string' &&
-        Boolean(node.config.jiraIssue.trim())) ||
-        (Array.isArray(node.config.requirementSources) &&
-          node.config.requirementSources.some(
-            (source: unknown) =>
-              source &&
-              typeof source === 'object' &&
-              !Array.isArray(source) &&
-              (source as { type?: unknown }).type === 'jira' &&
-              typeof (source as { reference?: unknown }).reference ===
-                'string' &&
-              Boolean((source as { reference: string }).reference.trim()),
-          )))
-    ) {
-      providers.add('jira');
-    }
   }
 
   const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';

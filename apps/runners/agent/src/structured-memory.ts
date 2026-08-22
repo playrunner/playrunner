@@ -60,19 +60,19 @@ function failureSummary(kind: TerminalFailureKind): string {
   if (kind === 'repository') {
     return 'Repository inspection failed after validation. Inspect the execution logs, ensure Git can read the workspace, and retry.';
   }
-  return 'Bot PR delivery failed after validation. Inspect the execution logs and verify the public fork, GitHub App permissions, and workflow safety configuration.';
+  return 'Bot PR delivery failed after validation. Inspect the execution logs and verify the source-repository GitHub App permissions, branch protection, and workflow safety configuration.';
 }
 
 export function createStructuredMemory(options: {
   delivery?: BotPrDeliveryResult;
   effectiveStatus: 'failed' | 'passed';
   prepared: PreparedRepository;
+  repository?: string;
   supervisor: SupervisorResult;
   terminalFailureKind?: TerminalFailureKind;
 }): AgentStructuredMemory | undefined {
   const { delivery, effectiveStatus, prepared, supervisor } = options;
   const context = prepared.changeContext;
-  if (!context) return undefined;
   const summary = options.terminalFailureKind
     ? failureSummary(options.terminalFailureKind)
     : supervisor.validation?.feedback.summary ||
@@ -92,8 +92,8 @@ export function createStructuredMemory(options: {
       : {}),
     coverageGaps: coverageGaps(prepared, supervisor),
     generatedTestFiles: delivery?.generatedTestFiles || [],
-    lastProcessedHeadSha: context.headSha,
-    repository: context.repository,
+    lastProcessedHeadSha: context?.headSha || prepared.headRevision,
+    repository: context?.repository || String(options.repository || ''),
     schemaVersion: '1.0',
     validation: {
       status: effectiveStatus,

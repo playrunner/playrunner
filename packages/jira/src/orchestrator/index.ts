@@ -29,6 +29,14 @@ function createDescription(value: string) {
   };
 }
 
+function adfText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return value.map(adfText).join('');
+  if (!value || typeof value !== 'object') return '';
+  const node = value as Record<string, unknown>;
+  return `${typeof node.text === 'string' ? node.text : ''}${adfText(node.content)}`;
+}
+
 function getJiraExecutionValues(context: NodeExecutionContext) {
   const config = context.node.config;
   const cloudId = optionalString(config.cloudId);
@@ -173,6 +181,72 @@ async function executeJiraUpdate(
   }
 }
 
+async function executeJiraRead(
+  context: NodeExecutionContext,
+): Promise<NodeExecutionResult> {
+  const accessToken = optionalString(context.settings.accessToken);
+  if (!accessToken) {
+    throw new Error('Jira credentials missing. Cannot execute Jira action.');
+  }
+  try {
+    const { cloudId, config } = getJiraExecutionValues(context);
+    const issueKey = context.renderTemplate(
+      optionalString(config.issueKey) ?? '',
+    );
+    if (!/^[A-Za-z][A-Za-z0-9_]*-\d+$/.test(issueKey)) {
+      throw new JiraExecutionError('A valid Jira issue key is required.');
+    }
+    await context.log(`Reading Jira issue ${issueKey}...`, 'info');
+    const response = await fetch(
+      `${jiraApiBaseUrl(context)}/ex/jira/${cloudId}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,description`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+        signal: context.signal,
+      },
+    );
+    if (!response.ok) {
+      throw new JiraExecutionError(
+        `Jira API returned ${response.status}: request failed`,
+      );
+    }
+    const data = (await response.json()) as {
+      fields?: { description?: unknown; summary?: unknown };
+      key?: unknown;
+      self?: unknown;
+    };
+    const key = optionalString(data.key) ?? issueKey;
+    const title = optionalString(data.fields?.summary) ?? key;
+    const body = adfText(data.fields?.description).trim();
+    const url = optionalString(data.self);
+    await context.log(`Successfully read Jira issue: ${key}`, 'info');
+    return {
+      outcome: 'success',
+      output: {
+        result: { status: 'success', data: { body, id: key, title, url } },
+        acceptanceCriteria: {
+          body,
+          id: key,
+          source: 'jira',
+          title,
+          ...(url ? { url } : {}),
+        },
+      },
+    };
+  } catch (error) {
+    const message =
+      error instanceof JiraExecutionError
+        ? error.message
+        : context.signal.aborted
+          ? 'Jira request was cancelled.'
+          : 'Jira request failed.';
+    throw new Error(`Jira Action failed: ${message}`);
+  }
+}
+
 export const jiraOrchestratorContribution = {
   contractVersion: 1,
   id: 'jira',
@@ -187,6 +261,11 @@ export const jiraOrchestratorContribution = {
       nodeType: 'jira',
       action: 'update',
       execute: executeJiraUpdate,
+    },
+    {
+      nodeType: 'jira',
+      action: 'read',
+      execute: executeJiraRead,
     },
   ],
 } satisfies OrchestratorIntegrationContribution;

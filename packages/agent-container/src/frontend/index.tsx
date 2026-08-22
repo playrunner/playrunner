@@ -10,12 +10,9 @@ import {
 } from '@playrunner/integration-sdk';
 
 const DEFAULT_CONFIG = {
-  botPullRequestForkRepository: '',
   branch: 'main',
   cpu: 4,
   folder: '.',
-  githubIssue: '',
-  jiraIssue: '',
   maxDurationMinutes: 30,
   maxValidationAttempts: 3,
   memory: 8,
@@ -133,7 +130,8 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
   {
     path: 'requirementSources',
     type: 'array',
-    description: 'Jira and GitHub requirement source metadata used by the run',
+    description:
+      'Connected-node and workflow acceptance criteria used by the run',
   },
   {
     path: 'validation',
@@ -379,10 +377,6 @@ export const AgentContainerConfigPanel: React.FC<
     typeof config.authProvider === 'string' ? config.authProvider : '';
   const configuredRepository =
     typeof config.repository === 'string' ? config.repository : '';
-  const configuredForkRepository =
-    typeof config.botPullRequestForkRepository === 'string'
-      ? config.botPullRequestForkRepository
-      : '';
   const configuredSupportingRepositories = normalizedSupportingRepositories(
     config.supportingRepositories,
   );
@@ -418,6 +412,10 @@ export const AgentContainerConfigPanel: React.FC<
         config.supportingRepositories,
       ),
     };
+    delete (normalized as Record<string, unknown>).botPullRequestForkRepository;
+    delete (normalized as Record<string, unknown>).githubIssue;
+    delete (normalized as Record<string, unknown>).jiraIssue;
+    delete (normalized as Record<string, unknown>).requirementSources;
     if (JSON.stringify(normalized) !== JSON.stringify(config)) {
       onChange(nodeId, normalized);
     }
@@ -562,8 +560,9 @@ export const AgentContainerConfigPanel: React.FC<
       {activeTab === 'config' && (
         <div className="space-y-4">
           <div className="rounded-lg border border-[var(--node-border)] bg-[var(--control-bg)] p-3 text-xs text-muted">
-            Connect one Agent and at least one Validator to this node. They run
-            as capabilities inside the same isolated container.
+            Connect one Agent and its tools to this node. A Test Validator is
+            required; Jira and GitHub tools can load acceptance criteria before
+            the agent starts.
           </div>
           <IntegrationConfigField label="Task" htmlFor="agent-container-task">
             <Textarea
@@ -575,49 +574,6 @@ export const AgentContainerConfigPanel: React.FC<
               onChange={(event) => update('task', event.target.value)}
             />
           </IntegrationConfigField>
-          <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
-            <div>
-              <h4 className="text-sm font-medium text-[var(--foreground)]">
-                Optional requirement sources
-              </h4>
-              <p className="mt-1 text-xs leading-relaxed text-muted">
-                Add either source, both, or neither. The orchestrator loads the
-                issue title and description before the isolated agent starts.
-              </p>
-            </div>
-            <IntegrationConfigField
-              label="Jira issue"
-              hint="Issue key or Jira browse URL, for example PAY-42."
-              htmlFor="agent-container-jira-issue"
-            >
-              <Input
-                id="agent-container-jira-issue"
-                data-testid="agent-container-jira-issue"
-                value={
-                  typeof config.jiraIssue === 'string' ? config.jiraIssue : ''
-                }
-                onChange={(event) => update('jiraIssue', event.target.value)}
-                placeholder="PAY-42"
-              />
-            </IntegrationConfigField>
-            <IntegrationConfigField
-              label="GitHub issue or pull request"
-              hint="GitHub URL or owner/repository#number."
-              htmlFor="agent-container-github-issue"
-            >
-              <Input
-                id="agent-container-github-issue"
-                data-testid="agent-container-github-issue"
-                value={
-                  typeof config.githubIssue === 'string'
-                    ? config.githubIssue
-                    : ''
-                }
-                onChange={(event) => update('githubIssue', event.target.value)}
-                placeholder="owner/repository#123"
-              />
-            </IntegrationConfigField>
-          </div>
           <div className="space-y-4 rounded-lg border border-subtle bg-[var(--background)] p-4">
             <div className="flex items-center justify-between border-b border-subtle pb-2">
               <h4 className="text-sm font-medium text-[var(--foreground)]">
@@ -685,10 +641,6 @@ export const AgentContainerConfigPanel: React.FC<
                     configuredSupportingRepositories.filter(
                       (candidate) => candidate.repository !== repository,
                     ),
-                  ...(configuredForkRepository.toLowerCase() ===
-                  repository.toLowerCase()
-                    ? { botPullRequestForkRepository: '' }
-                    : {}),
                 });
               }}
               disabled={isLoadingRepos || !isConnected}
@@ -707,36 +659,6 @@ export const AgentContainerConfigPanel: React.FC<
             {repositoryError ? (
               <p className="text-[10px] text-red-400">{repositoryError}</p>
             ) : null}
-          </IntegrationConfigField>
-          <IntegrationConfigField
-            label="Bot PR public fork"
-            hint="Required for CI-generated tests. Choose a dedicated public fork with GitHub Actions disabled. Install the GitHub App on both repositories with Contents and Pull requests read/write; Administration read/write lets Playrunner disable and verify fork Actions before every push. Private/internal forks, privileged workflow triggers, and self-hosted or indirect runners are rejected; use static standard GitHub-hosted runners."
-          >
-            <Select
-              data-testid="agent-container-bot-pr-fork"
-              value={configuredForkRepository}
-              onChange={(event) =>
-                update('botPullRequestForkRepository', event.target.value)
-              }
-              disabled={isLoadingRepos || !isConnected}
-            >
-              <option value="">
-                {isLoadingRepos
-                  ? 'Loading repositories...'
-                  : 'Select Public Fork'}
-              </option>
-              {repositories
-                .filter(
-                  (repository) =>
-                    repository.full_name.toLowerCase() !==
-                    configuredRepository.toLowerCase(),
-                )
-                .map((repository) => (
-                  <option key={repository.id} value={repository.full_name}>
-                    {repository.full_name}
-                  </option>
-                ))}
-            </Select>
           </IntegrationConfigField>
           <IntegrationConfigField label="Branch">
             <Select
@@ -776,7 +698,7 @@ export const AgentContainerConfigPanel: React.FC<
           </IntegrationConfigField>
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="min-w-0">
                 <h4 className="text-sm font-medium text-[var(--foreground)]">
                   Supporting repositories
                 </h4>
@@ -801,6 +723,7 @@ export const AgentContainerConfigPanel: React.FC<
                     { branch: 'main', folder: '.', repository: '' },
                   ])
                 }
+                className="shrink-0 whitespace-nowrap"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 Add repository
@@ -1045,7 +968,7 @@ export const agentContainerIntegration: Integration = {
   name: 'AI Container',
   category: 'AI & ML',
   description:
-    'Run an attached coding agent and validators in one isolated Playwright container',
+    'Run an attached coding agent with project memory and tools in one isolated Playwright container',
   icon: Container,
   color: 'text-violet-400',
   nodeType: 'action',
@@ -1056,7 +979,7 @@ export const agentContainerIntegration: Integration = {
   getAuthPath: (uid) => `users/${uid}/integrations/github`,
   SettingsModal: GithubSettingsModal,
   executionRole: 'workflow',
-  acceptsAttachments: ['agent', 'tool'],
+  acceptsAttachments: ['agent', 'memory', 'tool'],
   ConfigPanel: AgentContainerConfigPanel,
   getOutputVariables: () => OUTPUT_VARIABLES,
 };
