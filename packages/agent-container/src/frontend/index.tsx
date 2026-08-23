@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Bot, Container, Plus, Trash2 } from 'lucide-react';
+import { Bot, Container, Info, Plus, Trash2 } from 'lucide-react';
 import { GithubSettingsModal } from '@playrunner/github';
 import {
   IntegrationConfigField,
@@ -1180,18 +1180,25 @@ export const AgentContainerConfigPanel: React.FC<
 
       {activeTab === 'skills' && (
         <div className="space-y-4">
-          <div className="rounded-lg border border-[var(--node-border)] bg-[var(--control-bg)] p-3 text-xs leading-relaxed text-muted">
-            Playrunner automatically discovers{' '}
-            <span className="font-mono text-[var(--foreground)]">
-              .agents/skills
-            </span>{' '}
-            in the primary repository. Add explicit project paths or paste a
-            full repository URL for reusable skills. Public skill repositories
-            do not require a GitHub connection. Skill folders are installed into
-            the isolated container before the agent starts, and each must
-            contain a{' '}
-            <span className="font-mono text-[var(--foreground)]">SKILL.md</span>{' '}
-            file.
+          <div className="flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3 text-muted shadow-inner">
+            <div className="mt-0.5 shrink-0 text-muted">
+              <Info className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <p className="text-xs leading-relaxed">
+              Playrunner automatically discovers{' '}
+              <span className="font-mono text-[var(--foreground)]">
+                .agents/skills
+              </span>{' '}
+              in the primary repository. Add explicit project paths or paste a
+              full repository URL for reusable skills. Public skill repositories
+              do not require a GitHub connection. Skill folders are installed
+              into the isolated container before the agent starts, and each must
+              contain a{' '}
+              <span className="font-mono text-[var(--foreground)]">
+                SKILL.md
+              </span>{' '}
+              file.
+            </p>
           </div>
           <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
             <div className="flex items-start justify-between gap-4">
