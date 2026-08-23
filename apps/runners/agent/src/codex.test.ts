@@ -35,6 +35,21 @@ test('parses a thread ID when a JSONL event is split across chunks', () => {
   assert.equal(parser.finish(), 'thread-123');
 });
 
+test('captures the latest bounded Agent completion message', () => {
+  const parser = createCodexEventParser();
+  parser.push(
+    `${JSON.stringify({
+      item: {
+        text: 'Updated the requirement evidence.',
+        type: 'agent_message',
+      },
+      type: 'item.completed',
+    })}\n`,
+  );
+  parser.finish();
+  assert.equal(parser.summary(), 'Updated the requirement evidence.');
+});
+
 test('removes model credentials from Codex shell commands', () => {
   const args = createCodexArgs({
     config: { apiKeyEnvVar: 'MY_OPENAI_KEY', model: 'gpt-5.6-terra' },

@@ -288,6 +288,7 @@ describe('local AI Container execution', { concurrency: false }, () => {
       'SETUID',
     ]);
     assert.ok(invocation.args.includes('no-new-privileges'));
+    assert.ok(invocation.args.includes('seccomp=unconfined'));
     assert.ok(invocation.args.includes('nofile=4096:4096'));
     assert.equal(
       invocation.args.some((value) => value.startsWith('OPENAI_API_KEY=')),

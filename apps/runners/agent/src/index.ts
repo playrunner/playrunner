@@ -17,6 +17,7 @@ import { createCredentialFreeEnvironment } from './codex-auth';
 import { runCodex } from './codex';
 import { deliverBotPullRequest, type BotPrDeliveryResult } from './bot-pr';
 import { prepareProjectDependencies } from './dependency-setup';
+import { resolveBotDeliverySource } from './delivery-source';
 import {
   createInitialPrompt,
   materializeAgentContext,
@@ -275,8 +276,8 @@ async function main() {
       maximumDurationMs: Math.max(1, hardDeadline - Date.now()),
       onProgress: (event) =>
         publishSupervisorProgress(runnerControl, attachments, event),
-      runAgent: ({ prompt, resumeSessionId, timeoutMs }) =>
-        runCodex({
+      runAgent: async ({ prompt, resumeSessionId, timeoutMs }) => {
+        const result = await runCodex({
           config: agentConfig,
           cwd,
           environment: codexEnvironment,
@@ -286,7 +287,14 @@ async function main() {
           ...(resumeSessionId ? { resumeSessionId } : {}),
           timeoutMs,
           uid: identity.uid,
-        }),
+        });
+        if (result.completionSummary) {
+          await runnerControl.log(
+            `Codex completion: ${result.completionSummary}`,
+          );
+        }
+        return result;
+      },
       validate: ({ attempt, timeoutMs }) =>
         validatePlaywrightTests(cwd, validatorConfig, {
           attempt,
@@ -319,7 +327,7 @@ async function main() {
 
     let botDelivery: BotPrDeliveryResult | undefined;
     let deliveryError: string | undefined;
-    if (prepared.changeContext && supervisor.status === 'passed') {
+    if (supervisor.status === 'passed') {
       try {
         const githubToken = payload.github?.accessToken?.trim();
         if (!githubToken) {
@@ -330,17 +338,21 @@ async function main() {
         await runnerControl.log(
           'Validation passed. Inspecting the generated patch for bot PR delivery.',
         );
+        const deliverySource = resolveBotDeliverySource(
+          prepared,
+          payload.config,
+        );
         botDelivery = await deliverBotPullRequest({
           cwd,
-          developerHeadRef: prepared.changeContext.headRef,
-          developerHeadSha: prepared.changeContext.headSha,
+          developerHeadRef: deliverySource.headRef,
+          developerHeadSha: deliverySource.headSha,
           environment: repositoryEnvironment,
           executionId: payload.runtime.testId,
           githubToken,
           identity,
           nodeId: payload.runtime.nodeId,
           prohibitedExactValues,
-          repository: prepared.changeContext.repository,
+          repository: deliverySource.repository,
           workflowId: payload.runtime.workflowId,
         });
         if (botDelivery.status === 'no_changes') {

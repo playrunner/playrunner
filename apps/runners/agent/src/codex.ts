@@ -34,11 +34,22 @@ export function codexThreadIdFromEvent(value: unknown): string | undefined {
 
 export function createCodexEventParser() {
   let buffer = '';
+  let completionSummary: string | undefined;
   let threadId: string | undefined;
   const parseLine = (line: string) => {
     if (!line.trim()) return;
     try {
-      threadId ||= codexThreadIdFromEvent(JSON.parse(line));
+      const event = record(JSON.parse(line));
+      threadId ||= codexThreadIdFromEvent(event);
+      const item = record(event.item);
+      if (
+        event.type === 'item.completed' &&
+        item.type === 'agent_message' &&
+        typeof item.text === 'string' &&
+        item.text.trim()
+      ) {
+        completionSummary = item.text.trim();
+      }
     } catch {
       // The CLI may interleave human-readable diagnostics with JSONL. Those
       // diagnostics are still streamed and retained by runProcess.
@@ -55,6 +66,9 @@ export function createCodexEventParser() {
       const lines = buffer.split(/\r?\n/);
       buffer = lines.pop() || '';
       for (const line of lines) parseLine(line);
+    },
+    summary() {
+      return completionSummary;
     },
   };
 }
@@ -154,7 +168,7 @@ export async function runCodex(options: {
   resumeSessionId?: string;
   timeoutMs: number;
   uid?: number;
-}): Promise<{ sessionId?: string }> {
+}): Promise<{ completionSummary?: string; sessionId?: string }> {
   const args = createCodexArgs(options);
 
   const parser = createCodexEventParser();
@@ -195,5 +209,14 @@ export async function runCodex(options: {
         : `Codex CLI exited with code ${result.code}.${detail ? ` ${detail}` : ''}`,
     );
   }
-  return { sessionId: parsedSessionId || options.resumeSessionId };
+  const rawCompletionSummary = parser.summary();
+  const completionSummary = rawCompletionSummary
+    ? credentialSafeErrorMessage(rawCompletionSummary, prohibitedExactValues)
+        .slice(0, 1_000)
+        .trim()
+    : undefined;
+  return {
+    ...(completionSummary ? { completionSummary } : {}),
+    sessionId: parsedSessionId || options.resumeSessionId,
+  };
 }

@@ -504,6 +504,8 @@ export function createLocalAgentDockerInvocation(
     'SETUID',
     '--security-opt',
     'no-new-privileges',
+    '--security-opt',
+    'seccomp=unconfined',
     '--ulimit',
     'nofile=4096:4096',
     '--name',
@@ -518,8 +520,6 @@ export function createLocalAgentDockerInvocation(
     `${memory}g`,
     '--shm-size',
     '1g',
-    '--platform',
-    'linux/amd64',
     '--add-host',
     'host.docker.internal:host-gateway',
   ];

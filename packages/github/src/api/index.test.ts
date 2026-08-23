@@ -1,7 +1,50 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { IntegrationCredentialStore } from '@playrunner/integration-sdk/api';
-import { refreshGithubCredentials } from './index';
+import {
+  buildGithubAuthorizationUrl,
+  inspectGithubPermissions,
+  refreshGithubCredentials,
+} from './index';
+
+test('builds GitHub reauthorization from server-side App credentials', () => {
+  const url = new URL(
+    buildGithubAuthorizationUrl({
+      callbackUrl: 'http://localhost:3100/oauth/callback/github',
+      clientId: 'Iv1.example',
+      state: 'state-123',
+    }),
+  );
+  assert.equal(url.origin, 'https://github.com');
+  assert.equal(url.pathname, '/login/oauth/authorize');
+  assert.equal(url.searchParams.get('client_id'), 'Iv1.example');
+  assert.equal(
+    url.searchParams.get('redirect_uri'),
+    'http://localhost:3100/oauth/callback/github',
+  );
+  assert.equal(url.searchParams.get('state'), 'state-123');
+});
+
+test('detects GitHub installations that need reauthorization', () => {
+  assert.deepEqual(
+    inspectGithubPermissions({ contents: 'read', pull_requests: 'write' }),
+    {
+      contents: 'read',
+      missingPermissions: ['contents'],
+      pullRequests: 'write',
+      reauthorizationRequired: true,
+    },
+  );
+  assert.deepEqual(
+    inspectGithubPermissions({ contents: 'write', pull_requests: 'write' }),
+    {
+      contents: 'write',
+      missingPermissions: [],
+      pullRequests: 'write',
+      reauthorizationRequired: false,
+    },
+  );
+});
 
 test('refreshes expiring credentials once for concurrent requests', async () => {
   const patches: Record<string, unknown>[] = [];

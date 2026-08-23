@@ -548,6 +548,28 @@ test('commits test-only changes and creates a credential-safe bot PR', async () 
   }
 });
 
+test('explains how to recover when GitHub rejects draft PR permission', async () => {
+  const repository = temporaryRepository('bot-pr-permission-');
+  try {
+    writeFile(repository.root, 'tests/widget.spec.ts');
+    const git = new FakeGit(repository.root, [
+      { path: 'tests/widget.spec.ts' },
+    ]);
+    await assert.rejects(
+      deliverBotPullRequest(
+        options(repository.root, git, {
+          fetcher: async () =>
+            jsonResponse({ message: 'Resource not accessible' }, 403),
+        }),
+      ),
+      /Approve Contents and Pull requests read\/write permissions.*reauthorize the GitHub connection/,
+    );
+    assert.equal(git.pushed, true);
+  } finally {
+    repository.cleanup();
+  }
+});
+
 test('refuses to share the untrusted agent identity with bot delivery', async () => {
   const repository = temporaryRepository('bot-pr-identity-boundary-');
   try {

@@ -6,6 +6,11 @@ const GITHUB_API_BASE_URL = (
   process.env.PLAYRUNNER_GITHUB_API_BASE_URL || 'https://api.github.com'
 ).replace(/\/+$/, '');
 
+const REQUIRED_GITHUB_PERMISSIONS = {
+  contents: 'write',
+  pull_requests: 'write',
+} as const;
+
 function githubApiUrl(path: string) {
   return `${GITHUB_API_BASE_URL}/${path.replace(/^\/+/, '')}`;
 }
@@ -112,6 +117,91 @@ async function refreshGithubAccessToken(
       ? Date.now() + data.refresh_token_expires_in * 1000
       : undefined,
   });
+}
+
+async function exchangeGithubAuthorizationCode(credentials: {
+  clientId: string;
+  clientSecret: string;
+  code: string;
+}) {
+  const parameters = new URLSearchParams({
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
+    code: credentials.code,
+  });
+  const response = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+      'User-Agent': 'Playrunner-App',
+    },
+    body: parameters,
+  });
+  const data = (await response.json().catch(() => ({}))) as Record<
+    string,
+    unknown
+  >;
+  if (!response.ok || typeof data.access_token !== 'string') {
+    throw Object.assign(new Error('GitHub token exchange failed.'), {
+      statusCode: response.status,
+    });
+  }
+  return data;
+}
+
+export function buildGithubAuthorizationUrl(input: {
+  callbackUrl: string;
+  clientId: string;
+  state: string;
+}) {
+  const callbackUrl = new URL(input.callbackUrl);
+  if (
+    !['http:', 'https:'].includes(callbackUrl.protocol) ||
+    callbackUrl.username ||
+    callbackUrl.password ||
+    callbackUrl.hash
+  ) {
+    throw Object.assign(new Error('Invalid GitHub OAuth callback URL.'), {
+      statusCode: 400,
+    });
+  }
+  if (
+    !input.clientId.trim() ||
+    !input.state.trim() ||
+    input.state.length > 256
+  ) {
+    throw Object.assign(new Error('Invalid GitHub authorization request.'), {
+      statusCode: 400,
+    });
+  }
+  const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
+  authorizeUrl.searchParams.set('client_id', input.clientId);
+  authorizeUrl.searchParams.set('redirect_uri', callbackUrl.toString());
+  authorizeUrl.searchParams.set('state', input.state);
+  return authorizeUrl.toString();
+}
+
+export function inspectGithubPermissions(value: unknown) {
+  const permissions =
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  const missingPermissions = Object.entries(REQUIRED_GITHUB_PERMISSIONS)
+    .filter(([permission, required]) => permissions[permission] !== required)
+    .map(([permission]) => permission);
+  return {
+    contents:
+      typeof permissions.contents === 'string'
+        ? permissions.contents
+        : 'unknown',
+    missingPermissions,
+    pullRequests:
+      typeof permissions.pull_requests === 'string'
+        ? permissions.pull_requests
+        : 'unknown',
+    reauthorizationRequired: missingPermissions.length > 0,
+  };
 }
 
 async function getGithubConnection(req: unknown) {
@@ -236,29 +326,12 @@ githubRouter.post('/token', async (req, res) => {
     req.body;
 
   try {
-    const parameters = new URLSearchParams({
-      client_id,
-      client_secret,
+    const data = await exchangeGithubAuthorizationCode({
+      clientId: client_id,
+      clientSecret: client_secret,
       code,
     });
-    const gRes = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-        'User-Agent': 'Playrunner-App',
-      },
-      body: parameters,
-    });
-
-    const text = await gRes.text();
     try {
-      const data = JSON.parse(text);
-      if (!gRes.ok || !data.access_token) {
-        return res
-          .status(gRes.status)
-          .json({ error: 'GitHub token exchange failed.' });
-      }
       const store = credentialStore(req);
       if (!store) {
         return res
@@ -277,22 +350,114 @@ githubRouter.post('/token', async (req, res) => {
           clientSecret: client_secret,
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
-          expiresAt: data.expires_in
-            ? Date.now() + data.expires_in * 1000
-            : undefined,
-          refreshTokenExpiresAt: data.refresh_token_expires_in
-            ? Date.now() + data.refresh_token_expires_in * 1000
-            : undefined,
+          expiresAt:
+            typeof data.expires_in === 'number'
+              ? Date.now() + data.expires_in * 1000
+              : undefined,
+          refreshTokenExpiresAt:
+            typeof data.refresh_token_expires_in === 'number'
+              ? Date.now() + data.refresh_token_expires_in * 1000
+              : undefined,
         },
       });
       return res.json({ connected: true });
-    } catch {
-      console.error('Token exchange failed. GitHub returned non-JSON.');
+    } catch (error) {
+      console.error('Token exchange failed:', error);
       res.status(500).json({ error: 'Failed to exchange token' });
     }
   } catch (err) {
     console.error('Token exchange error:', err);
     res.status(500).json({ error: 'Failed to exchange token' });
+  }
+});
+
+githubRouter.post('/reauthorize', async (req, res) => {
+  try {
+    const store = credentialStore(req);
+    if (!store) {
+      return res
+        .status(500)
+        .json({ error: 'Credential storage is unavailable.' });
+    }
+    const connection = await store.resolve('integration', 'github');
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    const clientId = connection?.secrets.clientId;
+    const clientSecret = connection?.secrets.clientSecret;
+    if (
+      !code ||
+      typeof clientId !== 'string' ||
+      !clientId ||
+      typeof clientSecret !== 'string' ||
+      !clientSecret
+    ) {
+      return res.status(400).json({
+        error:
+          'Saved GitHub credentials are incomplete. Change credentials and authenticate again.',
+      });
+    }
+    const data = await exchangeGithubAuthorizationCode({
+      clientId,
+      clientSecret,
+      code,
+    });
+    await store.updateSecrets('integration', 'github', {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token || connection.secrets.refreshToken,
+      expiresAt:
+        typeof data.expires_in === 'number'
+          ? Date.now() + data.expires_in * 1000
+          : undefined,
+      refreshTokenExpiresAt:
+        typeof data.refresh_token_expires_in === 'number'
+          ? Date.now() + data.refresh_token_expires_in * 1000
+          : undefined,
+    });
+    return res.json({ connected: true });
+  } catch (error) {
+    console.error('GitHub reauthorization failed:', error);
+    return res.status(errorStatusCode(error) || 500).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to reauthorize GitHub.',
+    });
+  }
+});
+
+githubRouter.post('/reauthorize-url', async (req, res) => {
+  try {
+    const store = credentialStore(req);
+    if (!store) {
+      return res
+        .status(500)
+        .json({ error: 'Credential storage is unavailable.' });
+    }
+    const connection = await store.resolve('integration', 'github');
+    const clientId = connection?.secrets.clientId;
+    const callbackUrl =
+      typeof req.body?.callbackUrl === 'string' ? req.body.callbackUrl : '';
+    const state = typeof req.body?.state === 'string' ? req.body.state : '';
+    if (typeof clientId !== 'string' || !clientId.trim()) {
+      return res.status(400).json({
+        error:
+          'Saved GitHub credentials are incomplete. Change credentials and authenticate again.',
+      });
+    }
+    return res.json({
+      authorizeUrl: buildGithubAuthorizationUrl({
+        callbackUrl,
+        clientId,
+        state,
+      }),
+    });
+  } catch (error) {
+    console.error('Failed to start GitHub reauthorization:', error);
+    return res.status(errorStatusCode(error) || 500).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to start GitHub reauthorization.',
+    });
   }
 });
 
@@ -309,6 +474,60 @@ githubRouter.post('/refresh', async (req, res) => {
   } catch (err) {
     console.error('Token refresh error:', err);
     return res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
+
+githubRouter.get('/connection-status', async (req, res) => {
+  try {
+    const github = await createGithubApiClient(req);
+    const { connection } = github;
+    const savedInstallationId = connection.config.installationId;
+    const appSlug =
+      typeof connection.config.appSlug === 'string'
+        ? connection.config.appSlug
+        : typeof connection.config.appName === 'string'
+          ? connection.config.appName
+          : '';
+    let installation: Record<string, unknown> | undefined;
+    if (
+      (typeof savedInstallationId === 'string' && savedInstallationId) ||
+      typeof savedInstallationId === 'number'
+    ) {
+      installation = (await github.get(
+        githubApiUrl(
+          `user/installations/${encodeURIComponent(String(savedInstallationId))}`,
+        ),
+      )) as Record<string, unknown>;
+    } else {
+      const installations = await githubGetAllPages<Record<string, unknown>>(
+        github,
+        githubApiUrl('user/installations'),
+        'installations',
+      );
+      installation = installations.find(
+        (candidate) =>
+          !appSlug ||
+          (typeof candidate.app_slug === 'string' &&
+            candidate.app_slug.toLowerCase() === appSlug.toLowerCase()),
+      );
+    }
+    const permissionStatus = inspectGithubPermissions(
+      installation?.permissions,
+    );
+    return res.json({
+      appSlug,
+      connected: true,
+      installationFound: Boolean(installation),
+      ...permissionStatus,
+    });
+  } catch (error) {
+    console.error('Failed to inspect GitHub connection:', error);
+    return res.status(errorStatusCode(error) || 500).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to inspect GitHub connection.',
+    });
   }
 });
 

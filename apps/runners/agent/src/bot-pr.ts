@@ -1105,6 +1105,46 @@ function credentialConfigEnvironment(
   };
 }
 
+function authenticatedRemoteContext(
+  context: DeliveryContext,
+  botIdentity: AgentIdentity,
+  githubToken: string,
+): {
+  cleanup: () => void;
+  context: DeliveryContext;
+  environment: NodeJS.ProcessEnv;
+} {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'playrunner-bot-remote-'),
+  );
+  fs.chmodSync(directory, 0o700);
+  fs.chownSync(directory, botIdentity.uid, botIdentity.gid);
+  const remoteContext: DeliveryContext = {
+    ...context,
+    baseEnvironment: botGitEnvironment(botIdentity),
+    identity: botIdentity,
+  };
+  try {
+    const credentials = credentialConfigEnvironment(
+      remoteContext,
+      directory,
+      githubToken,
+      context.identity,
+    );
+    return {
+      cleanup: () => {
+        credentials.cleanup();
+        fs.rmSync(directory, { force: true, recursive: true });
+      },
+      context: remoteContext,
+      environment: credentials.environment,
+    };
+  } catch (error) {
+    fs.rmSync(directory, { force: true, recursive: true });
+    throw error;
+  }
+}
+
 async function pushBranch(
   context: DeliveryContext,
   botIdentity: AgentIdentity,
@@ -1117,30 +1157,44 @@ async function pushBranch(
   files: ValidatedChangedFile[],
 ): Promise<void> {
   const sourceRemoteUrl = `https://github.com/${sourceRepository}.git`;
-  await assertRemoteDeveloperBranchUnchanged(
+  const remoteAccess = authenticatedRemoteContext(
     context,
-    sourceRepository,
-    developerHeadRef,
-    developerHeadSha,
+    botIdentity,
+    githubToken,
   );
-  const existingSha = parseRemoteBranchSha(
-    await runGit(
-      context,
-      [
-        '-c',
-        'http.followRedirects=false',
-        '-c',
-        'http.sslVerify=true',
-        'ls-remote',
-        '--heads',
-        sourceRemoteUrl,
-        `refs/heads/${branchName}`,
-      ],
-      'checking the remote bot branch',
-      { maxOutputBytes: 4096 },
-    ),
-    branchName,
-  );
+  let existingSha: string;
+  try {
+    await assertRemoteDeveloperBranchUnchanged(
+      remoteAccess.context,
+      sourceRepository,
+      developerHeadRef,
+      developerHeadSha,
+      remoteAccess.environment,
+    );
+    existingSha = parseRemoteBranchSha(
+      await runGit(
+        remoteAccess.context,
+        [
+          '-c',
+          'http.followRedirects=false',
+          '-c',
+          'http.sslVerify=true',
+          'ls-remote',
+          '--heads',
+          sourceRemoteUrl,
+          `refs/heads/${branchName}`,
+        ],
+        'checking the remote bot branch',
+        {
+          authenticatedEnvironment: remoteAccess.environment,
+          maxOutputBytes: 4096,
+        },
+      ),
+      branchName,
+    );
+  } finally {
+    remoteAccess.cleanup();
+  }
   const isolated = await createIsolatedPushContext(
     context,
     botIdentity,
@@ -1189,6 +1243,7 @@ async function assertRemoteDeveloperBranchUnchanged(
   sourceRepository: string,
   developerHeadRef: string,
   developerHeadSha: string,
+  authenticatedEnvironment: NodeJS.ProcessEnv,
 ): Promise<void> {
   const sourceRemoteUrl = `https://github.com/${sourceRepository}.git`;
   const remoteDeveloperSha = parseRemoteBranchSha(
@@ -1205,7 +1260,7 @@ async function assertRemoteDeveloperBranchUnchanged(
         `refs/heads/${developerHeadRef}`,
       ],
       'checking the remote developer branch',
-      { maxOutputBytes: 4096 },
+      { authenticatedEnvironment, maxOutputBytes: 4096 },
     ),
     developerHeadRef,
   );
@@ -1886,6 +1941,11 @@ async function createPullRequest(
     };
   }
   if (create.status !== 409 && create.status !== 422) {
+    if (create.status === 403) {
+      throw new Error(
+        'GitHub rejected draft PR creation (403). Approve Contents and Pull requests read/write permissions for the GitHub App installation, then reauthorize the GitHub connection in Playrunner and retry the workflow.',
+      );
+    }
     throw new Error(`GitHub API could not create the PR (${create.status}).`);
   }
 
@@ -2056,12 +2116,22 @@ export async function deliverBotPullRequest(
     verified.sourceDefaultBranch,
     inspectedDefaultBranchSha,
   );
-  await assertRemoteDeveloperBranchUnchanged(
+  const remoteAccess = authenticatedRemoteContext(
     context,
-    verified.sourceRepository,
-    developerHeadRef,
-    developerHeadSha,
+    botIdentity,
+    githubToken,
   );
+  try {
+    await assertRemoteDeveloperBranchUnchanged(
+      remoteAccess.context,
+      verified.sourceRepository,
+      developerHeadRef,
+      developerHeadSha,
+      remoteAccess.environment,
+    );
+  } finally {
+    remoteAccess.cleanup();
+  }
   const pullRequest = await createPullRequest(
     fetcher,
     githubToken,

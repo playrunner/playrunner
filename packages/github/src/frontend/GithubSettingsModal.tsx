@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import {
+  AlertTriangle,
   BookOpen,
   Check,
   ChevronRight,
   Copy,
   ExternalLink,
   Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import {
   IntegrationConnectionAutofillGuard,
@@ -18,6 +20,16 @@ interface GithubSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type GithubConnectionStatus = {
+  appSlug: string;
+  connected: boolean;
+  contents: string;
+  installationFound: boolean;
+  missingPermissions: string[];
+  pullRequests: string;
+  reauthorizationRequired: boolean;
+};
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const GITHUB_SETUP_DOCS_URL = getDocsUrl(
@@ -47,6 +59,7 @@ export function GithubSettingsModal({
 }: GithubSettingsModalProps) {
   const { auth, store, ui } = useIntegrationHost();
   const Modal = ui.Modal;
+  const Button = ui.Button;
   const [githubAppName, setGithubAppName] = useState('');
   const [githubClientId, setGithubClientId] = useState('');
   const [githubClientSecret, setGithubClientSecret] = useState('');
@@ -55,6 +68,9 @@ export function GithubSettingsModal({
   const [authSuccess, setAuthSuccess] = useState(false);
   const [authError, setAuthError] = useState('');
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [connectionStatus, setConnectionStatus] =
+    useState<GithubConnectionStatus | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const popupRef = React.useRef<Window | null>(null);
 
   const callbackUrl = `${window.location.origin}/oauth/callback/github`;
@@ -64,6 +80,34 @@ export function GithubSettingsModal({
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2000);
   };
+
+  const fetchConnectionStatus = React.useCallback(async () => {
+    if (!auth.currentUser) return;
+    setIsCheckingConnection(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/github/connection-status', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await response.json()) as GithubConnectionStatus & {
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || 'GitHub connection check failed.');
+      }
+      setAuthError('');
+      setConnectionStatus(data);
+      setGithubAppSlug(data.appSlug || null);
+    } catch (error) {
+      console.error('Failed to inspect GitHub connection:', error);
+      setConnectionStatus(null);
+      setAuthError(
+        'Playrunner could not verify the GitHub App permissions. Reauthorize GitHub before running workflows that create pull requests.',
+      );
+    } finally {
+      setIsCheckingConnection(false);
+    }
+  }, [auth]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -105,12 +149,17 @@ export function GithubSettingsModal({
       setGithubClientId('');
       setGithubClientSecret('');
       setGithubAppSlug(null);
+      setConnectionStatus(null);
     }
 
     return () => {
       isMounted = false;
     };
   }, [auth, isOpen, store]);
+
+  React.useEffect(() => {
+    if (isOpen && authSuccess) void fetchConnectionStatus();
+  }, [authSuccess, fetchConnectionStatus, isOpen]);
 
   const handleAuthenticateGithub = async () => {
     try {
@@ -257,9 +306,125 @@ export function GithubSettingsModal({
       setGithubClientId('');
       setGithubClientSecret('');
       setGithubAppSlug(null);
+      setConnectionStatus(null);
     } catch (error) {
       console.error('Failed to disconnect Github', error);
     }
+  };
+
+  const handleReauthorizeGithub = async () => {
+    if (!auth.currentUser) {
+      setAuthError('You must be signed in to reauthorize GitHub.');
+      return;
+    }
+    setIsAuthenticating(true);
+    setAuthError('');
+    const oauthState = crypto.randomUUID();
+    popupRef.current = window.open(
+      'about:blank',
+      'GithubOAuth',
+      'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width=800, height=700',
+    );
+    if (!popupRef.current) {
+      setAuthError(
+        'The GitHub authorization window was blocked. Allow popups for Playrunner and try again.',
+      );
+      setIsAuthenticating(false);
+      return;
+    }
+    let isProcessing = false;
+    const messageListener = async (event: MessageEvent) => {
+      if (
+        event.origin !== window.location.origin ||
+        event.data?.type !== 'oauth_callback' ||
+        !event.data?.success ||
+        isProcessing
+      ) {
+        return;
+      }
+      isProcessing = true;
+      try {
+        if (
+          event.data?.params?.state !== oauthState ||
+          !event.data?.params?.code
+        ) {
+          throw new Error(
+            'GitHub returned an invalid authorization response. Try reauthorizing again.',
+          );
+        }
+        const token = await auth.currentUser!.getIdToken();
+        const response = await fetch('/api/github/reauthorize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ code: event.data.params.code }),
+        });
+        const data = (await response.json()) as {
+          connected?: boolean;
+          error?: string;
+        };
+        if (!response.ok || !data.connected) {
+          throw new Error(data.error || 'GitHub reauthorization failed.');
+        }
+        popupRef.current?.postMessage(
+          { type: 'oauth_close' },
+          window.location.origin,
+        );
+        await fetchConnectionStatus();
+      } catch (error) {
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to reauthorize GitHub.',
+        );
+      } finally {
+        setIsAuthenticating(false);
+        window.removeEventListener('message', messageListener);
+      }
+    };
+    window.addEventListener('message', messageListener);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch('/api/github/reauthorize-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ callbackUrl, state: oauthState }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        authorizeUrl?: string;
+        error?: string;
+      };
+      if (!response.ok || !data.authorizeUrl) {
+        throw new Error(
+          response.status === 404
+            ? 'GitHub reauthorization is not loaded. Restart the Playrunner API and try again.'
+            : data.error || 'Failed to start GitHub reauthorization.',
+        );
+      }
+      popupRef.current.location.href = data.authorizeUrl;
+    } catch (error) {
+      popupRef.current?.close();
+      window.removeEventListener('message', messageListener);
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to start GitHub reauthorization.',
+      );
+      setIsAuthenticating(false);
+      return;
+    }
+    const checkPopup = setInterval(() => {
+      if (!popupRef.current || popupRef.current.closed) {
+        clearInterval(checkPopup);
+        setIsAuthenticating(false);
+        window.removeEventListener('message', messageListener);
+      }
+    }, 500);
   };
 
   return (
@@ -298,17 +463,46 @@ export function GithubSettingsModal({
     >
       {authSuccess ? (
         <div className="flex flex-col items-center justify-center text-center gap-4 py-8">
-          <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center animate-in zoom-in duration-300">
-            <Check className="w-8 h-8 text-green-500" />
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center animate-in zoom-in duration-300 ${
+              connectionStatus?.reauthorizationRequired
+                ? 'bg-amber-500/20'
+                : 'bg-green-500/20'
+            }`}
+          >
+            {connectionStatus?.reauthorizationRequired ? (
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            ) : (
+              <Check className="w-8 h-8 text-green-500" />
+            )}
           </div>
           <div>
             <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
-              GitHub Connected Successfully
+              {connectionStatus?.reauthorizationRequired
+                ? 'GitHub needs reauthorization'
+                : 'GitHub Connected Successfully'}
             </h3>
             <p className="text-muted text-sm max-w-[320px] mx-auto mb-4">
-              Your GitHub App is connected. You can now use it to manage your
-              repositories.
+              {connectionStatus?.reauthorizationRequired
+                ? 'The installed GitHub App does not have every permission required to create bot branches and draft pull requests.'
+                : 'Your GitHub App is connected. You can now use it to manage your repositories.'}
             </p>
+
+            {authError ? (
+              <div
+                role="alert"
+                className="mb-4 max-w-sm rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-left text-sm text-red-500"
+              >
+                {authError}
+              </div>
+            ) : null}
+
+            {connectionStatus?.reauthorizationRequired ? (
+              <div className="mb-4 max-w-sm rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-left text-sm text-amber-500">
+                Approve Contents and Pull requests read/write permissions for
+                the GitHub App installation, then reauthorize this connection.
+              </div>
+            ) : null}
 
             <div className="bg-[var(--control-bg)] border border-[var(--border)] rounded-lg p-4 text-left max-w-sm mx-auto mb-6">
               <h4 className="text-sm font-medium text-[var(--foreground)] mb-2">
@@ -332,6 +526,37 @@ export function GithubSettingsModal({
                 )}
               </div>
             </div>
+
+            {Button ? (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={handleReauthorizeGithub}
+                disabled={isAuthenticating || isCheckingConnection}
+                className="mb-6 gap-2"
+              >
+                {isAuthenticating || isCheckingConnection ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Reauthorize GitHub
+              </Button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleReauthorizeGithub}
+                disabled={isAuthenticating || isCheckingConnection}
+                className="mb-6 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)] shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:pointer-events-none disabled:opacity-50"
+              >
+                {isAuthenticating || isCheckingConnection ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                Reauthorize GitHub
+              </button>
+            )}
 
             <div className="flex items-center justify-center gap-4">
               <button
