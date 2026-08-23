@@ -215,13 +215,20 @@ export async function prepareProjectDependencies(params: {
       const path = require('node:path');
       const project = process.argv[1];
       const source = process.argv[2];
-      for (const name of [
+      const linkedPackages = [
         '@bgotink/playwright-coverage',
         '@playwright/test',
         '@vitest/coverage-v8',
+        'jsdom',
         'playwright',
         'vitest',
-      ]) {
+      ];
+      const copiedPackages = [
+        '@testing-library/dom',
+        '@testing-library/react',
+        '@testing-library/user-event',
+      ];
+      for (const name of linkedPackages) {
         const target = path.join(project, 'node_modules', name);
         const packageSource = path.join(source, name);
         if (!fs.statSync(packageSource).isDirectory()) throw new Error('Container test package is missing: ' + name);
@@ -229,6 +236,23 @@ export async function prepareProjectDependencies(params: {
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.symlinkSync(packageSource, target, 'dir');
       }
+      const copied = new Set();
+      const copyPackage = (name) => {
+        if (copied.has(name)) return;
+        copied.add(name);
+        const packageSource = path.join(source, name);
+        if (!fs.statSync(packageSource).isDirectory()) throw new Error('Container test package is missing: ' + name);
+        const manifest = JSON.parse(fs.readFileSync(path.join(packageSource, 'package.json'), 'utf8'));
+        const target = path.join(project, 'node_modules', name);
+        fs.rmSync(target, { force: true, recursive: true });
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.cpSync(packageSource, target, { recursive: true });
+        for (const dependency of Object.keys({ ...(manifest.dependencies || {}), ...(manifest.optionalDependencies || {}) })) {
+          if (manifest.peerDependencies && dependency in manifest.peerDependencies) continue;
+          copyPackage(dependency);
+        }
+      };
+      for (const name of copiedPackages) copyPackage(name);
     `;
     const linked = await (params.runCommand ?? runProcess)(
       process.execPath,

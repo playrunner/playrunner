@@ -50,6 +50,55 @@ test('captures the latest bounded Agent completion message', () => {
   assert.equal(parser.summary(), 'Updated the requirement evidence.');
 });
 
+test('preserves the actionable diagnostic from a failed Codex turn', () => {
+  const parser = createCodexEventParser();
+  parser.push(
+    `${JSON.stringify({
+      error: {
+        codex_error_info: { code: 'rate_limit_exceeded' },
+        message: 'The selected model is temporarily rate limited.',
+      },
+      type: 'turn.failed',
+    })}\n`,
+  );
+  parser.finish();
+  assert.equal(
+    parser.failure(),
+    'Codex turn failed: The selected model is temporarily rate limited.',
+  );
+});
+
+test('falls back to the Codex error code when a failed turn has no message', () => {
+  const parser = createCodexEventParser();
+  parser.push(
+    `${JSON.stringify({
+      error: { codex_error_info: { code: 'model_not_found' } },
+      type: 'turn.failed',
+    })}\n`,
+  );
+  parser.finish();
+  assert.equal(
+    parser.failure(),
+    'Codex turn failed: Codex error code: model_not_found',
+  );
+});
+
+test('retains the latest Codex error event when turn.failed is generic', () => {
+  const parser = createCodexEventParser();
+  parser.push(
+    `${JSON.stringify({
+      message: 'Connection to the model service was interrupted.',
+      type: 'error',
+    })}\n`,
+  );
+  parser.push(`${JSON.stringify({ type: 'turn.failed' })}\n`);
+  parser.finish();
+  assert.equal(
+    parser.failure(),
+    'Codex turn failed: Connection to the model service was interrupted.',
+  );
+});
+
 test('recognizes a sandbox initialization failure in a completion message', () => {
   const parser = createCodexEventParser();
   parser.push(
@@ -209,6 +258,44 @@ test('returns a generic failure when Codex diagnostics contain credentials', asy
         },
         prompt: 'Test redaction.',
         prohibitedExactValues: ['github-secret-value'],
+        timeoutMs: 2_000,
+      }),
+      (error: Error) => {
+        assert.match(error.message, /blocked output/);
+        assert.doesNotMatch(error.message, /model-secret-value/);
+        return true;
+      },
+    );
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('redacts credentials from structured Codex turn failures', async () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'codex-structured-secret-'),
+  );
+  const executable = path.join(directory, 'codex');
+  fs.writeFileSync(
+    executable,
+    [
+      '#!/usr/bin/env node',
+      "console.log(JSON.stringify({ type: 'turn.failed', error: { message: `Rejected ${process.env.CODEX_API_KEY}` } }));",
+      'process.exit(1);',
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  try {
+    await assert.rejects(
+      runCodex({
+        config: { apiKeyEnvVar: 'MODEL_KEY' },
+        cwd: directory,
+        environment: {
+          MODEL_KEY: 'model-secret-value',
+          PATH: `${directory}${path.delimiter}${process.env.PATH || ''}`,
+        },
+        prompt: 'Test structured failure redaction.',
         timeoutMs: 2_000,
       }),
       (error: Error) => {

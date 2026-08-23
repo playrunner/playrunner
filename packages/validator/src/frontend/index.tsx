@@ -4,6 +4,7 @@ import {
   IntegrationConfigField,
   type Integration,
   type IntegrationConfigPanelProps,
+  type IntegrationOutputVariable,
   useIntegrationHost,
 } from '@playrunner/integration-sdk';
 
@@ -37,6 +38,105 @@ const DEFAULT_FAIL_ON = [
   'weak_selector',
   'skipped_requirement',
   'untested_critical_path',
+];
+
+const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
+  {
+    path: 'status',
+    type: 'string',
+    description: 'Final validator status',
+  },
+  {
+    path: 'attempts',
+    type: 'number',
+    description: 'Agent/validator attempts used',
+  },
+  {
+    path: 'stopReason',
+    type: 'string',
+    description: 'Why the validation loop stopped',
+  },
+  {
+    path: 'failure',
+    type: 'object',
+    description: 'Bounded actionable failure, when validation failed',
+  },
+  {
+    path: 'failure.message',
+    type: 'string',
+    description: 'Credential-safe actionable failure message',
+  },
+  {
+    path: 'validation',
+    type: 'object',
+    description: 'Authoritative browser and unit validation evidence',
+  },
+  {
+    path: 'validation.dimensions',
+    type: 'object',
+    description: 'Coverage, requirement, and assertion thresholds',
+  },
+  {
+    path: 'validation.requirements',
+    type: 'object',
+    description: 'Passing Playwright evidence for each requirement ID',
+  },
+  {
+    path: 'validation.testRun',
+    type: 'object',
+    description: 'Authoritative Playwright execution details',
+  },
+  {
+    path: 'validation.unitTestRun',
+    type: 'object',
+    description:
+      'Independent Vitest execution, assertion reconciliation, and V8 coverage',
+  },
+  {
+    path: 'validation.violations',
+    type: 'array',
+    description: 'Blocking and informational validator findings',
+  },
+  {
+    path: 'artifacts',
+    type: 'object',
+    description: 'Authenticated validation and test-report downloads',
+  },
+  {
+    path: 'artifacts.validationReport',
+    type: 'string',
+    description: 'Final structured validation report',
+  },
+  {
+    path: 'artifacts.playwrightReport',
+    type: 'string',
+    description: 'Playwright HTML report',
+  },
+  {
+    path: 'artifacts.browserCoverage',
+    type: 'string',
+    description: 'Browser coverage report',
+  },
+  {
+    path: 'artifacts.vitestResults',
+    type: 'string',
+    description: 'Vitest JSON results',
+  },
+  {
+    path: 'artifacts.vitestCoverage',
+    type: 'string',
+    description: 'Vitest detailed coverage JSON',
+  },
+  {
+    path: 'artifacts.vitestLcov',
+    type: 'string',
+    description: 'Vitest LCOV coverage',
+  },
+  {
+    path: 'reportUrl',
+    type: 'string',
+    description: 'Authenticated Playwright HTML report alias',
+  },
 ];
 
 const MINIMUM_FIELDS = [
@@ -290,6 +390,7 @@ export const validatorIntegration: Integration = {
   executionRole: 'attachment',
   attachmentKind: 'tool',
   ConfigPanel: ValidatorConfigPanel,
+  getOutputVariables: () => OUTPUT_VARIABLES,
 };
 
 export default validatorIntegration;

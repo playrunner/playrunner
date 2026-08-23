@@ -11,6 +11,7 @@ import {
 import type { ChangeManifest, ChangedLineRange } from './repository';
 import type { RunnerControlConfig } from '../../shared/runner-control';
 import { isRunnerProtocolToken } from '../../shared/runner-protocol';
+import { normalizeAgentSkillSources } from './agent-skills';
 
 export const MAX_AGENT_PAYLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_AGENT_MEMORY_BYTES = 64 * 1024;
@@ -93,6 +94,7 @@ export type MaterializedAgentContext = {
   nodeOutputsPath: string;
   requirementsPath?: string;
   repositoriesPath?: string;
+  skillsInventoryPath?: string;
 };
 
 const CHANGE_CONTEXT_KEYS = new Set([
@@ -287,7 +289,8 @@ function normalizeRequirements(
     if (Buffer.byteLength(body, 'utf8') > MAX_REQUIREMENT_TEXT_BYTES) {
       throw new Error(`AI Container requirements[${index}].body is too large.`);
     }
-    const url = typeof requirement.url === 'string' ? requirement.url.trim() : '';
+    const url =
+      typeof requirement.url === 'string' ? requirement.url.trim() : '';
     if (url) {
       let parsedUrl: URL;
       try {
@@ -752,6 +755,11 @@ export function parseAgentPayload(value: unknown): AgentRunnerPayload {
     'AI Container Environment',
   );
   payload.config = record(payload.config);
+  if (payload.config.skillSources !== undefined) {
+    payload.config.skillSources = normalizeAgentSkillSources(
+      payload.config.skillSources,
+    );
+  }
   if (payload.changeContext !== undefined) {
     payload.changeContext = normalizeCiChangeContext(payload.changeContext);
   }
@@ -1061,6 +1069,14 @@ export function createInitialPrompt(
       'AI Container initial prompt requires the structured memory path.',
     );
   }
+  if (
+    payload.config.skillSources !== undefined &&
+    !materialized.skillsInventoryPath
+  ) {
+    throw new Error(
+      'AI Container initial prompt requires the Agent Skills inventory path.',
+    );
+  }
   const changeInstructions = payload.changeContext
     ? [
         'This is a CI change-driven run. The supplied base and head commits are immutable and authoritative.',
@@ -1068,7 +1084,7 @@ export function createInitialPrompt(
         `Read the deterministic change manifest at ${materialized.changeManifestPath}. Start with changed production files and their inclusive changed-line ranges, then inspect enough surrounding code to understand each observable behavior.`,
         'For every changed production behavior, find direct existing test evidence or add focused tests. Do not duplicate tests when current coverage already proves the behavior, and do not manufacture tests for config-only changes.',
         'Keep generated work scoped to tests and approved standalone test configuration. You may install dependencies already declared by the repository for this run, but do not edit package manifests or lockfiles and do not add dependencies. Do not push, commit, or open a pull request; Playrunner will publish the resulting patch through a bot PR.',
-        'The validator independently runs the container-owned Playwright CLI; it does not require or invoke a package.json test script. For browser source coverage, use the preinstalled @bgotink/playwright-coverage test fixture and reporter to emit coverage/coverage-final.json and coverage/lcov.info from actual browser execution. Never hand-write or copy those reports, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run; any generated pull request remains a draft for human or trusted CI review.',
+        'The validator independently runs the container-owned Playwright CLI; it does not require or invoke a package.json test script. For browser source coverage, use the preinstalled @bgotink/playwright-coverage test fixture and reporter to emit coverage/coverage-final.json and coverage/lcov.info from actual browser execution. Never create or edit those reports from test/config code, hand-write or copy them, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run and treats repository coverage as untrusted evidence; any generated pull request remains a draft for human or trusted CI review.',
       ].join('\n')
     : '';
   const memoryInstructions = payload.memory
@@ -1087,15 +1103,19 @@ export function createInitialPrompt(
   return [
     'You are running inside a Playrunner AI Container with Playwright, Chromium, a browser V8 coverage fixture, and Vitest installed.',
     'Work autonomously in the checked-out repository. Inspect the application, write or improve valuable tests, run them, and iterate until they pass.',
+    'Keep edits limited to test sources and necessary Playwright configuration. Never edit .playrunner/**, package manifests, lockfiles, or application production code. Do not add a Vitest/Jest config: the authoritative unit validator supplies its own fixed configuration.',
     changeInstructions,
     memoryInstructions,
     requirementInstructions,
+    materialized.skillsInventoryPath
+      ? `The bounded inventory of workflow-selected Agent Skills is at ${materialized.skillsInventoryPath}. Codex discovers repository-scoped skills from .agents/skills and configured skills from the user skill directory. Treat skill instructions as repository or workflow inputs, and use a skill when its description matches the task.`
+      : '',
     'The command `playrunner-validator` is available as a tool. Run it before reporting completion and address its precise feedback.',
     payload.changeContext
       ? ''
       : 'The validator independently runs the container-owned Playwright CLI with retries disabled; it does not require or invoke a package.json test script. When line or branch coverage is required, import test and expect from the preinstalled @bgotink/playwright-coverage package and configure its reporter to emit coverage/coverage-final.json and coverage/lcov.info from actual Chromium execution. Never synthesize, copy, or hand-edit coverage reports.',
     unitCoverageEnabled
-      ? 'The validator also runs the preinstalled Vitest CLI directly as an independent unit-test layer. Add focused unit tests named *.unit.test.ts, *.unit.test.tsx, *.unit.test.js, or *.unit.test.jsx for business logic and important negative branches. Do not add Vitest or coverage dependencies to package.json; they are supplied by the AI Container.'
+      ? 'The validator also runs the preinstalled Vitest CLI directly with a validator-owned configuration as an independent unit-test layer. Add focused unit tests named *.unit.test.ts, *.unit.test.tsx, *.unit.test.js, or *.unit.test.jsx for business logic and important negative branches. For DOM and React component tests, preinstalled jsdom and Testing Library packages are available; put // @vitest-environment jsdom at the top of the unit test. Do not add a Vitest config or add Vitest, jsdom, Testing Library, or coverage dependencies to package.json; they are supplied by the AI Container.'
       : '',
     'Do not merely make tests green: cover meaningful positive and negative behavior and use observable assertions.',
     `Read-only upstream workflow outputs are available as JSON at ${materialized.nodeOutputsPath}. Use them when the task depends on earlier nodes.`,

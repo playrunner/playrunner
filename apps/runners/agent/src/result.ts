@@ -1,5 +1,10 @@
 import type { SupervisorResult } from './supervisor';
 import type { ValidationResult } from './validator';
+import type { AgentArtifactRefs } from './artifacts';
+import {
+  assertNoProhibitedExactValues,
+  credentialSafeErrorMessage,
+} from './secret-values';
 
 export const MAX_INLINE_RESULT_BYTES = 6 * 1_024 * 1_024;
 const MAX_INLINE_TEXT_BYTES = 16 * 1_024;
@@ -7,6 +12,9 @@ const MAX_INLINE_FEEDBACK_ITEMS = 50;
 const MAX_INLINE_REQUIREMENTS = 25;
 const MAX_INLINE_REQUIREMENT_EVIDENCE = 3;
 const MAX_INLINE_VIOLATIONS = 50;
+const MAX_INLINE_FAILURE_KIND_BYTES = 256;
+const AUTHENTICATED_PLAYWRIGHT_REPORT_PATTERN =
+  /^\/outputs\/[A-Za-z0-9][A-Za-z0-9._-]{0,254}\/[A-Za-z0-9][A-Za-z0-9._-]{0,254}\/playwright-report\/index\.html$/;
 
 function truncateUtf8(value: string, maximumBytes: number): string {
   const bytes = Buffer.from(value, 'utf8');
@@ -41,6 +49,14 @@ export function createInlineAttemptHistory(supervisor: SupervisorResult) {
             violations:
               attempt.validation.violationSummary?.total ??
               attempt.validation.violations.length,
+            ...(attempt.validation.unitTestRun
+              ? {
+                  unitTests: {
+                    passed: attempt.validation.unitTestRun.passed,
+                    testCount: attempt.validation.unitTestRun.testCount,
+                  },
+                }
+              : {}),
           },
         }
       : {}),
@@ -152,6 +168,28 @@ function compactValidation(validation: ValidationResult) {
       timedOut: validation.testRun.timedOut,
     },
     testSummary: validation.testSummary,
+    ...(validation.unitTestRun
+      ? {
+          unitTestRun: {
+            ...validation.unitTestRun,
+            args: validation.unitTestRun.args.slice(0, 100),
+            failureMessage: validation.unitTestRun.failureMessage
+              ? truncateUtf8(
+                  validation.unitTestRun.failureMessage,
+                  MAX_INLINE_TEXT_BYTES,
+                )
+              : null,
+            stderrTail: truncateUtf8(
+              validation.unitTestRun.stderrTail,
+              MAX_INLINE_TEXT_BYTES,
+            ),
+            stdoutTail: truncateUtf8(
+              validation.unitTestRun.stdoutTail,
+              MAX_INLINE_TEXT_BYTES,
+            ),
+          },
+        }
+      : {}),
     violationSummary: {
       reported: violations.length,
       total: validation.violationSummary?.total ?? validation.violations.length,
@@ -161,6 +199,102 @@ function compactValidation(validation: ValidationResult) {
     },
     violations,
   };
+}
+
+export function createInlineFailure(
+  kind: string,
+  message: string,
+  prohibitedExactValues: readonly string[] = [],
+) {
+  return {
+    kind: truncateUtf8(
+      String(kind || 'unknown').trim(),
+      MAX_INLINE_FAILURE_KIND_BYTES,
+    ),
+    message: truncateUtf8(
+      credentialSafeErrorMessage(message, prohibitedExactValues),
+      MAX_INLINE_TEXT_BYTES,
+    ),
+  };
+}
+
+export function authenticatedPlaywrightReportUrl(
+  artifacts: AgentArtifactRefs | undefined,
+): string | undefined {
+  const report = artifacts?.playwrightReport;
+  return typeof report === 'string' &&
+    AUTHENTICATED_PLAYWRIGHT_REPORT_PATTERN.test(report)
+    ? report
+    : undefined;
+}
+
+export function createInlineValidatorResult(
+  validation: ValidationResult,
+  options: {
+    artifactError?: string;
+    artifacts?: AgentArtifactRefs;
+    attempts?: number;
+    prohibitedExactValues?: readonly string[];
+    stopReason?: string;
+  } = {},
+): Record<string, unknown> {
+  const reportUrl = authenticatedPlaywrightReportUrl(options.artifacts);
+  const prohibitedExactValues = options.prohibitedExactValues || [];
+  const artifactError = options.artifactError
+    ? truncateUtf8(
+        credentialSafeErrorMessage(
+          options.artifactError,
+          prohibitedExactValues,
+        ),
+        MAX_INLINE_TEXT_BYTES,
+      )
+    : undefined;
+  const failureMessage =
+    artifactError ||
+    (validation.passed ? undefined : validation.feedback.summary);
+  const status = artifactError ? 'failed' : validation.status;
+  const stopReason = artifactError
+    ? 'artifact_failed'
+    : options.stopReason ||
+      (validation.passed ? 'passed' : 'validation_failed');
+  const createResult = (
+    inlineValidation: ValidationResult | ReturnType<typeof compactValidation>,
+    validationTruncated: boolean,
+  ) => ({
+    ...(artifactError ? { artifactError } : {}),
+    ...(options.artifacts ? { artifacts: options.artifacts } : {}),
+    attempts: options.attempts ?? validation.attempt,
+    ...(failureMessage
+      ? {
+          failure: createInlineFailure(
+            stopReason,
+            failureMessage,
+            prohibitedExactValues,
+          ),
+        }
+      : {}),
+    ...(reportUrl ? { reportUrl } : {}),
+    status,
+    stopReason,
+    validation: inlineValidation,
+    ...(validationTruncated ? { validationTruncated: true } : {}),
+  });
+
+  let result = createResult(validation, false);
+  if (
+    Buffer.byteLength(JSON.stringify(result), 'utf8') > MAX_INLINE_RESULT_BYTES
+  ) {
+    result = createResult(compactValidation(validation), true);
+  }
+  if (
+    Buffer.byteLength(JSON.stringify(result), 'utf8') > MAX_INLINE_RESULT_BYTES
+  ) {
+    throw new Error(
+      `Validator attachment result exceeds ${MAX_INLINE_RESULT_BYTES} bytes after compaction.`,
+    );
+  }
+  assertNoProhibitedExactValues(JSON.stringify(result), prohibitedExactValues);
+  return result;
 }
 
 export function boundInlineAgentResult(

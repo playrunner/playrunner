@@ -13,7 +13,26 @@ function definition() {
       title: 'Demo tests',
       nodes: [
         { id: 'environment', nodeType: 'environment' },
-        { id: 'container', nodeType: 'agent-container' },
+        {
+          config: {
+            skillSources: [
+              {
+                id: 'project-skills',
+                path: '.agents/skills',
+                type: 'project',
+              },
+              {
+                id: 'shared-skills',
+                path: 'skills/testing',
+                ref: 'v1.2.3',
+                repository: 'playrunner/agent-skills',
+                type: 'github',
+              },
+            ],
+          },
+          id: 'container',
+          nodeType: 'agent-container',
+        },
       ],
       connections: [
         { id: 'connection', sourceId: 'environment', targetId: 'container' },
@@ -33,6 +52,22 @@ test('parses a bounded workflow definition and assigns stable owned ids', () => 
     workflowDefinitionIds('user-1', parsed),
     workflowDefinitionIds('user-2', parsed),
   );
+  assert.deepEqual(parsed.workflow.nodes[1].config, {
+    skillSources: [
+      {
+        id: 'project-skills',
+        path: '.agents/skills',
+        type: 'project',
+      },
+      {
+        id: 'shared-skills',
+        path: 'skills/testing',
+        ref: 'v1.2.3',
+        repository: 'playrunner/agent-skills',
+        type: 'github',
+      },
+    ],
+  });
 });
 
 test('rejects connections to missing nodes', () => {

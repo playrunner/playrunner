@@ -25,6 +25,9 @@ RUN apt-get update && \
     npm install --global pnpm@10.15.1 yarn@1.22.22 && \
     groupadd --gid 1001 playrunner && \
     useradd --uid 1001 --gid 1001 --create-home --shell /bin/bash playrunner && \
+    mkdir -p /home/playrunner/.agents/skills && \
+    chown root:root /home/playrunner/.agents /home/playrunner/.agents/skills && \
+    chmod 0555 /home/playrunner/.agents /home/playrunner/.agents/skills && \
     mkdir -p /workspace/repo /workspace/inputs /workspace/playrunner-artifacts && \
     chown playrunner:playrunner /workspace/repo && \
     chmod 0755 /workspace /workspace/inputs /workspace/playrunner-artifacts && \
@@ -37,7 +40,7 @@ RUN apt-get update && \
     codex --version && \
     playwright --version && \
     vitest --version && \
-    node -e "require.resolve('@bgotink/playwright-coverage')"
+    node -e "for (const name of ['@bgotink/playwright-coverage', '@testing-library/react', '@testing-library/user-event', 'jsdom']) require.resolve(name)"
 
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1

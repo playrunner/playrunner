@@ -128,3 +128,15 @@ export async function publishAttachmentOutcome(
     supervisor.status === 'passed' ? 'success' : 'error',
   );
 }
+
+export async function publishValidatorAttachmentOutput(
+  runnerControl: RunnerControlClient,
+  attachments: AgentAttachmentEvents,
+  output: Record<string, unknown>,
+): Promise<void> {
+  await Promise.all(
+    attachments.validators.map((validator) =>
+      runnerControl.publishEvent({ output, type: 'node_output' }, validator),
+    ),
+  );
+}

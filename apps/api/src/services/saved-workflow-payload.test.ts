@@ -117,3 +117,49 @@ test('saved workflow executions preserve registered cloud providers', () => {
   assert.equal(body.cloudProvider, 'PLAYRUNNER_CLOUD');
   assert.equal(body.workflow.run.runner, 'PLAYRUNNER_CLOUD');
 });
+
+test('saved workflow executions preserve AI Container skill sources', () => {
+  const skillSources = [
+    {
+      id: 'project-skills',
+      path: '.agents/skills',
+      type: 'project',
+    },
+    {
+      id: 'shared-skills',
+      path: 'skills/testing',
+      ref: 'main',
+      repository: 'playrunner/agent-skills',
+      type: 'github',
+    },
+  ];
+  const body = buildSavedWorkflowExecutionBody({
+    executionId: 'execution-skills',
+    triggerData: {},
+    triggerName: 'cli',
+    workflow: {
+      cloudProvider: 'LOCAL_RUNNER',
+      concurrency: null,
+      connections: [],
+      id: 'workflow-skills',
+      nodes: [
+        {
+          config: { skillSources },
+          id: 'agent-container',
+          nodeType: 'agent-container',
+        },
+      ],
+      title: 'Skills workflow',
+    },
+  });
+
+  assert.deepEqual(
+    (
+      (body.nodes[0] as Record<string, unknown>).config as Record<
+        string,
+        unknown
+      >
+    ).skillSources,
+    skillSources,
+  );
+});

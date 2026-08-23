@@ -16,12 +16,36 @@ const DEFAULT_CONFIG = {
   maxDurationMinutes: 30,
   maxValidationAttempts: 3,
   memory: 8,
+  skillSources: [] as AgentSkillSourceConfig[],
   supportingRepositories: [] as SupportingRepositoryConfig[],
 };
 
 const MAX_DURATION_MINUTES = 45;
+const MAX_SKILL_SOURCES = 10;
 const CPU_OPTIONS = [1, 2, 4, 8] as const;
 const MEMORY_OPTIONS = [2, 4, 8, 16, 32] as const;
+
+type AgentSkillSourceConfig =
+  | {
+      id: string;
+      path: string;
+      type: 'project';
+    }
+  | {
+      id: string;
+      path: string;
+      ref: string;
+      repository: string;
+      type: 'github';
+    };
+
+type AgentSkillSourcePatch = {
+  id?: string;
+  path?: string;
+  ref?: string;
+  repository?: string;
+  type?: AgentSkillSourceConfig['type'];
+};
 
 type SupportingRepositoryConfig = {
   branch: string;
@@ -76,6 +100,172 @@ function normalizedSupportingRepositories(
   });
 }
 
+function normalizedSkillSources(value: unknown): AgentSkillSourceConfig[] {
+  if (!Array.isArray(value)) {
+    return DEFAULT_CONFIG.skillSources.map((source) => ({ ...source }));
+  }
+
+  const usedIds = new Set<string>();
+  return value.slice(0, MAX_SKILL_SOURCES).map((candidate, index) => {
+    const entry =
+      candidate && typeof candidate === 'object' && !Array.isArray(candidate)
+        ? (candidate as Record<string, unknown>)
+        : {};
+    const configuredId = typeof entry.id === 'string' ? entry.id : '';
+    const preferredId =
+      index === 0 ? 'project-skills' : `skill-source-${index + 1}`;
+    let id = configuredId || preferredId;
+    let suffix = 2;
+    while (!configuredId && usedIds.has(id)) {
+      id = `${preferredId}-${suffix}`;
+      suffix += 1;
+    }
+    usedIds.add(id);
+    const path = typeof entry.path === 'string' ? entry.path : '.agents/skills';
+
+    if (entry.type === 'github') {
+      return {
+        id,
+        path,
+        ref: typeof entry.ref === 'string' ? entry.ref : 'main',
+        repository:
+          typeof entry.repository === 'string' ? entry.repository : '',
+        type: 'github',
+      };
+    }
+
+    return { id, path, type: 'project' };
+  });
+}
+
+function nextSkillSourceId(
+  type: AgentSkillSourceConfig['type'],
+  sources: AgentSkillSourceConfig[],
+) {
+  const base = type === 'github' ? 'github-skills' : 'project-skills';
+  const usedIds = new Set(sources.map((source) => source.id));
+  if (!usedIds.has(base)) return base;
+  for (let suffix = 2; suffix <= MAX_SKILL_SOURCES + 1; suffix += 1) {
+    const candidate = `${base}-${suffix}`;
+    if (!usedIds.has(candidate)) return candidate;
+  }
+  return `skill-source-${sources.length + 1}`;
+}
+
+function isSafeRelativePath(value: string) {
+  const path = value.trim();
+  const hasControlCharacter = Array.from(path).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint < 32 || codePoint === 127;
+  });
+  if (
+    !path ||
+    new TextEncoder().encode(path).length > 1_024 ||
+    path.startsWith('/') ||
+    path.includes('\\') ||
+    hasControlCharacter
+  ) {
+    return false;
+  }
+  if (path === '.') return true;
+  return !path
+    .split('/')
+    .some(
+      (segment) =>
+        !segment || segment === '.' || segment === '..' || segment === '.git',
+    );
+}
+
+function isGitHubRepository(value: string) {
+  const repository = value.trim().replace(/\.git$/i, '');
+  const segments = repository.split('/');
+  return Boolean(
+    new TextEncoder().encode(repository).length <= 200 &&
+    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) &&
+    segments.every(
+      (segment) =>
+        segment.length <= 100 &&
+        /^[A-Za-z0-9]/.test(segment) &&
+        !segment.endsWith('-'),
+    ),
+  );
+}
+
+function isSafeGitRef(value: string) {
+  const ref = value.trim();
+  if (/^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$/.test(ref)) return true;
+  const components = ref.split('/');
+  const hasForbiddenCharacter = Array.from(ref).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return (
+      codePoint <= 32 ||
+      codePoint === 127 ||
+      ['~', '^', ':', '?', '*', '[', '\\'].includes(character)
+    );
+  });
+  return Boolean(
+    ref &&
+    ref.length <= 255 &&
+    !ref.startsWith('-') &&
+    ref !== '@' &&
+    ref !== 'HEAD' &&
+    !ref.startsWith('/') &&
+    !ref.startsWith('refs/') &&
+    !ref.endsWith('.') &&
+    !ref.endsWith('/') &&
+    !ref.endsWith('.lock') &&
+    !ref.includes('..') &&
+    !ref.includes('//') &&
+    !ref.includes('@{') &&
+    !components.some(
+      (component) =>
+        !component ||
+        component.startsWith('.') ||
+        component.endsWith('.') ||
+        component.endsWith('.lock'),
+    ) &&
+    !hasForbiddenCharacter,
+  );
+}
+
+function skillSourceError(
+  source: AgentSkillSourceConfig,
+  index: number,
+  sources: AgentSkillSourceConfig[],
+) {
+  if (!/^[a-z][a-z0-9-]{0,62}$/.test(source.id)) {
+    return 'Source ID must start with a letter and contain only lowercase letters, numbers, and hyphens.';
+  }
+  if (sources.findIndex((candidate) => candidate.id === source.id) !== index) {
+    return 'Source IDs must be unique.';
+  }
+  if (!isSafeRelativePath(source.path)) {
+    return 'Enter a safe path relative to the repository root (for example, .agents/skills).';
+  }
+  if (source.type === 'github' && !isGitHubRepository(source.repository)) {
+    return 'Enter a GitHub repository in owner/repository form.';
+  }
+  if (source.type === 'github' && !isSafeGitRef(source.ref)) {
+    return 'Enter a branch, tag, or commit SHA without spaces or Git ref metacharacters.';
+  }
+
+  const identity =
+    source.type === 'project'
+      ? `project:${source.path}`
+      : `github:${source.repository.toLowerCase()}:${source.ref}:${source.path}`;
+  const firstMatchingIndex = sources.findIndex((candidate) => {
+    const candidateIdentity =
+      candidate.type === 'project'
+        ? `project:${candidate.path}`
+        : `github:${candidate.repository.toLowerCase()}:${candidate.ref}:${candidate.path}`;
+    return candidateIdentity === identity;
+  });
+
+  return firstMatchingIndex !== index
+    ? 'This skills source is already configured.'
+    : '';
+}
+
 const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
   {
     path: 'status',
@@ -98,6 +288,21 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     description: 'Agent and validation details for every feedback-loop attempt',
   },
   {
+    path: 'failure',
+    type: 'object',
+    description: 'Bounded actionable terminal failure, when the run failed',
+  },
+  {
+    path: 'failure.kind',
+    type: 'string',
+    description: 'Failure stage or stop reason',
+  },
+  {
+    path: 'failure.message',
+    type: 'string',
+    description: 'Credential-safe actionable failure message',
+  },
+  {
     path: 'repositoryStatus',
     type: 'string',
     description: 'Final Git working-tree status',
@@ -118,6 +323,11 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     description: 'URL of the generated-test pull request',
   },
   {
+    path: 'reportUrl',
+    type: 'string',
+    description: 'Authenticated Playwright HTML report alias',
+  },
+  {
     path: 'memory',
     type: 'object',
     description: 'Bounded durable outcome used by the next CI execution',
@@ -126,6 +336,23 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     path: 'repositories',
     type: 'array',
     description: 'Primary and supporting repository revisions used by the run',
+  },
+  {
+    path: 'skills',
+    type: 'object',
+    description:
+      'Bounded inventory of repository-discovered and installed Agent Skills',
+  },
+  {
+    path: 'skills.schemaVersion',
+    type: 'string',
+    description: 'Agent Skills inventory schema version',
+  },
+  {
+    path: 'skills.skills',
+    type: 'array',
+    description:
+      'Skill names, scopes, source revisions, and container directories used by the run',
   },
   {
     path: 'requirementSources',
@@ -204,6 +431,12 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     description: 'Clean test command result and failure details',
   },
   {
+    path: 'validation.unitTestRun',
+    type: 'object',
+    description:
+      'Independent Vitest execution, assertion reconciliation, and V8 coverage evidence',
+  },
+  {
     path: 'validation.violations',
     type: 'array',
     description:
@@ -212,7 +445,8 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
   {
     path: 'validation.artifacts',
     type: 'object',
-    description: 'Supervisor-owned validation artifact references',
+    description:
+      'Workspace-relative validation paths; use top-level artifacts for authenticated downloads',
   },
   {
     path: 'validation.artifacts.validationReport',
@@ -245,6 +479,11 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
     description: 'Final supervisor-owned artifact references',
   },
   {
+    path: 'artifacts.artifactManifest',
+    type: 'string',
+    description: 'API-owned authenticated artifact index',
+  },
+  {
     path: 'artifacts.validationHistory',
     type: 'string',
     description: 'Complete validation-attempt history report reference',
@@ -272,7 +511,12 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
   {
     path: 'artifacts.coverage',
     type: 'string',
-    description: 'Final coverage artifact reference',
+    description: 'Compatibility alias for final browser coverage',
+  },
+  {
+    path: 'artifacts.browserCoverage',
+    type: 'string',
+    description: 'Final browser coverage JSON or LCOV reference',
   },
   {
     path: 'artifacts.playwrightReport',
@@ -282,7 +526,22 @@ const OUTPUT_VARIABLES: readonly IntegrationOutputVariable[] = [
   {
     path: 'artifacts.testResults',
     type: 'string',
-    description: 'Final Playwright test-results reference',
+    description: 'Legacy test-results directory reference',
+  },
+  {
+    path: 'artifacts.vitestResults',
+    type: 'string',
+    description: 'Independent Vitest JSON results reference',
+  },
+  {
+    path: 'artifacts.vitestCoverage',
+    type: 'string',
+    description: 'Independent Vitest detailed coverage JSON reference',
+  },
+  {
+    path: 'artifacts.vitestLcov',
+    type: 'string',
+    description: 'Independent Vitest LCOV reference',
   },
   {
     path: 'artifacts.repositoryStatus',
@@ -370,7 +629,7 @@ export const AgentContainerConfigPanel: React.FC<
   const [repositoryError, setRepositoryError] = React.useState('');
   const [branchError, setBranchError] = React.useState('');
   const [activeTab, setActiveTab] = React.useState<
-    'config' | 'env' | 'resources'
+    'config' | 'skills' | 'env' | 'resources'
   >('config');
   const configuredEnvVars = normalizedStringList(config.envVars);
   const configuredAuthProvider =
@@ -380,6 +639,7 @@ export const AgentContainerConfigPanel: React.FC<
   const configuredSupportingRepositories = normalizedSupportingRepositories(
     config.supportingRepositories,
   );
+  const configuredSkillSources = normalizedSkillSources(config.skillSources);
 
   useEffect(() => {
     const normalized = {
@@ -408,6 +668,7 @@ export const AgentContainerConfigPanel: React.FC<
         ? Number(config.memory)
         : DEFAULT_CONFIG.memory,
       envVars: normalizedStringList(config.envVars),
+      skillSources: normalizedSkillSources(config.skillSources),
       supportingRepositories: normalizedSupportingRepositories(
         config.supportingRepositories,
       ),
@@ -506,6 +767,15 @@ export const AgentContainerConfigPanel: React.FC<
     update('supportingRepositories', next);
   };
 
+  const updateSkillSource = (index: number, patch: AgentSkillSourcePatch) => {
+    const next = configuredSkillSources.map((entry, entryIndex) =>
+      entryIndex === index
+        ? ({ ...entry, ...patch } as AgentSkillSourceConfig)
+        : entry,
+    );
+    update('skillSources', next);
+  };
+
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const value = event.dataTransfer.getData('text/plain').trim();
@@ -521,7 +791,7 @@ export const AgentContainerConfigPanel: React.FC<
     }
   };
 
-  const tabClass = (tab: 'config' | 'env' | 'resources') =>
+  const tabClass = (tab: 'config' | 'skills' | 'env' | 'resources') =>
     `px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors focus:outline-none select-none ${
       activeTab === tab
         ? 'bg-[var(--node-bg)] text-[var(--foreground)] border border-[var(--node-border)]'
@@ -538,6 +808,14 @@ export const AgentContainerConfigPanel: React.FC<
           onClick={() => setActiveTab('config')}
         >
           Configuration
+        </button>
+        <button
+          type="button"
+          data-testid="agent-container-tab-skills"
+          className={tabClass('skills')}
+          onClick={() => setActiveTab('skills')}
+        >
+          Skills
         </button>
         <button
           type="button"
@@ -868,6 +1146,253 @@ export const AgentContainerConfigPanel: React.FC<
               }
             />
           </IntegrationConfigField>
+        </div>
+      )}
+
+      {activeTab === 'skills' && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-[var(--node-border)] bg-[var(--control-bg)] p-3 text-xs leading-relaxed text-muted">
+            Playrunner automatically discovers{' '}
+            <span className="font-mono text-[var(--foreground)]">
+              .agents/skills
+            </span>{' '}
+            in the primary repository. Add explicit sources for other project
+            paths or reusable GitHub repositories. Skill folders are installed
+            into the isolated container before the agent starts, and each must
+            contain a{' '}
+            <span className="font-mono text-[var(--foreground)]">SKILL.md</span>{' '}
+            file.
+          </div>
+          <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h4 className="text-sm font-medium text-[var(--foreground)]">
+                  Agent skill sources
+                </h4>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Load up to {MAX_SKILL_SOURCES} project-owned or reusable
+                  skills repositories for every run.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                data-testid="agent-container-add-skill-source"
+                disabled={configuredSkillSources.length >= MAX_SKILL_SOURCES}
+                onClick={() =>
+                  update('skillSources', [
+                    ...configuredSkillSources,
+                    {
+                      id: nextSkillSourceId('project', configuredSkillSources),
+                      path: 'skills',
+                      type: 'project',
+                    },
+                  ])
+                }
+                className="shrink-0 whitespace-nowrap"
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                Add source
+              </Button>
+            </div>
+            {configuredSkillSources.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-[var(--border)] p-3 text-xs text-muted">
+                No additional sources configured. Skills under{' '}
+                <span className="font-mono">.agents/skills</span> in the primary
+                repository will still be discovered automatically.
+              </p>
+            ) : null}
+            {configuredSkillSources.map((source, index) => {
+              const validationError = skillSourceError(
+                source,
+                index,
+                configuredSkillSources,
+              );
+              const fieldPrefix = `agent-container-skill-source-${index}`;
+              return (
+                <div
+                  key={index}
+                  className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3"
+                  data-testid={`agent-container-skill-source-${index}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+                      Skill source {index + 1}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Remove skill source ${index + 1}`}
+                      title={`Remove skill source ${index + 1}`}
+                      data-testid={`agent-container-remove-skill-source-${index}`}
+                      onClick={() =>
+                        update(
+                          'skillSources',
+                          configuredSkillSources.filter(
+                            (_, sourceIndex) => sourceIndex !== index,
+                          ),
+                        )
+                      }
+                    >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <IntegrationConfigField
+                      label="Source type"
+                      htmlFor={`${fieldPrefix}-type`}
+                    >
+                      <Select
+                        id={`${fieldPrefix}-type`}
+                        data-testid={`agent-container-skill-source-type-${index}`}
+                        value={source.type}
+                        onChange={(event) => {
+                          const type = event.target.value as
+                            | 'project'
+                            | 'github';
+                          updateSkillSource(
+                            index,
+                            type === 'github'
+                              ? {
+                                  path: '.agents/skills',
+                                  ref: 'main',
+                                  repository: '',
+                                  type,
+                                }
+                              : { type },
+                          );
+                        }}
+                      >
+                        <option value="project">Primary repository</option>
+                        <option value="github">GitHub repository</option>
+                      </Select>
+                    </IntegrationConfigField>
+                    <IntegrationConfigField
+                      label="Source ID"
+                      hint="Stable install namespace; lowercase letters, numbers, and hyphens."
+                      htmlFor={`${fieldPrefix}-id`}
+                    >
+                      <Input
+                        id={`${fieldPrefix}-id`}
+                        data-testid={`agent-container-skill-source-id-${index}`}
+                        value={source.id}
+                        maxLength={63}
+                        onChange={(event) =>
+                          updateSkillSource(index, { id: event.target.value })
+                        }
+                        placeholder="project-skills"
+                        aria-invalid={Boolean(validationError)}
+                      />
+                    </IntegrationConfigField>
+                  </div>
+                  {source.type === 'github' ? (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <IntegrationConfigField
+                        label="GitHub repository"
+                        hint="The connected GitHub App must be able to read private repositories."
+                        htmlFor={`${fieldPrefix}-repository`}
+                      >
+                        <Select
+                          id={`${fieldPrefix}-repository`}
+                          data-testid={`agent-container-skill-source-repository-${index}`}
+                          value={source.repository}
+                          disabled={isLoadingRepos || !isConnected}
+                          onChange={(event) =>
+                            updateSkillSource(index, {
+                              repository: event.target.value,
+                            })
+                          }
+                          aria-invalid={Boolean(validationError)}
+                        >
+                          <option value="">
+                            {!isConnected
+                              ? 'Connect GitHub under Configuration'
+                              : isLoadingRepos
+                                ? 'Loading repositories...'
+                                : 'Select Repository'}
+                          </option>
+                          {source.repository &&
+                          !repositories.some(
+                            (repository) =>
+                              repository.full_name === source.repository,
+                          ) ? (
+                            <option value={source.repository}>
+                              {source.repository}
+                            </option>
+                          ) : null}
+                          {repositories.map((repository) => (
+                            <option
+                              key={repository.id}
+                              value={repository.full_name}
+                            >
+                              {repository.full_name}
+                            </option>
+                          ))}
+                        </Select>
+                      </IntegrationConfigField>
+                      <IntegrationConfigField
+                        label="Git ref"
+                        hint="Branch, tag, or full commit SHA. Pin a commit SHA for reproducible runs."
+                        htmlFor={`${fieldPrefix}-ref`}
+                      >
+                        <Input
+                          id={`${fieldPrefix}-ref`}
+                          data-testid={`agent-container-skill-source-ref-${index}`}
+                          value={source.ref}
+                          maxLength={255}
+                          onChange={(event) =>
+                            updateSkillSource(index, {
+                              ref: event.target.value,
+                            })
+                          }
+                          placeholder="main"
+                          aria-invalid={Boolean(validationError)}
+                        />
+                      </IntegrationConfigField>
+                    </div>
+                  ) : null}
+                  <IntegrationConfigField
+                    label={
+                      source.type === 'project'
+                        ? 'Skills path in primary repository'
+                        : 'Skills path in GitHub repository'
+                    }
+                    hint="Relative directory containing one or more skill folders. Use . when SKILL.md is at the repository root."
+                    htmlFor={`${fieldPrefix}-path`}
+                  >
+                    <Input
+                      id={`${fieldPrefix}-path`}
+                      data-testid={`agent-container-skill-source-path-${index}`}
+                      value={source.path}
+                      maxLength={1_024}
+                      onChange={(event) =>
+                        updateSkillSource(index, { path: event.target.value })
+                      }
+                      placeholder=".agents/skills"
+                      aria-invalid={Boolean(validationError)}
+                    />
+                  </IntegrationConfigField>
+                  {validationError ? (
+                    <p
+                      role="alert"
+                      data-testid={`agent-container-skill-source-error-${index}`}
+                      className="text-xs leading-relaxed text-red-400"
+                    >
+                      {validationError}
+                    </p>
+                  ) : (
+                    <p className="text-xs leading-relaxed text-muted">
+                      {source.type === 'project'
+                        ? 'Playrunner discovers SKILL.md files from this path after cloning the primary repository.'
+                        : 'Playrunner checks out this exact ref and installs discovered SKILL.md folders without changing the primary repository.'}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

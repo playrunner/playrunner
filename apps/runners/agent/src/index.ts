@@ -12,11 +12,17 @@ import {
   publishAttachmentOutcome,
   publishAttachmentPending,
   publishSupervisorProgress,
+  publishValidatorAttachmentOutput,
 } from './attachment-events';
 import { createCredentialFreeEnvironment } from './codex-auth';
 import { runCodex } from './codex';
 import { deliverBotPullRequest, type BotPrDeliveryResult } from './bot-pr';
 import { prepareProjectDependencies } from './dependency-setup';
+import {
+  normalizeAgentSkillSources,
+  prepareAgentSkills,
+  type AgentSkillsInventory,
+} from './agent-skills';
 import { resolveBotDeliverySource } from './delivery-source';
 import {
   createInitialPrompt,
@@ -36,8 +42,11 @@ import {
   type PreparedRepository,
 } from './repository';
 import {
+  authenticatedPlaywrightReportUrl,
   boundInlineAgentResult,
+  createInlineFailure,
   createInlineAttemptHistory,
+  createInlineValidatorResult,
   truncateInlinePatch,
 } from './result';
 import { createRunnerControlClient } from '../../shared/runner-control';
@@ -46,7 +55,8 @@ import {
   createStructuredMemory,
   type TerminalFailureKind,
 } from './structured-memory';
-import { validatePlaywrightTests } from './validator';
+import { validateTestSuite } from './validation-suite';
+import { runVitestCoverage } from './vitest-validator';
 
 const INLINE_PATCH_BYTES = 500_000;
 const MAX_PATCH_CAPTURE_BYTES = 50 * 1_024 * 1_024;
@@ -72,6 +82,7 @@ function runnerFailureResult(
     {
       attemptHistory: supervisor ? createInlineAttemptHistory(supervisor) : [],
       attempts: supervisor?.attempts || 0,
+      failure: createInlineFailure(stopReason, error),
       patch: '',
       patchBytes: 0,
       patchTruncated: false,
@@ -146,6 +157,7 @@ async function main() {
 
   let cwd: string;
   let agentContext: ReturnType<typeof materializeAgentContext>;
+  let agentSkillsInventory: AgentSkillsInventory;
   let baselineRevision: string;
   let prepared: PreparedRepository;
   let validatorConfig: ReturnType<typeof mergeValidatorConfigs>;
@@ -158,6 +170,29 @@ async function main() {
       identity,
     });
     cwd = prepared.workingDirectory;
+    const preparedSkills = await prepareAgentSkills({
+      environment: repositoryEnvironment,
+      githubToken: payload.github?.accessToken,
+      identity,
+      primaryRevision: prepared.headRevision,
+      repositoryRoot: prepared.repositoryRoot,
+      sources: normalizeAgentSkillSources(payload.config.skillSources),
+      workingDirectory: prepared.workingDirectory,
+    });
+    agentSkillsInventory = preparedSkills.inventory;
+    await runnerControl.log(
+      preparedSkills.inventory.skills.length
+        ? `Prepared ${preparedSkills.inventory.skills.length} Agent Skill${preparedSkills.inventory.skills.length === 1 ? '' : 's'} (${preparedSkills.installedCount} installed into the container user scope). Inventory: ${preparedSkills.inventoryPath}.`
+        : `No repository or configured Agent Skills were discovered. Inventory: ${preparedSkills.inventoryPath}.`,
+    );
+    for (const skill of preparedSkills.inventory.skills) {
+      const source = skill.source.repository
+        ? `${skill.source.repository}:${skill.source.path}`
+        : skill.source.path;
+      await runnerControl.log(
+        `Agent Skill ready: ${skill.name} [${skill.scope}] from ${source} at ${skill.source.revision.slice(0, 12)}.`,
+      );
+    }
     const dependencySetup = await prepareProjectDependencies({
       environment: repositoryEnvironment,
       identity,
@@ -172,13 +207,16 @@ async function main() {
         'Skipped development dependencies because package.json contains a local file dependency outside the cloned repository; using the prebuilt Playwright toolchain.',
       );
     }
-    agentContext = materializeAgentContext(
-      payload,
-      prepared.changeManifest,
-      '/workspace/inputs',
-      prepared.supportingRepositories,
-      prepared.repositoryRoot,
-    );
+    agentContext = {
+      ...materializeAgentContext(
+        payload,
+        prepared.changeManifest,
+        '/workspace/inputs',
+        prepared.supportingRepositories,
+        prepared.repositoryRoot,
+      ),
+      skillsInventoryPath: preparedSkills.inventoryPath,
+    };
     validatorConfig = mergeValidatorConfigs(payload);
     baselineRevision = prepared.headRevision;
     await runnerControl.log('Prepared and waiting for a start signal.');
@@ -296,7 +334,9 @@ async function main() {
         return result;
       },
       validate: ({ attempt, timeoutMs }) =>
-        validatePlaywrightTests(cwd, validatorConfig, {
+        validateTestSuite(cwd, validatorConfig, {
+          artifactGid: identity.gid,
+          artifactUid: identity.uid,
           attempt,
           authoritative: true,
           changeManifest: prepared.changeManifest,
@@ -312,6 +352,16 @@ async function main() {
               env: { ...validationEnvironment, ...environment },
               gid: identity.gid,
               maxOutputBytes: 1_000_000,
+              timeoutMs: commandTimeoutMs,
+              uid: identity.uid,
+            }),
+          runUnitCoverage: (workingDirectory, commandTimeoutMs, minimum) =>
+            runVitestCoverage(workingDirectory, {
+              environment: validationEnvironment,
+              gid: identity.gid,
+              maxOutputBytes: 1_000_000,
+              minimumBranchCoverage: minimum.branchCoverage,
+              minimumLineCoverage: minimum.lineCoverage,
               timeoutMs: commandTimeoutMs,
               uid: identity.uid,
             }),
@@ -482,6 +532,22 @@ async function main() {
       artifactError || repositoryError || deliveryError
         ? 'failed'
         : supervisor.status;
+    const stopReason = artifactError
+      ? 'artifact_failed'
+      : repositoryError
+        ? 'repository_inspection_failed'
+        : deliveryError
+          ? 'delivery_failed'
+          : supervisor.stopReason;
+    const failure =
+      effectiveStatus === 'passed'
+        ? undefined
+        : artifactError ||
+          repositoryError ||
+          deliveryError ||
+          supervisor.error ||
+          supervisor.validation?.feedback.summary ||
+          'AI Container validation failed.';
     const terminalFailureKind: TerminalFailureKind | undefined = artifactError
       ? 'artifact'
       : repositoryError
@@ -497,6 +563,7 @@ async function main() {
       supervisor,
       ...(terminalFailureKind ? { terminalFailureKind } : {}),
     });
+    const reportUrl = authenticatedPlaywrightReportUrl(artifacts);
     const result = boundInlineAgentResult(
       {
         ...(artifactError ? { artifactError } : {}),
@@ -515,11 +582,21 @@ async function main() {
             }
           : {}),
         ...(deliveryError ? { deliveryError } : {}),
+        ...(failure
+          ? {
+              failure: createInlineFailure(
+                stopReason,
+                failure,
+                prohibitedExactValues,
+              ),
+            }
+          : {}),
         ...(memory ? { memory } : {}),
         patch: inlinePatch,
         patchBytes,
         patchTruncated:
           Boolean(repositoryError) || patchBytes > INLINE_PATCH_BYTES,
+        ...(reportUrl ? { reportUrl } : {}),
         ...(repositoryError ? { repositoryError } : {}),
         repositories: [
           {
@@ -540,13 +617,8 @@ async function main() {
           ({ id, source, title, url }) => ({ id, source, title, url }),
         ),
         status: effectiveStatus,
-        stopReason: artifactError
-          ? 'artifact_failed'
-          : repositoryError
-            ? 'repository_inspection_failed'
-            : deliveryError
-              ? 'delivery_failed'
-              : supervisor.stopReason,
+        stopReason,
+        skills: agentSkillsInventory,
         validation: supervisor.validation,
       },
       supervisor.validation,
@@ -564,15 +636,19 @@ async function main() {
       );
       return;
     }
-    const failure =
-      effectiveStatus === 'passed'
-        ? undefined
-        : artifactError ||
-          repositoryError ||
-          deliveryError ||
-          supervisor.error ||
-          supervisor.validation?.feedback.summary ||
-          'AI Container validation failed.';
+    if (supervisor.validation) {
+      await publishValidatorAttachmentOutput(
+        runnerControl,
+        attachments,
+        createInlineValidatorResult(supervisor.validation, {
+          ...(artifactError ? { artifactError } : {}),
+          ...(artifacts ? { artifacts } : {}),
+          attempts: supervisor.attempts,
+          prohibitedExactValues,
+          stopReason: supervisor.stopReason,
+        }),
+      );
+    }
     if (failure) await runnerControl.log(failure, 'error');
     else await runnerControl.log('AI Container validation passed.');
     await publishTerminal(failure, result);

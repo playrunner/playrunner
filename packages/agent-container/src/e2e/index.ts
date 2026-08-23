@@ -18,6 +18,9 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
           page.getByTestId('agent-container-tab-config'),
         ).toBeVisible();
         await expect(
+          page.getByTestId('agent-container-tab-skills'),
+        ).toBeVisible();
+        await expect(
           page.getByTestId('agent-container-tab-requirements'),
         ).toHaveCount(0);
         await expect(page.getByTestId('agent-container-tab-env')).toBeVisible();
@@ -69,6 +72,50 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await page
           .getByTestId('agent-container-supporting-branch-0')
           .fill('library-main');
+
+        await page.getByTestId('agent-container-tab-skills').click();
+        await expect(
+          page.getByText(/No additional sources configured/),
+        ).toBeVisible();
+        const addSkillSource = page.getByTestId(
+          'agent-container-add-skill-source',
+        );
+        await expect(addSkillSource).toHaveCSS('white-space', 'nowrap');
+        await addSkillSource.click();
+        await expect(
+          page.getByTestId('agent-container-skill-source-id-0'),
+        ).toHaveValue('project-skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-path-0'),
+        ).toHaveValue('skills');
+        await page
+          .getByTestId('agent-container-skill-source-path-0')
+          .fill('../skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-error-0'),
+        ).toContainText('safe path relative to the repository root');
+        await page
+          .getByTestId('agent-container-skill-source-path-0')
+          .fill('automation/skills');
+        await addSkillSource.click();
+        await page
+          .getByTestId('agent-container-skill-source-type-1')
+          .selectOption('github');
+        await page
+          .getByTestId('agent-container-skill-source-id-1')
+          .fill('shared-skills');
+        await page
+          .getByTestId('agent-container-skill-source-repository-1')
+          .selectOption('playrunner-bot/e2e-fixture');
+        await page
+          .getByTestId('agent-container-skill-source-ref-1')
+          .fill('v1.0.0');
+        await page
+          .getByTestId('agent-container-skill-source-path-1')
+          .fill('skills/testing');
+        await expect(
+          page.getByTestId('agent-container-skill-source-error-1'),
+        ).toHaveCount(0);
         await host.closeNodeSettings();
         await host.saveWorkflow();
         await host.reloadWorkflow();
@@ -94,6 +141,23 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           page.getByTestId('agent-container-supporting-branch-0'),
         ).toHaveValue('library-main');
+        await page.getByTestId('agent-container-tab-skills').click();
+        await expect(
+          page.getByTestId('agent-container-skill-source-path-0'),
+        ).toHaveValue('automation/skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-id-1'),
+        ).toHaveValue('shared-skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-repository-1'),
+        ).toHaveValue('playrunner-bot/e2e-fixture');
+        await expect(
+          page.getByTestId('agent-container-skill-source-ref-1'),
+        ).toHaveValue('v1.0.0');
+        await expect(
+          page.getByTestId('agent-container-skill-source-path-1'),
+        ).toHaveValue('skills/testing');
+        await page.getByTestId('agent-container-tab-config').click();
         await expect(
           page.getByTestId('agent-container-max-duration-minutes'),
         ).toHaveValue('30');
@@ -148,8 +212,12 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           containerNode.getByText('Memory', { exact: true }),
         ).toBeVisible();
-        await expect(page.getByTestId('canvas-node-project-memory')).toBeVisible();
-        await expect(page.getByTestId('canvas-attachment-memory')).toHaveCount(1);
+        await expect(
+          page.getByTestId('canvas-node-project-memory'),
+        ).toBeVisible();
+        await expect(page.getByTestId('canvas-attachment-memory')).toHaveCount(
+          1,
+        );
         await expect(containerNode).toHaveCSS('height', '128px');
 
         const containerBox = await containerNode.boundingBox();
@@ -163,9 +231,7 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         expect(agentSocketBox).not.toBeNull();
         expect(validatorSocketBox).not.toBeNull();
         expect(
-          await page
-            .getByTestId('agent-container-memory-socket')
-            .boundingBox(),
+          await page.getByTestId('agent-container-memory-socket').boundingBox(),
         ).not.toBeNull();
         expect(
           Math.abs(

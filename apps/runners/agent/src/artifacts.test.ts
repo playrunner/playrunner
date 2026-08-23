@@ -280,6 +280,30 @@ test('uploads a gzip archive and returns stable artifact URLs', async () => {
     fs.mkdirSync(path.join(workspace, 'playwright-report'), {
       recursive: true,
     });
+    fs.mkdirSync(path.join(workspace, 'test-results', 'vitest-coverage'), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(workspace, 'playwright-report', 'index.html'),
+      '<html>report</html>',
+    );
+    fs.writeFileSync(
+      path.join(workspace, 'test-results', 'vitest-results.json'),
+      '{}',
+    );
+    fs.writeFileSync(
+      path.join(
+        workspace,
+        'test-results',
+        'vitest-coverage',
+        'coverage-final.json',
+      ),
+      '{}',
+    );
+    fs.writeFileSync(
+      path.join(workspace, 'test-results', 'vitest-coverage', 'lcov.info'),
+      'TN:\n',
+    );
     fs.writeFileSync(path.join(root, 'not-an-artifact'), 'unsafe');
     fs.symlinkSync(
       path.join(root, 'not-an-artifact'),
@@ -292,6 +316,18 @@ test('uploads a gzip archive and returns stable artifact URLs', async () => {
       supervisor: supervisor(),
       workspace,
     });
+    fs.mkdirSync(path.join(staged.directory, 'coverage'), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(staged.directory, 'coverage', 'coverage-final.json'),
+      '{}',
+    );
+    staged.relativeCoveragePath = 'coverage/coverage-final.json';
+    fs.writeFileSync(
+      path.join(staged.directory, 'validation', 'final.json'),
+      '{}',
+    );
     let request: { input: string; init?: RequestInit } | undefined;
     const refs = await uploadAgentArtifacts(
       staged,
@@ -304,7 +340,28 @@ test('uploads a gzip archive and returns stable artifact URLs', async () => {
       },
       async (input, init) => {
         request = { input: String(input), init };
-        return new Response(JSON.stringify({ output: {} }), { status: 200 });
+        const base = '/outputs/test-1/node-1/';
+        return new Response(
+          JSON.stringify({
+            output: {
+              artifacts: {
+                artifactManifest: `${base}artifact-manifest.json`,
+                artifactTruncation: `${base}artifact-truncation.json`,
+                browserCoverage: `${base}coverage/coverage-final.json`,
+                coverage: `${base}coverage/coverage-final.json`,
+                patch: `${base}workspace.patch`,
+                playwrightReport: `${base}playwright-report/index.html`,
+                repositoryStatus: `${base}repository-status.txt`,
+                validationHistory: `${base}validation/history.json`,
+                validationReport: `${base}validation/final.json`,
+                vitestCoverage: `${base}test-results/vitest-coverage/coverage-final.json`,
+                vitestLcov: `${base}test-results/vitest-coverage/lcov.info`,
+                vitestResults: `${base}test-results/vitest-results.json`,
+              },
+            },
+          }),
+          { status: 200 },
+        );
       },
     );
 
@@ -321,12 +378,88 @@ test('uploads a gzip archive and returns stable artifact URLs', async () => {
       refs.validationHistory,
       '/outputs/test-1/node-1/validation/history.json',
     );
+    assert.equal(
+      refs.artifactManifest,
+      '/outputs/test-1/node-1/artifact-manifest.json',
+    );
     assert.equal(refs.artifactsTruncated, true);
     assert.equal(
       refs.artifactTruncation,
       '/outputs/test-1/node-1/artifact-truncation.json',
     );
-    assert.equal(refs.playwrightReport, undefined);
+    assert.equal(
+      refs.playwrightReport,
+      '/outputs/test-1/node-1/playwright-report/index.html',
+    );
+    assert.equal(
+      refs.browserCoverage,
+      '/outputs/test-1/node-1/coverage/coverage-final.json',
+    );
+    assert.equal(refs.coverage, refs.browserCoverage);
+    assert.equal(
+      refs.vitestResults,
+      '/outputs/test-1/node-1/test-results/vitest-results.json',
+    );
+    assert.equal(
+      refs.vitestCoverage,
+      '/outputs/test-1/node-1/test-results/vitest-coverage/coverage-final.json',
+    );
+    assert.equal(
+      refs.vitestLcov,
+      '/outputs/test-1/node-1/test-results/vitest-coverage/lcov.info',
+    );
+  } finally {
+    fs.rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test('rejects an upload response with missing or untrusted artifact references', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-upload-'));
+  try {
+    const workspace = path.join(root, 'repo');
+    fs.mkdirSync(workspace, { recursive: true });
+    const staged = stageAgentArtifacts({
+      directory: path.join(root, 'artifacts'),
+      patch: '',
+      repositoryStatus: '',
+      supervisor: supervisor(),
+      workspace,
+    });
+    const runtime = {
+      cloudProvider: 'LOCAL_RUNNER',
+      editorApiUrl: 'https://editor.example',
+      executionAuthToken: 'secret-token',
+      nodeId: 'node-1',
+      testId: 'test-1',
+    };
+
+    await assert.rejects(
+      uploadAgentArtifacts(staged, runtime, async () => {
+        return new Response(
+          JSON.stringify({
+            output: {
+              artifacts: {
+                artifactManifest: 'https://attacker.example/manifest.json',
+                patch: '/outputs/test-1/node-1/workspace.patch',
+                repositoryStatus:
+                  '/outputs/test-1/node-1/repository-status.txt',
+                validationHistory:
+                  '/outputs/test-1/node-1/validation/history.json',
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }),
+      /invalid artifactManifest reference/,
+    );
+
+    await assert.rejects(
+      uploadAgentArtifacts(staged, runtime, async () => {
+        return new Response(JSON.stringify({ output: {} }), { status: 200 });
+      }),
+      /missing its artifact manifest/,
+    );
   } finally {
     fs.rmSync(root, { force: true, recursive: true });
   }

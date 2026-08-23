@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  authenticatedPlaywrightReportUrl,
   boundInlineAgentResult,
+  createInlineFailure,
   createInlineAttemptHistory,
+  createInlineValidatorResult,
   MAX_INLINE_RESULT_BYTES,
   truncateInlinePatch,
 } from './result';
@@ -162,26 +165,146 @@ test('leaves a normal validation contract intact when compaction is unnecessary'
 });
 
 test('preserves the failed-result contract without a validation report', () => {
+  const failure = createInlineFailure(
+    'agent_failed',
+    'Codex sandbox failed to initialize.',
+  );
   const result = boundInlineAgentResult(
     {
       attemptHistory: [],
       attempts: 0,
+      failure,
       patch: '',
       patchBytes: 0,
       patchTruncated: false,
       repositoryStatus: '',
-      runnerError: 'Agent failed to start.',
+      runnerError: 'Codex sandbox failed to initialize.',
       status: 'failed',
-      stopReason: 'runner_failed',
+      stopReason: 'agent_failed',
       validation: null,
     },
     null,
   );
 
   assert.equal(result.status, 'failed');
-  assert.equal(result.stopReason, 'runner_failed');
+  assert.equal(result.stopReason, 'agent_failed');
   assert.equal(result.validation, null);
-  assert.equal(result.runnerError, 'Agent failed to start.');
+  assert.equal(result.runnerError, 'Codex sandbox failed to initialize.');
+  assert.deepEqual(result.failure, failure);
+});
+
+test('creates a bounded first-class failure and redacts credentials', () => {
+  const credential = 'model-secret-value';
+  const failure = createInlineFailure(
+    'agent_failed',
+    `Codex could not start with ${credential}`,
+    [credential],
+  );
+
+  assert.equal(failure.kind, 'agent_failed');
+  assert.match(failure.message, /blocked output/);
+  assert.doesNotMatch(failure.message, new RegExp(credential));
+});
+
+test('creates a validator child result with final validation and published artifacts', () => {
+  const finalValidation = validation();
+  finalValidation.passed = false;
+  finalValidation.status = 'failed';
+  finalValidation.feedback.summary = 'Browser validation failed.';
+  const artifacts = {
+    artifactManifest: '/outputs/run/container/artifact-manifest.json',
+    coverage: '/outputs/run/container/coverage/coverage-final.json',
+    patch: '/outputs/run/container/workspace.patch',
+    playwrightReport: '/outputs/run/container/playwright-report/index.html',
+    repositoryStatus: '/outputs/run/container/repository-status.txt',
+    traces: [],
+    validationHistory: '/outputs/run/container/validation/history.json',
+    validationReport: '/outputs/run/container/validation/final.json',
+  };
+
+  const output = createInlineValidatorResult(finalValidation, {
+    artifacts,
+    attempts: 3,
+    stopReason: 'max_attempts',
+  });
+
+  assert.equal(output.status, 'failed');
+  assert.equal(output.attempts, 3);
+  assert.equal(output.stopReason, 'max_attempts');
+  assert.equal(
+    (output.failure as Record<string, unknown>).message,
+    'Browser validation failed.',
+  );
+  assert.equal(output.validation, finalValidation);
+  assert.deepEqual(output.artifacts, artifacts);
+  assert.equal(
+    output.reportUrl,
+    '/outputs/run/container/playwright-report/index.html',
+  );
+  assert.equal(
+    (output.artifacts as Record<string, unknown>).playwrightReport,
+    '/outputs/run/container/playwright-report/index.html',
+  );
+});
+
+test('only aliases protected same-origin Playwright report artifacts', () => {
+  assert.equal(
+    authenticatedPlaywrightReportUrl({
+      artifactManifest: '/outputs/run/container/artifact-manifest.json',
+      playwrightReport:
+        '/outputs/run_1/container.2/playwright-report/index.html',
+      traces: [],
+      validationHistory: '/outputs/run/container/validation/history.json',
+    }),
+    '/outputs/run_1/container.2/playwright-report/index.html',
+  );
+
+  for (const playwrightReport of [
+    'https://example.com/report.html',
+    '//example.com/report.html',
+    '/outputs/run/container/../playwright-report/index.html',
+    '/outputs/run/container/playwright-report/index.html?token=secret',
+    '/outputs/run/container/playwright-report/index.html#fragment',
+    '/outputs/run/container/playwright-report/index.htm',
+  ]) {
+    assert.equal(
+      authenticatedPlaywrightReportUrl({
+        artifactManifest: '/outputs/run/container/artifact-manifest.json',
+        playwrightReport,
+        traces: [],
+        validationHistory: '/outputs/run/container/validation/history.json',
+      }),
+      undefined,
+      playwrightReport,
+    );
+  }
+});
+
+test('compacts oversized validator child results within the event budget', () => {
+  const finalValidation = validation();
+  finalValidation.feedbackText = 'x'.repeat(MAX_INLINE_RESULT_BYTES + 1);
+
+  const output = createInlineValidatorResult(finalValidation);
+
+  assert.equal(output.validationTruncated, true);
+  assert.ok(
+    Buffer.byteLength(JSON.stringify(output), 'utf8') <=
+      MAX_INLINE_RESULT_BYTES,
+  );
+});
+
+test('fails closed before publishing validator output containing a credential', () => {
+  const credential = 'github-secret-value';
+  const finalValidation = validation();
+  finalValidation.feedback.summary = `Failure included ${credential}`;
+
+  assert.throws(
+    () =>
+      createInlineValidatorResult(finalValidation, {
+        prohibitedExactValues: [credential],
+      }),
+    /blocked output/,
+  );
 });
 
 test('truncates an inline patch on a UTF-8 byte boundary', () => {

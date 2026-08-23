@@ -7,7 +7,28 @@ const definition = {
   workflow: {
     key: 'demo-tests',
     title: 'Demo tests',
-    nodes: [],
+    nodes: [
+      {
+        config: {
+          skillSources: [
+            {
+              id: 'project-skills',
+              path: '.agents/skills',
+              type: 'project',
+            },
+            {
+              id: 'shared-skills',
+              path: 'skills/testing',
+              ref: 'main',
+              repository: 'playrunner/agent-skills',
+              type: 'github',
+            },
+          ],
+        },
+        id: 'agent-container',
+        nodeType: 'agent-container',
+      },
+    ],
     connections: [],
   },
 };
@@ -47,6 +68,14 @@ test('creates a workflow from a declarative file', async () => {
   );
   assert.equal(calls[0].init?.method, 'PUT');
   assert.deepEqual(JSON.parse(String(calls[0].init?.body)), definition);
+  assert.deepEqual(
+    (
+      JSON.parse(String(calls[0].init?.body)).workflow.nodes[0].config as {
+        skillSources: unknown;
+      }
+    ).skillSources,
+    definition.workflow.nodes[0].config.skillSources,
+  );
   assert.match(
     stdout.join('\n'),
     /https:\/\/playrunner\.test\/workflow\/workflow-1/,

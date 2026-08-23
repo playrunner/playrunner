@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import type { ProcessResult } from './process';
 import {
+  analyzeExplicitUnitTests,
   DEFAULT_FAIL_ON,
   VALIDATOR_LIMITS,
   validatePlaywrightTests,
@@ -59,6 +60,88 @@ function meaningfulTest(title = 'renders the dashboard'): string {
     '',
   ].join('\n');
 }
+
+test('explicit unit analysis rejects non-meaningful and disabled Vitest tests', () => {
+  const directory = createProject();
+  try {
+    writeProjectFile(
+      directory,
+      'src/quality.unit.test.ts',
+      [
+        "import { expect, test } from 'vitest';",
+        "import { value } from './value';",
+        '',
+        "test('meaningful behavior', () => expect(value).toBe(42));",
+        "test('literal tautology', () => expect(true).toBe(true));",
+        "test.only('focused behavior', () => expect(value).toBe(42));",
+        "test.skip('skipped behavior', () => expect(value).toBe(42));",
+        "test.todo('unfinished behavior');",
+        "test.fails('expected failure', () => expect(value).toBe(99));",
+        "test('missing assertion', () => { void value; });",
+        '',
+      ].join('\n'),
+    );
+    writeProjectFile(
+      directory,
+      'src/ignored.test.ts',
+      "test.only('not part of the explicit unit layer', () => {});\n",
+    );
+
+    const analysis = analyzeExplicitUnitTests(directory);
+
+    assert.equal(analysis.fileCount, 1);
+    assert.equal(analysis.testCount, 7);
+    assert.equal(analysis.testsWithMeaningfulAssertions, 2);
+    assert.equal(analysis.focused, 1);
+    assert.equal(analysis.skipped, 2);
+    assert.match(analysis.fingerprint, /^[a-f0-9]{64}$/);
+    const codes = analysis.violations.map(({ code }) => code);
+    assert.ok(codes.includes('trivial_assertion'));
+    assert.ok(codes.includes('focused_test'));
+    assert.equal(codes.filter((code) => code === 'skipped_test').length, 2);
+    assert.ok(codes.includes('expected_failure_test'));
+    assert.ok(codes.includes('zero_assertion_test'));
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('explicit unit analysis fingerprints source changes and rejects symlinked tests', () => {
+  const directory = createProject();
+  const external = createProject();
+  try {
+    const unitFile = writeProjectFile(
+      directory,
+      'lib/example.unit.spec.ts',
+      [
+        "import { expect, it } from 'vitest';",
+        "it('checks production output', () => expect(getValue()).toBe(1));",
+        '',
+      ].join('\n'),
+    );
+    const before = analyzeExplicitUnitTests(directory);
+    fs.appendFileSync(unitFile, '// source changed\n');
+    const after = analyzeExplicitUnitTests(directory);
+    assert.notEqual(after.fingerprint, before.fingerprint);
+
+    const outsideFile = writeProjectFile(
+      external,
+      'outside.unit.test.ts',
+      "test('outside', () => expect(readValue()).toBe(1));\n",
+    );
+    fs.symlinkSync(outsideFile, path.join(directory, 'outside.unit.test.ts'));
+    const unsafe = analyzeExplicitUnitTests(directory);
+    assert.ok(
+      unsafe.violations.some(
+        ({ code, message }) =>
+          code === 'analysis_incomplete' && /regular file/.test(message),
+      ),
+    );
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+    fs.rmSync(external, { force: true, recursive: true });
+  }
+});
 
 function writePlaywrightJsonReport(
   directory: string,
@@ -394,15 +477,24 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
 test('authoritative reporter config preserves repository reporters and removes overrides', async () => {
   const directory = createProject();
   const wrapperPath = path.join(directory, '.playrunner-validator.config.ts');
+  const fixedReportPath = path.join(
+    directory,
+    'test-results/.playrunner-validation-results.json',
+  );
   try {
     writeProjectFile(directory, 'tests/reporters.spec.ts', meaningfulTest());
+    writeProjectFile(
+      directory,
+      'test-results/.playrunner-validation-results.json',
+      'stale',
+    );
     writeProjectFile(
       directory,
       'playwright.config.ts',
       [
         "import { defineConfig } from '@playwright/test';",
         'export default defineConfig({',
-        "  reporter: [['@bgotink/playwright-coverage', { resultDir: 'coverage' }], ['html']],",
+        "  reporter: [['@bgotink/playwright-coverage', { resultDir: 'coverage' }], ['html'], ['line'], ['json', { outputFile: 'untrusted.json' }]],",
         "  testDir: './tests',",
         '});',
         '',
@@ -425,11 +517,9 @@ test('authoritative reporter config preserves repository reporters and removes o
           );
           assert.equal(
             environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
-            path.join(
-              directory,
-              'test-results/.playrunner-validation-results.json',
-            ),
+            fixedReportPath,
           );
+          assert.equal(fs.existsSync(fixedReportPath), false);
           const wrapper = fs.readFileSync(wrapperPath, 'utf8');
           assert.match(
             wrapper,
@@ -439,6 +529,8 @@ test('authoritative reporter config preserves repository reporters and removes o
             wrapper,
             /const configuredReporter = baseConfig\.reporter/,
           );
+          assert.match(wrapper, /entry\?\.\[0\] !== 'line'/);
+          assert.match(wrapper, /entry\?\.\[0\] !== 'json'/);
           assert.match(wrapper, /reporters\.push\(\['line'\]\)/);
           assert.match(wrapper, /reporters\.push\(\['json'\]\)/);
           assert.equal(fs.lstatSync(wrapperPath).mode & 0o222, 0);
@@ -456,6 +548,51 @@ test('authoritative reporter config preserves repository reporters and removes o
     assert.equal(fs.existsSync(wrapperPath), false);
   } finally {
     fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('a symbolic link at the fixed JSON result path fails closed before execution', async () => {
+  const directory = createProject();
+  const externalDirectory = createProject();
+  try {
+    writeProjectFile(directory, 'tests/report-link.spec.ts', meaningfulTest());
+    const externalReport = writeProjectFile(
+      externalDirectory,
+      'report.json',
+      'do not remove',
+    );
+    fs.mkdirSync(path.join(directory, 'test-results'));
+    fs.symlinkSync(
+      externalReport,
+      path.join(directory, 'test-results/.playrunner-validation-results.json'),
+    );
+    let invoked = false;
+
+    const result = await validatePlaywrightTests(
+      directory,
+      {
+        failOn: [],
+        minimum: ZERO_MINIMUMS,
+        validationCommand: 'playwright test --retries=0',
+      },
+      {
+        runCommand: async () => {
+          invoked = true;
+          return successfulProcess();
+        },
+      },
+    );
+
+    assert.equal(invoked, false);
+    assert.equal(result.passed, false);
+    assert.match(
+      findViolation(result, 'invalid_validator_configuration').message,
+      /symbolic link/,
+    );
+    assert.equal(fs.readFileSync(externalReport, 'utf8'), 'do not remove');
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+    fs.rmSync(externalDirectory, { force: true, recursive: true });
   }
 });
 

@@ -260,8 +260,26 @@ describe('local AI Container execution', { concurrency: false }, () => {
       repository: 'playrunner/example',
       schemaVersion: '1.0',
     };
+    const skillSources = [
+      {
+        id: 'project-skills',
+        path: '.agents/skills',
+        type: 'project',
+      },
+      {
+        id: 'shared-skills',
+        path: 'skills/testing',
+        ref: 'main',
+        repository: 'playrunner/agent-skills',
+        type: 'github',
+      },
+    ];
     const invocation = createLocalAgentDockerInvocation(
-      agentRequest({ changeContext, memory }),
+      agentRequest({
+        changeContext,
+        config: { cpu: 2, memory: 4, skillSources },
+        memory,
+      }),
       {
         controlSubscriptionName: 'agent-control',
         projectId: 'test-project',
@@ -320,6 +338,7 @@ describe('local AI Container execution', { concurrency: false }, () => {
     });
     assert.deepEqual(payload.changeContext, changeContext);
     assert.deepEqual(payload.memory, memory);
+    assert.deepEqual(payload.config.skillSources, skillSources);
     assert.equal(payload.github.accessToken, 'github-secret');
     assert.equal(payload.runtime.executionAuthToken, 'execution-secret');
     assert.equal(payload.runtime.workflowId, 'workflow-1');
@@ -730,6 +749,20 @@ describe('local AI Container execution', { concurrency: false }, () => {
     };
     request.inputs = { ticket: '46' };
     request.acceptanceCriteria = ['Ticket #46 is the acceptance criteria'];
+    request.nodes[1].config.skillSources = [
+      {
+        id: 'project-skills',
+        path: '.agents/skills',
+        type: 'project',
+      },
+      {
+        id: 'shared-skills',
+        path: 'skills/testing',
+        ref: 'main',
+        repository: 'playrunner/agent-skills',
+        type: 'github',
+      },
+    ];
 
     await executeWorkflow(request);
 
@@ -741,6 +774,20 @@ describe('local AI Container execution', { concurrency: false }, () => {
     assert.deepEqual(capturedRequest.config.metadata, {
       requirement: 'declined checkout',
     });
+    assert.deepEqual(capturedRequest.config.skillSources, [
+      {
+        id: 'project-skills',
+        path: '.agents/skills',
+        type: 'project',
+      },
+      {
+        id: 'shared-skills',
+        path: 'skills/testing',
+        ref: 'main',
+        repository: 'playrunner/agent-skills',
+        type: 'github',
+      },
+    ]);
     assert.equal(
       capturedRequest.agent.config.instructions,
       'Prioritize declined checkout. Ignore .',

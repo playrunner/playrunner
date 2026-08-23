@@ -9,14 +9,15 @@ import {
   publishAttachmentOutcome,
   publishAttachmentPending,
   publishSupervisorProgress,
+  publishValidatorAttachmentOutput,
 } from './attachment-events';
 import type { SupervisorResult } from './supervisor';
 
 function recorder() {
   const events: Array<{
     identity?: RunnerEventIdentity;
-    kind: 'log' | 'state';
-    value: string;
+    kind: 'event' | 'log' | 'state';
+    value: unknown;
   }> = [];
   const control: RunnerControlClient = {
     log: async (message, _level, identity) => {
@@ -25,7 +26,9 @@ function recorder() {
     publishNodeState: async (state, identity) => {
       events.push({ identity, kind: 'state', value: state });
     },
-    publishEvent: async () => {},
+    publishEvent: async (event, identity) => {
+      events.push({ identity, kind: 'event', value: event });
+    },
     publishStatus: async () => {},
     waitForStartPayload: async () => ({ action: 'start', payload: {} }),
     waitForStartSignal: async () => 'start',
@@ -119,7 +122,46 @@ test('maps supervisor stages and failures onto Agent and Validator children', as
       (event) =>
         event.kind === 'log' &&
         event.identity?.nodeId === 'validator-child' &&
-        /validation/.test(event.value),
+        /validation/.test(String(event.value)),
     ),
   );
+});
+
+test('publishes final validation output for every attached validator', async () => {
+  const { control, events } = recorder();
+  const attachments = createAgentAttachmentEvents({
+    agentNodeId: 'agent-child',
+    containerNodeId: 'container-parent',
+    validatorNodeIds: ['validator-a', 'validator-b'],
+  });
+  const output = {
+    artifacts: {
+      validationReport: '/outputs/run/container/validation/final.json',
+    },
+    attempts: 3,
+    status: 'failed',
+    stopReason: 'max_attempts',
+    validation: { passed: false, status: 'failed' },
+  };
+
+  await publishValidatorAttachmentOutput(control, attachments, output);
+
+  assert.deepEqual(events, [
+    {
+      identity: {
+        nodeId: 'validator-a',
+        parentNodeId: 'container-parent',
+      },
+      kind: 'event',
+      value: { output, type: 'node_output' },
+    },
+    {
+      identity: {
+        nodeId: 'validator-b',
+        parentNodeId: 'container-parent',
+      },
+      kind: 'event',
+      value: { output, type: 'node_output' },
+    },
+  ]);
 });

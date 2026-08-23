@@ -18,6 +18,7 @@ import {
   extractOutputArchiveAtomically,
   OutputArchiveValidationError,
 } from './output-archive';
+import { writeOutputArtifactManifest } from './output-artifacts';
 
 export const outputsRouter = Router();
 
@@ -147,6 +148,24 @@ outputsRouter.post(
     }
 
     const outputData: any = {};
+    try {
+      const artifactManifest = writeOutputArtifactManifest({
+        nodeId,
+        outputsDir,
+        testId,
+      });
+      outputData.artifactManifestUrl =
+        artifactManifest.artifacts.artifactManifest;
+      outputData.artifacts = artifactManifest.artifacts;
+    } catch (err) {
+      console.error(
+        `Failed to index output artifacts for ${testId}/${nodeId}:`,
+        err,
+      );
+      return res
+        .status(500)
+        .json({ error: 'Failed to index output artifacts.' });
+    }
     if (
       fs.existsSync(path.join(outputsDir, 'playwright-report', 'index.html'))
     ) {

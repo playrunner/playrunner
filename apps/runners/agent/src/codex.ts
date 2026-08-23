@@ -31,6 +31,27 @@ function record(value: unknown): JsonRecord {
     : {};
 }
 
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+function turnFailureDetail(event: JsonRecord): string | undefined {
+  const error = record(event.error);
+  const errorInfo = record(error.codex_error_info ?? error.codexErrorInfo);
+  const detail =
+    nonEmptyString(error.message) ??
+    nonEmptyString(error.detail) ??
+    nonEmptyString(errorInfo.message) ??
+    nonEmptyString(event.message);
+  if (detail) return detail.slice(0, 4_000);
+
+  const code =
+    nonEmptyString(error.code) ??
+    nonEmptyString(errorInfo.code) ??
+    nonEmptyString(event.code);
+  return code ? `Codex error code: ${code.slice(0, 200)}` : undefined;
+}
+
 export function codexThreadIdFromEvent(value: unknown): string | undefined {
   const event = record(value);
   for (const candidate of [event.thread_id, event.threadId]) {
@@ -52,6 +73,7 @@ export function codexThreadIdFromEvent(value: unknown): string | undefined {
 export function createCodexEventParser() {
   let buffer = '';
   let completionSummary: string | undefined;
+  let diagnostic: string | undefined;
   let failure: string | undefined;
   let threadId: string | undefined;
   const parseLine = (line: string) => {
@@ -65,8 +87,17 @@ export function createCodexEventParser() {
           break;
         }
       }
+      if (event.type === 'error') {
+        diagnostic =
+          nonEmptyString(event.message)?.slice(0, 4_000) ?? diagnostic;
+      }
       if (event.type === 'turn.failed') {
-        failure ||= 'Codex reported that the agent turn failed.';
+        const detail = turnFailureDetail(event) ?? diagnostic;
+        failure ||=
+          detail &&
+          !/^Codex reported that the agent turn failed\.?$/i.test(detail)
+            ? `Codex turn failed: ${detail}`
+            : 'Codex reported that the agent turn failed.';
       }
       threadId ||= codexThreadIdFromEvent(event);
       const item = record(event.item);
@@ -227,7 +258,15 @@ export async function runCodex(options: {
   const parsedSessionId = parser.finish();
   const parserFailure = parser.failure();
   if (parserFailure) {
-    throw new Error(parserFailure);
+    const safeFailure = credentialSafeErrorMessage(
+      parserFailure,
+      prohibitedExactValues,
+    );
+    throw new Error(
+      safeFailure === CREDENTIAL_LEAK_MESSAGE
+        ? safeFailure
+        : safeFailure.slice(-4_000).trim(),
+    );
   }
   if (result.code !== 0 || result.timedOut) {
     const rawDetail = result.stderr || result.stdout;

@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import ts from 'typescript';
 import { runProcess, type ProcessResult } from './process';
@@ -190,7 +191,10 @@ export type ValidationResult = {
     timedOut: boolean;
   };
   unitTestRun?: {
+    analyzedFiles: number;
+    analyzedTests: number;
     args: string[];
+    branchCoverage: number | null;
     command: 'vitest';
     coverageReport: string | null;
     durationMs: number;
@@ -198,10 +202,13 @@ export type ValidationResult = {
     failure: string | null;
     failureMessage: string | null;
     lcovReport: string | null;
+    lineCoverage: number | null;
     passed: boolean;
     stderrTail: string;
     stdoutTail: string;
+    sourceStable: boolean;
     testCount: number | null;
+    testsWithMeaningfulAssertions: number;
     testResults: string | null;
     timedOut: boolean;
   };
@@ -232,6 +239,8 @@ export type ValidatorConfig = {
 };
 
 export type ValidatorOptions = {
+  artifactGid?: number;
+  artifactUid?: number;
   attempt?: number;
   authoritative?: boolean;
   changeManifest?: ChangeManifest;
@@ -314,6 +323,21 @@ type TestFileCollection = {
   violations: ValidationViolation[];
 };
 
+export type ExplicitUnitTestAnalysis = {
+  fileCount: number;
+  fingerprint: string;
+  focused: number;
+  skipped: number;
+  testCount: number;
+  testsWithMeaningfulAssertions: number;
+  violations: ValidationViolation[];
+};
+
+type TestSource = {
+  file: string;
+  source: string;
+};
+
 const IGNORED_DIRECTORIES = new Set([
   '.git',
   '.next',
@@ -337,6 +361,7 @@ const MAX_TOTAL_TEST_BYTES = 50 * 1024 * 1024;
 const MAX_TEST_DISCOVERY_DEPTH = 64;
 const MAX_TEST_DISCOVERY_ENTRIES = 50_000;
 const MAX_TEST_DISCOVERY_DURATION_MS = 10_000;
+const EXPLICIT_UNIT_TEST_FILE = /\.unit\.(?:spec|test)\.[cm]?[jt]sx?$/;
 const TEST_DIRECTORY_NAMES = new Set([
   'e2e',
   'integration',
@@ -1035,7 +1060,11 @@ function createAuthoritativeReporterConfig(
   };
 }
 
-function preparePlaywrightJsonReport(reportPath: string, cwd: string): void {
+function preparePlaywrightJsonReport(
+  reportPath: string,
+  cwd: string,
+  owner: { gid?: number; uid?: number } = {},
+): void {
   const reportDirectory = path.dirname(reportPath);
   if (fs.existsSync(reportDirectory)) {
     const directoryStat = fs.lstatSync(reportDirectory);
@@ -1055,6 +1084,10 @@ function preparePlaywrightJsonReport(reportPath: string, cwd: string): void {
         'The fixed Playwright result directory could not be created safely inside the validation workspace.',
       );
     }
+  }
+  if (owner.uid !== undefined || owner.gid !== undefined) {
+    const stat = fs.statSync(reportDirectory);
+    fs.chownSync(reportDirectory, owner.uid ?? stat.uid, owner.gid ?? stat.gid);
   }
   if (!fs.existsSync(reportPath)) return;
   const reportStat = fs.lstatSync(reportPath);
@@ -1408,6 +1441,212 @@ function collectTestFiles(directory: string): TestFileCollection {
   return { files: files.sort(), violations };
 }
 
+function collectExplicitUnitTestSources(directory: string): {
+  sources: TestSource[];
+  violations: ValidationViolation[];
+} {
+  const root = fs.realpathSync(directory);
+  const sources: TestSource[] = [];
+  const violations: ValidationViolation[] = [];
+  let candidateFiles = 0;
+  let discoveredEntries = 0;
+  let stopped = false;
+  let totalBytes = 0;
+  const discoveryDeadline = Date.now() + MAX_TEST_DISCOVERY_DURATION_MS;
+
+  const incomplete = (message: string, remediation: string, file?: string) => {
+    violations.push({
+      code: 'analysis_incomplete',
+      ...(file ? { file: path.relative(root, file) } : {}),
+      message,
+      priority: 'critical',
+      remediation,
+      severity: 'error',
+    });
+  };
+
+  const readSource = (file: string): string | null => {
+    let descriptor: number | undefined;
+    try {
+      const before = fs.lstatSync(file);
+      if (
+        !before.isFile() ||
+        before.isSymbolicLink() ||
+        !resolvesInsideWorkspace(root, file)
+      ) {
+        throw new Error('not a regular in-workspace file');
+      }
+      if (before.size > MAX_TEST_FILE_BYTES) {
+        incomplete(
+          `Unit test file exceeds the ${MAX_TEST_FILE_BYTES}-byte per-file analysis limit.`,
+          'Split this unit test into smaller focused specifications so the validator can inspect it completely.',
+          file,
+        );
+        return null;
+      }
+      if (totalBytes + before.size > MAX_TOTAL_TEST_BYTES) {
+        incomplete(
+          `Unit test sources exceed the ${MAX_TOTAL_TEST_BYTES}-byte aggregate analysis limit.`,
+          'Reduce or partition the unit suite so all explicit unit tests can be inspected in one validation run.',
+          file,
+        );
+        return null;
+      }
+      descriptor = fs.openSync(
+        file,
+        fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0),
+      );
+      const opened = fs.fstatSync(descriptor);
+      if (
+        !opened.isFile() ||
+        opened.dev !== before.dev ||
+        opened.ino !== before.ino ||
+        opened.size !== before.size
+      ) {
+        throw new Error('file changed during inspection');
+      }
+      const source = fs.readFileSync(descriptor, 'utf8');
+      const after = fs.fstatSync(descriptor);
+      if (
+        after.dev !== opened.dev ||
+        after.ino !== opened.ino ||
+        after.size !== opened.size
+      ) {
+        throw new Error('file changed during inspection');
+      }
+      totalBytes += before.size;
+      return source;
+    } catch {
+      incomplete(
+        'An explicit unit test could not be read safely for static analysis.',
+        'Keep every *.unit.test.* and *.unit.spec.* file as a stable regular file inside the repository, then rerun validation.',
+        file,
+      );
+      return null;
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+    }
+  };
+
+  const visit = (currentDirectory: string, depth: number) => {
+    if (stopped) return;
+    if (depth > MAX_TEST_DISCOVERY_DEPTH) {
+      incomplete(
+        `Unit test discovery exceeded the ${MAX_TEST_DISCOVERY_DEPTH}-directory depth limit.`,
+        'Flatten or exclude deeply nested generated directories so the complete explicit unit suite can be inspected.',
+        currentDirectory,
+      );
+      stopped = true;
+      return;
+    }
+
+    let directoryHandle: fs.Dir | undefined;
+    const entries: fs.Dirent[] = [];
+    try {
+      directoryHandle = fs.opendirSync(currentDirectory);
+      for (;;) {
+        if (Date.now() > discoveryDeadline) {
+          incomplete(
+            `Unit test discovery exceeded the ${MAX_TEST_DISCOVERY_DURATION_MS}-millisecond duration limit.`,
+            'Reduce generated repository content so explicit unit-test discovery completes promptly.',
+            currentDirectory,
+          );
+          stopped = true;
+          break;
+        }
+        const entry = directoryHandle.readSync();
+        if (!entry) break;
+        discoveredEntries += 1;
+        if (discoveredEntries > MAX_TEST_DISCOVERY_ENTRIES) {
+          incomplete(
+            `Unit test discovery exceeded the ${MAX_TEST_DISCOVERY_ENTRIES}-entry traversal limit.`,
+            'Exclude generated content or partition the repository so unit-test discovery remains bounded.',
+            currentDirectory,
+          );
+          stopped = true;
+          break;
+        }
+        entries.push(entry);
+      }
+    } catch {
+      incomplete(
+        'A directory in the unit-test validation workspace could not be inspected.',
+        'Make the repository tree readable and rerun authoritative validation.',
+        currentDirectory,
+      );
+      stopped = true;
+      return;
+    } finally {
+      try {
+        directoryHandle?.closeSync();
+      } catch {
+        // Discovery is already fail-closed for unreadable entries.
+      }
+    }
+
+    for (const entry of entries.sort((left, right) =>
+      left.name.localeCompare(right.name),
+    )) {
+      if (stopped) break;
+      if (IGNORED_DIRECTORIES.has(entry.name)) continue;
+      const fullPath = path.join(currentDirectory, entry.name);
+      if (entry.isDirectory()) {
+        try {
+          const stat = fs.lstatSync(fullPath);
+          if (
+            !stat.isDirectory() ||
+            stat.isSymbolicLink() ||
+            !resolvesInsideWorkspace(root, fullPath)
+          ) {
+            continue;
+          }
+        } catch {
+          incomplete(
+            'A directory changed or became unreadable during unit-test discovery.',
+            'Keep the repository tree stable while validation is running.',
+            fullPath,
+          );
+          stopped = true;
+          break;
+        }
+        visit(fullPath, depth + 1);
+        continue;
+      }
+      if (!EXPLICIT_UNIT_TEST_FILE.test(entry.name)) continue;
+      if (!entry.isFile()) {
+        incomplete(
+          'An explicit unit-test path is not a regular file.',
+          'Replace symbolic links and special files with regular in-repository unit-test source files.',
+          fullPath,
+        );
+        stopped = true;
+        break;
+      }
+      candidateFiles += 1;
+      if (candidateFiles > MAX_TEST_FILES) {
+        incomplete(
+          `Unit test discovery exceeded the ${MAX_TEST_FILES}-file analysis limit.`,
+          'Reduce or partition the explicit unit suite so every file can be inspected in one validation run.',
+        );
+        stopped = true;
+        break;
+      }
+      const source = readSource(fullPath);
+      if (source === null) {
+        stopped = true;
+        break;
+      }
+      sources.push({ file: fullPath, source });
+    }
+  };
+
+  visit(root, 0);
+  return {
+    sources: sources.sort((left, right) => left.file.localeCompare(right.file)),
+    violations,
+  };
+}
+
 function expressionPath(expression: ts.Expression): string[] {
   if (ts.isIdentifier(expression)) return [expression.text];
   if (ts.isPropertyAccessExpression(expression)) {
@@ -1497,28 +1736,20 @@ function expectMatcher(
   return { expectCall: receiver, matcher };
 }
 
-function isTrivialExpect(
-  expectCall: ts.CallExpression,
-  matcherCall: ts.CallExpression,
-  matcher: string,
+function isTrivialExpect(expectCall: ts.CallExpression): boolean {
+  return Boolean(
+    expectCall.arguments.length && isLiteralExpression(expectCall.arguments[0]),
+  );
+}
+
+function isTrivialAssert(
+  assertionPath: string[],
+  assertionCall: ts.CallExpression,
 ): boolean {
-  if (
-    !expectCall.arguments.length ||
-    !isLiteralExpression(expectCall.arguments[0])
-  ) {
-    return false;
-  }
-  const matcherArguments = matcherCall.arguments;
-  if (
-    ['toBeTruthy', 'toBeFalsy', 'toBeDefined', 'toBeNull'].includes(matcher)
-  ) {
-    return true;
-  }
-  if (!['toBe', 'toEqual', 'toStrictEqual'].includes(matcher)) return false;
   return (
-    matcherArguments.length === 1 &&
-    isLiteralExpression(matcherArguments[0]) &&
-    expectCall.arguments[0].getText() === matcherArguments[0].getText()
+    assertionPath[0] === 'assert' &&
+    assertionCall.arguments.length > 0 &&
+    isLiteralExpression(assertionCall.arguments[0])
   );
 }
 
@@ -1587,7 +1818,9 @@ function testTitle(call: ts.CallExpression, fallback: string): string {
 function isExpectedFailureCall(call: ts.CallExpression): boolean {
   const callPath = expressionPath(call.expression);
   return (
-    callPath.length === 2 && callPath[0] === 'test' && callPath[1] === 'fail'
+    callPath.length === 2 &&
+    (callPath[0] === 'test' || callPath[0] === 'it') &&
+    (callPath[1] === 'fail' || callPath[1] === 'fails')
   );
 }
 
@@ -1787,8 +2020,11 @@ function coverageSynthesisViolations(
   return violations;
 }
 
-function analyzeTestFile(file: string, cwd: string): TestAnalysis {
-  const source = fs.readFileSync(file, 'utf8');
+function analyzeTestFile(
+  file: string,
+  cwd: string,
+  source = fs.readFileSync(file, 'utf8'),
+): TestAnalysis {
   const sourceFile = ts.createSourceFile(
     file,
     source,
@@ -1817,15 +2053,21 @@ function analyzeTestFile(file: string, cwd: string): TestAnalysis {
     const callPath = expressionPath(node.expression);
     const root = callPath[0];
     const member = callPath[callPath.length - 1];
+    const callback = node.arguments.find(
+      (argument): argument is ts.ArrowFunction | ts.FunctionExpression =>
+        ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
+    );
+    const isExpectedFailureDeclaration =
+      isExpectedFailureCall(node) && Boolean(callback);
 
     if (isExpectedFailureCall(node)) {
       addViolation(node, {
         code: 'expected_failure_test',
         message:
-          'Uses test.fail(), allowing an expected application failure to satisfy the test command.',
+          'Uses an expected-failure test API, allowing broken behavior to satisfy the test command.',
         priority: 'critical',
         remediation:
-          'Remove test.fail() and make the asserted behavior pass normally before validation.',
+          'Remove test.fail()/test.fails() and make the asserted behavior pass normally before validation.',
         severity: 'error',
       });
     }
@@ -1908,14 +2150,16 @@ function analyzeTestFile(file: string, cwd: string): TestAnalysis {
       (root === 'test' || root === 'it') &&
       (callPath.length === 1 ||
         (callPath.length === 2 &&
-          ['only', 'skip', 'fixme'].includes(callPath[1])));
+          ['only', 'skip', 'fixme', 'todo'].includes(callPath[1])) ||
+        isExpectedFailureDeclaration);
     const isDescribeCall =
       (root === 'test' || root === 'describe') && callPath.includes('describe');
     const isFocusedDescribe = isDescribeCall && member === 'only';
     const isSkippedDescribe =
       isDescribeCall && (member === 'skip' || member === 'fixme');
     const isSkippedTest =
-      isTestCall && (member === 'skip' || member === 'fixme');
+      isTestCall &&
+      (member === 'skip' || member === 'fixme' || member === 'todo');
 
     if (isFocusedDescribe || (isTestCall && member === 'only')) {
       focused += 1;
@@ -1942,13 +2186,9 @@ function analyzeTestFile(file: string, cwd: string): TestAnalysis {
 
     if (isTestCall) {
       const testSkipped = skippedByAncestor || isSkippedTest;
-      const callback = node.arguments.find(
-        (argument) =>
-          ts.isArrowFunction(argument) || ts.isFunctionExpression(argument),
-      );
-      const expectedFailure = callback
-        ? containsExpectedFailure(callback)
-        : false;
+      const expectedFailure =
+        isExpectedFailureDeclaration ||
+        (callback ? containsExpectedFailure(callback) : false);
       const fallbackTitle = `test at ${sourceLocation(sourceFile, node, cwd).line}`;
       const analyzedTest: AnalyzedTest = {
         expectedFailure,
@@ -1973,18 +2213,12 @@ function analyzeTestFile(file: string, cwd: string): TestAnalysis {
             if (ts.isCallExpression(candidate)) {
               const assertionPath = expressionPath(candidate.expression);
               const matcher = expectMatcher(candidate);
-              if (
-                matcher ||
-                (assertionPath[0] === 'assert' && assertionPath.length > 1)
-              ) {
+              const assertCall = assertionPath[0] === 'assert';
+              if (matcher || assertCall) {
                 assertionCount += 1;
                 if (
-                  matcher &&
-                  isTrivialExpect(
-                    matcher.expectCall,
-                    candidate,
-                    matcher.matcher,
-                  )
+                  (matcher && isTrivialExpect(matcher.expectCall)) ||
+                  (assertCall && isTrivialAssert(assertionPath, candidate))
                 ) {
                   trivialAssertionCount += 1;
                   addViolation(candidate, {
@@ -2074,6 +2308,71 @@ function analyzeTests(files: string[], cwd: string): TestAnalysis {
       violations: [],
     },
   );
+}
+
+/**
+ * Inspects only the explicit unit-test convention owned by the validator.
+ * The fingerprint lets the supervisor prove that the analyzed sources did not
+ * change while Vitest was executing them.
+ */
+export function analyzeExplicitUnitTests(
+  cwd: string,
+): ExplicitUnitTestAnalysis {
+  const collection = collectExplicitUnitTestSources(cwd);
+  const analysis = collection.sources.reduce<TestAnalysis>(
+    (result, { file, source }) => {
+      try {
+        const fileAnalysis = analyzeTestFile(file, cwd, source);
+        result.focused += fileAnalysis.focused;
+        result.skipped += fileAnalysis.skipped;
+        result.tests.push(...fileAnalysis.tests);
+        result.testsWithMeaningfulAssertions +=
+          fileAnalysis.testsWithMeaningfulAssertions;
+        result.violations.push(...fileAnalysis.violations);
+      } catch {
+        result.violations.push({
+          code: 'analysis_incomplete',
+          file: path.relative(cwd, file),
+          message: 'An explicit unit test could not be parsed completely.',
+          priority: 'critical',
+          remediation:
+            'Use valid JavaScript or TypeScript with inline test callbacks, then rerun authoritative validation.',
+          severity: 'error',
+        });
+      }
+      return result;
+    },
+    {
+      focused: 0,
+      skipped: 0,
+      tests: [],
+      testsWithMeaningfulAssertions: 0,
+      violations: [],
+    },
+  );
+  const fingerprint = createHash('sha256');
+  for (const { file, source } of collection.sources) {
+    const relative = path.relative(cwd, file).replaceAll(path.sep, '/');
+    fingerprint.update(`${Buffer.byteLength(relative, 'utf8')}:`);
+    fingerprint.update(relative);
+    fingerprint.update(`${Buffer.byteLength(source, 'utf8')}:`);
+    fingerprint.update(source);
+  }
+  const files = collection.sources.map(({ file }) => file);
+  const violations = [
+    ...collection.violations,
+    ...analysis.violations,
+    ...coverageSynthesisViolations(files, cwd),
+  ];
+  return {
+    fileCount: collection.sources.length,
+    fingerprint: fingerprint.digest('hex'),
+    focused: analysis.focused,
+    skipped: analysis.skipped,
+    testCount: analysis.tests.length,
+    testsWithMeaningfulAssertions: analysis.testsWithMeaningfulAssertions,
+    violations,
+  };
 }
 
 function percentage(covered: number, total: number): number {
@@ -2620,12 +2919,13 @@ function invalidPlaywrightReport(message: string): ValidationViolation {
 
 function normalizedReportedTestFile(
   cwd: string,
+  reportRoot: string,
   value: unknown,
 ): string | null {
   if (typeof value !== 'string' || !value || value.includes('\0')) return null;
   const absolute = path.isAbsolute(value)
     ? path.resolve(value)
-    : path.resolve(cwd, value);
+    : path.resolve(reportRoot, value);
   if (!resolvesInsideWorkspace(cwd, absolute)) return null;
   const relative = path.relative(cwd, absolute).replaceAll('\\', '/');
   return relative && !relative.startsWith('../') ? relative : null;
@@ -2685,6 +2985,19 @@ function readPlaywrightExecutionEvidence(
       'The authoritative Playwright JSON result has no suite inventory.',
     );
   }
+  const reportConfig = recordValue(report.config);
+  const configuredRoot = reportConfig?.rootDir;
+  const reportRoot =
+    typeof configuredRoot === 'string'
+      ? path.isAbsolute(configuredRoot)
+        ? path.resolve(configuredRoot)
+        : path.resolve(cwd, configuredRoot)
+      : '';
+  if (!reportRoot || !resolvesInsideWorkspace(cwd, reportRoot)) {
+    return invalid(
+      'The authoritative Playwright JSON result has an invalid workspace root.',
+    );
+  }
 
   const executed: ExecutedPlaywrightTest[] = [];
   const outcomes = { expected: 0, flaky: 0, skipped: 0, unexpected: 0 };
@@ -2705,7 +3018,7 @@ function readPlaywrightExecutionEvidence(
         return;
       }
       const spec = recordValue(value);
-      const file = normalizedReportedTestFile(cwd, spec?.file);
+      const file = normalizedReportedTestFile(cwd, reportRoot, spec?.file);
       const line = Number(spec?.line);
       const column = Number(spec?.column);
       const title = typeof spec?.title === 'string' ? spec.title : '';
@@ -3319,7 +3632,10 @@ export async function validatePlaywrightTests(
     | undefined;
   if (config.runTests && commandCanRun) {
     try {
-      preparePlaywrightJsonReport(playwrightJsonReportPath, cwd);
+      preparePlaywrightJsonReport(playwrightJsonReportPath, cwd, {
+        gid: options.artifactGid,
+        uid: options.artifactUid,
+      });
       reporterConfig = createAuthoritativeReporterConfig(
         cwd,
         config.validationCommand,

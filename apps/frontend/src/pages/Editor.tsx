@@ -4367,6 +4367,11 @@ export default function Editor() {
                 )
                 .map((connection) => connection.targetId)
             : [];
+          const executionOutput =
+            node?.output ??
+            nodes.find((candidate) =>
+              attachedContainerIds.includes(candidate.id),
+            )?.output;
           const incomingNodes = node
             ? Array.from(
                 new Map(
@@ -4403,6 +4408,7 @@ export default function Editor() {
                   onLabelChange={handleNodeLabelChange}
                   workflowCloudProvider={cloudProvider}
                   workflowId={workflowId}
+                  executionOutput={executionOutput}
                   incomingNodes={incomingNodes}
                   onConnectOAuth={(provider) => {
                     const nodeIntegration = getIntegration(node.nodeType);

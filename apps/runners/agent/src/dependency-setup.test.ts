@@ -142,6 +142,34 @@ test('exposes the prebuilt test packages in the prepared project', async () => {
   fs.mkdirSync(path.join(containerModules, '@vitest', 'coverage-v8'), {
     recursive: true,
   });
+  const packageFixture = (
+    name: string,
+    manifest: Record<string, unknown> = {},
+  ) => {
+    const directory = path.join(containerModules, ...name.split('/'));
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(
+      path.join(directory, 'package.json'),
+      JSON.stringify({ name, version: '1.0.0', ...manifest }),
+    );
+    fs.writeFileSync(
+      path.join(directory, 'index.js'),
+      `module.exports = '${name}';\n`,
+    );
+  };
+  packageFixture('@testing-library/dom');
+  packageFixture('@testing-library/react', {
+    dependencies: {
+      '@testing-library/dom': '1.0.0',
+      'runtime-helper': '1.0.0',
+    },
+    peerDependencies: { react: '>=18', 'react-dom': '>=18' },
+  });
+  packageFixture('@testing-library/user-event', {
+    peerDependencies: { '@testing-library/dom': '>=1' },
+  });
+  packageFixture('runtime-helper');
+  fs.mkdirSync(path.join(containerModules, 'jsdom'), { recursive: true });
   fs.mkdirSync(path.join(containerModules, 'playwright'), { recursive: true });
   fs.mkdirSync(path.join(containerModules, 'vitest'), { recursive: true });
   try {
@@ -177,6 +205,23 @@ test('exposes the prebuilt test packages in the prepared project', async () => {
         path.join(root, 'node_modules', '@vitest', 'coverage-v8'),
       ),
       fs.realpathSync(path.join(containerModules, '@vitest', 'coverage-v8')),
+    );
+    for (const dependency of [
+      ['@testing-library', 'dom'],
+      ['@testing-library', 'react'],
+      ['@testing-library', 'user-event'],
+      ['runtime-helper'],
+    ]) {
+      const target = path.join(root, 'node_modules', ...dependency);
+      assert.equal(fs.lstatSync(target).isSymbolicLink(), false);
+      assert.equal(
+        fs.readFileSync(path.join(target, 'index.js'), 'utf8'),
+        `module.exports = '${dependency.join('/')}';\n`,
+      );
+    }
+    assert.equal(
+      fs.lstatSync(path.join(root, 'node_modules', 'jsdom')).isSymbolicLink(),
+      true,
     );
     assert.equal(
       fs.realpathSync(path.join(root, 'node_modules', 'vitest')),

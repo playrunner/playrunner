@@ -116,6 +116,53 @@ test('reads a bounded runner payload from stdin', async () => {
   assert.deepEqual(result.nodeOutputs, {});
 });
 
+test('normalizes configured Agent Skill sources in the trusted payload', async () => {
+  const value = payload();
+  value.config.skillSources = [
+    {
+      id: 'project-skills',
+      path: '.agents/skills',
+      type: 'project',
+    },
+    {
+      id: 'shared-skills',
+      repository: 'playrunner/shared-skills',
+      type: 'github',
+    },
+  ];
+  const normalized = await readAgentPayload(
+    Readable.from([JSON.stringify(value)]),
+  );
+  assert.deepEqual(normalized.config.skillSources, [
+    {
+      id: 'project-skills',
+      path: '.agents/skills',
+      type: 'project',
+    },
+    {
+      id: 'shared-skills',
+      path: '.agents/skills',
+      ref: 'main',
+      repository: 'playrunner/shared-skills',
+      type: 'github',
+    },
+  ]);
+  assert.throws(
+    () =>
+      createInitialPrompt(normalized, {
+        nodeOutputsPath: '/workspace/inputs/workflow-inputs.json',
+      }),
+    /Agent Skills inventory path/,
+  );
+  assert.match(
+    createInitialPrompt(normalized, {
+      nodeOutputsPath: '/workspace/inputs/workflow-inputs.json',
+      skillsInventoryPath: '/workspace/inputs/agent-skills.json',
+    }),
+    /bounded inventory.*Agent Skills.*agent-skills\.json/i,
+  );
+});
+
 test('materializes external requirements and adds them to the prompt and validator', async () => {
   const value = payload();
   value.config = {
@@ -457,6 +504,8 @@ test('prompts the agent to test changed behavior, use structured memory, and lea
     /bounded outcome summary, not a conversation transcript/,
   );
   assert.match(prompt, /Do not push, commit, or open a pull request/);
+  assert.match(prompt, /Never edit \.playrunner\/\*\*/);
+  assert.match(prompt, /Do not add a Vitest\/Jest config/);
   assert.match(
     prompt,
     /install dependencies already declared.*do not edit package manifests or lockfiles/,

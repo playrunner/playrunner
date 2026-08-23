@@ -3,9 +3,11 @@ import { cn } from '../lib/utils';
 import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import { Select } from './ui/Select';
+import { Badge } from './ui/Badge';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
 import { openAuthenticatedOutput } from '../lib/output-links';
+import { summarizeAgentRunResult } from '../lib/agent-run-result';
 import {
   insertDroppedText,
   normalizeConfigDropText,
@@ -14,9 +16,12 @@ import { INTEGRATIONS } from '../integrations/registry';
 import {
   ChevronDown,
   ChevronUp,
+  CheckCircle2,
+  ExternalLink,
   Info,
   Eye,
   EyeOff,
+  XCircle,
   Workflow as WorkflowIcon,
 } from 'lucide-react';
 
@@ -33,6 +38,7 @@ interface IntegrationConfigPanelProps {
   onLabelChange?: (nodeId: string, newLabel: string) => void;
   workflowCloudProvider?: string;
   workflowId?: string;
+  executionOutput?: Record<string, any>;
 }
 
 type WorkflowInputVariable = {
@@ -200,6 +206,193 @@ function inferOutputVariables(
   );
 }
 
+function percentageLabel(value: number | null): string {
+  if (value === null) return 'Unavailable';
+  return `${Math.round(value * 10) / 10}%`;
+}
+
+function LatestAgentRunResult({
+  nodeType,
+  output,
+}: {
+  nodeType: string;
+  output?: Record<string, any>;
+}) {
+  const summary = summarizeAgentRunResult(output);
+  const isValidator = nodeType === 'validator';
+  const visibleStatus = isValidator ? summary.validationStatus : summary.status;
+  const title = isValidator
+    ? 'Latest validator result'
+    : 'Latest AI Container run';
+
+  if (!summary.available) {
+    return (
+      <section
+        className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm"
+        data-testid="agent-run-result-empty"
+      >
+        <h4 className="text-sm font-medium text-[var(--foreground)]">
+          {title}
+        </h4>
+        <p className="mt-1 text-xs leading-relaxed text-muted">
+          Run the workflow to see the current pass/fail result, validation
+          evidence, failure details, and authenticated artifacts here.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm"
+      data-testid="agent-run-result"
+    >
+      <div className="flex items-start justify-between gap-3 border-b border-subtle pb-3">
+        <div className="min-w-0">
+          <h4 className="text-sm font-medium text-[var(--foreground)]">
+            {title}
+          </h4>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            {summary.attempts === null
+              ? 'Latest workflow execution'
+              : `${summary.attempts} agent attempt${summary.attempts === 1 ? '' : 's'}`}
+            {summary.stopReason ? ` · ${summary.stopReason}` : ''}
+          </p>
+        </div>
+        {visibleStatus === 'passed' ? (
+          <Badge variant="success" data-testid="agent-run-result-status">
+            <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+            Passed
+          </Badge>
+        ) : visibleStatus === 'failed' ? (
+          <Badge variant="danger" data-testid="agent-run-result-status">
+            <XCircle className="h-3 w-3" aria-hidden="true" />
+            Failed
+          </Badge>
+        ) : (
+          <Badge variant="outline" data-testid="agent-run-result-status">
+            Not run
+          </Badge>
+        )}
+      </div>
+
+      {summary.failure ? (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
+          <p className="text-xs font-medium text-red-500">Action required</p>
+          <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-[var(--foreground)]">
+            {summary.failure}
+          </pre>
+        </div>
+      ) : null}
+
+      {summary.dimensions.length ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Validation dimensions
+          </p>
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-2">
+            {summary.dimensions.map((dimension) => (
+              <div
+                key={dimension.key}
+                className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-medium text-[var(--foreground)]">
+                    {dimension.label}
+                  </p>
+                  <Badge
+                    variant={
+                      !dimension.applicable
+                        ? 'outline'
+                        : dimension.passed
+                          ? 'success'
+                          : 'danger'
+                    }
+                  >
+                    {!dimension.applicable
+                      ? 'N/A'
+                      : dimension.passed
+                        ? 'Passed'
+                        : 'Failed'}
+                  </Badge>
+                </div>
+                <p className="mt-2 font-mono text-xs text-muted">
+                  {dimension.applicable
+                    ? `${percentageLabel(dimension.observed)} observed${dimension.minimum === null ? '' : ` · ${percentageLabel(dimension.minimum)} minimum`}`
+                    : 'No trusted changed-line diff was available.'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {summary.unitRun ? (
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-xs font-medium text-[var(--foreground)]">
+                Independent unit validation
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                {summary.unitRun.testCount ?? 'Unknown'} executed ·{' '}
+                {summary.unitRun.analyzedTests ?? 'Unknown'} analyzed ·{' '}
+                {summary.unitRun.testsWithMeaningfulAssertions ?? 'Unknown'}{' '}
+                meaningful assertions
+              </p>
+            </div>
+            <Badge variant={summary.unitRun.passed ? 'success' : 'danger'}>
+              {summary.unitRun.passed ? 'Passed' : 'Failed'}
+            </Badge>
+          </div>
+          <p className="mt-2 font-mono text-xs text-muted">
+            {percentageLabel(summary.unitRun.lineCoverage)} line ·{' '}
+            {percentageLabel(summary.unitRun.branchCoverage)} branch
+          </p>
+          {!summary.unitRun.passed && summary.unitRun.failure ? (
+            <p className="mt-2 text-xs leading-relaxed text-red-500">
+              {summary.unitRun.failure}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {summary.artifacts.length ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+            Authenticated artifacts
+          </p>
+          <div className="space-y-2">
+            {summary.artifacts.map((artifact) => (
+              <button
+                key={artifact.path}
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 text-left transition-colors hover:border-[var(--border-strong)]"
+                aria-label={`Open ${artifact.label}`}
+                title={`Open ${artifact.label}`}
+                onClick={() => void openAuthenticatedOutput(artifact.path)}
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-medium text-[var(--foreground)]">
+                    {artifact.label}
+                  </span>
+                  <span className="mt-1 block truncate font-mono text-[10px] text-muted">
+                    {artifact.path}
+                  </span>
+                </span>
+                <ExternalLink
+                  className="h-3.5 w-3.5 shrink-0 text-muted"
+                  aria-hidden="true"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   nodeId,
   nodeLabel,
@@ -213,6 +406,7 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   onLabelChange,
   workflowCloudProvider,
   workflowId,
+  executionOutput,
 }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [integrationData, setIntegrationData] = useState<any>(null);
@@ -1156,6 +1350,12 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
           </span>
         </div>
         <div className="p-4 flex-1 overflow-y-auto space-y-6">
+          {(nodeType === 'agent-container' || nodeType === 'validator') && (
+            <LatestAgentRunResult
+              nodeType={nodeType}
+              output={executionOutput}
+            />
+          )}
           {nodeType === 'environment' ? (
             <div className="space-y-6">
               <div className="space-y-3">
@@ -1350,19 +1550,21 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
             </div>
           )}
 
-          <div className="mt-8 pt-6 border-t border-subtle">
-            <div className="rounded-lg bg-surface border border-subtle p-3 flex flex-col gap-2">
-              <span className="text-xs font-medium text-[var(--foreground)]">
-                Test Execution
-              </span>
-              <p className="text-[10px] text-muted">
-                Run this node isolated to fetch real output schema.
-              </p>
-              <button className="mt-2 w-full text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-md transition-colors font-medium">
-                Test Node
-              </button>
+          {nodeType !== 'agent-container' && nodeType !== 'validator' ? (
+            <div className="mt-8 pt-6 border-t border-subtle">
+              <div className="rounded-lg bg-surface border border-subtle p-3 flex flex-col gap-2">
+                <span className="text-xs font-medium text-[var(--foreground)]">
+                  Test Execution
+                </span>
+                <p className="text-[10px] text-muted">
+                  Run this node isolated to fetch real output schema.
+                </p>
+                <button className="mt-2 w-full text-xs bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-md transition-colors font-medium">
+                  Test Node
+                </button>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

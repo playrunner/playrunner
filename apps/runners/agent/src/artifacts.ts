@@ -31,8 +31,10 @@ export type AgentRuntimeContext = {
 };
 
 export type AgentArtifactRefs = {
+  artifactManifest: string;
   artifactTruncation?: string;
   artifactsTruncated?: boolean;
+  browserCoverage?: string;
   coverage?: string;
   patch?: string;
   playwrightReport?: string;
@@ -41,6 +43,9 @@ export type AgentArtifactRefs = {
   traces: string[];
   validationHistory: string;
   validationReport?: string;
+  vitestCoverage?: string;
+  vitestLcov?: string;
+  vitestResults?: string;
 };
 
 export type StagedArtifacts = {
@@ -627,6 +632,170 @@ function containsRegularFile(
   return false;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function requireUploadedArtifact(
+  artifacts: Record<string, unknown>,
+  name: string,
+  runtime: AgentRuntimeContext,
+  relativePath: string,
+): string {
+  const expected = outputPath(runtime, relativePath);
+  if (artifacts[name] !== expected) {
+    throw new Error(
+      `AI Container artifact upload returned an invalid ${name} reference.`,
+    );
+  }
+  return expected;
+}
+
+function optionalUploadedArtifact(
+  artifacts: Record<string, unknown>,
+  name: string,
+  runtime: AgentRuntimeContext,
+  relativePath: string,
+  required: boolean,
+): string | undefined {
+  const value = artifacts[name];
+  if (value === undefined && !required) return undefined;
+  return requireUploadedArtifact(artifacts, name, runtime, relativePath);
+}
+
+async function readUploadedArtifactRefs(
+  response: Response,
+  staged: StagedArtifacts,
+  runtime: AgentRuntimeContext,
+): Promise<AgentArtifactRefs> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error(
+      'AI Container artifact upload returned an invalid JSON response.',
+    );
+  }
+  const output = isRecord(body) && isRecord(body.output) ? body.output : null;
+  const artifacts =
+    output && isRecord(output.artifacts) ? output.artifacts : null;
+  if (!artifacts) {
+    throw new Error(
+      'AI Container artifact upload response is missing its artifact manifest.',
+    );
+  }
+
+  const artifactManifest = requireUploadedArtifact(
+    artifacts,
+    'artifactManifest',
+    runtime,
+    'artifact-manifest.json',
+  );
+  const validationHistory = requireUploadedArtifact(
+    artifacts,
+    'validationHistory',
+    runtime,
+    'validation/history.json',
+  );
+  const patch = requireUploadedArtifact(
+    artifacts,
+    'patch',
+    runtime,
+    'workspace.patch',
+  );
+  const repositoryStatus = requireUploadedArtifact(
+    artifacts,
+    'repositoryStatus',
+    runtime,
+    'repository-status.txt',
+  );
+  const artifactTruncation = staged.truncationManifest
+    ? optionalUploadedArtifact(
+        artifacts,
+        'artifactTruncation',
+        runtime,
+        staged.truncationManifest,
+        true,
+      )
+    : undefined;
+  const browserCoverage = staged.relativeCoveragePath
+    ? optionalUploadedArtifact(
+        artifacts,
+        'browserCoverage',
+        runtime,
+        staged.relativeCoveragePath,
+        true,
+      )
+    : undefined;
+  if (browserCoverage && artifacts.coverage !== browserCoverage) {
+    throw new Error(
+      'AI Container artifact upload returned an invalid coverage reference.',
+    );
+  }
+
+  const hasStagedFile = (relativePath: string): boolean => {
+    const candidate = path.join(staged.directory, relativePath);
+    if (!fs.existsSync(candidate)) return false;
+    const stat = fs.lstatSync(candidate);
+    return stat.isFile() && !stat.isSymbolicLink();
+  };
+  const validationReport = optionalUploadedArtifact(
+    artifacts,
+    'validationReport',
+    runtime,
+    'validation/final.json',
+    hasStagedFile('validation/final.json'),
+  );
+  const playwrightReport = optionalUploadedArtifact(
+    artifacts,
+    'playwrightReport',
+    runtime,
+    'playwright-report/index.html',
+    hasStagedFile('playwright-report/index.html'),
+  );
+  const vitestResults = optionalUploadedArtifact(
+    artifacts,
+    'vitestResults',
+    runtime,
+    'test-results/vitest-results.json',
+    hasStagedFile('test-results/vitest-results.json'),
+  );
+  const vitestCoverage = optionalUploadedArtifact(
+    artifacts,
+    'vitestCoverage',
+    runtime,
+    'test-results/vitest-coverage/coverage-final.json',
+    hasStagedFile('test-results/vitest-coverage/coverage-final.json'),
+  );
+  const vitestLcov = optionalUploadedArtifact(
+    artifacts,
+    'vitestLcov',
+    runtime,
+    'test-results/vitest-coverage/lcov.info',
+    hasStagedFile('test-results/vitest-coverage/lcov.info'),
+  );
+
+  return {
+    artifactManifest,
+    ...(artifactTruncation
+      ? { artifactTruncation, artifactsTruncated: true }
+      : {}),
+    ...(browserCoverage ? { browserCoverage, coverage: browserCoverage } : {}),
+    patch,
+    ...(playwrightReport ? { playwrightReport } : {}),
+    repositoryStatus,
+    ...(containsRegularFile(path.join(staged.directory, 'test-results'))
+      ? { testResults: outputPath(runtime, 'test-results') }
+      : {}),
+    traces: staged.traces.map((trace) => outputPath(runtime, trace)),
+    validationHistory,
+    ...(validationReport ? { validationReport } : {}),
+    ...(vitestCoverage ? { vitestCoverage } : {}),
+    ...(vitestLcov ? { vitestLcov } : {}),
+    ...(vitestResults ? { vitestResults } : {}),
+  };
+}
+
 export async function uploadAgentArtifacts(
   staged: StagedArtifacts,
   runtime: AgentRuntimeContext,
@@ -664,39 +833,5 @@ export async function uploadAgentArtifacts(
       `AI Container artifact upload failed (${response.status}): ${(await response.text()).slice(0, 2_000)}`,
     );
   }
-
-  const playwrightReportIndex = path.join(
-    staged.directory,
-    'playwright-report',
-    'index.html',
-  );
-
-  return {
-    ...(staged.truncationManifest
-      ? {
-          artifactTruncation: outputPath(runtime, staged.truncationManifest),
-          artifactsTruncated: true,
-        }
-      : {}),
-    ...(staged.relativeCoveragePath
-      ? { coverage: outputPath(runtime, staged.relativeCoveragePath) }
-      : {}),
-    patch: outputPath(runtime, 'workspace.patch'),
-    ...(fs.existsSync(playwrightReportIndex) &&
-    fs.lstatSync(playwrightReportIndex).isFile() &&
-    !fs.lstatSync(playwrightReportIndex).isSymbolicLink()
-      ? {
-          playwrightReport: outputPath(runtime, 'playwright-report/index.html'),
-        }
-      : {}),
-    repositoryStatus: outputPath(runtime, 'repository-status.txt'),
-    ...(containsRegularFile(path.join(staged.directory, 'test-results'))
-      ? { testResults: outputPath(runtime, 'test-results') }
-      : {}),
-    traces: staged.traces.map((trace) => outputPath(runtime, trace)),
-    validationHistory: outputPath(runtime, 'validation/history.json'),
-    ...(fs.existsSync(path.join(staged.directory, 'validation', 'final.json'))
-      ? { validationReport: outputPath(runtime, 'validation/final.json') }
-      : {}),
-  };
+  return readUploadedArtifactRefs(response, staged, runtime);
 }
