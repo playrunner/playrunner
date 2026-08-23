@@ -5,6 +5,7 @@ import {
   buildGithubAuthorizationUrl,
   inspectGithubPermissions,
   refreshGithubCredentials,
+  selectGithubInstallation,
 } from './index';
 
 test('builds GitHub reauthorization from server-side App credentials', () => {
@@ -43,6 +44,21 @@ test('detects GitHub installations that need reauthorization', () => {
       pullRequests: 'write',
       reauthorizationRequired: false,
     },
+  );
+});
+
+test('selects a saved GitHub installation from the supported list endpoint', () => {
+  const installations = [
+    { app_slug: 'first-app', id: 41 },
+    { app_slug: 'playrunner-app', id: 46 },
+  ];
+  assert.deepEqual(
+    selectGithubInstallation(installations, { installationId: '46' }),
+    installations[1],
+  );
+  assert.deepEqual(
+    selectGithubInstallation(installations, { appSlug: 'PLAYRUNNER-APP' }),
+    installations[1],
   );
 });
 

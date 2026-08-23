@@ -204,6 +204,28 @@ export function inspectGithubPermissions(value: unknown) {
   };
 }
 
+export function selectGithubInstallation(
+  installations: Record<string, unknown>[],
+  selection: { appSlug?: string; installationId?: string | number },
+) {
+  const installationId =
+    selection.installationId === undefined
+      ? ''
+      : String(selection.installationId);
+  if (installationId) {
+    return installations.find(
+      (installation) => String(installation.id) === installationId,
+    );
+  }
+  const appSlug = selection.appSlug?.trim().toLowerCase();
+  return installations.find(
+    (installation) =>
+      !appSlug ||
+      (typeof installation.app_slug === 'string' &&
+        installation.app_slug.toLowerCase() === appSlug),
+  );
+}
+
 async function getGithubConnection(req: unknown) {
   const store = credentialStore(req);
   if (!store) {
@@ -488,29 +510,19 @@ githubRouter.get('/connection-status', async (req, res) => {
         : typeof connection.config.appName === 'string'
           ? connection.config.appName
           : '';
-    let installation: Record<string, unknown> | undefined;
-    if (
-      (typeof savedInstallationId === 'string' && savedInstallationId) ||
-      typeof savedInstallationId === 'number'
-    ) {
-      installation = (await github.get(
-        githubApiUrl(
-          `user/installations/${encodeURIComponent(String(savedInstallationId))}`,
-        ),
-      )) as Record<string, unknown>;
-    } else {
-      const installations = await githubGetAllPages<Record<string, unknown>>(
-        github,
-        githubApiUrl('user/installations'),
-        'installations',
-      );
-      installation = installations.find(
-        (candidate) =>
-          !appSlug ||
-          (typeof candidate.app_slug === 'string' &&
-            candidate.app_slug.toLowerCase() === appSlug.toLowerCase()),
-      );
-    }
+    const installations = await githubGetAllPages<Record<string, unknown>>(
+      github,
+      githubApiUrl('user/installations'),
+      'installations',
+    );
+    const installation = selectGithubInstallation(installations, {
+      appSlug,
+      installationId:
+        typeof savedInstallationId === 'string' ||
+        typeof savedInstallationId === 'number'
+          ? savedInstallationId
+          : undefined,
+    });
     const permissionStatus = inspectGithubPermissions(
       installation?.permissions,
     );

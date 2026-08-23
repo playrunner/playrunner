@@ -102,7 +102,9 @@ export function GithubSettingsModal({
       console.error('Failed to inspect GitHub connection:', error);
       setConnectionStatus(null);
       setAuthError(
-        'Playrunner could not verify the GitHub App permissions. Reauthorize GitHub before running workflows that create pull requests.',
+        error instanceof Error
+          ? `Playrunner could not verify the GitHub App permissions: ${error.message}`
+          : 'Playrunner could not verify the GitHub App permissions.',
       );
     } finally {
       setIsCheckingConnection(false);
@@ -427,6 +429,18 @@ export function GithubSettingsModal({
     }, 500);
   };
 
+  const connectionNeedsAttention = Boolean(
+    authError || connectionStatus?.reauthorizationRequired,
+  );
+  const missingPermissionLabels = connectionStatus?.missingPermissions.map(
+    (permission) =>
+      permission === 'pull_requests'
+        ? 'Pull requests: read and write'
+        : permission === 'contents'
+          ? 'Contents: read and write'
+          : permission,
+  );
+
   return (
     <Modal
       isOpen={isOpen}
@@ -465,12 +479,10 @@ export function GithubSettingsModal({
         <div className="flex flex-col items-center justify-center text-center gap-4 py-8">
           <div
             className={`w-16 h-16 rounded-full flex items-center justify-center animate-in zoom-in duration-300 ${
-              connectionStatus?.reauthorizationRequired
-                ? 'bg-amber-500/20'
-                : 'bg-green-500/20'
+              connectionNeedsAttention ? 'bg-amber-500/20' : 'bg-green-500/20'
             }`}
           >
-            {connectionStatus?.reauthorizationRequired ? (
+            {connectionNeedsAttention ? (
               <AlertTriangle className="w-8 h-8 text-amber-500" />
             ) : (
               <Check className="w-8 h-8 text-green-500" />
@@ -478,14 +490,16 @@ export function GithubSettingsModal({
           </div>
           <div>
             <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
-              {connectionStatus?.reauthorizationRequired
-                ? 'GitHub needs reauthorization'
+              {connectionNeedsAttention
+                ? 'GitHub connection needs attention'
                 : 'GitHub Connected Successfully'}
             </h3>
             <p className="text-muted text-sm max-w-[320px] mx-auto mb-4">
-              {connectionStatus?.reauthorizationRequired
-                ? 'The installed GitHub App does not have every permission required to create bot branches and draft pull requests.'
-                : 'Your GitHub App is connected. You can now use it to manage your repositories.'}
+              {authError
+                ? 'Playrunner could not verify the GitHub connection. Review the error below before running workflows that create pull requests.'
+                : connectionStatus?.reauthorizationRequired
+                  ? 'The installed GitHub App is connected, but its GitHub-side permission configuration cannot create bot branches and draft pull requests.'
+                  : 'Your GitHub App is connected. You can now use it to manage your repositories.'}
             </p>
 
             {authError ? (
@@ -499,8 +513,19 @@ export function GithubSettingsModal({
 
             {connectionStatus?.reauthorizationRequired ? (
               <div className="mb-4 max-w-sm rounded-xl border border-amber-500/20 bg-amber-500/10 p-3 text-left text-sm text-amber-500">
-                Approve Contents and Pull requests read/write permissions for
-                the GitHub App installation, then reauthorize this connection.
+                <p className="font-medium">
+                  Update the GitHub App permissions:
+                </p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {missingPermissionLabels?.map((permission) => (
+                    <li key={permission}>{permission}</li>
+                  ))}
+                </ul>
+                <p className="mt-2">
+                  Save the App settings in GitHub and approve the installation
+                  update, then refresh permissions here. OAuth reauthorization
+                  alone cannot add an App permission.
+                </p>
               </div>
             ) : null}
 
@@ -528,34 +553,73 @@ export function GithubSettingsModal({
             </div>
 
             {Button ? (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleReauthorizeGithub}
-                disabled={isAuthenticating || isCheckingConnection}
-                className="mb-6 gap-2"
-              >
-                {isAuthenticating || isCheckingConnection ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Reauthorize GitHub
-              </Button>
+              <div className="mb-6 flex flex-wrap justify-center gap-2">
+                {connectionStatus?.reauthorizationRequired ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={fetchConnectionStatus}
+                    disabled={isAuthenticating || isCheckingConnection}
+                    className="gap-2"
+                  >
+                    {isCheckingConnection ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Refresh Permissions
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant={
+                    connectionStatus?.reauthorizationRequired
+                      ? 'secondary'
+                      : 'primary'
+                  }
+                  onClick={handleReauthorizeGithub}
+                  disabled={isAuthenticating || isCheckingConnection}
+                  className="gap-2"
+                >
+                  {isAuthenticating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Reauthorize GitHub
+                </Button>
+              </div>
             ) : (
-              <button
-                type="button"
-                onClick={handleReauthorizeGithub}
-                disabled={isAuthenticating || isCheckingConnection}
-                className="mb-6 inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)] shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:pointer-events-none disabled:opacity-50"
-              >
-                {isAuthenticating || isCheckingConnection ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                Reauthorize GitHub
-              </button>
+              <div className="mb-6 flex flex-wrap justify-center gap-2">
+                {connectionStatus?.reauthorizationRequired ? (
+                  <button
+                    type="button"
+                    onClick={fetchConnectionStatus}
+                    disabled={isAuthenticating || isCheckingConnection}
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-foreground)] shadow-sm transition-colors hover:bg-[var(--accent-hover)] disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {isCheckingConnection ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Refresh Permissions
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleReauthorizeGithub}
+                  disabled={isAuthenticating || isCheckingConnection}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--control-bg)] px-4 py-2 text-sm font-medium text-[var(--foreground)] shadow-sm transition-colors hover:bg-[var(--surface-hover)] disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {isAuthenticating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  Reauthorize GitHub
+                </button>
+              </div>
             )}
 
             <div className="flex items-center justify-center gap-4">
