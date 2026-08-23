@@ -28,6 +28,13 @@
 - Use `hover:border-[var(--border-strong)]` for interactive cards when needed.
 - Avoid custom dark panels, high-contrast gradients, or white-on-navy one-offs on setup/product screens unless the whole product already uses them.
 
+## Instruction Callouts
+
+- Every instructional callout or instruction box includes a visible Lucide icon to the left of its copy. A bordered rectangle containing instructional text without an icon is incomplete.
+- Use `Info` for general instructions, `BookOpen` for setup or documentation guidance, and a matching semantic icon for warning, error, or success states.
+- For a compact general instruction, use `flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3 text-muted shadow-inner`, with a decorative `h-4 w-4` icon marked `aria-hidden="true"` and `text-xs leading-relaxed` copy.
+- Keep the icon visible at narrow widths with `shrink-0`. Use the standard inset icon container for larger setup-guide callouts.
+
 ## Typography
 
 - Page title: `text-3xl font-semibold tracking-tight`.
