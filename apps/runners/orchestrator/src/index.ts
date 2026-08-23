@@ -714,6 +714,13 @@ function renderNodeTemplateValue(
   return value;
 }
 
+export function environmentVariableFromTemplate(value: unknown) {
+  const match = /^\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/.exec(
+    String(value || '').trim(),
+  );
+  return match?.[1] ?? null;
+}
+
 function isSensitivePayloadKey(key: string): boolean {
   return (
     key.toLowerCase() === 'code' || SENSITIVE_PAYLOAD_KEY_PATTERN.test(key)
@@ -1299,16 +1306,27 @@ export async function executeWorkflow(reqBody: any) {
         if (agentNodeType !== 'codex-cli') {
           throw new Error(`Unsupported AI Container Agent: ${agentNodeType}.`);
         }
-        const agentConfig = renderNodeTemplateValue(
-          agents[0].node.config || {},
-          templateContext,
-        ) as Record<string, unknown>;
-        const apiKeyEnvVar = String(agentConfig.apiKeyEnvVar || '').trim();
+        const configuredAgent = (agents[0].node.config || {}) as Record<
+          string,
+          unknown
+        >;
+        const apiKeyEnvVar = environmentVariableFromTemplate(
+          configuredAgent.apiKey,
+        );
         if (!apiKeyEnvVar) {
           throw new Error(
-            'Codex CLI requires an API key Environment variable. Open the Codex CLI configuration and select one from the Input panel.',
+            'Codex CLI requires an API key Environment template. Drag an Environment secret into the API key field.',
           );
         }
+        const agentConfig = renderNodeTemplateValue(
+          Object.fromEntries(
+            Object.entries(configuredAgent).filter(
+              ([key]) => key !== 'apiKey' && key !== 'apiKeyEnvVar',
+            ),
+          ),
+          templateContext,
+        ) as Record<string, unknown>;
+        agentConfig.apiKeyEnvVar = apiKeyEnvVar;
         if (!globalEnvVars[apiKeyEnvVar]) {
           throw new Error(
             `Codex CLI API key Environment variable ${apiKeyEnvVar} is missing or empty.`,

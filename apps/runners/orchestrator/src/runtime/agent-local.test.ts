@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import {
   executeWorkflow,
+  environmentVariableFromTemplate,
   redactSensitivePayload,
   resolveAgentMemory,
   resolveCiChangeContext,
@@ -157,7 +158,7 @@ function workflowRequest(testId: string) {
       },
       {
         config: {
-          apiKeyEnvVar: 'OPENAI_API_KEY',
+          apiKey: '{{env.OPENAI_API_KEY}}',
           instructions:
             'Prioritize {{node_context.requirement}}. Ignore {{node_codex.mustNotLeak}}.',
         },
@@ -185,6 +186,16 @@ function workflowRequest(testId: string) {
 }
 
 describe('local AI Container execution', { concurrency: false }, () => {
+  test('requires a complete Environment template for the Codex API key', () => {
+    assert.equal(
+      environmentVariableFromTemplate('{{env.OPENAI_API_KEY}}'),
+      'OPENAI_API_KEY',
+    );
+    assert.equal(environmentVariableFromTemplate('OPENAI_API_KEY'), null);
+    assert.equal(environmentVariableFromTemplate('env.OPENAI_API_KEY'), null);
+    assert.equal(environmentVariableFromTemplate('sk-live-secret'), null);
+  });
+
   test('redacts every selected Environment value regardless of its name', () => {
     assert.deepEqual(
       redactSensitivePayload({
@@ -693,6 +704,8 @@ describe('local AI Container execution', { concurrency: false }, () => {
       capturedRequest.agent.config.instructions,
       'Prioritize declined checkout. Ignore .',
     );
+    assert.equal(capturedRequest.agent.config.apiKeyEnvVar, 'OPENAI_API_KEY');
+    assert.equal(Object.hasOwn(capturedRequest.agent.config, 'apiKey'), false);
     assert.equal(capturedRequest.agent.nodeId, 'codex');
     assert.equal(capturedRequest.validators[0]?.nodeId, 'validator');
     assert.equal(

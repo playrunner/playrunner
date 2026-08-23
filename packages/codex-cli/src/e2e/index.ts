@@ -15,9 +15,15 @@ export const codexCliE2EContribution = definePlayrunnerE2EContribution({
         await host.addNode('codex-cli');
         await host.openNodeSettings('codex-cli');
         await expect(page.getByText('Input', { exact: true })).toBeVisible();
-        await page
-          .getByTestId('codex-cli-api-key-env-var')
-          .fill('OPENAI_API_KEY');
+        const apiKey = page.getByTestId('codex-cli-api-key');
+        await apiKey.evaluate((field) => {
+          const dataTransfer = new DataTransfer();
+          dataTransfer.setData('text/plain', 'process.env.OPENAI_API_KEY');
+          field.dispatchEvent(
+            new DragEvent('drop', { bubbles: true, dataTransfer }),
+          );
+        });
+        await expect(apiKey).toHaveValue('{{env.OPENAI_API_KEY}}');
         const model = page.getByTestId('codex-cli-model');
         await expect(model).toContainText('GPT-5.6 Sol');
         await expect(model).toContainText('GPT-5.6 Terra');
@@ -33,8 +39,8 @@ export const codexCliE2EContribution = definePlayrunnerE2EContribution({
         await expect(page.getByTestId('codex-cli-model')).toHaveValue(
           'gpt-5.6-terra',
         );
-        await expect(page.getByTestId('codex-cli-api-key-env-var')).toHaveValue(
-          'OPENAI_API_KEY',
+        await expect(page.getByTestId('codex-cli-api-key')).toHaveValue(
+          '{{env.OPENAI_API_KEY}}',
         );
       },
     },

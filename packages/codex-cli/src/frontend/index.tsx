@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, X } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import {
   IntegrationConfigField,
   type Integration,
@@ -46,24 +46,6 @@ export const CodexCliConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const update = (field: string, value: unknown) =>
     onChange(nodeId, { ...config, [field]: value });
 
-  const selectApiKeyEnvironmentVariable = (value: string) => {
-    const normalized = value.trim();
-    if (!normalized) {
-      update('apiKeyEnvVar', '');
-      return;
-    }
-    const key = normalized.startsWith('process.env.')
-      ? normalized.slice('process.env.'.length)
-      : normalized.startsWith('env.')
-        ? normalized.slice('env.'.length)
-        : normalized;
-    if (key) update('apiKeyEnvVar', key);
-  };
-
-  const handleApiKeyDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    selectApiKeyEnvironmentVariable(event.dataTransfer.getData('text/plain'));
-  };
   const hasSavedCustomModel =
     Boolean(config.model) &&
     !CODEX_MODEL_OPTIONS.some((option) => option.value === config.model);
@@ -72,53 +54,18 @@ export const CodexCliConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     <div className="mt-6 space-y-4">
       <p className="text-xs text-muted">
         Codex CLI runs non-interactively in the AI Container. Authentication is
-        supplied by a Playrunner Environment value and mapped to CODEX_API_KEY
-        for the Codex process.
+        supplied by a Playrunner Environment secret and mapped to CODEX_API_KEY
+        only inside the Codex process.
       </p>
       <IntegrationConfigField
-        label="API key environment variable"
-        hint="Connect an Environment node to the AI Container, then drag its secret here. The secret value is never stored in this node."
+        label="API key"
+        hint="Drag an Environment secret into this field. The saved value must be a template such as {{env.OPENAI_API_KEY}}; the secret itself is never stored in this node."
       >
-        <div
-          data-testid="codex-cli-api-key-env-var-dropzone"
-          className="min-h-20 rounded-lg border border-dashed border-subtle bg-[var(--background)] p-3"
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={handleApiKeyDrop}
-        >
-          {config.apiKeyEnvVar ? (
-            <div className="flex items-center justify-between gap-3 rounded-md border border-subtle bg-[var(--node-bg)] px-3 py-2">
-              <div className="min-w-0">
-                <div className="truncate font-mono text-xs text-blue-400">
-                  env.{config.apiKeyEnvVar}
-                </div>
-                <div className="mt-1 text-[10px] text-muted">
-                  Mapped for Codex as CODEX_API_KEY
-                </div>
-              </div>
-              <button
-                type="button"
-                data-testid="codex-cli-api-key-env-var-clear"
-                className="shrink-0 rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-red-400"
-                title="Remove API key environment variable"
-                onClick={() => update('apiKeyEnvVar', '')}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex min-h-14 items-center justify-center text-center text-xs text-muted">
-              Drag an Environment secret from the Input panel here
-            </div>
-          )}
-        </div>
         <Input
-          data-testid="codex-cli-api-key-env-var"
-          className="mt-2"
-          placeholder="Or enter the variable name, e.g. OPENAI_API_KEY"
-          value={config.apiKeyEnvVar || ''}
-          onChange={(event) =>
-            selectApiKeyEnvironmentVariable(event.target.value)
-          }
+          data-testid="codex-cli-api-key"
+          placeholder="Drag an Environment secret here"
+          value={config.apiKey || ''}
+          onChange={(event) => update('apiKey', event.target.value)}
         />
       </IntegrationConfigField>
       <IntegrationConfigField
