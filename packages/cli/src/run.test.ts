@@ -76,6 +76,19 @@ test('passes workflow inputs and acceptance criteria to the start request', asyn
   ]);
 });
 
+test('starts a saved workflow without repeating its repository configuration', async () => {
+  const run = harness([
+    jsonResponse({ executionId: 'execution-manual', status: 'running' }, 202),
+  ]);
+  run.dependencies.env = {
+    PLAYRUNNER_API_KEY: 'pr_live_super-secret',
+    PLAYRUNNER_URL: 'https://playrunner.test',
+  };
+
+  assert.equal(await runCli(['workflow-1', '--no-wait'], run.dependencies), 0);
+  assert.deepEqual(JSON.parse(String(run.calls[0].init?.body)), {});
+});
+
 test('waits for success, streams safe messages, and authenticates by header', async () => {
   const run = harness([
     jsonResponse({ executionId: 'execution-1', status: 'running' }, 202),
@@ -245,16 +258,17 @@ test('rejects a pull-request number for non-PR events', async () => {
   assert.match(run.stderr[0], /only valid.*pull_request/);
 });
 
-test('requires immutable CI change context before starting', async () => {
+test('requires a complete immutable CI change context when any part is supplied', async () => {
   const run = harness([]);
   run.dependencies.env = {
     PLAYRUNNER_API_KEY: 'pr_live_super-secret',
+    PLAYRUNNER_REPOSITORY: 'playrunner/example',
     PLAYRUNNER_URL: 'https://playrunner.test',
   };
 
   assert.equal(await runCli(['workflow-1'], run.dependencies), 2);
   assert.equal(run.calls.length, 0);
-  assert.match(run.stderr[0], /GitHub repository is required/);
+  assert.match(run.stderr[0], /complete base commit SHA/);
 });
 
 test('returns a distinct timeout code', async () => {

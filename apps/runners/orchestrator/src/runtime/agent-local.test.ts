@@ -278,6 +278,15 @@ describe('local AI Container execution', { concurrency: false }, () => {
     assert.ok(invocation.args.includes('--pids-limit'));
     assert.ok(invocation.args.includes('--cap-drop'));
     assert.ok(invocation.args.includes('ALL'));
+    const addedCapabilities = invocation.args.flatMap((argument, index) =>
+      argument === '--cap-add' ? [invocation.args[index + 1]] : [],
+    );
+    assert.deepEqual(addedCapabilities, [
+      'CHOWN',
+      'DAC_OVERRIDE',
+      'SETGID',
+      'SETUID',
+    ]);
     assert.ok(invocation.args.includes('no-new-privileges'));
     assert.ok(invocation.args.includes('nofile=4096:4096'));
     assert.equal(

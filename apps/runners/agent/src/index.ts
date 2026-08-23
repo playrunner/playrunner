@@ -16,6 +16,7 @@ import {
 import { createCredentialFreeEnvironment } from './codex-auth';
 import { runCodex } from './codex';
 import { deliverBotPullRequest, type BotPrDeliveryResult } from './bot-pr';
+import { prepareProjectDependencies } from './dependency-setup';
 import {
   createInitialPrompt,
   materializeAgentContext,
@@ -156,6 +157,20 @@ async function main() {
       identity,
     });
     cwd = prepared.workingDirectory;
+    const dependencySetup = await prepareProjectDependencies({
+      environment: repositoryEnvironment,
+      identity,
+      repositoryRoot: prepared.repositoryRoot,
+      workingDirectory: cwd,
+    });
+    await runnerControl.log(
+      `Installed project dependencies with ${dependencySetup.command} from ${dependencySetup.lockfile}.`,
+    );
+    if (dependencySetup.omittedExternalDevDependencies) {
+      await runnerControl.log(
+        'Skipped development dependencies because package.json contains a local file dependency outside the cloned repository; using the prebuilt Playwright toolchain.',
+      );
+    }
     agentContext = materializeAgentContext(
       payload,
       prepared.changeManifest,

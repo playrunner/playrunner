@@ -22,6 +22,7 @@ COPY --from=builder /app/agent/dist ./dist
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ca-certificates git && \
     rm -rf /var/lib/apt/lists/* && \
+    npm install --global pnpm@10.15.1 yarn@1.22.22 && \
     groupadd --gid 1001 playrunner && \
     useradd --uid 1001 --gid 1001 --create-home --shell /bin/bash playrunner && \
     mkdir -p /workspace/repo /workspace/inputs /workspace/playrunner-artifacts && \

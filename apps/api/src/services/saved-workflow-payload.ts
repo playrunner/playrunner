@@ -12,7 +12,7 @@ export function buildSavedWorkflowExecutionBody(params: {
   body?: Record<string, unknown>;
   executionId: string;
   triggerData: Record<string, unknown>;
-  triggerName: 'ci' | 'schedule' | 'webhook';
+  triggerName: 'ci' | 'cli' | 'schedule' | 'webhook';
   workflow: SavedWorkflow;
 }) {
   const cloudProvider = params.workflow.cloudProvider || 'LOCAL_RUNNER';

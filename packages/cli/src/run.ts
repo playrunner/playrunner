@@ -24,15 +24,17 @@ export type CliDependencies = {
 type Options = {
   acceptanceCriteria: string[];
   apiKey: string;
-  baseRef: string;
-  baseSha: string;
-  eventType: 'manual' | 'pull_request' | 'push';
-  headRef: string;
-  headSha: string;
+  changeContext?: {
+    baseRef: string;
+    baseSha: string;
+    eventType: 'manual' | 'pull_request' | 'push';
+    headRef: string;
+    headSha: string;
+    pullRequestNumber?: number;
+    repository: { name: string; owner: string };
+  };
   json: boolean;
   inputs: Record<string, string>;
-  pullRequestNumber?: number;
-  repository: { name: string; owner: string };
   timeoutMs: number;
   url: string;
   wait: boolean;
@@ -191,6 +193,41 @@ function parseOptions(
     );
   }
 
+  const hasChangeContext = Boolean(
+    repository ||
+    baseSha ||
+    headSha ||
+    baseRef ||
+    headRef ||
+    pullRequest ||
+    eventType !== 'manual',
+  );
+  if (!hasChangeContext) {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error('The Playrunner URL is invalid.');
+    }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new Error('The Playrunner URL must use HTTP or HTTPS.');
+    }
+    parsedUrl.username = '';
+    parsedUrl.password = '';
+    parsedUrl.search = '';
+    parsedUrl.hash = '';
+    return {
+      acceptanceCriteria,
+      apiKey,
+      json,
+      inputs,
+      timeoutMs,
+      url: parsedUrl.toString().replace(/\/$/, ''),
+      wait,
+      workflowId,
+    };
+  }
+
   const repositoryMatch =
     /^([A-Za-z0-9][A-Za-z0-9_.-]{0,99})\/([A-Za-z0-9][A-Za-z0-9_.-]{0,99})$/.exec(
       repository,
@@ -280,15 +317,19 @@ function parseOptions(
   return {
     acceptanceCriteria,
     apiKey,
-    baseRef,
-    baseSha: baseSha.toLowerCase(),
-    eventType: eventType as Options['eventType'],
-    headRef,
-    headSha: headSha.toLowerCase(),
+    changeContext: {
+      baseRef,
+      baseSha: baseSha.toLowerCase(),
+      eventType: eventType as NonNullable<
+        Options['changeContext']
+      >['eventType'],
+      headRef,
+      headSha: headSha.toLowerCase(),
+      ...(pullRequestNumber ? { pullRequestNumber } : {}),
+      repository: { name: repositoryMatch[2], owner: repositoryMatch[1] },
+    },
     json,
     inputs,
-    ...(pullRequestNumber ? { pullRequestNumber } : {}),
-    repository: { name: repositoryMatch[2], owner: repositoryMatch[1] },
     timeoutMs,
     url: parsedUrl.toString().replace(/\/$/, ''),
     wait,
@@ -422,15 +463,7 @@ export async function runCli(
       method: 'POST',
       headers,
       body: JSON.stringify({
-        baseRef: options.baseRef,
-        baseSha: options.baseSha,
-        eventType: options.eventType,
-        headRef: options.headRef,
-        headSha: options.headSha,
-        ...(options.pullRequestNumber
-          ? { pullRequestNumber: options.pullRequestNumber }
-          : {}),
-        repository: options.repository,
+        ...(options.changeContext ?? {}),
         ...(Object.keys(options.inputs).length
           ? { inputs: options.inputs }
           : {}),

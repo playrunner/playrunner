@@ -9,7 +9,7 @@ import { loadAgentMemoryByNodeId } from './agent-memory';
 
 type SavedWorkflowTrigger = {
   data?: Record<string, unknown>;
-  name: 'ci' | 'schedule' | 'webhook';
+  name: 'ci' | 'cli' | 'schedule' | 'webhook';
 };
 
 type SavedWorkflowRecord = {
@@ -28,6 +28,7 @@ type SavedWorkflowExecutionDependencies = {
     userId: string;
     workflowId: string;
   }) => Promise<SavedWorkflowRecord | null>;
+  loadAgentMemoryByNodeId?: typeof loadAgentMemoryByNodeId;
 };
 
 export async function executeSavedWorkflow(
@@ -70,14 +71,14 @@ export async function executeSavedWorkflow(
   }
   state.testCloudProviders[executionId] = cloudProvider;
   const triggerData = params.trigger.data ?? {};
-  const agentMemoryByNodeId = await loadAgentMemoryByNodeId({
+  const agentMemoryByNodeId = await (
+    dependencies?.loadAgentMemoryByNodeId ?? loadAgentMemoryByNodeId
+  )({
     connections: workflow.connections,
     nodes: workflow.nodes,
     workflowId: workflow.id,
   });
-  const result = await (
-    dependencies?.executeWorkflow ?? apiRuntime.workflowExecution.execute
-  )({
+  const executionParams = {
     body: buildSavedWorkflowExecutionBody({
       agentMemoryByNodeId,
       body: params.body,
@@ -89,7 +90,10 @@ export async function executeSavedWorkflow(
     req: params.req,
     resourceOwnerUserId: workflow.userId,
     testId: executionId,
-  });
+  };
+  const result = dependencies?.executeWorkflow
+    ? await dependencies.executeWorkflow(executionParams)
+    : await apiRuntime.workflowExecution.execute(executionParams);
 
   return { cloudProvider, executionId, result, workflow };
 }

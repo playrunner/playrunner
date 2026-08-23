@@ -3,6 +3,7 @@ import express, { Router, type ErrorRequestHandler } from 'express';
 import { requireApiToken } from '../auth/api-token.middleware';
 import { prisma } from '../lib/prisma';
 import { Prisma } from '../generated/prisma/client.cts';
+import { apiRuntime } from '../runtime';
 import {
   executionEvents,
   sanitizeWorkflowLogMessage,
@@ -186,12 +187,14 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     return;
   }
 
-  let ci;
+  let ci: ReturnType<typeof parseCiChangeContext> | undefined;
   let runInputs;
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const { inputs: _inputs, acceptanceCriteria: _criteria, ...ciBody } = body;
-    ci = parseCiChangeContext(ciBody);
+    if (Object.keys(ciBody).length) {
+      ci = parseCiChangeContext(ciBody);
+    }
     runInputs = parseWorkflowRunInputs(body);
   } catch (error) {
     res.status(400).json({
@@ -206,13 +209,78 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   }
 
   const workflow = await prisma.workflow.findFirst({
-    select: { id: true, nodes: true },
+    select: { cloudProvider: true, id: true, nodes: true },
     where: { id: workflowId, userId: token.userId },
   });
   if (!workflow) {
     res.status(404).json({ error: 'Workflow not found.' });
     return;
   }
+
+  const runner = await apiRuntime.runnerProvisioner.start(
+    workflow.cloudProvider || 'LOCAL_RUNNER',
+  );
+  if (runner.status < 200 || runner.status >= 300) {
+    res.status(failureHttpStatus(runner.status)).json({
+      error: publicStartError(runner.status, runner.body.error),
+    });
+    return;
+  }
+
+  if (!ci) {
+    const executionId = crypto.randomUUID();
+    try {
+      const started = await executeSavedWorkflow({
+        body: {
+          ...(Object.keys(runInputs.inputs).length
+            ? { inputs: runInputs.inputs }
+            : {}),
+          ...(runInputs.acceptanceCriteria.length
+            ? { acceptanceCriteria: runInputs.acceptanceCriteria }
+            : {}),
+        },
+        executionId,
+        req,
+        trigger: { data: {}, name: 'cli' },
+        userId: token.userId,
+        workflowId,
+      });
+      if (!started) {
+        res.status(404).json({ error: 'Workflow not found.' });
+        return;
+      }
+      if (started.result.status < 200 || started.result.status >= 300) {
+        const status = failureHttpStatus(started.result.status);
+        res.status(status).json({
+          error: publicStartError(status, started.result.body.error),
+          executionId,
+          status: 'failed_to_start',
+          workflowId,
+        });
+        return;
+      }
+      try {
+        await apiTokens.auditExecution({
+          apiTokenId: token.id,
+          executionId,
+          userId: token.userId,
+          workflowId,
+        });
+      } catch (error) {
+        console.error('Failed to audit API token execution:', error);
+      }
+      res.status(202).json({
+        executionId,
+        status: 'running',
+        workflowId,
+      });
+    } catch (error) {
+      console.error('Failed to start CLI workflow execution:', error);
+      res.status(500).json({ error: 'Workflow could not be started.' });
+    }
+    return;
+  }
+
   const ciPolicyError = machineExecutionCiPolicyError(
     workflow.nodes,
     ci.eventType,
