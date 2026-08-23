@@ -1,13 +1,62 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'node:test';
+import type { Prisma } from '../generated/prisma/client.cts';
 import {
   extractAgentMemoryFromEvent,
   isAgentContainerWorkflowNode,
   MAX_AGENT_MEMORY_BYTES,
   MAX_AGENT_MEMORY_DEPTH,
   parseAgentMemory,
+  persistAgentMemoryRecord,
   resolveMemoryBinding,
 } from './agent-memory';
+
+test('persists agent memory with one atomic, stale-safe conflict query', async () => {
+  let captured: Prisma.Sql | undefined;
+  const createdAt = new Date('2026-08-23T01:02:03.000Z');
+  await persistAgentMemoryRecord(
+    {
+      namespace: 'project',
+      ownerUserId: 'local-admin',
+      projectId: null,
+      providerId: 'project-memory',
+      repository: 'playrunner/demo-project',
+      scopeId: 'workflow-1',
+      scopeKind: 'workflow',
+      sourceExecutionCreatedAt: createdAt,
+      sourceExecutionId: 'execution-2',
+      sourceHeadSha: 'a'.repeat(40),
+      state: { repository: 'playrunner/demo-project', summary: 'updated' },
+      workflowId: 'workflow-1',
+    },
+    async (query) => {
+      captured = query;
+      return 1;
+    },
+  );
+
+  assert.ok(captured);
+  const sql = captured.sql.replace(/\s+/g, ' ').trim();
+  assert.match(sql, /INSERT INTO "ProjectMemory"/);
+  assert.match(
+    sql,
+    /ON CONFLICT \( "ownerUserId", "providerId", "scopeKind", "scopeId", "repository", "namespace" \) DO UPDATE/,
+  );
+  assert.match(
+    sql,
+    /"ProjectMemory"\."sourceExecutionCreatedAt" <= EXCLUDED\."sourceExecutionCreatedAt"/,
+  );
+  assert.equal(captured.values.includes(createdAt), true);
+  assert.equal(
+    captured.values.includes(
+      JSON.stringify({
+        repository: 'playrunner/demo-project',
+        summary: 'updated',
+      }),
+    ),
+    true,
+  );
+});
 
 test('binds attached memory to the project and repository by default', () => {
   const workflow = {

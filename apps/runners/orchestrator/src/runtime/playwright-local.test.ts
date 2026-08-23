@@ -19,6 +19,10 @@ test('hardens the local Playwright container and runs it as pwuser', () => {
   assert.ok(args.includes('no-new-privileges'));
   assert.ok(args.includes('nofile=4096:4096'));
   assert.deepEqual(
+    args.slice(args.indexOf('--platform'), args.indexOf('--platform') + 2),
+    ['--platform', 'linux/amd64'],
+  );
+  assert.deepEqual(
     args.slice(args.indexOf('--user'), args.indexOf('--user') + 2),
     ['--user', 'pwuser'],
   );

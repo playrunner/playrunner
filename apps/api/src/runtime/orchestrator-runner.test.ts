@@ -32,6 +32,15 @@ test('hardens the privileged local orchestrator container', () => {
   assert.ok(args.includes('nofile=4096:4096'));
 });
 
+test('passes the detected local Docker platform to the orchestrator', () => {
+  const args = createLocalOrchestratorDockerArgs('linux/arm64');
+  assert.ok(args.includes('PLAYRUNNER_LOCAL_DOCKER_PLATFORM=linux/arm64'));
+  assert.throws(
+    () => createLocalOrchestratorDockerArgs('linux/riscv64'),
+    /Unsupported local Docker platform/,
+  );
+});
+
 test('rejects legacy runtime metadata that does not attest local authentication', () => {
   assert.equal(
     isExpectedLocalOrchestrator({

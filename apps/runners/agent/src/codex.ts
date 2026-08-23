@@ -8,6 +8,23 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
+const CODEX_RUNTIME_FAILURES: Array<{
+  message: string;
+  pattern: RegExp;
+}> = [
+  {
+    message:
+      'Codex could not execute tools because its sandbox failed to initialize (SeccompInstall: Invalid argument).',
+    pattern: /SeccompInstall[\s\S]{0,500}Invalid argument/i,
+  },
+  {
+    message:
+      'Codex could not execute tools because its sandbox failed to initialize.',
+    pattern:
+      /sandbox initialization[\s\S]{0,300}(?:fail(?:ed|ure)|invalid argument)/i,
+  },
+];
+
 function record(value: unknown): JsonRecord {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -35,11 +52,22 @@ export function codexThreadIdFromEvent(value: unknown): string | undefined {
 export function createCodexEventParser() {
   let buffer = '';
   let completionSummary: string | undefined;
+  let failure: string | undefined;
   let threadId: string | undefined;
   const parseLine = (line: string) => {
     if (!line.trim()) return;
     try {
       const event = record(JSON.parse(line));
+      const serializedEvent = JSON.stringify(event);
+      for (const runtimeFailure of CODEX_RUNTIME_FAILURES) {
+        if (runtimeFailure.pattern.test(serializedEvent)) {
+          failure ||= runtimeFailure.message;
+          break;
+        }
+      }
+      if (event.type === 'turn.failed') {
+        failure ||= 'Codex reported that the agent turn failed.';
+      }
       threadId ||= codexThreadIdFromEvent(event);
       const item = record(event.item);
       if (
@@ -60,6 +88,9 @@ export function createCodexEventParser() {
       parseLine(buffer);
       buffer = '';
       return threadId;
+    },
+    failure() {
+      return failure;
     },
     push(chunk: string) {
       buffer += chunk;
@@ -194,6 +225,10 @@ export async function runCodex(options: {
     uid: options.uid,
   });
   const parsedSessionId = parser.finish();
+  const parserFailure = parser.failure();
+  if (parserFailure) {
+    throw new Error(parserFailure);
+  }
   if (result.code !== 0 || result.timedOut) {
     const rawDetail = result.stderr || result.stdout;
     const safeDetail = rawDetail

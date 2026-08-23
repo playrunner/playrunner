@@ -31,8 +31,18 @@ export function getLocalOrchestratorRequestHeaders(): Record<string, string> {
   return { [LOCAL_ORCHESTRATOR_AUTH_HEADER]: localOrchestratorAuthToken };
 }
 
-export function createLocalOrchestratorDockerArgs(): string[] {
-  return [
+export function createLocalOrchestratorDockerArgs(
+  localDockerPlatform = process.env.PLAYRUNNER_LOCAL_DOCKER_PLATFORM?.trim(),
+): string[] {
+  if (
+    localDockerPlatform &&
+    !/^linux\/(?:amd64|arm64)$/.test(localDockerPlatform)
+  ) {
+    throw new Error(
+      `Unsupported local Docker platform: ${localDockerPlatform}`,
+    );
+  }
+  const args = [
     'run',
     '--rm',
     '--init',
@@ -66,8 +76,12 @@ export function createLocalOrchestratorDockerArgs(): string[] {
     LOCAL_ORCHESTRATOR_AUTH_ENV,
     '-v',
     '/var/run/docker.sock:/var/run/docker.sock',
-    LOCAL_ORCHESTRATOR_IMAGE,
   ];
+  if (localDockerPlatform) {
+    args.push('-e', `PLAYRUNNER_LOCAL_DOCKER_PLATFORM=${localDockerPlatform}`);
+  }
+  args.push(LOCAL_ORCHESTRATOR_IMAGE);
+  return args;
 }
 
 function sleep(ms: number) {

@@ -269,6 +269,7 @@ describe('local AI Container execution', { concurrency: false }, () => {
         topicName: 'runner-events',
         type: 'gcp_pubsub',
       },
+      'linux/arm64',
     );
     const payload = JSON.parse(invocation.payload);
 
@@ -290,6 +291,13 @@ describe('local AI Container execution', { concurrency: false }, () => {
     assert.ok(invocation.args.includes('no-new-privileges'));
     assert.ok(invocation.args.includes('seccomp=unconfined'));
     assert.ok(invocation.args.includes('nofile=4096:4096'));
+    assert.deepEqual(
+      invocation.args.slice(
+        invocation.args.indexOf('--platform'),
+        invocation.args.indexOf('--platform') + 2,
+      ),
+      ['--platform', 'linux/arm64'],
+    );
     assert.equal(
       invocation.args.some((value) => value.startsWith('OPENAI_API_KEY=')),
       false,
@@ -573,6 +581,29 @@ describe('local AI Container execution', { concurrency: false }, () => {
       type: 'bot_pull_request',
       url: pullRequest.url,
     });
+    assert.deepEqual(
+      createBotPullRequestWorkflowEvent(deliveredResult, undefined, {
+        baseRef: 'feature/checkout',
+        repository: 'playrunner/example',
+      }),
+      botPullRequestEvent,
+    );
+    assert.throws(
+      () =>
+        createBotPullRequestWorkflowEvent(deliveredResult, undefined, {
+          baseRef: 'feature/checkout',
+          repository: 'someone/else',
+        }),
+      /does not match the configured manual source/,
+    );
+    assert.throws(
+      () =>
+        createBotPullRequestWorkflowEvent(deliveredResult, undefined, {
+          baseRef: 'other/base',
+          repository: 'playrunner/example',
+        }),
+      /does not match the configured manual source/,
+    );
     assert.doesNotMatch(
       JSON.stringify(botPullRequestEvent),
       /privateResult|memory|secret/,

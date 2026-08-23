@@ -372,9 +372,15 @@ export type BotPullRequestWorkflowEvent = {
   url: string;
 };
 
+export type ManualBotPullRequestSource = {
+  baseRef: string;
+  repository: string;
+};
+
 export function createBotPullRequestWorkflowEvent(
   result: AgentExecutionResult,
   changeContext?: CiChangeContext,
+  manualSource?: ManualBotPullRequestSource,
 ): BotPullRequestWorkflowEvent | null {
   if (!isRecord(result) || !isRecord(result.output.botDelivery)) return null;
   const output = validateAgentExecutionResult(result).output;
@@ -383,15 +389,20 @@ export function createBotPullRequestWorkflowEvent(
     throw new Error('AI Container bot PR result schema is invalid.');
   }
   if (delivery.status === 'no_changes') return null;
-  if (!changeContext) {
+  if (!changeContext && !manualSource) {
     throw new Error(
-      'AI Container bot PR result requires an immutable CI change context.',
+      'AI Container bot PR result requires a CI change context or configured manual source.',
     );
   }
   const pullRequest = delivery.pullRequest as Record<string, unknown>;
   const status = delivery.status;
   const number = Number(pullRequest.number);
-  const repository = changeContext.repository.toLowerCase();
+  const repository = (
+    changeContext?.repository ||
+    manualSource?.repository ||
+    ''
+  ).toLowerCase();
+  const baseRef = changeContext?.headRef || manualSource?.baseRef || '';
   let url: URL;
   try {
     url = new URL(String(pullRequest.url));
@@ -402,8 +413,10 @@ export function createBotPullRequestWorkflowEvent(
     (status !== 'created' && status !== 'existing') ||
     !isGitHubRepository(repository) ||
     Buffer.byteLength(repository, 'utf8') > 200 ||
-    delivery.developerHeadSha !== changeContext.headSha.toLowerCase() ||
-    pullRequest.baseRef !== changeContext.headRef ||
+    !isSafeGitRef(baseRef) ||
+    (changeContext &&
+      delivery.developerHeadSha !== changeContext.headSha.toLowerCase()) ||
+    pullRequest.baseRef !== baseRef ||
     pullRequest.draft !== true ||
     !Number.isSafeInteger(number) ||
     number < 1 ||
@@ -416,11 +429,11 @@ export function createBotPullRequestWorkflowEvent(
     url.pathname.toLowerCase() !== `/${repository}/pull/${number}`
   ) {
     throw new Error(
-      'AI Container bot PR result does not match the immutable CI source, head, or draft delivery contract.',
+      `AI Container bot PR result does not match the ${changeContext ? 'immutable CI' : 'configured manual'} source, head, or draft delivery contract.`,
     );
   }
   return {
-    baseRef: changeContext.headRef,
+    baseRef,
     draft: true,
     headRef: String(pullRequest.headRef),
     number,
@@ -473,7 +486,16 @@ function assertEnvironmentKey(key: string): void {
 export function createLocalAgentDockerInvocation(
   request: AgentExecutionRequest,
   runnerControl: PubSubRunnerControl['payload'],
+  localDockerPlatform = process.env.PLAYRUNNER_LOCAL_DOCKER_PLATFORM?.trim(),
 ): LocalAgentDockerInvocation {
+  if (
+    localDockerPlatform &&
+    !/^linux\/(?:amd64|arm64)$/.test(localDockerPlatform)
+  ) {
+    throw new Error(
+      `Unsupported local Docker platform: ${localDockerPlatform}`,
+    );
+  }
   const name = containerName(request);
   const payload = serializeAgentPayload(
     createAgentRunnerPayload(request, runnerControl),
@@ -523,6 +545,9 @@ export function createLocalAgentDockerInvocation(
     '--add-host',
     'host.docker.internal:host-gateway',
   ];
+  if (localDockerPlatform) {
+    args.push('--platform', localDockerPlatform);
+  }
   const emulatorHost = resolveDockerPubSubEmulatorHost(
     process.env.PUBSUB_EMULATOR_HOST,
   );

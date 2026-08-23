@@ -1,4 +1,5 @@
-import type { Prisma } from '../generated/prisma/client.cts';
+import { randomUUID } from 'node:crypto';
+import { Prisma } from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
 
 export const MAX_AGENT_MEMORY_BYTES = 64 * 1024;
@@ -24,6 +25,17 @@ type MemoryBinding = {
   scopeId: string;
   scopeKind: 'project' | 'workflow';
 };
+export type AgentMemoryPersistenceData = MemoryBinding & {
+  ownerUserId: string;
+  projectId: string | null;
+  providerId: string;
+  sourceExecutionCreatedAt: Date;
+  sourceExecutionId: string;
+  sourceHeadSha: string | null;
+  state: Prisma.InputJsonValue;
+  workflowId: string | null;
+};
+type ExecuteSql = (query: Prisma.Sql) => Promise<number>;
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -214,6 +226,68 @@ export async function loadAgentMemoryByNodeId(params: {
   return result;
 }
 
+export async function persistAgentMemoryRecord(
+  data: AgentMemoryPersistenceData,
+  executeSql: ExecuteSql = (query) => prisma.$executeRaw(query),
+) {
+  await executeSql(Prisma.sql`
+    INSERT INTO "ProjectMemory" (
+      "id",
+      "ownerUserId",
+      "providerId",
+      "scopeKind",
+      "scopeId",
+      "projectId",
+      "workflowId",
+      "repository",
+      "namespace",
+      "revision",
+      "sourceHeadSha",
+      "sourceExecutionId",
+      "sourceExecutionCreatedAt",
+      "state",
+      "createdAt",
+      "updatedAt"
+    ) VALUES (
+      ${randomUUID()},
+      ${data.ownerUserId},
+      ${data.providerId},
+      ${data.scopeKind},
+      ${data.scopeId},
+      ${data.projectId},
+      ${data.workflowId},
+      ${data.repository},
+      ${data.namespace},
+      1,
+      ${data.sourceHeadSha},
+      ${data.sourceExecutionId},
+      ${data.sourceExecutionCreatedAt},
+      ${JSON.stringify(data.state)}::jsonb,
+      NOW(),
+      NOW()
+    )
+    ON CONFLICT (
+      "ownerUserId",
+      "providerId",
+      "scopeKind",
+      "scopeId",
+      "repository",
+      "namespace"
+    ) DO UPDATE SET
+      "revision" = "ProjectMemory"."revision" + 1,
+      "projectId" = EXCLUDED."projectId",
+      "workflowId" = EXCLUDED."workflowId",
+      "sourceHeadSha" = EXCLUDED."sourceHeadSha",
+      "sourceExecutionId" = EXCLUDED."sourceExecutionId",
+      "sourceExecutionCreatedAt" = EXCLUDED."sourceExecutionCreatedAt",
+      "state" = EXCLUDED."state",
+      "updatedAt" = NOW()
+    WHERE
+      "ProjectMemory"."sourceExecutionCreatedAt"
+        <= EXCLUDED."sourceExecutionCreatedAt"
+  `);
+}
+
 export async function persistAgentMemoryFromEvent(params: {
   event: Record<string, unknown>;
   executionId: string;
@@ -254,24 +328,5 @@ export async function persistAgentMemoryFromEvent(params: {
     state: memory as Prisma.InputJsonValue,
     workflowId: binding.scopeKind === 'workflow' ? binding.scopeId : null,
   };
-  try {
-    await prisma.projectMemory.create({ data });
-  } catch (error) {
-    if (!isRecord(error) || error.code !== 'P2002') {
-      throw error;
-    }
-    await prisma.projectMemory.updateMany({
-      data: {
-        revision: { increment: 1 },
-        sourceExecutionCreatedAt: data.sourceExecutionCreatedAt,
-        sourceExecutionId: data.sourceExecutionId,
-        sourceHeadSha: data.sourceHeadSha,
-        state: data.state,
-      },
-      where: {
-        ...unique,
-        sourceExecutionCreatedAt: { lte: execution.createdAt },
-      },
-    });
-  }
+  await persistAgentMemoryRecord(data);
 }

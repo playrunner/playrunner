@@ -51,6 +51,14 @@ POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
 PUBSUB_EMULATOR_PORT="${PUBSUB_EMULATOR_PORT:-8084}"
 LOCAL_PUBSUB_PROJECT_ID="${LOCAL_PUBSUB_PROJECT_ID:-playrunner-local}"
 PUBSUB_EMULATOR_HOST="${PUBSUB_EMULATOR_HOST:-127.0.0.1:${PUBSUB_EMULATOR_PORT}}"
+PLAYRUNNER_LOCAL_DOCKER_PLATFORM="${PLAYRUNNER_LOCAL_DOCKER_PLATFORM:-$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')}"
+case "${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}" in
+    linux/amd64|linux/arm64) ;;
+    *)
+        echo "Unsupported local Docker platform: ${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}"
+        exit 1
+        ;;
+esac
 LOCAL_DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
 ROOT_DATABASE_URL="${DATABASE_URL:-}"
 VITE_DEFAULT_DATABASE_URL="${VITE_DEFAULT_DATABASE_URL:-${ROOT_DATABASE_URL:-$LOCAL_DATABASE_URL}}"
@@ -70,6 +78,7 @@ export POSTGRES_PASSWORD
 export PUBSUB_EMULATOR_PORT
 export LOCAL_PUBSUB_PROJECT_ID
 export PUBSUB_EMULATOR_HOST
+export PLAYRUNNER_LOCAL_DOCKER_PLATFORM
 export VITE_DEFAULT_DATABASE_URL
 export VITE_SETUP_INSTALLER_URL
 
@@ -100,6 +109,7 @@ echo "📚 Docs port: ${DOCS_PORT}"
 echo "🧰 Setup installer port: ${SETUP_INSTALLER_PORT}"
 echo "🐘 Postgres port: ${POSTGRES_PORT}"
 echo "📬 Pub/Sub emulator port: ${PUBSUB_EMULATOR_PORT}"
+echo "🐳 Local Docker platform: ${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}"
 
 wait_for_compose_service() {
     local service="$1"
@@ -688,7 +698,7 @@ done
 echo "🤖 Building AI Container Docker image..."
 AGENT_PLAYWRIGHT_NPM_VERSION=$(node "${BASE_DIR}/infra/scripts/playwright-runner-config.mjs" npm-version "${PLAYWRIGHT_LATEST_TAG}")
 docker build \
-    --platform linux/amd64 \
+    --platform "${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}" \
     -f "${BASE_DIR}/apps/runners/agent/Dockerfile" \
     --build-arg "PLAYWRIGHT_VERSION=${PLAYWRIGHT_LATEST_TAG}" \
     --build-arg "PLAYWRIGHT_NPM_VERSION=${AGENT_PLAYWRIGHT_NPM_VERSION}" \

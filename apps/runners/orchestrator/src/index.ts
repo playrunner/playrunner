@@ -1997,6 +1997,12 @@ export async function executeWorkflow(reqBody: any) {
               const botPullRequestEvent = createBotPullRequestWorkflowEvent(
                 result,
                 request.changeContext,
+                request.changeContext
+                  ? undefined
+                  : {
+                      baseRef: getString(request.config.branch) || 'main',
+                      repository: getString(request.config.repository),
+                    },
               );
               await publishEventStrict({
                 nodeId: node.id,

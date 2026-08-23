@@ -50,6 +50,54 @@ test('captures the latest bounded Agent completion message', () => {
   assert.equal(parser.summary(), 'Updated the requirement evidence.');
 });
 
+test('recognizes a sandbox initialization failure in a completion message', () => {
+  const parser = createCodexEventParser();
+  parser.push(
+    `${JSON.stringify({
+      item: {
+        text: 'Blocked by the container runtime. Every command fails at sandbox initialization with SeccompInstall: Invalid argument.',
+        type: 'agent_message',
+      },
+      type: 'item.completed',
+    })}\n`,
+  );
+  parser.finish();
+  assert.match(parser.failure() || '', /sandbox failed to initialize/);
+});
+
+test('rejects a blocked Codex turn even when the CLI exits successfully', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-blocked-'));
+  const executable = path.join(directory, 'codex');
+  fs.writeFileSync(
+    executable,
+    [
+      '#!/usr/bin/env node',
+      "console.log(JSON.stringify({ type: 'thread.started', thread_id: 'thread-blocked' }));",
+      "console.log(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'Blocked by the container runtime. Commands fail with SeccompInstall: Invalid argument.' } }));",
+      'process.exit(0);',
+      '',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  try {
+    await assert.rejects(
+      runCodex({
+        config: { apiKeyEnvVar: 'MODEL_KEY' },
+        cwd: directory,
+        environment: {
+          MODEL_KEY: 'test-key',
+          PATH: `${directory}${path.delimiter}${process.env.PATH || ''}`,
+        },
+        prompt: 'Test blocked completion handling.',
+        timeoutMs: 2_000,
+      }),
+      /sandbox failed to initialize/,
+    );
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
 test('removes model credentials from Codex shell commands', () => {
   const args = createCodexArgs({
     config: { apiKeyEnvVar: 'MY_OPENAI_KEY', model: 'gpt-5.6-terra' },
