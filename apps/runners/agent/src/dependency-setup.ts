@@ -215,10 +215,16 @@ export async function prepareProjectDependencies(params: {
       const path = require('node:path');
       const project = process.argv[1];
       const source = process.argv[2];
-      for (const name of ['@playwright/test', 'playwright']) {
+      for (const name of [
+        '@bgotink/playwright-coverage',
+        '@playwright/test',
+        '@vitest/coverage-v8',
+        'playwright',
+        'vitest',
+      ]) {
         const target = path.join(project, 'node_modules', name);
         const packageSource = path.join(source, name);
-        if (!fs.statSync(packageSource).isDirectory()) throw new Error('Container Playwright package is missing: ' + name);
+        if (!fs.statSync(packageSource).isDirectory()) throw new Error('Container test package is missing: ' + name);
         fs.rmSync(target, { force: true, recursive: true });
         fs.mkdirSync(path.dirname(target), { recursive: true });
         fs.symlinkSync(packageSource, target, 'dir');

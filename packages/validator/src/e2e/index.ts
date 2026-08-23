@@ -12,6 +12,14 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
       tags: ['@validator', '@integration', '@node'],
       async run({ expect, host, page }) {
         const expectDefaultConfig = async () => {
+          const validationProfile = page.getByTestId(
+            'validator-validation-profile',
+          );
+          await expect(validationProfile).toHaveValue('full-stack');
+          await expect(validationProfile).toHaveAttribute(
+            'id',
+            'validator-validation-profile',
+          );
           await expect(page.getByTestId('validator-lineCoverage')).toHaveValue(
             '80',
           );
@@ -58,10 +66,9 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
               'untested_critical_path',
             ].join(', '),
           );
-          await expect(page.getByLabel('Validation command')).toHaveAttribute(
-            'id',
-            'validator-validation-command',
-          );
+          await expect(
+            page.getByLabel('Browser validation command'),
+          ).toHaveAttribute('id', 'validator-validation-command');
           await expect(
             page.getByLabel('Validation timeout (minutes)'),
           ).toHaveAttribute('id', 'validator-validation-timeout-minutes');
@@ -88,6 +95,9 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
         await host.openNodeSettings('validator');
         await expectDefaultConfig();
 
+        await page
+          .getByTestId('validator-validation-profile')
+          .selectOption('browser');
         await page.getByTestId('validator-lineCoverage').fill('75');
         await page.getByTestId('validator-changedLineCoverage').fill('85');
         await page.getByTestId('validator-branchCoverage').fill('65');
@@ -112,6 +122,9 @@ export const validatorE2EContribution = definePlayrunnerE2EContribution({
         await host.reloadWorkflow();
         await host.openNodeSettings('validator');
 
+        await expect(
+          page.getByTestId('validator-validation-profile'),
+        ).toHaveValue('browser');
         await expect(page.getByTestId('validator-lineCoverage')).toHaveValue(
           '75',
         );

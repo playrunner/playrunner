@@ -15,10 +15,13 @@
   },
   "license": "SEE LICENSE IN ../../../LICENSE",
   "dependencies": {
+    "@bgotink/playwright-coverage": "0.3.2",
     "@openai/codex": "0.147.0",
     "@playwright/test": "1.62.1",
+    "@vitest/coverage-v8": "3.2.7",
     "playwright": "1.62.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "3.2.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

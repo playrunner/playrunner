@@ -41,6 +41,11 @@ export const DEFAULT_VALIDATION_COMMAND =
 const LEGACY_VALIDATION_COMMAND =
   'npm run test:coverage -- --reporter=line --retries=0';
 
+const PLAYWRIGHT_JSON_REPORT_PATH =
+  'test-results/.playrunner-validation-results.json';
+const MAX_PLAYWRIGHT_JSON_REPORT_BYTES = 64 * 1024 * 1024;
+const MAX_PLAYWRIGHT_REPORTED_TESTS = 100_000;
+
 export const VALIDATOR_LIMITS = {
   coveragePathBytes: 512,
   coveragePathCount: 20,
@@ -184,6 +189,22 @@ export type ValidationResult = {
     stdoutTail: string;
     timedOut: boolean;
   };
+  unitTestRun?: {
+    args: string[];
+    command: 'vitest';
+    coverageReport: string | null;
+    durationMs: number;
+    exitCode: number;
+    failure: string | null;
+    failureMessage: string | null;
+    lcovReport: string | null;
+    passed: boolean;
+    stderrTail: string;
+    stdoutTail: string;
+    testCount: number | null;
+    testResults: string | null;
+    timedOut: boolean;
+  };
   testSummary: {
     files: number;
     focused: number;
@@ -205,6 +226,7 @@ export type ValidatorConfig = {
   minimum?: Partial<Record<keyof typeof DEFAULT_MINIMUMS, number>>;
   requirements?: string;
   runTests?: boolean;
+  unitCoverage?: boolean;
   validationCommand?: string;
   validationTimeoutMinutes?: number;
 };
@@ -219,6 +241,7 @@ export type ValidatorOptions = {
     command: string,
     cwd: string,
     timeoutMs: number,
+    environment?: NodeJS.ProcessEnv,
   ) => Promise<ProcessResult>;
   timeoutMs?: number;
 };
@@ -258,6 +281,24 @@ type AnalyzedTest = {
   skipped: boolean;
   strings: string[];
   title: string;
+};
+
+type ExecutedPlaywrightTest = {
+  column: number;
+  file: string;
+  line: number;
+  passed: boolean;
+  project: string;
+  status: string;
+  title: string;
+};
+
+type PlaywrightExecutionEvidence = {
+  failedTests: string[];
+  passedTestKeys: Set<string>;
+  reportedTests: number;
+  valid: boolean;
+  violations: ValidationViolation[];
 };
 
 type TestAnalysis = {
@@ -305,6 +346,14 @@ const TEST_DIRECTORY_NAMES = new Set([
   'test',
   'tests',
 ]);
+const PLAYWRIGHT_CONFIG_NAMES = [
+  'playwright.config.cjs',
+  'playwright.config.cts',
+  'playwright.config.js',
+  'playwright.config.mjs',
+  'playwright.config.mts',
+  'playwright.config.ts',
+] as const;
 const EXECUTABLE_SOURCE_EXTENSIONS = new Set([
   '.c',
   '.cc',
@@ -460,6 +509,7 @@ function normalizeConfig(config: ValidatorConfig): NormalizedValidatorConfig {
     },
     requirements: String(config.requirements || ''),
     runTests: config.runTests !== false,
+    unitCoverage: config.unitCoverage === true,
     validationCommand: (() => {
       const command = String(config.validationCommand || '').trim();
       return !command || command === LEGACY_VALIDATION_COMMAND
@@ -815,17 +865,268 @@ function retryPolicyProblem(command: string): string | null {
   return null;
 }
 
+const PARTIAL_SUITE_OPTIONS = new Set([
+  '--grep',
+  '--grep-invert',
+  '--last-failed',
+  '--list',
+  '--only-changed',
+  '--project',
+  '--shard',
+  '-g',
+]);
+const PLAYWRIGHT_OPTIONS_WITH_VALUES = new Set([
+  '--add-reporter',
+  '--browser',
+  '--config',
+  '--global-timeout',
+  '--max-failures',
+  '--output',
+  '--repeat-each',
+  '--reporter',
+  '--retries',
+  '--timeout',
+  '--trace',
+  '--tsconfig',
+  '--update-snapshots',
+  '--update-source-method',
+  '--workers',
+  '-c',
+  '-j',
+]);
+
+function partialSuiteSelectionProblem(command: string): string | null {
+  const parsed = staticCommandSyntaxProblem(command);
+  if (parsed.problem) return null;
+  const invocationArguments = playwrightArguments(parsed.tokens);
+  if (!invocationArguments) return null;
+  let consumeValue = false;
+  for (const token of invocationArguments) {
+    if (consumeValue) {
+      consumeValue = false;
+      continue;
+    }
+    if (token === '--') {
+      return 'The validation command cannot use `--` or positional test filters; authoritative validation must execute the complete configured suite.';
+    }
+    const optionName = token.split('=', 1)[0];
+    if (PARTIAL_SUITE_OPTIONS.has(optionName)) {
+      return `The validation command cannot use ${optionName}; authoritative validation must execute the complete configured suite.`;
+    }
+    if (!token.startsWith('-')) {
+      return `The validation command contains the positional test filter ${token}; authoritative validation must execute the complete configured suite.`;
+    }
+    if (!token.includes('=') && PLAYWRIGHT_OPTIONS_WITH_VALUES.has(token)) {
+      consumeValue = true;
+    }
+  }
+  return consumeValue
+    ? 'The validation command ends with a Playwright option that requires a value.'
+    : null;
+}
+
+function shellToken(value: string): string {
+  if (/^[A-Za-z0-9_./:=,@%+-]+$/.test(value)) return value;
+  return `'${value.replaceAll("'", `'\\''`)}'`;
+}
+
+function configuredPlaywrightPath(cwd: string, command: string): string | null {
+  const parsed = staticCommandSyntaxProblem(command);
+  if (parsed.problem) return null;
+  const invocationArguments = playwrightArguments(parsed.tokens) || [];
+  let configuredPath = '';
+  for (let index = 0; index < invocationArguments.length; index += 1) {
+    const token = invocationArguments[index];
+    if (token === '--config' || token === '-c') {
+      configuredPath = invocationArguments[index + 1] || '';
+      index += 1;
+    } else if (token.startsWith('--config=')) {
+      configuredPath = token.slice('--config='.length);
+    } else if (token.startsWith('-c=')) {
+      configuredPath = token.slice(3);
+    }
+  }
+  const configured = configuredPath
+    ? resolveWorkspacePath(cwd, configuredPath)
+    : null;
+  if (configuredPath && !configured) {
+    throw new Error(
+      'The configured Playwright config must be inside the validation workspace.',
+    );
+  }
+  const validatedConfigFile = (candidate: string): string => {
+    const stat = fs.lstatSync(candidate);
+    if (
+      !stat.isFile() ||
+      stat.isSymbolicLink() ||
+      stat.size > MAX_TEST_FILE_BYTES ||
+      !resolvesInsideWorkspace(cwd, candidate)
+    ) {
+      throw new Error(
+        'The configured Playwright config must be a regular file inside the validation workspace.',
+      );
+    }
+    return candidate;
+  };
+  if (configured && fs.existsSync(configured)) {
+    const stat = fs.lstatSync(configured);
+    if (stat.isDirectory()) {
+      const nested = PLAYWRIGHT_CONFIG_NAMES.map((name) =>
+        path.join(configured, name),
+      ).find((candidate) => fs.existsSync(candidate));
+      if (!nested) {
+        throw new Error(
+          'The configured Playwright config directory contains no supported config file.',
+        );
+      }
+      return validatedConfigFile(nested);
+    }
+    return validatedConfigFile(configured);
+  }
+  if (configuredPath) {
+    throw new Error('The configured Playwright config does not exist.');
+  }
+  const conventionalConfig = PLAYWRIGHT_CONFIG_NAMES.map((name) =>
+    path.join(cwd, name),
+  ).find((candidate) => fs.existsSync(candidate));
+  return conventionalConfig ? validatedConfigFile(conventionalConfig) : null;
+}
+
+function createAuthoritativeReporterConfig(
+  cwd: string,
+  command: string,
+): {
+  cleanup: () => void;
+  path: string;
+} {
+  const originalConfig = configuredPlaywrightPath(cwd, command);
+  const wrapperDirectory = originalConfig ? path.dirname(originalConfig) : cwd;
+  const wrapperPath = path.join(
+    wrapperDirectory,
+    '.playrunner-validator.config.ts',
+  );
+  if (fs.existsSync(wrapperPath)) {
+    throw new Error(
+      'The reserved Playrunner reporter config path already exists in the repository.',
+    );
+  }
+  const importStatement = originalConfig
+    ? `import importedConfig from ${JSON.stringify(`./${path.basename(originalConfig)}`)};`
+    : 'const importedConfig = {};';
+  const source = [
+    importStatement,
+    "const baseConfig: any = importedConfig && typeof importedConfig === 'object' ? importedConfig : {};",
+    'const configuredReporter = baseConfig.reporter;',
+    'let reporters: any[];',
+    "if (typeof configuredReporter === 'string') reporters = [[configuredReporter]];",
+    'else if (!Array.isArray(configuredReporter)) reporters = [];',
+    "else if (configuredReporter.length && typeof configuredReporter[0] === 'string' && (configuredReporter.length === 1 || (configuredReporter.length === 2 && !Array.isArray(configuredReporter[1]) && typeof configuredReporter[1] === 'object'))) reporters = [configuredReporter];",
+    "else reporters = configuredReporter.map((entry: any) => typeof entry === 'string' ? [entry] : entry);",
+    "reporters = reporters.filter((entry: any) => entry?.[0] !== 'line' && entry?.[0] !== 'json');",
+    "reporters.push(['line']);",
+    "reporters.push(['json']);",
+    'export default { ...baseConfig, reporter: reporters };',
+    '',
+  ].join('\n');
+  fs.writeFileSync(wrapperPath, source, { flag: 'wx', mode: 0o444 });
+  return {
+    cleanup: () => fs.rmSync(wrapperPath, { force: true }),
+    path: wrapperPath,
+  };
+}
+
+function preparePlaywrightJsonReport(reportPath: string, cwd: string): void {
+  const reportDirectory = path.dirname(reportPath);
+  if (fs.existsSync(reportDirectory)) {
+    const directoryStat = fs.lstatSync(reportDirectory);
+    if (
+      !directoryStat.isDirectory() ||
+      directoryStat.isSymbolicLink() ||
+      !resolvesInsideWorkspace(cwd, reportDirectory)
+    ) {
+      throw new Error(
+        'The fixed Playwright result directory must be a regular directory inside the validation workspace.',
+      );
+    }
+  } else {
+    fs.mkdirSync(reportDirectory, { mode: 0o755, recursive: true });
+    if (!resolvesInsideWorkspace(cwd, reportDirectory)) {
+      throw new Error(
+        'The fixed Playwright result directory could not be created safely inside the validation workspace.',
+      );
+    }
+  }
+  if (!fs.existsSync(reportPath)) return;
+  const reportStat = fs.lstatSync(reportPath);
+  if (!reportStat.isFile() || reportStat.isSymbolicLink()) {
+    throw new Error(
+      'The fixed Playwright JSON result path must not be a directory or symbolic link.',
+    );
+  }
+  fs.rmSync(reportPath, { force: true });
+}
+
+function authoritativePlaywrightCommand(
+  command: string,
+  reporterConfigPath: string,
+): string {
+  const parsed = staticCommandSyntaxProblem(command);
+  if (parsed.problem) return command;
+  let executableIndex = 0;
+  while (ENVIRONMENT_ASSIGNMENT.test(parsed.tokens[executableIndex] || '')) {
+    executableIndex += 1;
+  }
+  const assignments = parsed.tokens
+    .slice(0, executableIndex)
+    .filter(
+      (token) =>
+        !token.startsWith('PLAYWRIGHT_JSON_OUTPUT_FILE=') &&
+        !token.startsWith('PLAYWRIGHT_JSON_OUTPUT_NAME=') &&
+        !token.startsWith('PLAYWRIGHT_JSON_OUTPUT_DIR='),
+    )
+    .map((token) => {
+      const separator = token.indexOf('=');
+      return `${token.slice(0, separator)}=${shellToken(token.slice(separator + 1))}`;
+    });
+  const invocation = parsed.tokens.slice(executableIndex);
+  const authoritativeArguments: string[] = [];
+  for (let index = 2; index < invocation.length; index += 1) {
+    const token = invocation[index];
+    if (
+      token === '--reporter' ||
+      token === '--add-reporter' ||
+      token === '--config' ||
+      token === '-c'
+    ) {
+      index += 1;
+      continue;
+    }
+    if (
+      token.startsWith('--reporter=') ||
+      token.startsWith('--add-reporter=') ||
+      token.startsWith('--config=') ||
+      token.startsWith('-c=')
+    ) {
+      continue;
+    }
+    authoritativeArguments.push(token);
+  }
+  return [
+    ...assignments,
+    invocation[0] || 'playwright',
+    invocation[1] || 'test',
+    ...authoritativeArguments,
+    `--config=${reporterConfigPath}`,
+  ]
+    .map((token, index) =>
+      index < assignments.length ? token : shellToken(token),
+    )
+    .join(' ');
+}
+
 function configuredPlaywrightTestDirectories(root: string): Set<string> {
   const directories = new Set<string>();
-  const configNames = [
-    'playwright.config.cjs',
-    'playwright.config.cts',
-    'playwright.config.js',
-    'playwright.config.mjs',
-    'playwright.config.mts',
-    'playwright.config.ts',
-  ];
-  for (const configName of configNames) {
+  for (const configName of PLAYWRIGHT_CONFIG_NAMES) {
     const configPath = path.join(root, configName);
     try {
       const stat = fs.lstatSync(configPath);
@@ -2152,6 +2453,7 @@ function parseRequirements(
   source: string,
   tests: AnalyzedTest[],
   violations: ValidationViolation[],
+  passedTestKeys?: ReadonlySet<string>,
 ): RequirementEvidence[] {
   const seen = new Set<string>();
   const requirements: RequirementEvidence[] = [];
@@ -2211,6 +2513,7 @@ function parseRequirements(
         !test.skipped &&
         !test.expectedFailure &&
         test.meaningfulAssertion &&
+        (!passedTestKeys || passedTestKeys.has(executedTestKey(test))) &&
         test.strings.some((value) => containsRequirementId(value, rawId)),
     );
     const evidenceLimit = Math.min(
@@ -2294,15 +2597,238 @@ function outputTail(value: string, maximumBytes = 6_000): string {
   return `${marker}${value.slice(low)}`;
 }
 
-function failedTestNames(output: string): string[] {
+function executedTestKey(test: Pick<AnalyzedTest, 'file' | 'line' | 'title'>) {
+  return `${test.file.replaceAll('\\', '/')}\u0000${test.line}\u0000${test.title}`;
+}
+
+function recordValue(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function invalidPlaywrightReport(message: string): ValidationViolation {
+  return {
+    code: 'invalid_test_report',
+    message,
+    priority: 'critical',
+    remediation:
+      'Run the complete suite with the container-owned Playwright JSON reporter and do not modify its fixed result artifact.',
+    severity: 'error',
+  };
+}
+
+function normalizedReportedTestFile(
+  cwd: string,
+  value: unknown,
+): string | null {
+  if (typeof value !== 'string' || !value || value.includes('\0')) return null;
+  const absolute = path.isAbsolute(value)
+    ? path.resolve(value)
+    : path.resolve(cwd, value);
+  if (!resolvesInsideWorkspace(cwd, absolute)) return null;
+  const relative = path.relative(cwd, absolute).replaceAll('\\', '/');
+  return relative && !relative.startsWith('../') ? relative : null;
+}
+
+function readPlaywrightExecutionEvidence(
+  cwd: string,
+  relativeReportPath: string,
+): PlaywrightExecutionEvidence {
+  const violations: ValidationViolation[] = [];
+  const invalid = (message: string): PlaywrightExecutionEvidence => ({
+    failedTests: [],
+    passedTestKeys: new Set(),
+    reportedTests: 0,
+    valid: false,
+    violations: [invalidPlaywrightReport(message)],
+  });
+  const reportPath = resolveWorkspacePath(cwd, relativeReportPath);
+  if (!reportPath || !fs.existsSync(reportPath)) {
+    return invalid(
+      'The authoritative Playwright JSON result was not produced.',
+    );
+  }
+  let stat: fs.Stats;
+  try {
+    stat = fs.lstatSync(reportPath);
+  } catch {
+    return invalid(
+      'The authoritative Playwright JSON result could not be inspected.',
+    );
+  }
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.size <= 0 ||
+    stat.size > MAX_PLAYWRIGHT_JSON_REPORT_BYTES ||
+    !resolvesInsideWorkspace(cwd, reportPath)
+  ) {
+    return invalid(
+      `The authoritative Playwright JSON result must be a regular file no larger than ${MAX_PLAYWRIGHT_JSON_REPORT_BYTES} bytes.`,
+    );
+  }
+
+  let report: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+    const candidate = recordValue(parsed);
+    if (!candidate) throw new Error('result is not an object');
+    report = candidate;
+  } catch (error) {
+    return invalid(
+      `The authoritative Playwright JSON result is invalid: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!Array.isArray(report.suites)) {
+    return invalid(
+      'The authoritative Playwright JSON result has no suite inventory.',
+    );
+  }
+
+  const executed: ExecutedPlaywrightTest[] = [];
+  const outcomes = { expected: 0, flaky: 0, skipped: 0, unexpected: 0 };
+  let malformed = false;
+  const visitSuite = (value: unknown, depth: number): void => {
+    if (malformed || depth > MAX_TEST_DISCOVERY_DEPTH) {
+      malformed = true;
+      return;
+    }
+    const suite = recordValue(value);
+    if (!suite || !Array.isArray(suite.specs)) {
+      malformed = true;
+      return;
+    }
+    for (const value of suite.specs) {
+      if (executed.length >= MAX_PLAYWRIGHT_REPORTED_TESTS) {
+        malformed = true;
+        return;
+      }
+      const spec = recordValue(value);
+      const file = normalizedReportedTestFile(cwd, spec?.file);
+      const line = Number(spec?.line);
+      const column = Number(spec?.column);
+      const title = typeof spec?.title === 'string' ? spec.title : '';
+      if (
+        !spec ||
+        !file ||
+        !Number.isSafeInteger(line) ||
+        line < 1 ||
+        !Number.isSafeInteger(column) ||
+        column < 1 ||
+        !title ||
+        utf8Bytes(title) > VALIDATOR_LIMITS.testTitleBytes ||
+        !Array.isArray(spec.tests) ||
+        spec.tests.length < 1
+      ) {
+        malformed = true;
+        return;
+      }
+      for (const testValue of spec.tests) {
+        if (executed.length >= MAX_PLAYWRIGHT_REPORTED_TESTS) {
+          malformed = true;
+          return;
+        }
+        const reportedTest = recordValue(testValue);
+        const outcome = reportedTest?.status;
+        const expectedStatus = reportedTest?.expectedStatus;
+        const project =
+          typeof reportedTest?.projectName === 'string'
+            ? reportedTest.projectName
+            : '';
+        const results = reportedTest?.results;
+        if (
+          !reportedTest ||
+          (outcome !== 'expected' &&
+            outcome !== 'flaky' &&
+            outcome !== 'skipped' &&
+            outcome !== 'unexpected') ||
+          typeof expectedStatus !== 'string' ||
+          !Array.isArray(results)
+        ) {
+          malformed = true;
+          return;
+        }
+        outcomes[outcome] += 1;
+        const finalResult = recordValue(results.at(-1));
+        const resultStatus =
+          typeof finalResult?.status === 'string' ? finalResult.status : '';
+        const passed =
+          spec.ok === true &&
+          outcome === 'expected' &&
+          expectedStatus === 'passed' &&
+          resultStatus === 'passed';
+        executed.push({
+          column,
+          file,
+          line,
+          passed,
+          project,
+          status: resultStatus || String(outcome),
+          title,
+        });
+      }
+    }
+    if (suite.suites !== undefined && !Array.isArray(suite.suites)) {
+      malformed = true;
+      return;
+    }
+    for (const child of (suite.suites as unknown[] | undefined) || []) {
+      visitSuite(child, depth + 1);
+    }
+  };
+  for (const suite of report.suites) visitSuite(suite, 0);
+
+  const stats = recordValue(report.stats);
+  if (
+    malformed ||
+    !stats ||
+    (['expected', 'flaky', 'skipped', 'unexpected'] as const).some(
+      (key) =>
+        !Number.isSafeInteger(Number(stats[key])) ||
+        Number(stats[key]) < 0 ||
+        Number(stats[key]) !== outcomes[key],
+    )
+  ) {
+    return invalid(
+      'The authoritative Playwright JSON result has an invalid or inconsistent test inventory.',
+    );
+  }
+
+  const passedTestKeys = new Set(
+    executed.filter((test) => test.passed).map(executedTestKey),
+  );
+  const failedTests = Array.from(
+    new Set(
+      executed
+        .filter(
+          (test) =>
+            !test.passed &&
+            test.status !== 'skipped' &&
+            test.status !== 'expected',
+        )
+        .map((test) =>
+          truncateUtf8(
+            `${test.project ? `[${test.project}] › ` : ''}${test.file}:${test.line}:${test.column} › ${test.title}`,
+            VALIDATOR_LIMITS.failedTestNameBytes,
+          ),
+        ),
+    ),
+  ).slice(0, VALIDATOR_LIMITS.failedTestCount);
+  return {
+    failedTests,
+    passedTestKeys,
+    reportedTests: executed.length,
+    valid: true,
+    violations,
+  };
+}
+
+function failedTestNamesFromLineOutput(output: string): string[] {
   const names = output
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(
-      (line) =>
-        /^\d+\)/.test(line) ||
-        /(?:›|>)\s+.+(?:\.spec|\.test)\.[cm]?[jt]sx?/i.test(line),
-    )
+    .filter((line) => /^\d+\)\s+/.test(line))
     .map((line) =>
       truncateUtf8(
         line.replace(/^\d+\)\s*/, ''),
@@ -2722,10 +3248,11 @@ async function defaultRunCommand(
   command: string,
   cwd: string,
   timeoutMs: number,
+  environment?: NodeJS.ProcessEnv,
 ) {
   return runProcess('/bin/sh', ['-c', command], {
     cwd,
-    env: process.env,
+    env: { ...process.env, ...environment },
     maxOutputBytes: 1_000_000,
     stream: true,
     timeoutMs,
@@ -2748,7 +3275,12 @@ export async function validatePlaywrightTests(
     config.runTests && configuration.commandCanRun
       ? retryPolicyProblem(config.validationCommand)
       : null;
-  const commandCanRun = configuration.commandCanRun && !retryProblem;
+  const partialSuiteProblem =
+    config.runTests && configuration.commandCanRun && !retryProblem
+      ? partialSuiteSelectionProblem(config.validationCommand)
+      : null;
+  let commandCanRun =
+    configuration.commandCanRun && !retryProblem && !partialSuiteProblem;
   if (retryProblem) {
     violations.push({
       code: 'retry_policy_not_enforced',
@@ -2756,6 +3288,16 @@ export async function validatePlaywrightTests(
       priority: 'critical',
       remediation:
         'Add --retries=0 to the configured validation command so flaky retries cannot satisfy the quality gate.',
+      severity: 'error',
+    });
+  }
+  if (partialSuiteProblem) {
+    violations.push({
+      code: 'partial_test_selection',
+      message: partialSuiteProblem,
+      priority: 'critical',
+      remediation:
+        'Remove test-file arguments and filtering options so every test in the configured Playwright suite is eligible to execute.',
       severity: 'error',
     });
   }
@@ -2771,21 +3313,65 @@ export async function validatePlaywrightTests(
       options.timeoutMs ?? Number.POSITIVE_INFINITY,
     ),
   );
-  const testRunResult =
-    config.runTests && commandCanRun
-      ? await (options.runCommand || defaultRunCommand)(
-          config.validationCommand,
-          cwd,
-          validationTimeoutMs,
-        )
+  const playwrightJsonReportPath = path.join(cwd, PLAYWRIGHT_JSON_REPORT_PATH);
+  let reporterConfig:
+    | ReturnType<typeof createAuthoritativeReporterConfig>
+    | undefined;
+  if (config.runTests && commandCanRun) {
+    try {
+      preparePlaywrightJsonReport(playwrightJsonReportPath, cwd);
+      reporterConfig = createAuthoritativeReporterConfig(
+        cwd,
+        config.validationCommand,
+      );
+    } catch (error) {
+      violations.push(
+        invalidConfiguration(
+          `Could not prepare the authoritative Playwright reporter config: ${error instanceof Error ? error.message : String(error)}`,
+          'Use a regular Playwright config inside the repository and remove any file at the reserved .playrunner-validator.config.ts path.',
+        ),
+      );
+      commandCanRun = false;
+    }
+  }
+  let testRunResult: ProcessResult;
+  if (config.runTests && commandCanRun && reporterConfig) {
+    const executedValidationCommand = authoritativePlaywrightCommand(
+      config.validationCommand,
+      reporterConfig.path,
+    );
+    try {
+      testRunResult = await (options.runCommand || defaultRunCommand)(
+        executedValidationCommand,
+        cwd,
+        validationTimeoutMs,
+        { PLAYWRIGHT_JSON_OUTPUT_FILE: playwrightJsonReportPath },
+      );
+    } finally {
+      reporterConfig.cleanup();
+    }
+  } else {
+    testRunResult = {
+      code: 0,
+      durationMs: 0,
+      signal: null,
+      stderr: '',
+      stdout: '',
+      timedOut: false,
+    };
+  }
+
+  const executionEvidence =
+    config.runTests && commandCanRun && !testRunResult.timedOut
+      ? readPlaywrightExecutionEvidence(cwd, PLAYWRIGHT_JSON_REPORT_PATH)
       : {
-          code: 0,
-          durationMs: 0,
-          signal: null,
-          stderr: '',
-          stdout: '',
-          timedOut: false,
+          failedTests: [],
+          passedTestKeys: new Set<string>(),
+          reportedTests: 0,
+          valid: !config.runTests,
+          violations: [],
         };
+  violations.push(...executionEvidence.violations);
 
   if (
     config.runTests &&
@@ -2820,12 +3406,28 @@ export async function validatePlaywrightTests(
         'Add at least one Playwright test with observable assertions for the requested behavior.',
       severity: 'error',
     });
+  } else if (
+    config.runTests &&
+    commandCanRun &&
+    executionEvidence.valid &&
+    executionEvidence.reportedTests === 0
+  ) {
+    violations.push({
+      code: 'untested_critical_path',
+      message:
+        'Playwright reported no executed tests for the discovered suite.',
+      priority: 'critical',
+      remediation:
+        'Run the complete discovered Playwright suite without filters that exclude the required behavior.',
+      severity: 'error',
+    });
   }
 
   const requirements = parseRequirements(
     config.requirements,
     analysis.tests,
     violations,
+    config.runTests ? executionEvidence.passedTestKeys : undefined,
   );
   for (const requirement of requirements.filter((item) => !item.passed)) {
     violations.push({
@@ -2961,9 +3563,11 @@ export async function validatePlaywrightTests(
     'requirement_coverage',
     'assertion_quality',
     'invalid_coverage_artifact',
+    'invalid_test_report',
     'coverage_artifact_synthesis',
     'invalid_change_manifest',
     'coverage_path_outside_workspace',
+    'partial_test_selection',
     'retry_policy_not_enforced',
     'analysis_incomplete',
     'invalid_validator_configuration',
@@ -3034,13 +3638,18 @@ export async function validatePlaywrightTests(
       command: config.runTests ? configuration.reportedCommand : null,
       durationMs: testRunResult.durationMs,
       exitCode: testRunResult.code,
-      failedTests: failedTestNames(
-        `${testRunResult.stdout}\n${testRunResult.stderr}`,
-      ),
+      failedTests: executionEvidence.valid
+        ? executionEvidence.failedTests
+        : testRunResult.code !== 0 || testRunResult.timedOut
+          ? failedTestNamesFromLineOutput(
+              `${testRunResult.stdout}\n${testRunResult.stderr}`,
+            )
+          : [],
       passed:
         (!config.runTests || commandCanRun) &&
         testRunResult.code === 0 &&
-        !testRunResult.timedOut,
+        !testRunResult.timedOut &&
+        (!config.runTests || executionEvidence.valid),
       stderrTail: outputTail(testRunResult.stderr),
       stdoutTail: outputTail(testRunResult.stdout),
       timedOut: testRunResult.timedOut,

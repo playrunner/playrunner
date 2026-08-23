@@ -301,10 +301,15 @@ async function main() {
           authoritative: true,
           changeManifest: prepared.changeManifest,
           repositoryRoot: prepared.repositoryRoot,
-          runCommand: (command, workingDirectory, commandTimeoutMs) =>
+          runCommand: (
+            command,
+            workingDirectory,
+            commandTimeoutMs,
+            environment,
+          ) =>
             runProcess('/bin/sh', ['-c', command], {
               cwd: workingDirectory,
-              env: validationEnvironment,
+              env: { ...validationEnvironment, ...environment },
               gid: identity.gid,
               maxOutputBytes: 1_000_000,
               timeoutMs: commandTimeoutMs,

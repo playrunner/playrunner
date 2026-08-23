@@ -85,6 +85,7 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 }) => {
   const { ui } = useIntegrationHost();
   const Input = ui.Input;
+  const Select = ui.Select;
   const Textarea = ui.Textarea;
   const update = (field: string, value: unknown) =>
     onChange(nodeId, { ...config, [field]: value });
@@ -109,6 +110,7 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         ? normalizedStringList(config.failOn)
         : [...DEFAULT_FAIL_ON],
       minimum,
+      unitCoverage: config.unitCoverage !== false,
       validationCommand: normalizedValidationCommand(config.validationCommand),
       validationTimeoutMinutes: boundedValidationTimeout(
         config.validationTimeoutMinutes,
@@ -130,6 +132,25 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
         This validator is available to the agent as a tool and is also run by
         the container supervisor after every attempt.
       </p>
+      <IntegrationConfigField
+        label="Validation profile"
+        htmlFor="validator-validation-profile"
+        hint="Full stack adds container-owned Vitest unit tests and V8 coverage to the browser acceptance run. Neither layer relies on a package.json test script."
+      >
+        <Select
+          id="validator-validation-profile"
+          data-testid="validator-validation-profile"
+          value={config.unitCoverage === false ? 'browser' : 'full-stack'}
+          onChange={(event) =>
+            update('unitCoverage', event.target.value === 'full-stack')
+          }
+        >
+          <option value="full-stack">
+            Browser journeys + unit coverage (recommended)
+          </option>
+          <option value="browser">Browser journeys only</option>
+        </Select>
+      </IntegrationConfigField>
       <div className="grid grid-cols-2 gap-3">
         {MINIMUM_FIELDS.map(([field, label]) => (
           <IntegrationConfigField
@@ -159,13 +180,14 @@ export const ValidatorConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
       </div>
       <p className="text-xs text-muted">
         Changed-line coverage applies in CI when the execution includes a
-        trusted commit diff. Reports must contain coverage-final statement
-        locations or LCOV DA line records. Repository-reported coverage is not
-        independently attested, so generated pull requests remain drafts for
-        human or trusted CI review.
+        trusted commit diff. Full-stack validation combines independently
+        executed browser journeys, requirement evidence, static assertion
+        checks, and container-owned unit coverage. Reports must contain
+        coverage-final statement locations or LCOV DA line records. Generated
+        pull requests remain drafts for human or trusted CI review.
       </p>
       <IntegrationConfigField
-        label="Validation command"
+        label="Browser validation command"
         htmlFor="validator-validation-command"
         hint="Runs the container-owned Playwright CLI from the repository root; no package.json script is required. Retries must remain disabled."
       >
@@ -257,7 +279,7 @@ export const validatorIntegration: Integration = {
   name: 'Test Validator',
   category: 'Testing',
   description:
-    'Independent quality gate and feedback tool for generated Playwright tests',
+    'Independent browser, requirement, assertion, and unit-coverage quality gate',
   icon: ShieldCheck,
   color: 'text-sky-400',
   nodeType: 'config',

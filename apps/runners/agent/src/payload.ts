@@ -920,6 +920,7 @@ export function mergeValidatorConfigs(
       .filter(Boolean)
       .join('\n'),
     runTests: true,
+    unitCoverage: configs.some((config) => config.unitCoverage !== false),
     ...(validationCommands[0]
       ? { validationCommand: validationCommands[0] }
       : {}),
@@ -1047,6 +1048,9 @@ export function createInitialPrompt(
   const agentConfig = record(payload.agent.config);
   const materialized =
     typeof context === 'string' ? { nodeOutputsPath: context } : context;
+  const unitCoverageEnabled = payload.validators.some(
+    (validator) => record(validator.config).unitCoverage !== false,
+  );
   if (payload.changeContext && !materialized.changeManifestPath) {
     throw new Error(
       'AI Container initial prompt requires the authoritative change manifest path.',
@@ -1064,7 +1068,7 @@ export function createInitialPrompt(
         `Read the deterministic change manifest at ${materialized.changeManifestPath}. Start with changed production files and their inclusive changed-line ranges, then inspect enough surrounding code to understand each observable behavior.`,
         'For every changed production behavior, find direct existing test evidence or add focused tests. Do not duplicate tests when current coverage already proves the behavior, and do not manufacture tests for config-only changes.',
         'Keep generated work scoped to tests and approved standalone test configuration. You may install dependencies already declared by the repository for this run, but do not edit package manifests or lockfiles and do not add dependencies. Do not push, commit, or open a pull request; Playrunner will publish the resulting patch through a bot PR.',
-        'The validator independently runs the container-owned Playwright CLI; it does not require or invoke a package.json test script. Detailed Istanbul coverage-final JSON or LCOV DA records already produced at coverage/coverage-final.json or coverage/lcov.info are consumed as additional evidence. Never create or edit those reports from test/config code, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run and treats repository coverage as untrusted evidence; any generated pull request remains a draft for human or trusted CI review.',
+        'The validator independently runs the container-owned Playwright CLI; it does not require or invoke a package.json test script. For browser source coverage, use the preinstalled @bgotink/playwright-coverage test fixture and reporter to emit coverage/coverage-final.json and coverage/lcov.info from actual browser execution. Never hand-write or copy those reports, mutate coverage globals or environment, or add a custom report-writing process. The validator clears the fixed paths before the clean run; any generated pull request remains a draft for human or trusted CI review.',
       ].join('\n')
     : '';
   const memoryInstructions = payload.memory
@@ -1081,7 +1085,7 @@ export function createInitialPrompt(
       ].join('\n')
     : '';
   return [
-    'You are running inside a Playrunner AI Container with Playwright and browsers installed.',
+    'You are running inside a Playrunner AI Container with Playwright, Chromium, a browser V8 coverage fixture, and Vitest installed.',
     'Work autonomously in the checked-out repository. Inspect the application, write or improve valuable tests, run them, and iterate until they pass.',
     changeInstructions,
     memoryInstructions,
@@ -1089,13 +1093,16 @@ export function createInitialPrompt(
     'The command `playrunner-validator` is available as a tool. Run it before reporting completion and address its precise feedback.',
     payload.changeContext
       ? ''
-      : 'The validator independently runs the container-owned Playwright CLI with retries disabled; it does not require or invoke a package.json test script. Detailed Istanbul coverage-final JSON or LCOV DA records already produced at coverage/coverage-final.json or coverage/lcov.info are consumed as additional evidence. Never synthesize or edit coverage reports from test/config code.',
+      : 'The validator independently runs the container-owned Playwright CLI with retries disabled; it does not require or invoke a package.json test script. When line or branch coverage is required, import test and expect from the preinstalled @bgotink/playwright-coverage package and configure its reporter to emit coverage/coverage-final.json and coverage/lcov.info from actual Chromium execution. Never synthesize, copy, or hand-edit coverage reports.',
+    unitCoverageEnabled
+      ? 'The validator also runs the preinstalled Vitest CLI directly as an independent unit-test layer. Add focused unit tests named *.unit.test.ts, *.unit.test.tsx, *.unit.test.js, or *.unit.test.jsx for business logic and important negative branches. Do not add Vitest or coverage dependencies to package.json; they are supplied by the AI Container.'
+      : '',
     'Do not merely make tests green: cover meaningful positive and negative behavior and use observable assertions.',
     `Read-only upstream workflow outputs are available as JSON at ${materialized.nodeOutputsPath}. Use them when the task depends on earlier nodes.`,
     materialized.repositoriesPath
       ? `The repository workspace manifest is at ${materialized.repositoriesPath}. Work in the primary repository. Inspect supporting repositories when behavior depends on shared code; they are intentionally read-only and must not be modified.`
       : '',
-    `Task:\n${String(payload.config.task || (payload.changeContext ? 'Generate tests for changed production behavior.' : 'Write valuable Playwright end-to-end tests.'))}`,
+    `Task:\n${String(payload.config.task || (payload.changeContext ? 'Generate tests for changed production behavior.' : 'Create a valuable test suite for the repository, including browser journeys and focused unit tests where applicable.'))}`,
     agentConfig.instructions
       ? `Additional instructions:\n${String(agentConfig.instructions)}`
       : '',

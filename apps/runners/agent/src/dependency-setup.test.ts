@@ -119,7 +119,7 @@ test('installs as the agent identity without forwarding credentials', async () =
   }
 });
 
-test('exposes the prebuilt Playwright packages in the prepared project', async () => {
+test('exposes the prebuilt test packages in the prepared project', async () => {
   const root = fixture();
   const containerModules = fs.mkdtempSync(
     path.join(os.tmpdir(), 'playrunner-container-modules-'),
@@ -136,7 +136,14 @@ test('exposes the prebuilt Playwright packages in the prepared project', async (
   fs.mkdirSync(path.join(containerModules, '@playwright', 'test'), {
     recursive: true,
   });
+  fs.mkdirSync(path.join(containerModules, '@bgotink', 'playwright-coverage'), {
+    recursive: true,
+  });
+  fs.mkdirSync(path.join(containerModules, '@vitest', 'coverage-v8'), {
+    recursive: true,
+  });
   fs.mkdirSync(path.join(containerModules, 'playwright'), { recursive: true });
+  fs.mkdirSync(path.join(containerModules, 'vitest'), { recursive: true });
   try {
     await prepareProjectDependencies({
       containerNodeModulesRoot: containerModules,
@@ -154,8 +161,26 @@ test('exposes the prebuilt Playwright packages in the prepared project', async (
       fs.realpathSync(path.join(containerModules, '@playwright', 'test')),
     );
     assert.equal(
+      fs.realpathSync(
+        path.join(root, 'node_modules', '@bgotink', 'playwright-coverage'),
+      ),
+      fs.realpathSync(
+        path.join(containerModules, '@bgotink', 'playwright-coverage'),
+      ),
+    );
+    assert.equal(
       fs.realpathSync(path.join(root, 'node_modules', 'playwright')),
       fs.realpathSync(path.join(containerModules, 'playwright')),
+    );
+    assert.equal(
+      fs.realpathSync(
+        path.join(root, 'node_modules', '@vitest', 'coverage-v8'),
+      ),
+      fs.realpathSync(path.join(containerModules, '@vitest', 'coverage-v8')),
+    );
+    assert.equal(
+      fs.realpathSync(path.join(root, 'node_modules', 'vitest')),
+      fs.realpathSync(path.join(containerModules, 'vitest')),
     );
   } finally {
     fs.rmSync(root, { force: true, recursive: true });

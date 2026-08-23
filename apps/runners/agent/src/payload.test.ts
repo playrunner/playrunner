@@ -284,7 +284,20 @@ test('merges validator policies using strict thresholds and stable defaults', ()
   assert.equal(result.minimum?.lineCoverage, 85);
   assert.equal(result.minimum?.assertionQuality, 100);
   assert.ok(result.failOn?.includes('hardcoded_wait'));
+  assert.equal(result.unitCoverage, true);
   assert.equal(result.validationCommand, 'playwright test --retries=0');
+});
+
+test('disables supplemental unit coverage only when every validator opts out', () => {
+  const value = payload();
+  value.validators[0].config = { unitCoverage: false };
+  value.validators.push({
+    config: { unitCoverage: false },
+    nodeId: 'browser-validator',
+    nodeType: 'validator',
+  });
+
+  assert.equal(mergeValidatorConfigs(value).unitCoverage, false);
 });
 
 test('rejects conflicting authoritative validation commands', () => {

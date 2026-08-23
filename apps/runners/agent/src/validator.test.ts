@@ -60,6 +60,96 @@ function meaningfulTest(title = 'renders the dashboard'): string {
   ].join('\n');
 }
 
+function writePlaywrightJsonReport(
+  directory: string,
+  tests: Array<{
+    column?: number;
+    expectedStatus?: string;
+    file?: string;
+    line?: number;
+    outcome?: 'expected' | 'flaky' | 'skipped' | 'unexpected';
+    project?: string;
+    resultStatus?: string;
+    title?: string;
+  }> = [{}],
+  outputPath = path.join(
+    directory,
+    'test-results/.playrunner-validation-results.json',
+  ),
+): string {
+  const normalized = tests.map((candidate, index) => {
+    const outcome = candidate.outcome || 'expected';
+    const expectedStatus = candidate.expectedStatus || 'passed';
+    const resultStatus =
+      candidate.resultStatus || (outcome === 'skipped' ? 'skipped' : 'passed');
+    return {
+      column: candidate.column || 1,
+      expectedStatus,
+      file: candidate.file || 'tests/dashboard.spec.ts',
+      line: candidate.line || 3,
+      outcome,
+      project: candidate.project ?? 'chromium',
+      resultStatus,
+      title: candidate.title || 'renders the dashboard',
+      id: `test-${index + 1}`,
+    };
+  });
+  const stats = { expected: 0, flaky: 0, skipped: 0, unexpected: 0 };
+  for (const candidate of normalized) stats[candidate.outcome] += 1;
+  const report = {
+    config: { projects: [], rootDir: directory },
+    errors: [],
+    stats: { ...stats, duration: 10, startTime: new Date(0).toISOString() },
+    suites: [
+      {
+        column: 0,
+        file: normalized[0]?.file || 'tests/dashboard.spec.ts',
+        line: 0,
+        specs: normalized.map((candidate) => ({
+          column: candidate.column,
+          file: candidate.file,
+          id: candidate.id,
+          line: candidate.line,
+          ok:
+            candidate.outcome === 'expected' &&
+            candidate.expectedStatus === 'passed' &&
+            candidate.resultStatus === 'passed',
+          tags: [],
+          tests: [
+            {
+              annotations: [],
+              expectedStatus: candidate.expectedStatus,
+              projectId: candidate.project,
+              projectName: candidate.project,
+              results: [
+                {
+                  annotations: [],
+                  attachments: [],
+                  duration: 10,
+                  errors: [],
+                  retry: 0,
+                  startTime: new Date(0).toISOString(),
+                  status: candidate.resultStatus,
+                  stderr: [],
+                  stdout: [],
+                  workerIndex: 0,
+                },
+              ],
+              status: candidate.outcome,
+              timeout: 30_000,
+            },
+          ],
+          title: candidate.title,
+        })),
+        title: 'tests',
+      },
+    ],
+  };
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, JSON.stringify(report));
+  return outputPath;
+}
+
 function istanbulFile(options: {
   coveredBranches?: number;
   coveredLines: number;
@@ -216,11 +306,21 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
       {
         attempt: 3,
         authoritative: true,
-        runCommand: async (command, cwd, timeoutMs) => {
+        runCommand: async (command, cwd, timeoutMs, environment) => {
           invoked = true;
-          assert.equal(command, 'playwright test --reporter=line --retries=0');
+          assert.equal(
+            command,
+            `playwright test --retries=0 --config=${path.join(directory, '.playrunner-validator.config.ts')}`,
+          );
           assert.equal(cwd, directory);
           assert.equal(timeoutMs, 120_000);
+          assert.equal(
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+            path.join(
+              directory,
+              'test-results/.playrunner-validation-results.json',
+            ),
+          );
           assert.equal(fs.existsSync(coveragePath), false);
           assert.equal(fs.existsSync(staleReport), false);
           assert.equal(fs.existsSync(staleTrace), false);
@@ -243,6 +343,13 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
             'test-results/dashboard/trace.zip',
             'fresh',
           );
+          writePlaywrightJsonReport(directory, [
+            {
+              file: 'tests/dashboard.spec.ts',
+              line: 3,
+              title: 'REQ-DASHBOARD renders the dashboard',
+            },
+          ]);
           return successfulProcess({ durationMs: 47, stdout: '1 passed\n' });
         },
       },
@@ -279,6 +386,74 @@ test('authoritative validation removes stale artifacts and labels fresh detailed
       stdoutTail: '1 passed\n',
       timedOut: false,
     });
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('authoritative reporter config preserves repository reporters and removes overrides', async () => {
+  const directory = createProject();
+  const wrapperPath = path.join(directory, '.playrunner-validator.config.ts');
+  try {
+    writeProjectFile(directory, 'tests/reporters.spec.ts', meaningfulTest());
+    writeProjectFile(
+      directory,
+      'playwright.config.ts',
+      [
+        "import { defineConfig } from '@playwright/test';",
+        'export default defineConfig({',
+        "  reporter: [['@bgotink/playwright-coverage', { resultDir: 'coverage' }], ['html']],",
+        "  testDir: './tests',",
+        '});',
+        '',
+      ].join('\n'),
+    );
+
+    const result = await validatePlaywrightTests(
+      directory,
+      {
+        failOn: [],
+        minimum: ZERO_MINIMUMS,
+        validationCommand:
+          'PLAYWRIGHT_JSON_OUTPUT_FILE=untrusted.json CI=true playwright test --config playwright.config.ts --reporter html --retries=0',
+      },
+      {
+        runCommand: async (command, _cwd, _timeout, environment) => {
+          assert.equal(
+            command,
+            `CI=true playwright test --retries=0 --config=${wrapperPath}`,
+          );
+          assert.equal(
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+            path.join(
+              directory,
+              'test-results/.playrunner-validation-results.json',
+            ),
+          );
+          const wrapper = fs.readFileSync(wrapperPath, 'utf8');
+          assert.match(
+            wrapper,
+            /import importedConfig from "\.\/playwright\.config\.ts"/,
+          );
+          assert.match(
+            wrapper,
+            /const configuredReporter = baseConfig\.reporter/,
+          );
+          assert.match(wrapper, /reporters\.push\(\['line'\]\)/);
+          assert.match(wrapper, /reporters\.push\(\['json'\]\)/);
+          assert.equal(fs.lstatSync(wrapperPath).mode & 0o222, 0);
+          writePlaywrightJsonReport(
+            directory,
+            [{ file: 'tests/reporters.spec.ts' }],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
+          return successfulProcess();
+        },
+      },
+    );
+
+    assert.equal(result.passed, true);
+    assert.equal(fs.existsSync(wrapperPath), false);
   } finally {
     fs.rmSync(directory, { force: true, recursive: true });
   }
@@ -2129,12 +2304,165 @@ test('retry enforcement rejects comments, nonzero values, and conflicting flags'
         minimum: ZERO_MINIMUMS,
         validationCommand: 'playwright test --retries 0',
       },
-      { runCommand: async () => successfulProcess() },
+      {
+        runCommand: async (_command, _cwd, _timeout, environment) => {
+          writePlaywrightJsonReport(
+            directory,
+            [{ file: 'tests/retry-policy.spec.ts' }],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
+          return successfulProcess();
+        },
+      },
     );
     assert.equal(valid.passed, true);
     assert.equal(
       valid.violations.some(({ code }) => code === 'retry_policy_not_enforced'),
       false,
+    );
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('authoritative validation rejects every partial-suite selector', async () => {
+  const directory = createProject();
+  try {
+    writeProjectFile(directory, 'tests/full-suite.spec.ts', meaningfulTest());
+    const commands = [
+      'playwright test --retries=0 --grep checkout',
+      'playwright test --retries=0 --grep-invert slow',
+      'playwright test --retries=0 --project chromium',
+      'playwright test --retries=0 --shard=1/2',
+      'playwright test --retries=0 --last-failed',
+      'playwright test --retries=0 --only-changed',
+      'playwright test --retries=0 --list',
+      'playwright test --retries=0 tests/full-suite.spec.ts',
+      'playwright test --retries=0 -- tests/full-suite.spec.ts',
+    ];
+
+    for (const command of commands) {
+      let invoked = false;
+      const result = await validatePlaywrightTests(
+        directory,
+        {
+          failOn: [],
+          minimum: ZERO_MINIMUMS,
+          validationCommand: command,
+        },
+        {
+          runCommand: async () => {
+            invoked = true;
+            return successfulProcess();
+          },
+        },
+      );
+
+      assert.equal(invoked, false, command);
+      assert.equal(result.passed, false, command);
+      assert.match(
+        findViolation(result, 'partial_test_selection').message,
+        /complete configured suite/,
+      );
+    }
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('requirement evidence must come from a test Playwright actually passed', async () => {
+  const directory = createProject();
+  try {
+    writeProjectFile(
+      directory,
+      'tests/requirements.spec.ts',
+      [
+        "import { expect, test } from '@playwright/test';",
+        '',
+        "test('REQ-PASSED rendered behavior', async ({ page }) => {",
+        "  await expect(page.getByRole('status')).toHaveText('Ready');",
+        '});',
+        '',
+        "test('REQ-FILTERED hidden behavior', async ({ page }) => {",
+        "  await expect(page.getByRole('status')).toHaveText('Hidden');",
+        '});',
+        '',
+      ].join('\n'),
+    );
+
+    const result = await validatePlaywrightTests(
+      directory,
+      {
+        failOn: ['skipped_requirement'],
+        minimum: { ...ZERO_MINIMUMS, requirementCoverage: 100 },
+        requirements: [
+          'REQ-PASSED: rendered behavior is visible',
+          'REQ-FILTERED: hidden behavior is visible',
+        ].join('\n'),
+        validationCommand: 'playwright test --reporter=html --retries=0',
+      },
+      {
+        runCommand: async (command, _cwd, _timeout, environment) => {
+          assert.equal(
+            command,
+            `playwright test --retries=0 --config=${path.join(directory, '.playrunner-validator.config.ts')}`,
+          );
+          writePlaywrightJsonReport(
+            directory,
+            [
+              {
+                file: 'tests/requirements.spec.ts',
+                line: 3,
+                title: 'REQ-PASSED rendered behavior',
+              },
+            ],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
+          return successfulProcess({
+            stdout:
+              '[1/1] [chromium] › tests/requirements.spec.ts:3:1 › REQ-PASSED rendered behavior\n1 passed\n',
+          });
+        },
+      },
+    );
+
+    assert.equal(result.passed, false);
+    assert.equal(result.requirements.covered, 1);
+    assert.equal(result.dimensions.requirementCoverage.observed, 50);
+    assert.deepEqual(result.testRun.failedTests, []);
+    const requirements = new Map(
+      result.requirements.items.map((requirement) => [
+        requirement.id,
+        requirement,
+      ]),
+    );
+    assert.equal(requirements.get('REQ-PASSED')?.passed, true);
+    assert.equal(requirements.get('REQ-FILTERED')?.passed, false);
+  } finally {
+    fs.rmSync(directory, { force: true, recursive: true });
+  }
+});
+
+test('a missing authoritative Playwright JSON result fails closed', async () => {
+  const directory = createProject();
+  try {
+    writeProjectFile(directory, 'tests/report.spec.ts', meaningfulTest());
+    const result = await validatePlaywrightTests(
+      directory,
+      {
+        failOn: [],
+        minimum: ZERO_MINIMUMS,
+        validationCommand: 'playwright test --retries=0',
+      },
+      { runCommand: async () => successfulProcess({ stdout: '1 passed\n' }) },
+    );
+
+    assert.equal(result.passed, false);
+    assert.equal(result.testRun.passed, false);
+    assert.deepEqual(result.testRun.failedTests, []);
+    assert.match(
+      findViolation(result, 'invalid_test_report').message,
+      /was not produced/,
     );
   } finally {
     fs.rmSync(directory, { force: true, recursive: true });
@@ -2164,8 +2492,13 @@ test('validation is independent of package.json scripts', async () => {
         validationCommand: 'playwright test --reporter=line --retries=0',
       },
       {
-        runCommand: async () => {
+        runCommand: async (_command, _cwd, _timeout, environment) => {
           directInvoked = true;
+          writePlaywrightJsonReport(
+            directory,
+            [{ file: 'tests/direct-policy.spec.ts' }],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
           return successfulProcess();
         },
       },
@@ -2263,12 +2596,26 @@ test('process output, failed test names, and remediation remain bounded', async 
         validationCommand: 'playwright test --retries=0',
       },
       {
-        runCommand: async () =>
-          successfulProcess({
+        runCommand: async (_command, _cwd, _timeout, environment) => {
+          writePlaywrightJsonReport(
+            directory,
+            [
+              {
+                file: longFailureName,
+                line: 1,
+                outcome: 'unexpected',
+                resultStatus: 'failed',
+                title: longFailureName,
+              },
+            ],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
+          return successfulProcess({
             code: 1,
             stderr: '\\'.repeat(100_000),
             stdout: `1) ${longFailureName}\n`,
-          }),
+          });
+        },
       },
     );
 
@@ -2300,6 +2647,7 @@ test('a failed validation command returns actionable output and failed test name
   const directory = createProject();
   try {
     writeProjectFile(directory, 'tests/command.spec.ts', meaningfulTest());
+    writeProjectFile(directory, 'tests/checkout.spec.ts', meaningfulTest());
     let invocation: [string, string, number] | undefined;
 
     const result = await validatePlaywrightTests(
@@ -2311,8 +2659,23 @@ test('a failed validation command returns actionable output and failed test name
         validationTimeoutMinutes: 4,
       },
       {
-        runCommand: async (command, cwd, timeoutMs) => {
+        runCommand: async (command, cwd, timeoutMs, environment) => {
           invocation = [command, cwd, timeoutMs];
+          writePlaywrightJsonReport(
+            directory,
+            [
+              {
+                column: 3,
+                file: 'tests/checkout.spec.ts',
+                line: 12,
+                outcome: 'unexpected',
+                project: '',
+                resultStatus: 'failed',
+                title: 'checkout displays dashboard',
+              },
+            ],
+            environment?.PLAYWRIGHT_JSON_OUTPUT_FILE,
+          );
           return successfulProcess({
             code: 7,
             durationMs: 321,
@@ -2326,7 +2689,7 @@ test('a failed validation command returns actionable output and failed test name
     );
 
     assert.deepEqual(invocation, [
-      'playwright test --reporter=line --retries=0',
+      `playwright test --retries=0 --config=${path.join(directory, '.playrunner-validator.config.ts')}`,
       directory,
       240_000,
     ]);

@@ -71,6 +71,7 @@ function compactFeedback(validation: ValidationResult): string {
     dimensions: validation.dimensions,
     failedTests: validation.testRun.failedTests,
     findings: validation.feedback.items,
+    unitTestRun: validation.unitTestRun,
     requirements: validation.requirements.items
       .filter((item) => !item.passed)
       .map((item) => ({
@@ -86,7 +87,7 @@ export function buildValidatorFeedbackPrompt(
 ): string {
   const structured = compactFeedback(validation);
   return [
-    'The authoritative Playrunner Validator rejected the previous attempt.',
+    'The authoritative Playrunner validation suite rejected the previous attempt.',
     'Continue in this exact repository and fix every blocking finding. Do not weaken, disable, or bypass the validator policy. Run playrunner-validator before yielding.',
     validation.feedbackText,
     `Machine-readable validation evidence:\n${structured}`,
