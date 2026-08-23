@@ -270,8 +270,8 @@ describe('local AI Container execution', { concurrency: false }, () => {
         id: 'shared-skills',
         path: 'skills/testing',
         ref: 'main',
-        repository: 'playrunner/agent-skills',
         type: 'github',
+        url: 'https://github.com/playrunner/agent-skills.git',
       },
     ];
     const invocation = createLocalAgentDockerInvocation(
@@ -759,8 +759,8 @@ describe('local AI Container execution', { concurrency: false }, () => {
         id: 'shared-skills',
         path: 'skills/testing',
         ref: 'main',
-        repository: 'playrunner/agent-skills',
         type: 'github',
+        url: 'https://github.com/playrunner/agent-skills.git',
       },
     ];
 
@@ -784,8 +784,8 @@ describe('local AI Container execution', { concurrency: false }, () => {
         id: 'shared-skills',
         path: 'skills/testing',
         ref: 'main',
-        repository: 'playrunner/agent-skills',
         type: 'github',
+        url: 'https://github.com/playrunner/agent-skills.git',
       },
     ]);
     assert.equal(

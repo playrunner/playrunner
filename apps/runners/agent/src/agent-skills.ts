@@ -23,8 +23,8 @@ export type GitHubAgentSkillSource = {
   id: string;
   path: string;
   ref: string;
-  repository: string;
   type: 'github';
+  url: string;
 };
 
 export type AgentSkillSource = ProjectAgentSkillSource | GitHubAgentSkillSource;
@@ -37,9 +37,9 @@ export type InstalledAgentSkill = {
     id: string;
     path: string;
     ref?: string;
-    repository?: string;
     revision: string;
     type: 'github' | 'project' | 'repository';
+    url?: string;
   };
 };
 
@@ -149,25 +149,50 @@ function requiredSkillsPath(value: unknown, field: string): string {
   return skillPath;
 }
 
-function requiredGitHubRepository(value: unknown, field: string): string {
-  const repository =
-    typeof value === 'string' ? value.trim().replace(/\.git$/i, '') : '';
-  const segments = repository.split('/');
+function requiredGitHubRepositoryUrl(value: unknown, field: string): string {
+  const rawUrl = typeof value === 'string' ? value.trim() : '';
+  const hasControlCharacter = Array.from(rawUrl).some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error(
+      `AI Container ${field} must be a full HTTPS GitHub repository URL.`,
+    );
+  }
+  const urlMatch =
+    /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(
+      rawUrl,
+    );
+  const segments = urlMatch?.slice(1) || [];
   if (
-    Buffer.byteLength(repository, 'utf8') > 200 ||
-    !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+    !rawUrl ||
+    Buffer.byteLength(rawUrl, 'utf8') > 300 ||
+    hasControlCharacter ||
+    parsed.protocol !== 'https:' ||
+    parsed.hostname.toLowerCase() !== 'github.com' ||
+    parsed.host.toLowerCase() !== 'github.com' ||
+    parsed.username ||
+    parsed.password ||
+    parsed.search ||
+    parsed.hash ||
+    !urlMatch ||
     segments.some(
       (segment) =>
         segment.length > 100 ||
         !/^[A-Za-z0-9]/.test(segment) ||
-        segment.endsWith('-'),
+        segment.endsWith('-') ||
+        segment.endsWith('.'),
     )
   ) {
     throw new Error(
-      `AI Container ${field} must be a GitHub repository in owner/repository form.`,
+      `AI Container ${field} must be a full HTTPS github.com/owner/repository URL without credentials, query parameters, or fragments.`,
     );
   }
-  return repository;
+  return `https://github.com/${segments[0]}/${segments[1]}`;
 }
 
 function requiredGitRef(value: unknown, field: string): string {
@@ -235,7 +260,7 @@ export function normalizeAgentSkillSources(value: unknown): AgentSkillSource[] {
     if (source.type === 'github') {
       assertOnlyKeys(
         source,
-        new Set(['id', 'path', 'ref', 'repository', 'type']),
+        new Set(['id', 'path', 'ref', 'type', 'url']),
         field,
       );
       return {
@@ -248,11 +273,8 @@ export function normalizeAgentSkillSources(value: unknown): AgentSkillSource[] {
           source.ref === undefined ? DEFAULT_GIT_REF : source.ref,
           `${field}.ref`,
         ),
-        repository: requiredGitHubRepository(
-          source.repository,
-          `${field}.repository`,
-        ),
         type: 'github',
+        url: requiredGitHubRepositoryUrl(source.url, `${field}.url`),
       };
     }
     throw new Error(`AI Container ${field}.type must be project or github.`);
@@ -644,27 +666,57 @@ async function cloneGitHubSkillSource(
     if (result.code !== 0 || result.timedOut) {
       throw new Error(
         result.timedOut
-          ? `Agent Skill repository ${label} timed out for ${source.repository}.`
-          : `Agent Skill repository ${label} failed for ${source.repository} with code ${result.code}.`,
+          ? `Agent Skill repository ${label} timed out for ${source.url}.`
+          : `Agent Skill repository ${label} failed for ${source.url} with code ${result.code}.`,
       );
     }
     if (result.stdoutTruncated || result.stderrTruncated) {
       throw new Error(
-        `Agent Skill repository ${label} produced truncated output for ${source.repository}.`,
+        `Agent Skill repository ${label} produced truncated output for ${source.url}.`,
       );
     }
     return result;
   };
   await runStep(['init', '--quiet', '.'], 'initialization');
   await runStep(
-    ['remote', 'add', 'origin', `https://github.com/${source.repository}.git`],
+    ['remote', 'add', 'origin', `${source.url}.git`],
     'remote configuration',
   );
-  await runStep(
-    ['fetch', '--no-tags', '--depth', '1', 'origin', source.ref],
+  const fetchArgs = [
     'fetch',
-    credentialEnvironment,
-  );
+    '--no-tags',
+    '--depth',
+    '1',
+    'origin',
+    source.ref,
+  ];
+  const anonymousFetch = await run('git', fetchArgs, {
+    cwd: target,
+    env: inspectionEnvironment,
+    gid: options.identity.gid,
+    maxOutputBytes: 1_000_000,
+    timeoutMs: GIT_TIMEOUT_MS,
+    uid: options.identity.uid,
+  });
+  if (
+    anonymousFetch.timedOut ||
+    anonymousFetch.stdoutTruncated ||
+    anonymousFetch.stderrTruncated
+  ) {
+    throw new Error(
+      anonymousFetch.timedOut
+        ? `Agent Skill repository fetch timed out for ${source.url}.`
+        : `Agent Skill repository fetch produced truncated output for ${source.url}.`,
+    );
+  }
+  if (anonymousFetch.code !== 0) {
+    if (!options.githubToken) {
+      throw new Error(
+        `Agent Skill repository fetch failed for ${source.url} with code ${anonymousFetch.code}. If this is a private repository, connect GitHub with access to it.`,
+      );
+    }
+    await runStep(fetchArgs, 'authenticated fetch', credentialEnvironment);
+  }
   await runStep(['checkout', '--detach', '--force', 'FETCH_HEAD'], 'checkout');
   const revisionResult = await runStep(
     ['rev-parse', '--verify', 'HEAD^{commit}'],
@@ -675,12 +727,12 @@ async function cloneGitHubSkillSource(
   const revision = revisionResult.stdout.trim().toLowerCase();
   if (!GIT_OBJECT_ID_PATTERN.test(revision)) {
     throw new Error(
-      `Agent Skill repository revision could not be verified for ${source.repository}.`,
+      `Agent Skill repository revision could not be verified for ${source.url}.`,
     );
   }
   if (GIT_OBJECT_ID_PATTERN.test(source.ref) && revision !== source.ref) {
     throw new Error(
-      `Agent Skill repository checkout did not match the configured commit for ${source.repository}.`,
+      `Agent Skill repository checkout did not match the configured commit for ${source.url}.`,
     );
   }
   return revision;
@@ -842,7 +894,7 @@ export async function prepareAgentSkills(
             ...(source.type === 'github'
               ? {
                   ref: source.ref,
-                  repository: source.repository,
+                  url: source.url,
                 }
               : {}),
             revision,

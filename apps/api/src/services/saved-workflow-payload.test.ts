@@ -129,8 +129,8 @@ test('saved workflow executions preserve AI Container skill sources', () => {
       id: 'shared-skills',
       path: 'skills/testing',
       ref: 'main',
-      repository: 'playrunner/agent-skills',
       type: 'github',
+      url: 'https://github.com/playrunner/agent-skills.git',
     },
   ];
   const body = buildSavedWorkflowExecutionBody({

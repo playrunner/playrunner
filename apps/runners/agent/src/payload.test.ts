@@ -126,8 +126,8 @@ test('normalizes configured Agent Skill sources in the trusted payload', async (
     },
     {
       id: 'shared-skills',
-      repository: 'playrunner/shared-skills',
       type: 'github',
+      url: 'https://github.com/playrunner/shared-skills.git',
     },
   ];
   const normalized = await readAgentPayload(
@@ -143,8 +143,8 @@ test('normalizes configured Agent Skill sources in the trusted payload', async (
       id: 'shared-skills',
       path: '.agents/skills',
       ref: 'main',
-      repository: 'playrunner/shared-skills',
       type: 'github',
+      url: 'https://github.com/playrunner/shared-skills',
     },
   ]);
   assert.throws(

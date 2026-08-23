@@ -35,16 +35,16 @@ type AgentSkillSourceConfig =
       id: string;
       path: string;
       ref: string;
-      repository: string;
       type: 'github';
+      url: string;
     };
 
 type AgentSkillSourcePatch = {
   id?: string;
   path?: string;
   ref?: string;
-  repository?: string;
   type?: AgentSkillSourceConfig['type'];
+  url?: string;
 };
 
 type SupportingRepositoryConfig = {
@@ -124,13 +124,18 @@ function normalizedSkillSources(value: unknown): AgentSkillSourceConfig[] {
     const path = typeof entry.path === 'string' ? entry.path : '.agents/skills';
 
     if (entry.type === 'github') {
+      const url =
+        typeof entry.url === 'string'
+          ? entry.url
+          : typeof entry.repository === 'string' && entry.repository
+            ? `https://github.com/${entry.repository}`
+            : '';
       return {
         id,
         path,
         ref: typeof entry.ref === 'string' ? entry.ref : 'main',
-        repository:
-          typeof entry.repository === 'string' ? entry.repository : '',
         type: 'github',
+        url,
       };
     }
 
@@ -176,19 +181,43 @@ function isSafeRelativePath(value: string) {
     );
 }
 
-function isGitHubRepository(value: string) {
-  const repository = value.trim().replace(/\.git$/i, '');
-  const segments = repository.split('/');
-  return Boolean(
-    new TextEncoder().encode(repository).length <= 200 &&
-    /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) &&
-    segments.every(
-      (segment) =>
-        segment.length <= 100 &&
-        /^[A-Za-z0-9]/.test(segment) &&
-        !segment.endsWith('-'),
-    ),
-  );
+function isGitHubRepositoryUrl(value: string) {
+  const url = value.trim();
+  const hasControlCharacter = Array.from(url).some((character) => {
+    const codePoint = character.codePointAt(0) ?? 0;
+    return codePoint < 32 || codePoint === 127;
+  });
+
+  try {
+    const parsed = new URL(url);
+    const match =
+      /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(
+        url,
+      );
+    const segments = match?.slice(1) ?? [];
+    return Boolean(
+      url &&
+      new TextEncoder().encode(url).length <= 300 &&
+      !hasControlCharacter &&
+      parsed.protocol === 'https:' &&
+      parsed.hostname.toLowerCase() === 'github.com' &&
+      parsed.host.toLowerCase() === 'github.com' &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.search &&
+      !parsed.hash &&
+      match &&
+      segments.every(
+        (segment) =>
+          segment.length <= 100 &&
+          /^[A-Za-z0-9]/.test(segment) &&
+          !segment.endsWith('-') &&
+          !segment.endsWith('.'),
+      ),
+    );
+  } catch {
+    return false;
+  }
 }
 
 function isSafeGitRef(value: string) {
@@ -242,8 +271,8 @@ function skillSourceError(
   if (!isSafeRelativePath(source.path)) {
     return 'Enter a safe path relative to the repository root (for example, .agents/skills).';
   }
-  if (source.type === 'github' && !isGitHubRepository(source.repository)) {
-    return 'Enter a GitHub repository in owner/repository form.';
+  if (source.type === 'github' && !isGitHubRepositoryUrl(source.url)) {
+    return 'Enter a full GitHub repository URL, for example https://github.com/agentmantis/test-skills.';
   }
   if (source.type === 'github' && !isSafeGitRef(source.ref)) {
     return 'Enter a branch, tag, or commit SHA without spaces or Git ref metacharacters.';
@@ -252,12 +281,12 @@ function skillSourceError(
   const identity =
     source.type === 'project'
       ? `project:${source.path}`
-      : `github:${source.repository.toLowerCase()}:${source.ref}:${source.path}`;
+      : `github:${source.url.toLowerCase()}:${source.ref}:${source.path}`;
   const firstMatchingIndex = sources.findIndex((candidate) => {
     const candidateIdentity =
       candidate.type === 'project'
         ? `project:${candidate.path}`
-        : `github:${candidate.repository.toLowerCase()}:${candidate.ref}:${candidate.path}`;
+        : `github:${candidate.url.toLowerCase()}:${candidate.ref}:${candidate.path}`;
     return candidateIdentity === identity;
   });
 
@@ -1156,9 +1185,10 @@ export const AgentContainerConfigPanel: React.FC<
             <span className="font-mono text-[var(--foreground)]">
               .agents/skills
             </span>{' '}
-            in the primary repository. Add explicit sources for other project
-            paths or reusable GitHub repositories. Skill folders are installed
-            into the isolated container before the agent starts, and each must
+            in the primary repository. Add explicit project paths or paste a
+            full repository URL for reusable skills. Public skill repositories
+            do not require a GitHub connection. Skill folders are installed into
+            the isolated container before the agent starts, and each must
             contain a{' '}
             <span className="font-mono text-[var(--foreground)]">SKILL.md</span>{' '}
             file.
@@ -1258,8 +1288,8 @@ export const AgentContainerConfigPanel: React.FC<
                               ? {
                                   path: '.agents/skills',
                                   ref: 'main',
-                                  repository: '',
                                   type,
+                                  url: '',
                                 }
                               : { type },
                           );
@@ -1290,47 +1320,23 @@ export const AgentContainerConfigPanel: React.FC<
                   {source.type === 'github' ? (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <IntegrationConfigField
-                        label="GitHub repository"
-                        hint="The connected GitHub App must be able to read private repositories."
-                        htmlFor={`${fieldPrefix}-repository`}
+                        label="Skills repository URL"
+                        hint="Paste the full HTTPS GitHub URL. Public repositories work without a GitHub connection."
+                        htmlFor={`${fieldPrefix}-url`}
                       >
-                        <Select
-                          id={`${fieldPrefix}-repository`}
-                          data-testid={`agent-container-skill-source-repository-${index}`}
-                          value={source.repository}
-                          disabled={isLoadingRepos || !isConnected}
+                        <Input
+                          id={`${fieldPrefix}-url`}
+                          data-testid={`agent-container-skill-source-url-${index}`}
+                          value={source.url}
+                          maxLength={300}
                           onChange={(event) =>
                             updateSkillSource(index, {
-                              repository: event.target.value,
+                              url: event.target.value,
                             })
                           }
+                          placeholder="https://github.com/agentmantis/test-skills"
                           aria-invalid={Boolean(validationError)}
-                        >
-                          <option value="">
-                            {!isConnected
-                              ? 'Connect GitHub under Configuration'
-                              : isLoadingRepos
-                                ? 'Loading repositories...'
-                                : 'Select Repository'}
-                          </option>
-                          {source.repository &&
-                          !repositories.some(
-                            (repository) =>
-                              repository.full_name === source.repository,
-                          ) ? (
-                            <option value={source.repository}>
-                              {source.repository}
-                            </option>
-                          ) : null}
-                          {repositories.map((repository) => (
-                            <option
-                              key={repository.id}
-                              value={repository.full_name}
-                            >
-                              {repository.full_name}
-                            </option>
-                          ))}
-                        </Select>
+                        />
                       </IntegrationConfigField>
                       <IntegrationConfigField
                         label="Git ref"

@@ -86,8 +86,8 @@ test('normalizes bounded project and GitHub Agent Skill sources', () => {
       { id: 'project-rules', path: '.playrunner/skills', type: 'project' },
       {
         id: 'shared-rules',
-        repository: 'playrunner/agent-skills',
         type: 'github',
+        url: 'https://github.com/playrunner/agent-skills.git/',
       },
     ]),
     [
@@ -96,8 +96,8 @@ test('normalizes bounded project and GitHub Agent Skill sources', () => {
         id: 'shared-rules',
         path: '.agents/skills',
         ref: 'main',
-        repository: 'playrunner/agent-skills',
         type: 'github',
+        url: 'https://github.com/playrunner/agent-skills',
       },
     ],
   );
@@ -113,11 +113,11 @@ test('normalizes bounded project and GitHub Agent Skill sources', () => {
       normalizeAgentSkillSources([
         {
           id: 'remote',
-          repository: 'https://token@github.com/org/skills',
           type: 'github',
+          url: 'https://token@github.com/org/skills',
         },
       ]),
-    /owner\/repository form/,
+    /without credentials/,
   );
   assert.throws(
     () =>
@@ -125,11 +125,36 @@ test('normalizes bounded project and GitHub Agent Skill sources', () => {
         {
           id: 'remote',
           ref: '--upload-pack=bad',
+          type: 'github',
+          url: 'https://github.com/org/skills',
+        },
+      ]),
+    /safe Git branch, tag, or complete commit SHA/,
+  );
+  for (const url of [
+    'http://github.com/org/skills',
+    'https://gitlab.com/org/skills',
+    'https://github.com/org/skills?token=secret',
+    'https://github.com/org/skills/tree/main',
+    'https://github.com/org/temporary/../skills',
+    'https://github.com/org/skills.',
+    'https://github.com:443/org/skills',
+  ]) {
+    assert.throws(
+      () => normalizeAgentSkillSources([{ id: 'remote', type: 'github', url }]),
+      /full HTTPS github\.com\/owner\/repository URL/,
+    );
+  }
+  assert.throws(
+    () =>
+      normalizeAgentSkillSources([
+        {
+          id: 'legacy',
           repository: 'org/skills',
           type: 'github',
         },
       ]),
-    /safe Git branch, tag, or complete commit SHA/,
+    /repository is not supported/,
   );
   assert.throws(
     () =>
@@ -266,7 +291,60 @@ test('installs skills without Linux copy_file_range privileges', async () => {
   }
 });
 
-test('clones GitHub skill sources without placing credentials in argv or persisted inventory', async () => {
+test('fetches a public GitHub skill URL anonymously even when a token exists', async () => {
+  const value = fixture();
+  const invocations: Array<{
+    args: string[];
+    environment: NodeJS.ProcessEnv;
+  }> = [];
+  try {
+    const prepared = await prepareAgentSkills({
+      ...options(value, [
+        {
+          id: 'public',
+          path: '.agents/skills',
+          ref: 'main',
+          type: 'github',
+          url: 'https://github.com/agentmantis/test-skills',
+        },
+      ]),
+      githubToken: 'stale-token-that-must-not-be-used',
+      runCommand: async (_command, args, processOptions) => {
+        invocations.push({ args, environment: processOptions?.env || {} });
+        if (args[0] === 'fetch') {
+          const cloneRoot = processOptions?.cwd;
+          assert.ok(cloneRoot);
+          writeSkill(
+            path.join(cloneRoot, '.agents', 'skills', 'public-skill'),
+            'public-skill',
+          );
+        }
+        return {
+          code: 0,
+          durationMs: 1,
+          signal: null,
+          stderr: '',
+          stdout: `${REVISION}\n`,
+          timedOut: false,
+        };
+      },
+    });
+    const fetchInvocations = invocations.filter(
+      (invocation) => invocation.args[0] === 'fetch',
+    );
+    assert.equal(fetchInvocations.length, 1);
+    assert.equal(fetchInvocations[0].environment.GIT_CONFIG_VALUE_0, undefined);
+    assert.equal(
+      prepared.inventory.skills[0].source.url,
+      'https://github.com/agentmantis/test-skills',
+    );
+    assert.doesNotMatch(JSON.stringify(invocations), /stale-token/);
+  } finally {
+    cleanup(value.root);
+  }
+});
+
+test('retries a private GitHub skill URL with an extraheader without persisting credentials', async () => {
   const value = fixture();
   const token = 'github-secret-token';
   const invocations: Array<{
@@ -281,8 +359,8 @@ test('clones GitHub skill sources without placing credentials in argv or persist
           id: 'shared',
           path: '.agents/skills',
           ref: 'B'.repeat(40),
-          repository: 'playrunner/shared-skills',
           type: 'github',
+          url: 'https://github.com/playrunner/shared-skills',
         },
       ]),
       githubToken: token,
@@ -293,6 +371,16 @@ test('clones GitHub skill sources without placing credentials in argv or persist
           environment: processOptions?.env || {},
         });
         if (args[0] === 'fetch') {
+          if (!processOptions?.env?.GIT_CONFIG_VALUE_0) {
+            return {
+              code: 128,
+              durationMs: 1,
+              signal: null,
+              stderr: 'Repository not found',
+              stdout: '',
+              timedOut: false,
+            };
+          }
           const cloneRoot = processOptions?.cwd;
           assert.ok(cloneRoot);
           writeSkill(
@@ -324,10 +412,12 @@ test('clones GitHub skill sources without placing credentials in argv or persist
     const remoteInvocation = invocations.find(
       (invocation) => invocation.args[0] === 'remote',
     )!;
-    const fetchInvocation = invocations.find(
+    const fetchInvocations = invocations.filter(
       (invocation) => invocation.args[0] === 'fetch',
-    )!;
-    assert.equal(fetchInvocation.args.at(-1), 'b'.repeat(40));
+    );
+    assert.equal(fetchInvocations.length, 2);
+    assert.equal(fetchInvocations[0].args.at(-1), 'b'.repeat(40));
+    assert.equal(fetchInvocations[0].environment.GIT_CONFIG_VALUE_0, undefined);
     assert.equal(
       remoteInvocation.args.includes(
         'https://github.com/playrunner/shared-skills.git',
@@ -336,10 +426,45 @@ test('clones GitHub skill sources without placing credentials in argv or persist
     );
     assert.doesNotMatch(JSON.stringify(invocations), /github-secret-token/);
     assert.match(
-      String(fetchInvocation.environment.GIT_CONFIG_VALUE_0),
+      String(fetchInvocations[1].environment.GIT_CONFIG_VALUE_0),
       /^Authorization: Basic /,
     );
     assert.doesNotMatch(JSON.stringify(prepared.inventory), /github-secret/);
+    assert.equal(fs.existsSync(path.join(value.root, 'skill-sources')), false);
+  } finally {
+    cleanup(value.root);
+  }
+});
+
+test('reports a credential-safe error when a GitHub skill URL is private and no token exists', async () => {
+  const value = fixture();
+  const url = 'https://github.com/playrunner/private-skills';
+  try {
+    await assert.rejects(
+      () =>
+        prepareAgentSkills({
+          ...options(value, [
+            {
+              id: 'private',
+              path: '.agents/skills',
+              ref: 'main',
+              type: 'github',
+              url,
+            },
+          ]),
+          runCommand: async (_command, args) => ({
+            code: args[0] === 'fetch' ? 128 : 0,
+            durationMs: 1,
+            signal: null,
+            stderr: '',
+            stdout: '',
+            timedOut: false,
+          }),
+        }),
+      new RegExp(
+        `fetch failed for ${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*connect GitHub`,
+      ),
+    );
     assert.equal(fs.existsSync(path.join(value.root, 'skill-sources')), false);
   } finally {
     cleanup(value.root);

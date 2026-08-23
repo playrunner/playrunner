@@ -186,8 +186,8 @@ async function main() {
         : `No repository or configured Agent Skills were discovered. Inventory: ${preparedSkills.inventoryPath}.`,
     );
     for (const skill of preparedSkills.inventory.skills) {
-      const source = skill.source.repository
-        ? `${skill.source.repository}:${skill.source.path}`
+      const source = skill.source.url
+        ? `${skill.source.url}:${skill.source.path}`
         : skill.source.path;
       await runnerControl.log(
         `Agent Skill ready: ${skill.name} [${skill.scope}] from ${source} at ${skill.source.revision.slice(0, 12)}.`,

@@ -104,9 +104,17 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
         await page
           .getByTestId('agent-container-skill-source-id-1')
           .fill('shared-skills');
-        await page
-          .getByTestId('agent-container-skill-source-repository-1')
-          .selectOption('playrunner-bot/e2e-fixture');
+        const skillsRepositoryUrl = page.getByTestId(
+          'agent-container-skill-source-url-1',
+        );
+        await expect(skillsRepositoryUrl).toHaveAttribute('maxlength', '300');
+        await skillsRepositoryUrl.fill('agentmantis/test-skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-error-1'),
+        ).toContainText('full GitHub repository URL');
+        await skillsRepositoryUrl.fill(
+          'https://github.com/agentmantis/test-skills',
+        );
         await page
           .getByTestId('agent-container-skill-source-ref-1')
           .fill('v1.0.0');
@@ -149,8 +157,8 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
           page.getByTestId('agent-container-skill-source-id-1'),
         ).toHaveValue('shared-skills');
         await expect(
-          page.getByTestId('agent-container-skill-source-repository-1'),
-        ).toHaveValue('playrunner-bot/e2e-fixture');
+          page.getByTestId('agent-container-skill-source-url-1'),
+        ).toHaveValue('https://github.com/agentmantis/test-skills');
         await expect(
           page.getByTestId('agent-container-skill-source-ref-1'),
         ).toHaveValue('v1.0.0');
@@ -334,6 +342,49 @@ export const agentContainerE2EContribution = definePlayrunnerE2EContribution({
               validatorNodeBox!.y,
           ),
         ).toBeLessThanOrEqual(2);
+      },
+    },
+    {
+      id: 'configure-public-skill-url-without-github',
+      mode: 'mock',
+      title: 'configures a public skill repository without GitHub connected',
+      tags: ['@agent-container', '@integration', '@node'],
+      async run({ expect, host, page }) {
+        await page.route('**/api/store/integrations/github', async (route) => {
+          await route.fulfill({
+            body: JSON.stringify({ integration: null }),
+            contentType: 'application/json',
+            status: 200,
+          });
+        });
+
+        await host.openNewWorkflow();
+        await host.addNode('agent-container');
+        await host.openNodeSettings('agent-container');
+        await expect(
+          page.getByText('Not Connected', { exact: true }),
+        ).toBeVisible();
+        await page.getByTestId('agent-container-tab-skills').click();
+        await page.getByTestId('agent-container-add-skill-source').click();
+        await page
+          .getByTestId('agent-container-skill-source-type-0')
+          .selectOption('github');
+
+        const url = page.getByTestId('agent-container-skill-source-url-0');
+        await expect(url).toBeEnabled();
+        await url.fill('https://github.com/agentmantis/test-skills');
+        await expect(
+          page.getByTestId('agent-container-skill-source-error-0'),
+        ).toHaveCount(0);
+
+        await host.closeNodeSettings();
+        await host.saveWorkflow();
+        await host.reloadWorkflow();
+        await host.openNodeSettings('agent-container');
+        await page.getByTestId('agent-container-tab-skills').click();
+        await expect(
+          page.getByTestId('agent-container-skill-source-url-0'),
+        ).toHaveValue('https://github.com/agentmantis/test-skills');
       },
     },
   ],
