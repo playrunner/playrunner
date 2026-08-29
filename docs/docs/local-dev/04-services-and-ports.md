@@ -4,6 +4,10 @@ title: Services & Ports
 description: 'Port map for the local Playrunner stack: web app, docs, API, orchestrator, Postgres, and the Pub/Sub emulator, plus how to override each default.'
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Services & Ports
 
 > **Local development only.** The standard local-flow ports below come from the repo-root `.env.local.example` file and package `.env.example` files. Override them in `.env.local` or the relevant service `.env`.

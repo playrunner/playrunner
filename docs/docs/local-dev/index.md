@@ -4,6 +4,10 @@ title: Overview
 description: Develop Playrunner integration packages and work with the local application stack.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Development — Overview
 
 Use this section to build self-contained integration packages, understand the

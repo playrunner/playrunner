@@ -4,6 +4,10 @@ title: Frontend Contributions
 description: Contribute package-owned integration metadata, settings, and workflow node configuration UI.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Frontend Contributions
 
 A frontend contribution describes how an integration appears and behaves in

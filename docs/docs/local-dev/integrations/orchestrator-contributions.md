@@ -6,6 +6,10 @@ description: Add trusted package-owned node executors to the Playrunner orchestr
 slug: /integration-packages/orchestrator
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Orchestrator Contributions
 
 > **Build-time only.** Executable integration code is selected, installed, and

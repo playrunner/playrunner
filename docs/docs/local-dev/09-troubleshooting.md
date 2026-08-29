@@ -4,6 +4,10 @@ title: Troubleshooting
 description: "Fix common local Playrunner problems: the orchestrator won't start, missing Docker images, port conflicts, database errors, and failed runs."
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Troubleshooting
 
 > **Local development only.** Common issues and how to resolve them.

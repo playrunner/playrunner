@@ -4,6 +4,10 @@ title: PostgreSQL, Prisma & Local Auth
 description: How local Playrunner stores workflows and secrets in Docker Postgres through Prisma, and issues JWTs for the setup-seeded local account.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # PostgreSQL, Prisma & Local Auth
 
 > **Local development only.** The default local stack now runs a Docker-backed PostgreSQL database and a setup-seeded username/password login.

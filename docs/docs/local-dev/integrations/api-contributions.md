@@ -4,6 +4,10 @@ title: API Contributions
 description: Contribute package-owned Express routes through the build-time integration composition.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # API Contributions
 
 An API contribution exposes provider-specific HTTP endpoints, such as OAuth

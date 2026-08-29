@@ -4,6 +4,10 @@ title: Build, Validation, and Deployment
 description: Validate integration packages and rebuild every frontend, API, and Orchestrator artifact they affect.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Build, Validation, and Deployment
 
 Integration installation is an artifact-build operation. Determine which

@@ -4,6 +4,10 @@ title: Package Architecture
 description: Declare self-contained frontend, API, Orchestrator, and E2E integration surfaces through package metadata.
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Package Architecture
 
 An integration owns its provider-specific code and declares its public
