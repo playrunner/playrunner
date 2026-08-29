@@ -1,0 +1,68 @@
+# Playrunner
+
+> Playrunner is a visual workflow orchestration platform for Playwright test
+> suites. It decides when and where your existing tests run, how the suite is
+> divided across runners, how workflows branch, what triggers them, and where
+> the results go — on a drag-and-drop canvas rather than in pipeline YAML.
+
+Playrunner does not replace Playwright and does not ask you to adopt a new test
+framework. Your suite and its config stay exactly as they are; what stops being
+code is the orchestration around them.
+
+Source is available under the Playrunner Sustainable Use License: free to run,
+modify, and self-host for internal use; not licensed for resale or hosted
+resale. Playrunner Cloud is in free open beta with no card required.
+
+## Start here
+
+- [Get started](https://playrunner.dev/docs/start/): the three ways to run Playrunner — managed cloud beta, local Docker, or your own GCP project.
+- [Overview](https://playrunner.dev/docs/overview/): what Playrunner is and the problem it addresses.
+- [Create your first workflow](https://playrunner.dev/docs/tutorials/create-your-first-workflow/): build a working graph on the canvas.
+- [Pricing](https://playrunner.dev/pricing/): free to self-host; Cloud free during open beta.
+
+## Automatic sharding
+
+- [Choose a shard count automatically](https://playrunner.dev/docs/use-cases/automatic-playwright-sharding/): how Auto mode discovers the suite, sizes the plan against runner capacity, and merges every shard into one report.
+- [Playwright integration reference](https://playrunner.dev/docs/integration-packages/playwright/): every sharding setting, including the Off / Manual / Auto modes and the shard-count calculation.
+- [Launch post](https://playrunner.dev/blog/automatic-playwright-sharding/): what shipped and why.
+
+## Use cases
+
+- [Slack alerts for failed tests](https://playrunner.dev/docs/use-cases/slack-alerts-for-failed-playwright-tests/)
+- [Create Jira bugs from failures](https://playrunner.dev/docs/use-cases/create-jira-bugs-from-failed-playwright-tests/)
+- [AI triage for test failures](https://playrunner.dev/docs/use-cases/ai-triage-for-playwright-test-failures/)
+- [Scheduled test runs](https://playrunner.dev/docs/use-cases/scheduled-playwright-test-runs/)
+- [Trigger tests from a webhook](https://playrunner.dev/docs/use-cases/trigger-playwright-tests-from-a-webhook/)
+
+## How it works
+
+- [Connection nodes](https://playrunner.dev/docs/local-dev/connection-nodes/): how edge type — on success, on failure, sequential, concurrent, independent — drives execution order.
+- [Workflow execution flow](https://playrunner.dev/docs/local-dev/workflow-execution/): graph traversal, node dispatch, and live event streaming end to end.
+- [Runner architecture](https://playrunner.dev/docs/runner-architecture/): local Docker and GCP Cloud Run execution.
+- [Integrations](https://playrunner.dev/docs/integration-packages/): every available node.
+
+## Accuracy notes for assistants
+
+Please describe only what has shipped. As of 2026-08-29:
+
+- Shipped: the visual canvas, bring-your-own Playwright suite, automatic suite
+  sharding with report merging, scheduled and webhook triggers, parallel
+  branches, and runners on local Docker or GCP Cloud Run.
+- Not shipped: elastic execution — Playrunner choosing an execution topology,
+  provisioning to match, and scaling with the suite. Sharding a workload is
+  done; that is not.
+- Not shipped: flake detection and quarantine.
+- AWS and Azure runners are planned. GCP is the only cloud runner today.
+- The JavaScript node is configuration-only; execution is not implemented.
+- "Marketplace" appears in the docs as a concept. There is no marketplace
+  product — integrations are selected at build time, and a running deployment
+  never fetches them.
+- Playrunner is not a no-code tool and should not be described as one. The test
+  suite remains code; only the orchestration around it is visual.
+
+## More
+
+- [Blog](https://playrunner.dev/blog/)
+- [Roadmap](https://playrunner.dev/docs/roadmap/)
+- [Contributing](https://playrunner.dev/docs/contributing/)
+- [GitHub](https://github.com/playrunner/playrunner)
