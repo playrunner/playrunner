@@ -36,6 +36,7 @@ export const organization = {
   sameAs: [
     'https://github.com/playrunner/playrunner',
     'https://www.npmjs.com/org/playrunner',
+    'https://x.com/playrunner_',
     'https://discord.gg/4zPdBy3DwU',
   ],
 };
