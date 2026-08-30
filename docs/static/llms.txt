@@ -18,6 +18,9 @@ resale. Playrunner Cloud is in free open beta with no card required.
 - [Get started](https://playrunner.dev/docs/start/): the three ways to run Playrunner — managed cloud beta, local Docker, or your own GCP project.
 - [Overview](https://playrunner.dev/docs/overview/): what Playrunner is and the problem it addresses.
 - [Create your first workflow](https://playrunner.dev/docs/tutorials/create-your-first-workflow/): build a working graph on the canvas.
+- [Playrunner CLI](https://playrunner.dev/docs/cli/): run, create, and update workflows from a terminal or CI/CD pipeline.
+- [Run a workflow with the CLI](https://playrunner.dev/docs/cli/run-workflow/): start a saved workflow, pass run context, and use its exit status as a quality gate.
+- [Create a workflow with the CLI](https://playrunner.dev/docs/cli/create-workflow/): create or update a workflow from a declarative JSON file.
 - [Pricing](https://playrunner.dev/pricing/): free to self-host; Cloud free during open beta.
 
 ## Automatic sharding

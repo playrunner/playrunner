@@ -49,13 +49,14 @@ workflow and prints its visual-editor URL. Use `--json` for machine-readable
 output.
 
 See [Create a workflow with the Playrunner
-CLI](https://playrunner.dev/docs/cli/) for the definition format, a complete
-example, validation rules, token requirements, and update behavior.
+CLI](https://playrunner.dev/docs/cli/create-workflow/) for the definition
+format, a complete example, validation rules, token requirements, and update
+behavior.
 
 ## Run a workflow
 
 1. Open the saved workflow in Playrunner and copy its workflow ID from the URL.
-   The ID is the value after `/workflows/`.
+   The ID is the value after `/workflow/`.
 2. Open **Settings → API tokens**, create a token, and allow it to run that
    workflow.
 3. Export the API token:

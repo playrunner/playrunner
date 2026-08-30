@@ -20,7 +20,7 @@ Pick a tutorial below and follow it in order, or jump straight to the topic you 
 | [Getting Started](./01-getting-started.md)                       | Install, configure, and boot the full local stack       |
 | [Create Your First Workflow](./02-create-your-first-workflow.md) | Build a workflow in the visual editor and wire up nodes |
 | [Connect GitHub](./03-connect-github.md)                         | OAuth, repo selection, and branch targeting             |
-| [Run Your First Test](./04-run-your-first-test.md)               | Trigger runs from the editor or CLI and read live logs  |
+| [Run Your First Test](./04-run-your-first-test.md)               | Trigger runs from the editor and read live logs         |
 | [Understanding Test Reports](./05-understanding-reports.md)      | Navigate the HTML report, artifacts, and run history    |
 
 ---

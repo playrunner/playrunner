@@ -54,49 +54,9 @@ Once the run finishes:
 
 ## Step 5 — Run the saved workflow from the CLI
 
-Use the Playrunner CLI when you want to start the same saved workflow from a
-terminal or CI/CD pipeline.
-
-### Find the workflow ID
-
-Open the saved workflow in Playrunner and copy its workflow ID from the browser
-URL. The workflow ID is the value after `/workflows/`; do not copy an example ID
-from documentation.
-
-### Create an API token
-
-1. Open **Settings → API tokens**.
-2. Select **Create token**.
-3. Give the token a descriptive name, such as `CI`.
-4. Restrict it to this workflow when appropriate.
-5. Copy the token when it is shown. Playrunner cannot display it again.
-
-### Run the workflow
-
-Export the API token, then run the CLI with the workflow ID you copied. Replace
-`WORKFLOW_ID` in the command; do not type it literally:
-
-```bash
-export PLAYRUNNER_API_KEY='<your-api-token>'
-
-npx playrunner WORKFLOW_ID --url https://playrunner.cloud
-```
-
-For example:
-
-```bash
-npx playrunner 2cc84235-58f7-4cb1-89cd-0c379d3b6908 --url https://playrunner.cloud
-```
-
-For a self-hosted or local installation, replace `https://playrunner.cloud`
-with the Playrunner URL for that environment.
-
-The command streams progress and returns a non-zero exit code if the workflow
-fails. Use `--no-wait` to return as soon as Playrunner accepts the run, or
-`--timeout 10m` to choose a different wait limit.
-
-In CI/CD, store the API token in a protected, masked secret variable. Never
-commit API tokens to source control or paste them into documentation.
+To start this saved workflow from a terminal or CI/CD pipeline, follow the
+[CLI run guide](/docs/cli/run-workflow/). It covers API tokens, workflow IDs,
+waiting and timeouts, workflow inputs, source-change context, and CI/CD setup.
 
 ---
 
@@ -107,8 +67,6 @@ commit API tokens to source control or paste them into documentation.
 | Node stays yellow indefinitely | Orchestrator container not running — check `docker ps` |
 | `git clone` fails              | GitHub token expired or repo access revoked            |
 | Tests error immediately        | Wrong Playwright version selected for your project     |
-| Playrunner URL is required     | Pass the URL with `--url` or export `PLAYRUNNER_URL`   |
-| `command not found`            | Use `npx playrunner` or install the CLI globally       |
 
 See the [Troubleshooting guide](../local-dev/09-troubleshooting.md) for more
 detail.

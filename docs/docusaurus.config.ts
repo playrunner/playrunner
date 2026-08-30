@@ -261,6 +261,7 @@ const config: Config = {
           position: 'left',
           label: 'Docs',
         },
+        { to: '/docs/cli', label: 'CLI', position: 'left' },
         { to: '/pricing', label: 'Pricing', position: 'left' },
         { to: '/blog', label: 'Blog', position: 'left' },
         ...(algolia ? ([{ type: 'search', position: 'right' }] as const) : []),

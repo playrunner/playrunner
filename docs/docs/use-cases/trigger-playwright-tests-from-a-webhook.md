@@ -65,7 +65,7 @@ The outbound webhook on the success edge is what closes the loop:
    someone why.
 
 If your CI system can simply wait for a command instead, the
-[Playrunner CLI](/blog/playrunner-ci-cd-pipeline/) is the simpler option — it
+[Playrunner CLI](/docs/cli/run-workflow/) is the simpler option — it
 exits non-zero on failure and gates a pipeline step directly. Webhooks are for
 callers that cannot block, or that are not a CI system at all.
 
