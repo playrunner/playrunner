@@ -1,0 +1,9 @@
+{
+  "label": "CLI",
+  "position": 2.25,
+  "link": {
+    "type": "doc",
+    "id": "cli/index"
+  },
+  "description": "Create, update, and run Playrunner workflows from a terminal or CI/CD."
+}

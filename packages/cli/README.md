@@ -2,6 +2,56 @@
 
 Run a saved Playrunner workflow from CI/CD with a revocable machine token.
 
+## Create or update a workflow
+
+Define a project and workflow in JSON. For example, save this as
+`playrunner-workflow.json`:
+
+```json
+{
+  "project": {
+    "key": "cli-examples",
+    "title": "CLI examples"
+  },
+  "workflow": {
+    "key": "hello-world",
+    "title": "Hello world",
+    "nodes": [
+      {
+        "id": "hello",
+        "nodeType": "code",
+        "label": "Print greeting",
+        "x": 300,
+        "y": 300,
+        "width": 128,
+        "height": 128,
+        "config": {
+          "code": "console.log('Hello from the CLI');\nreturn { ok: true };"
+        }
+      }
+    ],
+    "connections": []
+  }
+}
+```
+
+Then apply it with an unrestricted API token:
+
+```bash
+export PLAYRUNNER_API_KEY='<your-api-token>'
+export PLAYRUNNER_URL='https://playrunner.cloud'
+npx playrunner workflow create --file playrunner-workflow.json
+```
+
+The command creates the project and workflow when their keys are new. Running
+it again with the same `project.key` and `workflow.key` updates the existing
+workflow and prints its visual-editor URL. Use `--json` for machine-readable
+output.
+
+See [Create a workflow with the Playrunner
+CLI](https://playrunner.dev/docs/cli/) for the definition format, a complete
+example, validation rules, token requirements, and update behavior.
+
 ## Run a workflow
 
 1. Open the saved workflow in Playrunner and copy its workflow ID from the URL.
