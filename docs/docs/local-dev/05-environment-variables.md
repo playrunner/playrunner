@@ -4,6 +4,10 @@ title: Environment Variables
 description: 'Environment variables for the local Playrunner stack: .env.local startup values, per-service defaults, and what each variable actually controls.'
 ---
 
+<head>
+  <meta name="robots" content="noindex" />
+</head>
+
 # Environment Variables
 
 > **Local development only.** Each service reads its configuration from environment variables. Defaults are designed to work out-of-the-box for local dev.
