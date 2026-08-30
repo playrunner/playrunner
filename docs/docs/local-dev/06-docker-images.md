@@ -4,10 +4,6 @@ title: Docker Images
 description: Build the Playrunner orchestrator and Playwright runner Docker images locally, and keep multiple tagged Playwright versions side by side.
 ---
 
-<head>
-  <meta name="robots" content="noindex" />
-</head>
-
 # Docker Images
 
 > **Local development only.** Both the Orchestrator and Playwright runner run as Docker images that must be built on your local machine before use.

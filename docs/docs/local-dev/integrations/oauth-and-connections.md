@@ -5,10 +5,6 @@ description: Implement package-owned OAuth, encrypted credential persistence, ca
 slug: /local-dev/connecting-integrations
 ---
 
-<head>
-  <meta name="robots" content="noindex" />
-</head>
-
 # OAuth and Connection Development
 
 ## OAuth Integrations

@@ -5,10 +5,6 @@ title: Integrations
 description: Build self-contained Playrunner integration packages for the frontend, API, and Orchestrator.
 ---
 
-<head>
-  <meta name="robots" content="noindex" />
-</head>
-
 # Integration Development
 
 Playrunner integrations are self-contained packages selected when an
