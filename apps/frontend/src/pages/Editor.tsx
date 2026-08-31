@@ -2653,23 +2653,34 @@ export default function Editor() {
       const isVertical = (port: PortPosition) =>
         port === 'top' || port === 'bottom';
 
-      let points = [p0, p1];
+      let points = [p0];
 
       if (isHorizontal(sourcePort) && isHorizontal(targetPort)) {
-        const midX = (p1.x + p3.x) / 2;
-        points.push({ x: midX, y: p1.y });
-        points.push({ x: midX, y: p3.y });
-        points.push(p3);
+        if (sourcePort === targetPort) {
+          const outerX =
+            sourcePort === 'left' ? Math.min(p1.x, p3.x) : Math.max(p1.x, p3.x);
+          points.push({ x: outerX, y: p1.y });
+          points.push({ x: outerX, y: p3.y });
+        } else {
+          const midX = (p1.x + p3.x) / 2;
+          points.push(p1);
+          points.push({ x: midX, y: p1.y });
+          points.push({ x: midX, y: p3.y });
+          points.push(p3);
+        }
       } else if (isVertical(sourcePort) && isVertical(targetPort)) {
         const midY = (p1.y + p3.y) / 2;
+        points.push(p1);
         points.push({ x: p1.x, y: midY });
         points.push({ x: p3.x, y: midY });
         points.push(p3);
       } else if (isHorizontal(sourcePort) && isVertical(targetPort)) {
         // Just one corner to connect horizontal out to vertical in
+        points.push(p1);
         points.push({ x: p4.x, y: p1.y });
       } else if (isVertical(sourcePort) && isHorizontal(targetPort)) {
         // Just one corner to connect vertical out to horizontal in
+        points.push(p1);
         points.push({ x: p1.x, y: p4.y });
       }
       points.push(p4);
