@@ -75,14 +75,22 @@ type AttachmentKind = 'agent' | 'memory' | 'tool';
 
 const AI_CONTAINER_WIDTH = 360;
 const AI_CONTAINER_HEIGHT = 128;
+const REGULAR_HEXAGON_WIDTH_RATIO = 2 / Math.sqrt(3);
 // Retain the per-node controls so they can be restored without rebuilding the
 // execution handlers or context-menu layout.
 const SHOW_NODE_EXECUTION_CONTROLS = false;
 
 function getNodeDimensions(node: NodeData) {
-  return node.nodeType === 'agent-container'
-    ? { width: AI_CONTAINER_WIDTH, height: AI_CONTAINER_HEIGHT }
-    : { width: node.width, height: node.height };
+  if (node.nodeType === 'agent-container') {
+    return { width: AI_CONTAINER_WIDTH, height: AI_CONTAINER_HEIGHT };
+  }
+  if (node.nodeType === 'environment') {
+    return {
+      width: node.height * REGULAR_HEXAGON_WIDTH_RATIO,
+      height: node.height,
+    };
+  }
+  return { width: node.width, height: node.height };
 }
 
 type ConnectionType =
@@ -3519,6 +3527,7 @@ export default function Editor() {
                 );
 
               const isScheduleNode = node.nodeType === 'schedule';
+              const isEnvironmentNode = node.nodeType === 'environment';
               const isAttachmentNode =
                 getNodeType(node.nodeType)?.executionRole === 'attachment' ||
                 connections.some(
@@ -3534,6 +3543,8 @@ export default function Editor() {
                 diamond = false,
               ) => {
                 const connected = hasConnection(port);
+                const defaultVisible =
+                  port === 'right' || (!isEnvironmentNode && port === 'left');
                 return (
                   <div
                     className={cn(
@@ -3554,7 +3565,7 @@ export default function Editor() {
                         diamond
                           ? 'h-4 w-4 rotate-45 border-[var(--muted)]'
                           : 'h-6 w-6 rounded-full',
-                        connected || port === 'right' || port === 'left'
+                        connected || defaultVisible
                           ? 'opacity-100'
                           : 'opacity-0 group-hover:opacity-100',
                       )}
@@ -3590,20 +3601,24 @@ export default function Editor() {
                   data-node-id={node.id}
                   data-node-status={status}
                   className={cn(
-                    'group guard-node absolute bg-[var(--node-bg)] shadow-lg flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
+                    'group guard-node absolute flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
+                    isEnvironmentNode
+                      ? 'isolate bg-transparent'
+                      : 'bg-[var(--node-bg)] shadow-lg',
                     isAIContainer ? 'p-0' : 'p-4',
                     isScheduleNode
                       ? 'rounded-t-full rounded-b-lg'
                       : isAttachmentNode
                         ? 'rounded-full'
-                        : node.nodeType === 'environment'
-                          ? 'rounded-l-[48px] rounded-r-sm'
-                          : 'rounded-xl',
-                    status === 'running' ? 'border-transparent' : 'border',
-                    status !== 'running' &&
+                        : !isEnvironmentNode && 'rounded-xl',
+                    !isEnvironmentNode &&
+                      (status === 'running' ? 'border-transparent' : 'border'),
+                    !isEnvironmentNode &&
+                      status !== 'running' &&
                       isSelected &&
                       'border-[var(--border-strong)] ring-[4px] ring-[var(--border-strong)] shadow-xl',
-                    status !== 'running' &&
+                    !isEnvironmentNode &&
+                      status !== 'running' &&
                       !isSelected &&
                       'border-[var(--node-border)]',
                   )}
@@ -3616,7 +3631,33 @@ export default function Editor() {
                   onPointerDown={(e) => handleNodePointerDown(e, node.id)}
                   onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
                 >
-                  {status === 'running' && (
+                  {isEnvironmentNode && (
+                    <div
+                      data-testid="canvas-environment-node-shape"
+                      className={cn(
+                        'environment-node-hexagon pointer-events-none absolute inset-0 z-[-1] overflow-hidden drop-shadow-lg',
+                        status === 'running'
+                          ? 'bg-transparent'
+                          : isSelected
+                            ? 'bg-[var(--border-strong)]'
+                            : 'bg-[var(--node-border)]',
+                      )}
+                    >
+                      {status === 'running' && (
+                        <div className="absolute left-1/2 top-1/2 aspect-square w-[300%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#22d3ee,#3b82f6)]" />
+                      )}
+                      <div
+                        className={cn(
+                          'environment-node-hexagon absolute inset-0 origin-center bg-[var(--node-bg)]',
+                          status !== 'running' && isSelected
+                            ? 'scale-[0.932342]'
+                            : 'scale-[0.986468]',
+                        )}
+                      />
+                    </div>
+                  )}
+
+                  {status === 'running' && !isEnvironmentNode && (
                     <div
                       className="running-border-wrapper"
                       style={
@@ -3624,9 +3665,7 @@ export default function Editor() {
                           ? { borderRadius: '9999px 9999px 8px 8px' }
                           : isAttachmentNode
                             ? { borderRadius: '9999px' }
-                            : node.nodeType === 'environment'
-                              ? { borderRadius: '49px 5px 5px 49px' }
-                              : undefined
+                            : undefined
                       }
                     >
                       <div className="absolute left-1/2 top-1/2 aspect-square w-[300%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#22d3ee,#3b82f6)]" />
@@ -3818,7 +3857,6 @@ export default function Editor() {
 
                   {/* Ports (hidden for schedule nodes) */}
                   {!isScheduleNode &&
-                    node.nodeType !== 'environment' &&
                     renderPort(
                       'top',
                       '-top-5 left-1/2 -translate-x-1/2',
@@ -3828,12 +3866,10 @@ export default function Editor() {
                     !isAttachmentNode &&
                     renderPort('right', '-right-5 top-1/2 -translate-y-1/2')}
                   {!isScheduleNode &&
-                    node.nodeType !== 'environment' &&
                     !isAIContainer &&
                     !isAttachmentNode &&
                     renderPort('bottom', '-bottom-5 left-1/2 -translate-x-1/2')}
                   {!isScheduleNode &&
-                    node.nodeType !== 'environment' &&
                     !isAttachmentNode &&
                     renderPort('left', '-left-5 top-1/2 -translate-y-1/2')}
 
