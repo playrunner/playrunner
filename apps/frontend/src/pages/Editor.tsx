@@ -3545,12 +3545,28 @@ export default function Editor() {
                 const connected = hasConnection(port);
                 const defaultVisible =
                   port === 'right' || (!isEnvironmentNode && port === 'left');
+                const outboundChevronRotation =
+                  port === 'top'
+                    ? '-rotate-90'
+                    : port === 'bottom'
+                      ? 'rotate-90'
+                      : port === 'left'
+                        ? 'rotate-180'
+                        : undefined;
                 return (
                   <div
                     className={cn(
                       'guard-port absolute w-10 h-10 flex items-center justify-center cursor-crosshair pointer-events-auto',
                       posClass,
                     )}
+                    data-connection-direction={
+                      isEnvironmentNode ? 'outbound' : undefined
+                    }
+                    title={
+                      isEnvironmentNode
+                        ? `Create outbound connection from ${port}`
+                        : undefined
+                    }
                     onPointerDown={(e) =>
                       handlePortPointerDown(e, node.id, port)
                     }
@@ -3565,11 +3581,24 @@ export default function Editor() {
                         diamond
                           ? 'h-4 w-4 rotate-45 border-[var(--muted)]'
                           : 'h-6 w-6 rounded-full',
+                        isEnvironmentNode &&
+                          !diamond &&
+                          'flex items-center justify-center text-muted',
                         connected || defaultVisible
                           ? 'opacity-100'
                           : 'opacity-0 group-hover:opacity-100',
                       )}
-                    />
+                    >
+                      {isEnvironmentNode && !diamond && !connected && (
+                        <ChevronRight
+                          aria-hidden="true"
+                          className={cn(
+                            'h-3 w-3 stroke-[2.5]',
+                            outboundChevronRotation,
+                          )}
+                        />
+                      )}
+                    </div>
                   </div>
                 );
               };
