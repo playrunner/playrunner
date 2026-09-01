@@ -90,7 +90,7 @@ the session for that execution while keeping profiles isolated by Environment.
 Each profile records its application, role, authentication status, last sign-in,
 and known expiry, and can be reauthenticated, revoked, or removed when access
 changes. Follow the
-[Authentication Profiles tutorial](docs/docs/tutorials/06-authentication-profiles.md)
+[Authentication Profiles tutorial](https://playrunner.dev/docs/tutorials/authentication-profiles/)
 to create a profile and attach it to a Local runner workflow.
 
 ## Playrunner from the command line
