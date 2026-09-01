@@ -5,8 +5,10 @@ import {
   deleteAuthenticationProfile,
   listAuthenticationProfiles,
   revokeAuthenticationProfile,
+  storeAuthenticationState,
   updateAuthenticationProfile,
 } from '../services/authentication-profiles';
+import crypto from 'node:crypto';
 
 export const authenticationProfilesRouter = Router();
 
@@ -35,6 +37,21 @@ function sendError(res: Response, error: unknown) {
           ? error.message
           : 'Authentication Profile request failed.',
   });
+}
+
+function requireCompanionUpload(req: Request) {
+  const expected = process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET || '';
+  const supplied = req.get('x-playrunner-companion-secret') || '';
+  if (
+    expected.length < 32 ||
+    supplied.length !== expected.length ||
+    !crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+  ) {
+    throw Object.assign(new Error('Unauthorized'), {
+      code: 'companion_upload_unauthorized',
+      statusCode: 401,
+    });
+  }
 }
 
 function route(handler: (req: Request, res: Response) => Promise<void> | void) {
@@ -152,6 +169,22 @@ authenticationProfilesRouter.post(
     await localAuthenticationAgent.cancelProfile(actorId, req.params.id);
     res.json({
       profile: await revokeAuthenticationProfile(actorId, req.params.id),
+    });
+  }),
+);
+
+authenticationProfilesRouter.post(
+  '/:id/companion-state',
+  route(async (req, res) => {
+    requireCompanionUpload(req);
+    const actorId = userId(req);
+    res.json({
+      profile: await storeAuthenticationState({
+        actorId,
+        profileId: req.params.id,
+        sessionId: String(req.body?.sessionId || ''),
+        state: req.body?.state,
+      }),
     });
   }),
 );

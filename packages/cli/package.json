@@ -1,6 +1,6 @@
 {
   "name": "playrunner",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Run saved Playrunner workflows from CI/CD.",
   "keywords": [
     "playrunner",
@@ -32,6 +32,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./authentication-capture": {
+      "types": "./dist/authentication-capture.d.ts",
+      "import": "./dist/authentication-capture.js",
+      "default": "./dist/authentication-capture.js"
     }
   },
   "files": [
@@ -51,6 +56,9 @@
     "format:check": "prettier --check .",
     "test": "tsx --test src/*.test.ts",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

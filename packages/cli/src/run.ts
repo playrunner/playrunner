@@ -1,6 +1,7 @@
 import { runWorkflowCreateCli } from './workflow-create.js';
+import { runCompanionCommand } from './companion.js';
 
-const VERSION = '0.1.4';
+const VERSION = '0.2.0';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const EVENT_PAGE_SIZE = 100;
@@ -47,6 +48,11 @@ function usage() {
 
 Commands:
   workflow create      Create or update a workflow from a JSON definition
+  login                Pair this device with Playrunner Cloud
+  auth connect         Receive Authentication Profile capture requests
+  auth install         Install and start the persistent companion
+  auth status          Inspect this device's pairing status
+  auth disconnect      Revoke and remove this device's pairing
 
 Options:
   --url <url>          Playrunner server URL (or PLAYRUNNER_URL)
@@ -388,6 +394,27 @@ export async function runCli(
   const fetchImpl = dependencies.fetch ?? globalThis.fetch;
   const now = dependencies.now ?? Date.now;
   const waitFor = dependencies.wait ?? defaultWait;
+
+  if (args[0] === 'login' || args[0] === 'auth') {
+    const signal = dependencies.signal ?? new AbortController().signal;
+    try {
+      return (
+        (await runCompanionCommand(args, {
+          env,
+          fetch: fetchImpl,
+          signal,
+          stderr: outputError,
+          stdout: output,
+        })) ?? 2
+      );
+    } catch (error) {
+      if (signal.aborted) return 130;
+      outputError(
+        `Playrunner companion failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+      return 2;
+    }
+  }
 
   if (args[0] === 'workflow' && args[1] === 'create') {
     return runWorkflowCreateCli(args.slice(2), {

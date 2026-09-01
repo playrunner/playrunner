@@ -21,7 +21,10 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': [
         'warn',
-        { allowConstantExport: true, allowExportNames: ['codexCliIntegration'] },
+        {
+          allowConstantExport: true,
+          allowExportNames: ['codexCliIntegration'],
+        },
       ],
       '@typescript-eslint/no-explicit-any': 'off',
       'react/prop-types': 'off',
