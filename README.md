@@ -49,7 +49,7 @@ run, and evolve.
 |                                      |                                                                                                                                       |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | **🎨 Build visually**                | Connect tests, triggers, conditions, branches, and downstream systems on a live workflow canvas.                                      |
-| **🤖 Vibe-code with confidence**     | Ask AI to generate a Playrunner workflow alongside your app, then create or update it from the CLI in your development pipeline.      |
+| **🤖 Code with confidence**          | Ask AI to generate a Playrunner workflow alongside your app, then create or update it from the CLI in your development pipeline.      |
 | **⚡ Shard automatically**           | Discover the real suite, fit useful parallelism to runner capacity, and merge every shard into one report.                            |
 | **🏃 Run where you want**            | Use local Docker, managed cloud runners, or your own infrastructure without changing the suite.                                       |
 | **🔎 See the complete run**          | Follow node state and logs live, with Playwright reports, screenshots, videos, and traces attached to the run.                        |
