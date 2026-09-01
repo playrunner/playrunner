@@ -81,11 +81,11 @@
     "@google-cloud/run": "^3.2.1",
     "@google-cloud/storage": "^7.19.0",
     "express": "^5.2.1",
-    "google-auth-library": "^10.6.2"
+    "google-auth-library": "^11.0.2"
   },
   "peerDependencies": {
-    "@playwright/test": "^1.61.0",
     "@playrunner/integration-sdk": "^0.1.0",
+    "@playwright/test": "^1.61.0",
     "lucide-react": "^0.546.0",
     "react": "^19.0.0"
   },
