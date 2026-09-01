@@ -25,6 +25,7 @@
 <p align="center">
   <a href="https://playrunner.dev/docs/overview/"><img src="https://img.shields.io/badge/Docs-playrunner.dev-0F766E?style=for-the-badge&logo=docusaurus&logoColor=white" alt="Documentation" /></a>
   <a href="https://discord.gg/4zPdBy3DwU"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://www.youtube.com/@playrunnerdev"><img src="https://img.shields.io/badge/YouTube-Watch%20Playrunner-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Playrunner on YouTube" /></a>
   <a href="https://www.npmjs.com/org/playrunner"><img src="https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm packages" /></a>
 </p>
 
