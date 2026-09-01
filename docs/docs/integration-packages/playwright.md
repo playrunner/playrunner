@@ -69,6 +69,22 @@ surfaces, so no shared registry edit is required.
    test command or inline script and runner resources.
 5. Optionally connect an Environment node to inject environment variables into
    the test run.
+6. For authenticated tests on the Local runner, optionally select an
+   authenticated profile after following the
+   [Authentication Profiles tutorial](../tutorials/06-authentication-profiles.md).
+
+## Authentication Profiles
+
+The **Authentication Profile** setting restores a manually captured, encrypted
+browser session for a Local runner execution. The profile must be
+**Authenticated**, and the saved Environment assigned to that profile must be
+selected on an Environment node connected to the Playwright node.
+
+Authentication Profiles currently support only owner-initiated Local runner
+executions. They are rejected for remote runners and shared workflow runs. See
+[Reuse Browser Sessions with Authentication Profiles](../tutorials/06-authentication-profiles.md)
+for profile creation, success conditions, session testing, lifecycle actions,
+security boundaries, and troubleshooting.
 
 ## Suite sharding
 

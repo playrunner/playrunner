@@ -54,6 +54,7 @@ Previous reports are never overwritten, so you can compare runs across time. The
 
 You've completed the core tutorials. Where to go from here:
 
+- 🔐 [Reuse browser sessions with Authentication Profiles](./06-authentication-profiles.md) — capture and attach an encrypted signed-in session to a Local runner workflow
 - 📖 [Development reference docs](../local-dev/index.md) — integration
   development and deep dives into every service
 - 🔧 [Troubleshooting](../local-dev/09-troubleshooting.md) — common issues and
