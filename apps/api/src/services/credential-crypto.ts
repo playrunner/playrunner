@@ -60,15 +60,18 @@ export function loadCredentialKeyring(
   return { activeVersion, keys };
 }
 
-function aad(userId: string, kind: string, provider: string, version: number) {
-  return Buffer.from(`${userId}\0${kind}\0${provider}\0${version}`, 'utf8');
+function aad(parts: readonly string[], version: number) {
+  return Buffer.from([...parts, String(version)].join('\0'), 'utf8');
 }
 
-export function encryptCredentialSecrets(
-  secrets: Record<string, unknown>,
-  identity: { userId: string; kind: string; provider: string },
+export function encryptSecretPayload(
+  value: unknown,
+  identityParts: readonly string[],
   keyring: CredentialKeyring = loadCredentialKeyring(),
 ) {
+  if (!identityParts.length || identityParts.some((part) => !part)) {
+    throw new Error('Credential encryption identity is incomplete.');
+  }
   const version = keyring.activeVersion;
   const key = keyring.keys.get(version);
   if (!key) {
@@ -76,17 +79,61 @@ export function encryptCredentialSecrets(
   }
   const iv = crypto.randomBytes(IV_BYTES);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-  cipher.setAAD(
-    aad(identity.userId, identity.kind, identity.provider, version),
-  );
+  cipher.setAAD(aad(identityParts, version));
   const ciphertext = Buffer.concat([
-    cipher.update(JSON.stringify(secrets), 'utf8'),
+    cipher.update(JSON.stringify(value), 'utf8'),
     cipher.final(),
   ]);
   const tag = cipher.getAuthTag();
   return {
-    encryptedSecrets: Buffer.concat([iv, tag, ciphertext]).toString('base64'),
+    encryptedValue: Buffer.concat([iv, tag, ciphertext]).toString('base64'),
     encryptionVersion: version,
+  };
+}
+
+export function decryptSecretPayload(
+  encryptedValue: string,
+  version: number,
+  identityParts: readonly string[],
+  keyring: CredentialKeyring = loadCredentialKeyring(),
+): unknown {
+  if (!identityParts.length || identityParts.some((part) => !part)) {
+    throw new Error('Credential encryption identity is incomplete.');
+  }
+  const key = keyring.keys.get(version);
+  if (!key) {
+    throw new Error(`Credential encryption key version ${version} is missing.`);
+  }
+  const payload = Buffer.from(encryptedValue, 'base64');
+  if (payload.length <= IV_BYTES + 16) {
+    throw new Error('Stored credential payload is invalid.');
+  }
+  const iv = payload.subarray(0, IV_BYTES);
+  const tag = payload.subarray(IV_BYTES, IV_BYTES + 16);
+  const ciphertext = payload.subarray(IV_BYTES + 16);
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAAD(aad(identityParts, version));
+  decipher.setAuthTag(tag);
+  return JSON.parse(
+    Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString(
+      'utf8',
+    ),
+  );
+}
+
+export function encryptCredentialSecrets(
+  secrets: Record<string, unknown>,
+  identity: { userId: string; kind: string; provider: string },
+  keyring: CredentialKeyring = loadCredentialKeyring(),
+) {
+  const encrypted = encryptSecretPayload(
+    secrets,
+    [identity.userId, identity.kind, identity.provider],
+    keyring,
+  );
+  return {
+    encryptedSecrets: encrypted.encryptedValue,
+    encryptionVersion: encrypted.encryptionVersion,
   };
 }
 
@@ -96,27 +143,12 @@ export function decryptCredentialSecrets(
   identity: { userId: string; kind: string; provider: string },
   keyring: CredentialKeyring = loadCredentialKeyring(),
 ): Record<string, unknown> {
-  const key = keyring.keys.get(version);
-  if (!key) {
-    throw new Error(`Credential encryption key version ${version} is missing.`);
-  }
-  const payload = Buffer.from(encryptedSecrets, 'base64');
-  if (payload.length <= IV_BYTES + 16) {
-    throw new Error('Stored credential payload is invalid.');
-  }
-  const iv = payload.subarray(0, IV_BYTES);
-  const tag = payload.subarray(IV_BYTES, IV_BYTES + 16);
-  const ciphertext = payload.subarray(IV_BYTES + 16);
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-  decipher.setAAD(
-    aad(identity.userId, identity.kind, identity.provider, version),
+  const parsed = decryptSecretPayload(
+    encryptedSecrets,
+    version,
+    [identity.userId, identity.kind, identity.provider],
+    keyring,
   );
-  decipher.setAuthTag(tag);
-  const plaintext = Buffer.concat([
-    decipher.update(ciphertext),
-    decipher.final(),
-  ]).toString('utf8');
-  const parsed: unknown = JSON.parse(plaintext);
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('Stored credential payload is invalid.');
   }

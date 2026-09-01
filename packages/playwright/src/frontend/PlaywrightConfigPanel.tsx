@@ -13,6 +13,13 @@ const DEFAULT_CPU = 2;
 const DEFAULT_MEMORY = 4;
 const DEFAULT_MAX_SHARDS = 4;
 
+type AuthenticationProfileOption = {
+  id: string;
+  name: string;
+  roleLabel: string | null;
+  status: string;
+};
+
 function inferPlaywrightRuntime(
   config: Record<string, any>,
 ): 'typescript' | 'python' {
@@ -57,6 +64,11 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [repositoryError, setRepositoryError] = useState('');
   const [branchError, setBranchError] = useState('');
+  const [authenticationProfiles, setAuthenticationProfiles] = useState<
+    AuthenticationProfileOption[]
+  >([]);
+  const [authenticationProfilesError, setAuthenticationProfilesError] =
+    useState('');
   const [activeTab, setActiveTab] = useState<'config' | 'env' | 'resources'>(
     'config',
   );
@@ -130,6 +142,39 @@ test.describe('navigation', () => {
     nodeId,
     onChange,
   ]);
+
+  useEffect(() => {
+    async function fetchAuthenticationProfiles() {
+      setAuthenticationProfilesError('');
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          setAuthenticationProfiles([]);
+          return;
+        }
+        const response = await fetch('/api/authentication-profiles', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(
+            data.error || 'Failed to load Authentication Profiles.',
+          );
+        }
+        setAuthenticationProfiles(
+          Array.isArray(data.profiles) ? data.profiles : [],
+        );
+      } catch (error) {
+        setAuthenticationProfiles([]);
+        setAuthenticationProfilesError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load Authentication Profiles.',
+        );
+      }
+    }
+    void fetchAuthenticationProfiles();
+  }, [auth]);
 
   useEffect(() => {
     async function fetchRepos() {
@@ -374,6 +419,47 @@ test.describe('navigation', () => {
                 <option value="run">Run playwright script</option>
                 <option value="upload">Upload a zip file</option>
               </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted">
+                Authentication Profile
+              </label>
+              <Select
+                data-testid="playwright-node-authentication-profile"
+                value={config.authenticationProfileId || ''}
+                onChange={(event) =>
+                  onChange(nodeId, {
+                    ...config,
+                    authenticationProfileId: event.target.value || undefined,
+                  })
+                }
+              >
+                <option value="">No authenticated session</option>
+                {authenticationProfiles.map((profile) => (
+                  <option
+                    key={profile.id}
+                    value={profile.id}
+                    disabled={profile.status !== 'authenticated'}
+                  >
+                    {profile.name}
+                    {profile.roleLabel ? ` — ${profile.roleLabel}` : ''}
+                    {profile.status !== 'authenticated'
+                      ? ` (${profile.status.replaceAll('_', ' ')})`
+                      : ''}
+                  </option>
+                ))}
+              </Select>
+              <p className="text-[10px] text-muted">
+                Restores an encrypted browser session for Local runner
+                executions. The matching Environment must also be linked to this
+                workflow.
+              </p>
+              {authenticationProfilesError ? (
+                <p className="text-[10px] text-red-400">
+                  {authenticationProfilesError}
+                </p>
+              ) : null}
             </div>
 
             {(config.action === 'clone' || !config.action) && (

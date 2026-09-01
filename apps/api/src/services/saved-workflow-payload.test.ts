@@ -6,6 +6,8 @@ test('saved workflow executions publish events under the API execution ID', () =
   const body = buildSavedWorkflowExecutionBody({
     body: {
       agentMemoryByNodeId: { agent: { summary: 'untrusted override' } },
+      authenticationStatesByNodeId: { node: { cookies: ['untrusted'] } },
+      authenticationProfileNodeIds: ['node'],
       cloudProvider: 'GCP',
       nodes: ['untrusted override'],
       testId: 'untrusted override',
@@ -26,6 +28,8 @@ test('saved workflow executions publish events under the API execution ID', () =
   assert.equal(body.testId, 'execution-123');
   assert.equal(body.cloudProvider, 'LOCAL_RUNNER');
   assert.equal(Object.hasOwn(body, 'agentMemoryByNodeId'), false);
+  assert.equal(Object.hasOwn(body, 'authenticationStatesByNodeId'), false);
+  assert.equal(Object.hasOwn(body, 'authenticationProfileNodeIds'), false);
   assert.deepEqual(body.nodes, [{ id: 'a' }, { id: 'b' }]);
   assert.equal(body.workflow.run.trigger, 'ci');
 });

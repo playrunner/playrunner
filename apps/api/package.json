@@ -21,6 +21,7 @@
     "dev:e2e:github-fake": "tsx src/e2e/github-fake.ts",
     "dev:e2e:jira-fake": "tsx src/e2e/jira-fake.ts",
     "dev:e2e:slack-fake": "tsx src/e2e/slack-fake.ts",
+    "dev:e2e:auth-demo": "tsx src/e2e/auth-demo.ts",
     "start": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx --watch --env-file=.env src/index.ts",
     "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts"
   },
@@ -51,6 +52,7 @@
     "jose": "^6.2.3",
     "node-fetch": "^3.3.2",
     "pg": "^8.22.0",
+    "playwright": "1.62.1",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {

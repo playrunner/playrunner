@@ -184,7 +184,8 @@ type WorkflowTemplateContext = {
 
 const PUBSUB_API_BASE_URL = 'https://pubsub.googleapis.com/v1';
 const REDACTED_VALUE = '[redacted]';
-const SENSITIVE_PAYLOAD_KEY_PATTERN = /authorization|secret|token/i;
+const SENSITIVE_PAYLOAD_KEY_PATTERN =
+  /authenticationstate|authorization|cookie|indexeddb|localstorage|secret|storagestate|token/i;
 
 function getPubSubApiBaseUrl(): string {
   const emulatorHost = process.env.PUBSUB_EMULATOR_HOST?.trim();
@@ -1191,6 +1192,12 @@ export async function executeWorkflow(reqBody: any) {
             eventTransport: reqBody.eventTransport,
             bucketName: reqBody.bucketName || bucketName || null,
             cloudProvider,
+            ...(Array.isArray(reqBody.authenticationProfileNodeIds) &&
+            reqBody.authenticationProfileNodeIds.includes(node.id) &&
+            (overrides.executionMode || 'test') !== 'discovery' &&
+            (overrides.executionMode || 'test') !== 'aggregate'
+              ? { authenticationProfile: true }
+              : {}),
           },
           github: settings?.github,
           settings: settings?.gcp ? { gcp: settings.gcp } : {},

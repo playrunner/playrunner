@@ -9,6 +9,8 @@ test('interactive executions cannot inject machine-owned CI context or memory', 
   assert.deepEqual(
     sanitizeInteractiveExecutionBody({
       agentMemoryByNodeId: { agent: { summary: 'untrusted' } },
+      authenticationStatesByNodeId: { playwright: { cookies: ['secret'] } },
+      authenticationProfileNodeIds: ['playwright'],
       ci: { headSha: 'untrusted' },
       cloudProvider: 'LOCAL_RUNNER',
       nodes: [{ id: 'agent' }],

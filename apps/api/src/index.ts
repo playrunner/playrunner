@@ -25,6 +25,9 @@ import { machineExecutionsRouter } from './routes/machine-executions';
 import { createIntegrationCredentialStore } from './services/connections';
 import { createIntegrationApiHost } from './services/inbound-webhooks';
 import { tunnelService } from './services/tunnel';
+import { authenticationProfilesRouter } from './routes/authentication-profiles';
+import { localAuthenticationAgent } from './services/authentication-agent';
+import { recoverInterruptedAuthenticationProfiles } from './services/authentication-profiles';
 
 const app = express();
 app.use(cors());
@@ -61,6 +64,7 @@ app.use('/api', (req, _res, next) => {
 });
 registerIntegrationApiRoutes(app);
 app.use('/api/runners', runnersRouter);
+app.use('/api/authentication-profiles', authenticationProfilesRouter);
 app.use('/api/workflows', workflowsRouter);
 app.use('/api/store', storeRouter);
 app.use('/api/teams', teamsRouter);
@@ -70,18 +74,23 @@ app.use('/api/reports', insightsRouter);
 
 async function start() {
   await apiRuntime.ready;
+  await recoverInterruptedAuthenticationProfiles();
   await loadPremiumApiRoutes(app);
   void apiRuntime.logTransport.setup();
 
   const server = app.listen(PORT, () => {
     console.log(`API Server running on port ${PORT} (execution SSE enabled)`);
   });
-  const shutdown = () => {
+  let shuttingDown = false;
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     tunnelService.stop();
+    await localAuthenticationAgent.stopAll();
     server.close();
   };
-  process.once('SIGINT', shutdown);
-  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', () => void shutdown());
+  process.once('SIGTERM', () => void shutdown());
 }
 
 start().catch((error) => {

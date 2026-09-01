@@ -229,15 +229,56 @@ model Connection {
 }
 
 model Environment {
-  id          String   @id
-  userId      String
-  name        String
-  description String?
-  variables   Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                     String                  @id
+  userId                 String
+  name                   String
+  description            String?
+  variables              Json
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  authenticationProfiles AuthenticationProfile[]
 
   @@index([userId])
+}
+
+model AuthenticationProfile {
+  id                    String      @id @default(cuid())
+  ownerUserId           String
+  name                  String
+  environmentId         String
+  applicationLabel      String?
+  roleLabel             String?
+  startUrl              String
+  successConditionType  String
+  successConditionValue String
+  authenticationMethod  String      @default("local_agent")
+  status                String      @default("unauthenticated")
+  encryptedState        String?
+  encryptionVersion     Int?
+  authenticatedAt       DateTime?
+  expiresAt             DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  environment           Environment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
+
+  @@unique([ownerUserId, name])
+  @@index([ownerUserId])
+  @@index([environmentId])
+}
+
+model AuthenticationProfileAudit {
+  id          BigInt   @id @default(autoincrement())
+  profileId   String
+  actorId     String
+  action      String
+  outcome     String
+  sessionId   String?
+  executionId String?
+  createdAt   DateTime @default(now())
+
+  @@index([profileId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model User {

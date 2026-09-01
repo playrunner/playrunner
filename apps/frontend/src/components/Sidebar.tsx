@@ -13,6 +13,7 @@ import {
   PanelLeft,
   GitPullRequest,
   ExternalLink,
+  KeyRound,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { auth } from '../lib/auth';
@@ -221,6 +222,15 @@ export function Sidebar({
                 isActive={location.pathname === '/environments'}
                 onClick={() => {
                   navigate('/environments');
+                }}
+              />
+              <NavItem
+                icon={KeyRound}
+                label="Authentication Profiles"
+                isOpen={isOpen}
+                isActive={location.pathname === '/authentication-profiles'}
+                onClick={() => {
+                  navigate('/authentication-profiles');
                 }}
               />
               <NavItem

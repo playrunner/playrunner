@@ -20,6 +20,8 @@ export function buildSavedWorkflowExecutionBody(params: {
     Object.entries(params.body ?? {}).filter(
       ([key]) =>
         key !== 'agentMemoryByNodeId' &&
+        key !== 'authenticationStatesByNodeId' &&
+        key !== 'authenticationProfileNodeIds' &&
         (key !== 'ci' || params.triggerName === 'ci'),
     ),
   );

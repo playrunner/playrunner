@@ -4,7 +4,11 @@ export function sanitizeInteractiveExecutionBody(
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return Object.fromEntries(
     Object.entries(value).filter(
-      ([key]) => key !== 'agentMemoryByNodeId' && key !== 'ci',
+      ([key]) =>
+        key !== 'agentMemoryByNodeId' &&
+        key !== 'authenticationStatesByNodeId' &&
+        key !== 'authenticationProfileNodeIds' &&
+        key !== 'ci',
     ),
   );
 }

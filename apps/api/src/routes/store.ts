@@ -646,6 +646,19 @@ storeRouter.delete(
   '/environments/:id',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const profileCount = await prisma.authenticationProfile.count({
+      where: {
+        environmentId: req.params.id,
+        ownerUserId: userId,
+      },
+    });
+    if (profileCount > 0) {
+      res.status(409).json({
+        error:
+          'Delete the Authentication Profiles linked to this Environment first.',
+      });
+      return;
+    }
     await prisma.environment.deleteMany({
       where: {
         id: req.params.id,

@@ -45,6 +45,29 @@ async function clearIntegrationConnections(
 
 async function clearOwnedResources(request: APIRequestContext, token: string) {
   const headers = { Authorization: `Bearer ${token}` };
+  const profilesResponse = await request.get(
+    'http://127.0.0.1:3999/api/authentication-profiles',
+    { headers },
+  );
+  if (!profilesResponse.ok()) {
+    throw new Error(
+      `Failed to list E2E Authentication Profiles: ${profilesResponse.status()}`,
+    );
+  }
+  const profilesPayload = (await profilesResponse.json()) as {
+    profiles?: Array<{ id: string }>;
+  };
+  for (const profile of profilesPayload.profiles ?? []) {
+    const deleteResponse = await request.delete(
+      `http://127.0.0.1:3999/api/authentication-profiles/${encodeURIComponent(profile.id)}`,
+      { headers },
+    );
+    if (!deleteResponse.ok()) {
+      throw new Error(
+        `Failed to clear E2E Authentication Profile "${profile.id}": ${deleteResponse.status()}`,
+      );
+    }
+  }
   for (const resource of ['workflows', 'projects', 'environments']) {
     const response = await request.get(
       `http://127.0.0.1:3999/api/store/${resource}`,

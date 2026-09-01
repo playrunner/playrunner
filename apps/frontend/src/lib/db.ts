@@ -123,6 +123,86 @@ async function saveCloudCredentialRecord(providerId: string, data: any) {
 }
 
 export const DbAPI = {
+  async getAuthenticationProfiles() {
+    const payload = await apiRequest<{ profiles: any[] }>(
+      '/api/authentication-profiles',
+    );
+    return payload.profiles;
+  },
+
+  async getAuthenticationCapability() {
+    return apiRequest<{
+      available: boolean;
+      capability: string;
+      method: string;
+    }>('/api/authentication-profiles/capability');
+  },
+
+  async createAuthenticationProfile(data: any) {
+    const payload = await apiRequest<{ profile: any }>(
+      '/api/authentication-profiles',
+      { body: JSON.stringify(data), method: 'POST' },
+    );
+    return payload.profile;
+  },
+
+  async updateAuthenticationProfile(id: string, data: any) {
+    const payload = await apiRequest<{ profile: any }>(
+      `/api/authentication-profiles/${encodeURIComponent(id)}`,
+      { body: JSON.stringify(data), method: 'PUT' },
+    );
+    return payload.profile;
+  },
+
+  async deleteAuthenticationProfile(id: string) {
+    await apiRequest(`/api/authentication-profiles/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async startAuthenticationProfileSession(
+    id: string,
+    mode: 'authenticate' | 'test',
+  ) {
+    const action = mode === 'authenticate' ? 'authenticate' : 'test';
+    const payload = await apiRequest<{ session: any }>(
+      `/api/authentication-profiles/${encodeURIComponent(id)}/${action}`,
+      { method: 'POST' },
+    );
+    return payload.session;
+  },
+
+  async getAuthenticationProfileSession(sessionId: string) {
+    const payload = await apiRequest<{ session: any }>(
+      `/api/authentication-profiles/sessions/${encodeURIComponent(sessionId)}`,
+    );
+    return payload.session;
+  },
+
+  async cancelAuthenticationProfileSession(sessionId: string) {
+    const payload = await apiRequest<{ session: any }>(
+      `/api/authentication-profiles/sessions/${encodeURIComponent(sessionId)}/cancel`,
+      { method: 'POST' },
+    );
+    return payload.session;
+  },
+
+  async completeAuthenticationProfileSession(sessionId: string) {
+    const payload = await apiRequest<{ session: any }>(
+      `/api/authentication-profiles/sessions/${encodeURIComponent(sessionId)}/complete`,
+      { method: 'POST' },
+    );
+    return payload.session;
+  },
+
+  async revokeAuthenticationProfile(id: string) {
+    const payload = await apiRequest<{ profile: any }>(
+      `/api/authentication-profiles/${encodeURIComponent(id)}/revoke`,
+      { method: 'POST' },
+    );
+    return payload.profile;
+  },
+
   async getApiTokens() {
     const payload = await apiRequest<{ tokens: any[] }>('/api/tokens');
     return payload.tokens;

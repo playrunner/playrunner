@@ -27,6 +27,11 @@ import {
   type RunnerControlConfig,
   type RunnerDiagnosticLog,
 } from '../../shared/runner-control';
+import {
+  fetchAuthenticationState,
+  prepareAuthenticationState,
+  type PreparedAuthenticationState,
+} from './authentication-state';
 
 const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 let selectedExecutionEnvironment: Record<string, string> = {};
@@ -253,13 +258,19 @@ async function runTypescriptTest(
   workingDir: string,
   workers: number,
   shard?: { index: number; total: number },
+  authentication?: PreparedAuthenticationState,
 ): Promise<void> {
   await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
 
   const command = resolvePlaywrightCommand(workingDir);
   const args = [...command.args];
   let configMsg = 'default config';
-  if (fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))) {
+  if (authentication?.configPath) {
+    args.push('--config', authentication.configPath);
+    configMsg = 'Playrunner Authentication Profile wrapper';
+  } else if (
+    fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))
+  ) {
     args.push('--config', 'playwright.service.config.ts');
     configMsg = 'playwright.service.config.ts';
   }
@@ -279,6 +290,7 @@ async function runTypescriptTest(
       cwd: workingDir,
       env: {
         ...repositoryProcessEnvironment(),
+        ...(authentication?.environment || {}),
         ...(shard
           ? {
               CI: 'true',
@@ -355,15 +367,22 @@ async function discoverTypescriptTests(
   return readPlaywrightDiscoveryReport({ reportPath, sourceRevision });
 }
 
-async function runPythonTest(workingDir: string): Promise<void> {
+async function runPythonTest(
+  workingDir: string,
+  authentication?: PreparedAuthenticationState,
+): Promise<void> {
   await publishLog(`Executing Python Playwright flow in ${workingDir}...`);
 
   await publishLog('Running pytest...');
   await new Promise<void>((resolve, reject) => {
-    const testProc = spawn('pytest', [], {
-      cwd: workingDir,
-      env: repositoryProcessEnvironment(),
-    });
+    const testProc = spawn(
+      'pytest',
+      authentication?.pythonPlugin ? ['-p', authentication.pythonPlugin] : [],
+      {
+        cwd: workingDir,
+        env: repositoryProcessEnvironment(authentication?.environment),
+      },
+    );
     testProc.stdout.on('data', (data) =>
       console.log(`[pytest]: ${data.toString().trim()}`),
     );
@@ -1069,10 +1088,28 @@ async function run() {
   const workers = normalizeWorkers(
     payload?.data?.workers || process.env.PLAYWRIGHT_WORKERS,
   );
+  const authenticationState = payload?.data?.authenticationProfile
+    ? await fetchAuthenticationState({
+        editorApiUrl: runnerEventContext.editorApiUrl,
+        executionId: testId,
+        executionToken: runnerEventContext.executionToken,
+        nodeId:
+          getString(payload?.data?.logicalNodeId) ||
+          getString(payload?.data?.nodeId),
+      })
+    : undefined;
+  if (payload?.data) delete payload.data.authenticationProfile;
+  const authentication = authenticationState
+    ? prepareAuthenticationState({
+        runtime: prepared.testLanguage === 'python' ? 'python' : 'typescript',
+        state: authenticationState,
+        workingDir: prepared.workingDir,
+      })
+    : undefined;
   let testFailed = false;
   try {
     if (prepared.testLanguage === 'python') {
-      await runPythonTest(prepared.workingDir);
+      await runPythonTest(prepared.workingDir, authentication);
     } else {
       await runTypescriptTest(
         prepared.workingDir,
@@ -1083,6 +1120,7 @@ async function run() {
               total: Number(payload?.data?.shardTotal),
             }
           : undefined,
+        authentication,
       );
     }
 
@@ -1090,6 +1128,8 @@ async function run() {
   } catch (err: any) {
     testFailed = true;
     await publishLog(`Playwright Error: ${err.message}`, 'error');
+  } finally {
+    authentication?.cleanup();
   }
 
   let blobArtifact: PlaywrightBlobArtifact | undefined;

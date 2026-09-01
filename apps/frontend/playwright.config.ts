@@ -65,6 +65,14 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
+      command: 'npm run dev:e2e:auth-demo --prefix ../api',
+      url: 'http://127.0.0.1:4013/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
       command: 'npm run dev:e2e --prefix ../api',
       url: 'http://127.0.0.1:3999/health',
       reuseExistingServer: false,

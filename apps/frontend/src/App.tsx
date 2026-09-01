@@ -20,6 +20,7 @@ import Settings from './pages/Settings';
 import SettingsPassword from './pages/SettingsPassword';
 import DesignSystem from './pages/DesignSystem';
 import Environments from './pages/Environments';
+import AuthenticationProfiles from './pages/AuthenticationProfiles';
 import Integrations from './pages/Integrations';
 import Insights from './pages/Insights';
 import Teams from './pages/Teams';
@@ -92,6 +93,10 @@ function AppShell() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/password" element={<SettingsPassword />} />
             <Route path="/environments" element={<Environments />} />
+            <Route
+              path="/authentication-profiles"
+              element={<AuthenticationProfiles />}
+            />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/insights" element={<Insights />} />
             <Route

@@ -35,7 +35,15 @@ import {
   getEnvironmentSecretKeys,
   hydrateEnvironmentSecretVariables,
 } from '../services/environment-secrets';
-import { hydrateLinkedWorkflowEnvironments } from '../services/workflow-environments';
+import {
+  getLinkedEnvironmentIds,
+  hydrateLinkedWorkflowEnvironments,
+} from '../services/workflow-environments';
+import {
+  recordAuthenticationProfileAudit,
+  resolveAuthenticationState,
+} from '../services/authentication-profiles';
+import { executionAuthenticationGrants } from '../services/execution-authentication';
 
 const HOST_NODE_TYPES = new Set([
   'agent-container',
@@ -130,6 +138,76 @@ async function resolveEnvironmentSecrets(request: WorkflowExecutionRequest) {
   );
 }
 
+async function resolveAuthenticationProfiles(
+  request: WorkflowExecutionRequest,
+) {
+  const ownerUserId =
+    request.resourceOwnerUserId ?? request.req.authUser?.providerUserId;
+  const actorUserId = request.req.authUser?.providerUserId;
+  if (!ownerUserId || !actorUserId) {
+    throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  }
+  const nodes = Array.isArray(request.body.nodes) ? request.body.nodes : [];
+  const selections = nodes.flatMap((node: any) => {
+    const profileId = node?.config?.authenticationProfileId;
+    return node?.nodeType === 'playwright' &&
+      typeof profileId === 'string' &&
+      profileId.trim()
+      ? [{ nodeId: String(node.id), profileId: profileId.trim() }]
+      : [];
+  });
+  if (!selections.length) return;
+  if ((request.body.cloudProvider || 'LOCAL_RUNNER') !== 'LOCAL_RUNNER') {
+    throw Object.assign(
+      new Error(
+        'Authentication Profiles currently support the Local runner only.',
+      ),
+      { code: 'authentication_profile_runner_unsupported', statusCode: 409 },
+    );
+  }
+  if (ownerUserId !== actorUserId) {
+    throw Object.assign(
+      new Error(
+        'Shared workflow runs cannot use the owner’s Authentication Profiles.',
+      ),
+      { code: 'authentication_profile_owner_only', statusCode: 403 },
+    );
+  }
+  const linkedEnvironmentIds = new Set(getLinkedEnvironmentIds(nodes));
+  await Promise.all(
+    selections.map(async ({ nodeId, profileId }) => {
+      const resolved = await resolveAuthenticationState(ownerUserId, profileId);
+      if (!linkedEnvironmentIds.has(resolved.profile.environmentId)) {
+        throw Object.assign(
+          new Error(
+            `Authentication Profile “${resolved.profile.name}” requires its Environment to be linked in this workflow.`,
+          ),
+          {
+            code: 'authentication_profile_environment_mismatch',
+            statusCode: 409,
+          },
+        );
+      }
+      await recordAuthenticationProfileAudit({
+        action: 'execution_used',
+        actorId: actorUserId,
+        executionId: String(request.testId),
+        outcome: 'success',
+        profileId,
+      });
+      executionAuthenticationGrants.register({
+        executionId: request.testId,
+        nodeId,
+        ownerUserId,
+        profileId,
+      });
+    }),
+  );
+  request.body.authenticationProfileNodeIds = selections.map(
+    ({ nodeId }) => nodeId,
+  );
+}
+
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
   constructor(
     private readonly providers = [{ id: 'LOCAL_RUNNER', label: 'Local Dev' }],
@@ -167,6 +245,7 @@ class WorkflowExecutionRegistry {
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);
     await resolveEnvironmentSecrets(request);
+    await resolveAuthenticationProfiles(request);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),

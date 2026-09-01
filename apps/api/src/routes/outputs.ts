@@ -19,12 +19,68 @@ import {
   OutputArchiveValidationError,
 } from './output-archive';
 import { writeOutputArtifactManifest } from './output-artifacts';
+import { executionAuthenticationGrants } from '../services/execution-authentication';
+import { AUTHENTICATION_ENVELOPE_MAX_BYTES } from '../../../runners/shared/authentication-envelope';
 
 export const outputsRouter = Router();
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
+
+outputsRouter.post(
+  '/:testId/:nodeId/authentication-state',
+  express.json({ limit: '32kb' }),
+  async (req, res) => {
+    const { nodeId, testId } = req.params;
+    const executionToken = getStringHeader(req.headers[EXECUTION_TOKEN_HEADER]);
+    const recipientPublicKey = req.body?.recipientPublicKey;
+    if (!executionToken) {
+      return res
+        .status(401)
+        .json({ error: `Missing ${EXECUTION_TOKEN_HEADER} header.` });
+    }
+    const execution = await executionEvents.verifyExecutionToken(
+      testId,
+      executionToken,
+    );
+    if (!execution) {
+      return res.status(403).json({ error: 'Invalid execution token.' });
+    }
+    if (
+      typeof recipientPublicKey !== 'string' ||
+      recipientPublicKey.length < 40 ||
+      recipientPublicKey.length > 1_024 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(recipientPublicKey)
+    ) {
+      return res.status(400).json({ error: 'Invalid recipient public key.' });
+    }
+    if (!executionAuthenticationGrants.has(testId, nodeId)) {
+      return res
+        .status(404)
+        .json({ error: 'Execution Authentication Profile is unavailable.' });
+    }
+    try {
+      const envelope = await executionAuthenticationGrants.seal({
+        executionId: testId,
+        nodeId,
+        recipientPublicKey,
+      });
+      if (
+        Buffer.byteLength(JSON.stringify(envelope), 'utf8') >
+        AUTHENTICATION_ENVELOPE_MAX_BYTES
+      ) {
+        throw new Error('Authentication envelope is too large.');
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ envelope });
+    } catch {
+      return res.status(409).json({
+        error: 'Execution Authentication Profile could not be delivered.',
+      });
+    }
+  },
+);
 
 outputsRouter.get('/:testId/diagnostics/history', async (req, res) => {
   const { testId } = req.params;

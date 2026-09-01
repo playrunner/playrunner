@@ -25,6 +25,7 @@ process.env.PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS = JSON.stringify({
 });
 process.env.PLAYRUNNER_LOCAL_AUTH_JWT_SECRET =
   'playrunner-e2e-jwt-secret-with-at-least-32-bytes';
+process.env.PLAYRUNNER_AUTHENTICATION_HEADLESS = 'true';
 process.env.LOCAL_PUBSUB_PROJECT_ID =
   process.env.LOCAL_PUBSUB_PROJECT_ID ?? 'playrunner-local';
 process.env.PUBSUB_EMULATOR_HOST =
@@ -79,6 +80,8 @@ async function startE2EApi() {
     prisma.workflow.deleteMany(),
     prisma.project.deleteMany(),
     prisma.connection.deleteMany(),
+    prisma.authenticationProfileAudit.deleteMany(),
+    prisma.authenticationProfile.deleteMany(),
     prisma.environment.deleteMany(),
     prisma.environmentSecret.deleteMany(),
     prisma.user.deleteMany(),
