@@ -45,14 +45,15 @@ reporting, and the CI scripts that connect them.
 Playrunner turns those moving parts into a workflow your whole team can see,
 run, and evolve.
 
-|                                      |                                                                                                                |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| **🎨 Build visually**                | Connect tests, triggers, conditions, branches, and downstream systems on a live workflow canvas.               |
-| **⚡ Shard automatically**           | Discover the real suite, fit useful parallelism to runner capacity, and merge every shard into one report.     |
-| **🏃 Run where you want**            | Use local Docker, managed cloud runners, or your own infrastructure without changing the suite.                |
-| **🔎 See the complete run**          | Follow node state and logs live, with Playwright reports, screenshots, videos, and traces attached to the run. |
-| **🔐 Keep secrets out of workflows** | Reuse managed environments and credentials instead of copying sensitive values into scripts.                   |
-| **🧩 Extend with integrations**      | Wire source control, schedules, messaging, AI analysis, issue tracking, webhooks, and more into the same DAG.  |
+|                                      |                                                                                                                                       |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **🎨 Build visually**                | Connect tests, triggers, conditions, branches, and downstream systems on a live workflow canvas.                                      |
+| **⚡ Shard automatically**           | Discover the real suite, fit useful parallelism to runner capacity, and merge every shard into one report.                            |
+| **🏃 Run where you want**            | Use local Docker, managed cloud runners, or your own infrastructure without changing the suite.                                       |
+| **🔎 See the complete run**          | Follow node state and logs live, with Playwright reports, screenshots, videos, and traces attached to the run.                        |
+| **🔐 Keep secrets out of workflows** | Reuse managed environments and credentials instead of copying sensitive values into scripts.                                          |
+| **🪪 Reuse browser sign-ins**        | Capture authenticated browser sessions interactively and attach them to Playwright nodes without storing identity-provider passwords. |
+| **🧩 Extend with integrations**      | Wire source control, schedules, messaging, AI analysis, issue tracking, webhooks, and more into the same DAG.                         |
 
 ## From suite to signal
 
@@ -74,6 +75,20 @@ Trigger → Environment → Playwright → Condition → Slack / Jira / AI / Web
 <p align="center">
   <img src="docs/static/img/workflow-canvas-branch.webp" alt="A Playrunner workflow branching after a regression test: failures flow into OpenAI analysis and Jira, while successful runs flow into Slack and a deploy webhook." width="100%" />
 </p>
+
+## Reuse authenticated browser sessions
+
+Authentication Profiles let tests start from a real signed-in browser session
+without storing identity-provider passwords in Playrunner. Create a profile for
+an Environment, authenticate manually in the visible browser opened by the
+local Playrunner API, and let Playrunner capture the resulting encrypted
+session state when your success condition is reached.
+
+Select the profile on any Playwright node that needs it. Playrunner restores
+the session for that execution while keeping profiles isolated by Environment.
+Each profile records its application, role, authentication status, last sign-in,
+and known expiry, and can be reauthenticated, revoked, or removed when access
+changes.
 
 ## Playrunner from the command line
 
@@ -212,14 +227,4 @@ authoring details.
 
 ## License
 
-Playrunner is source-available under the [Playrunner Sustainable Use
-License](LICENSE), copyright © 2026 Concept AI PTY LTD.
-
-You can use and modify Playrunner for internal business purposes, or for
-personal and other non-commercial use. You may not resell Playrunner, offer it
-as a hosted or white-label service, or embed it into a commercial offering
-where a material part of the value comes from Playrunner itself without
-separate written permission.
-
-This is not an OSI-approved open source license. See [LICENSE](LICENSE) for the
-full terms.
+Playrunner is source-available under the [Playrunner Sustainable Use License](https://github.com/playrunner/playrunner/blob/main/LICENSE), copyright © 2026 Concept AI PTY LTD.
