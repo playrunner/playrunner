@@ -4,14 +4,7 @@
 [![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/4zPdBy3DwU)
 [![npm packages](https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/org/playrunner)
 
-## Acknowledgement
-
-Our warm thanks to [Jason Rai (MisterJimson)](https://github.com/MisterJimson)
-for generously transferring the `playrunner` npm package name to this project.
-Jason's original
-[MisterJimson/playrunner](https://github.com/MisterJimson/playrunner) was a
-separate local Playwright YAML flow runner; the current `playrunner` package is
-a fresh CLI for this platform and does not incorporate Jason's prior code.
+![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](docs/static/img/playwright-auto-sharding-plan.png)
 
 ## Quick start
 
