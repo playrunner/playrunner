@@ -75,6 +75,37 @@ Trigger → Environment → Playwright → Condition → Slack / Jira / AI / Web
   <img src="docs/static/img/workflow-canvas-branch.webp" alt="A Playrunner workflow branching after a regression test: failures flow into OpenAI analysis and Jira, while successful runs flow into Slack and a deploy webhook." width="100%" />
 </p>
 
+## Playrunner from the command line
+
+The Playrunner CLI brings the same workflows to your terminal and CI/CD
+pipeline—without a global install. Use a revocable machine token to start a
+saved workflow, stream its progress, and turn its final status into a quality
+gate:
+
+```bash
+export PLAYRUNNER_URL='https://playrunner.cloud'
+export PLAYRUNNER_API_KEY='<your-api-token>'
+
+npx playrunner WORKFLOW_ID
+```
+
+By default, the command waits for completion and exits non-zero when the
+workflow fails, is cancelled, or times out. Pass inputs and acceptance criteria
+to a run, attach pull-request context, emit newline-delimited JSON, or use
+`--no-wait` when another system will monitor the result.
+
+The CLI also supports **workflow as code**. Keep a project and workflow
+definition in source control, then create or update it idempotently from JSON:
+
+```bash
+npx playrunner workflow create --file playrunner-workflow.json
+```
+
+Use `npx playrunner --help` for every option. See the
+[CLI overview](docs/docs/cli/index.md), [run guide](docs/docs/cli/run-workflow.md),
+and [workflow creation guide](docs/docs/cli/create-workflow.md) for token scopes,
+CI examples, inputs, source-change context, and the complete definition format.
+
 ## Quick start
 
 ### Prerequisites
