@@ -1,10 +1,79 @@
-# playrunner
+<p align="center">
+  <img src="docs/static/img/playrunner-icon.svg" alt="Playrunner" width="112" />
+</p>
 
-[![Documentation](https://img.shields.io/badge/Docs-playrunner.dev-0F766E?style=for-the-badge&logo=docusaurus&logoColor=white)](https://playrunner.dev/docs/overview/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/4zPdBy3DwU)
-[![npm packages](https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/org/playrunner)
+<h1 align="center">Playrunner</h1>
+
+<p align="center">
+  <strong>Run Playwright at scale—without building the platform around it.</strong>
+</p>
+
+<p align="center">
+  Keep the tests and CI you already use. Bring runners, environments,
+  credentials, reports, integrations, and automatic sharding into one visual
+  workflow.
+</p>
+
+<p align="center">
+  <a href="https://playrunner.cloud"><strong>Try Playrunner Cloud →</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://playrunner.dev/docs/tutorials/getting-started">Run it locally</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://playrunner.dev/docs/overview/">Read the docs</a>
+</p>
+
+<p align="center">
+  <a href="https://playrunner.dev/docs/overview/"><img src="https://img.shields.io/badge/Docs-playrunner.dev-0F766E?style=for-the-badge&logo=docusaurus&logoColor=white" alt="Documentation" /></a>
+  <a href="https://discord.gg/4zPdBy3DwU"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://www.npmjs.com/org/playrunner"><img src="https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm packages" /></a>
+</p>
+
+<br />
 
 ![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](docs/static/img/playwright-auto-sharding-plan.png)
+
+<p align="center">
+  <em>One Playwright node. Four concurrent shards. One merged report—even when a shard fails.</em>
+</p>
+
+## Your tests stay. The platform glue goes.
+
+Playwright runs your tests brilliantly. The hard part is everything around the
+command: compute, environments, credentials, schedules, conditions, artefacts,
+reporting, and the CI scripts that connect them.
+
+Playrunner turns those moving parts into a workflow your whole team can see,
+run, and evolve.
+
+|                                      |                                                                                                                |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| **🎨 Build visually**                | Connect tests, triggers, conditions, branches, and downstream systems on a live workflow canvas.               |
+| **⚡ Shard automatically**           | Discover the real suite, fit useful parallelism to runner capacity, and merge every shard into one report.     |
+| **🏃 Run where you want**            | Use local Docker, managed cloud runners, or your own infrastructure without changing the suite.                |
+| **🔎 See the complete run**          | Follow node state and logs live, with Playwright reports, screenshots, videos, and traces attached to the run. |
+| **🔐 Keep secrets out of workflows** | Reuse managed environments and credentials instead of copying sensitive values into scripts.                   |
+| **🧩 Extend with integrations**      | Wire source control, schedules, messaging, AI analysis, issue tracking, webhooks, and more into the same DAG.  |
+
+## From suite to signal
+
+```text
+Trigger → Environment → Playwright → Condition → Slack / Jira / AI / Webhook
+                              │
+                              └── reports · traces · screenshots · video
+```
+
+1. **Bring your existing tests.** Your repository, Playwright configuration,
+   and CI can stay as they are.
+2. **Choose where they run.** Start with local Docker, then move execution to
+   managed or self-hosted runners when you are ready.
+3. **Draw the workflow.** Add schedules, branches, notifications, failure
+   analysis, tickets, and downstream actions without another CI matrix.
+4. **Inspect one complete result.** Follow execution live and keep every log,
+   report, and artefact attached to the run that produced it.
+
+<p align="center">
+  <img src="docs/static/img/workflow-canvas-branch.webp" alt="A Playrunner workflow branching after a regression test: failures flow into OpenAI analysis and Jira, while successful runs flow into Slack and a deploy webhook." width="100%" />
+</p>
 
 ## Quick start
 
@@ -14,54 +83,43 @@
 - Node.js 20+
 - npm
 
-### 1. Install dependencies
+### Start the full local stack
 
 ```bash
 ./install-local.sh
-```
-
-### 2. Create the local config file
-
-```bash
 cp .env.local.example .env.local
-```
-
-This step is recommended if you want to change ports before the first run. If `.env.local` is missing, `./start-local.sh` will create it from `.env.local.example` automatically. If you already have an older repo-root `.env`, `./start-local.sh` renames it to `.env.local` the next time you run it.
-
-Edit `.env.local` if you want different local web, docs, or Postgres ports than the defaults. For example, if `5431` is already in use locally, set `POSTGRES_PORT=55432` before setup.
-
-### 3. Start the app
-
-On the first run, Playrunner opens the setup app automatically. After setup is complete, the same command starts the normal local app.
-
-```bash
 ./start-local.sh
 ```
 
-If setup is needed, open the URL printed by the script and finish the setup wizard. With defaults, that is `http://127.0.0.1:3100/setup`. In that screen, confirm the PostgreSQL URL and create the first admin username and password.
+On the first run, Playrunner opens the setup app. Follow the printed URL to
+confirm PostgreSQL and create the first admin account. With the default ports:
 
-That same command also starts the local Docusaurus site. With defaults, it is available at `http://127.0.0.1:3104/playrunner/`, and the app header's `Docs` link points there during local development.
+- Playrunner: `http://127.0.0.1:3100`
+- Setup: `http://127.0.0.1:3100/setup`
+- Documentation: `http://127.0.0.1:3104/playrunner/`
 
-Then open the URL printed by the script and log in with the username and password you created during setup. With defaults, that is `http://127.0.0.1:3100`.
+The `.env.local` file is optional unless you want to change ports before the
+first run. If it is missing, `./start-local.sh` creates it from the example. For
+the complete walkthrough, see the
+[Getting Started guide](docs/docs/tutorials/01-getting-started.md).
 
-The local docs site also starts with this command. With defaults, it is `http://127.0.0.1:3104/playrunner/`.
+<details>
+<summary><strong>Reopen setup or change the local defaults</strong></summary>
 
-### Run setup again
-
-If you need to reopen the setup wizard:
+To reopen the setup wizard:
 
 ```bash
 rm apps/api/.env
 ./start-local.sh
 ```
 
-If you also want to regenerate the local port or Postgres defaults, remove `.env.local` before rerunning setup.
+Remove `.env.local` as well if you want Playrunner to regenerate the local port
+and PostgreSQL defaults.
 
-For more detail, see [`docs/docs/tutorials/01-getting-started.md`](docs/docs/tutorials/01-getting-started.md).
+</details>
 
-## Run only the docs site
-
-`./start-local.sh` and `./start-local.sh --setup` already start the local Docusaurus site for you. If you only want to work on the docs site by itself:
+<details>
+<summary><strong>Run only the documentation site</strong></summary>
 
 ```bash
 cd docs
@@ -70,13 +128,23 @@ npm run start -- --port 3104
 
 Then open `http://127.0.0.1:3104/playrunner/`.
 
+</details>
+
+## Explore
+
+| Start here                                                                 | What you will find                                               |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Automatic sharding](docs/docs/use-cases/automatic-playwright-sharding.md) | Suite discovery, capacity-aware planning, and report merging     |
+| [Integration reference](docs/docs/integration-packages/index.md)           | Available nodes, providers, and configuration                    |
+| [Runner architecture](docs/docs/runner-architecture/index.md)              | Local, managed, and self-hosted execution                        |
+| [Workflow execution](docs/docs/local-dev/07-workflow-execution.md)         | How the API, orchestrator, and ephemeral runners coordinate      |
+| [Contributing](docs/docs/contributing.md)                                  | Ways to extend runners, integrations, reporting, and the product |
+
 ## Package end-to-end tests
 
 Package E2E tests run the real Vite frontend and Playrunner API against the
-dedicated `playrunner_e2e` PostgreSQL schema. Complete local setup first so
+isolated `playrunner_e2e` PostgreSQL schema. Complete local setup first so
 `apps/api/.env` contains a working `DATABASE_URL`, and keep PostgreSQL running.
-The harness starts its own API and frontend processes on ports `3999` and
-`4173`; it does not reuse the normal development servers.
 
 Install Chromium once on a new development machine:
 
@@ -84,54 +152,43 @@ Install Chromium once on a new development machine:
 npm exec --prefix apps/frontend -- playwright install chromium
 ```
 
-Run all deterministic mock-provider scenarios:
+Run the deterministic mock-provider suite:
 
 ```bash
 npm run test:e2e:mock
 ```
 
-Run one package by its Playwright tag:
+Run one integration package by its Playwright tag:
 
 ```bash
 npm run test:e2e:mock -- --grep @github
 npm run test:e2e -- --grep @github
 ```
 
-`npm run test:e2e` defaults to mock-provider mode. Mock mode still uses
-the real Playrunner frontend, authentication, API, credential encryption, and
-database; only outbound third-party provider boundaries may be faked.
-
-Live-provider scenarios are opt-in and run with:
+Mock mode still uses the real frontend, authentication, API, credential
+encryption, and database; only outbound provider boundaries may be faked.
+Live-provider scenarios are opt-in and require protected credentials:
 
 ```bash
 npm run test:e2e:live
 npm run test:e2e:live -- --grep @github
 ```
 
-Live scenarios require package-specific protected credentials. Packages with
-no live scenario are reported as skipped. To use another PostgreSQL server,
-set `PLAYRUNNER_E2E_DATABASE_URL`; the harness still isolates its tables in the
-`playrunner_e2e` schema.
-
-Open the latest HTML report from the repository root:
-
-```bash
-npx playwright show-report
-```
-
-See the [Testing guide](docs/docs/testing/index.md) for architecture,
-troubleshooting, and package-authoring instructions.
+Set `PLAYRUNNER_E2E_DATABASE_URL` to use another PostgreSQL server. Open the
+latest report with `npx playwright show-report`, or read the
+[Testing guide](docs/docs/testing/index.md) for architecture and package
+authoring details.
 
 ## License
 
 Playrunner is source-available under the [Playrunner Sustainable Use
 License](LICENSE), copyright © 2026 Concept AI PTY LTD.
 
-You can use and modify Playrunner for your own internal business purposes, or
-for personal and other non-commercial use. You may not resell Playrunner, offer
-it as a hosted or white-label service, or embed it into a commercial offering
+You can use and modify Playrunner for internal business purposes, or for
+personal and other non-commercial use. You may not resell Playrunner, offer it
+as a hosted or white-label service, or embed it into a commercial offering
 where a material part of the value comes from Playrunner itself without
 separate written permission.
 
-This is not an OSI-approved open source license. See [`LICENSE`](LICENSE) for
-the full terms.
+This is not an OSI-approved open source license. See [LICENSE](LICENSE) for the
+full terms.
