@@ -59,7 +59,7 @@ leave them unset.
 | `PUBSUB_EMULATOR_HOST`                              | Inherited from repo-root `.env.local`          | Host-facing Pub/Sub emulator endpoint used by the API for local workflow event ingest                                                                                                                                                                                           |
 | `PUBSUB_EMULATOR_HOST_DOCKER`                       | `host.docker.internal:<PUBSUB_EMULATOR_PORT>`  | Container-facing Pub/Sub emulator endpoint injected into local Orchestrator and Playwright runner containers                                                                                                                                                                    |
 | `LOCAL_PUBSUB_PROJECT_ID`                           | `playrunner-local`                             | Project ID used by the API when creating local emulator topics and subscriptions                                                                                                                                                                                                |
-| `PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS`             | Generated locally                              | JSON object mapping positive integer versions to base64-encoded 32-byte keys. Used to encrypt integration and cloud credential secrets at rest.                                                                                                                                 |
+| `PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS`             | Generated locally                              | JSON object mapping positive integer versions to base64-encoded 32-byte keys. Used to encrypt integration credentials and Authentication Profile browser state at rest.                                                                                                         |
 | `PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION`      | `1` for a new local setup                      | Active key version used for new credential writes. The matching key must exist in `PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS`.                                                                                                                                                      |
 | `PLAYRUNNER_LOCAL_AUTHENTICATION_ENABLED`           | Enabled outside Cloud Run                      | Set to `true` or `false` to explicitly enable or disable local interactive Authentication Profile capture.                                                                                                                                                                      |
 | `PLAYRUNNER_AUTHENTICATION_BROWSER_EXECUTABLE_PATH` | _(optional)_                                   | Absolute path to the Chrome or Chromium executable used for interactive Authentication Profile capture.                                                                                                                                                                         |
@@ -75,10 +75,16 @@ templates are stored in the GCP connection config, not in
 
 `./start-local.sh` creates a random credential-encryption key in
 `apps/api/.env` before starting the API when no keyring exists, and retains it
-across restarts. Do not commit this file or replace the key while saved
-connections still depend on it: without the matching version, the API cannot
-decrypt those credentials. Production and shared environments must inject and
-back up their own stable keyring.
+across restarts. Do not commit this file, restrict it to the operating-system
+user, and do not replace the key while saved connections or Authentication
+Profiles still depend on it. Without the matching version, the API cannot
+decrypt those records. Back up the local keyring separately from PostgreSQL;
+someone who obtains both can decrypt the saved credentials and browser state.
+
+In the standard Docker setup, encrypted Authentication Profile records persist
+in the `playrunner-postgres-data` volume mounted at
+`/var/lib/postgresql/data`. If `DATABASE_URL` points to another PostgreSQL
+server, the records are stored there instead.
 
 ---
 

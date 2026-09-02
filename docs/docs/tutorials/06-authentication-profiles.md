@@ -114,20 +114,17 @@ browser.
 If verification fails, confirm that the browser reached the expected URL or
 that the configured selector is visible, then authenticate again.
 
-## Step 5 — Test the stored session
+## Step 5 — Verify the stored session
 
-Click **Test session** on an authenticated profile.
+In local Playrunner, click **Test session** on an authenticated profile. Local
+Playrunner opens a visible browser with the stored state, navigates to the
+start URL, and verifies the same success condition used during capture.
 
-- Local Playrunner opens a visible browser with the stored state.
-- Playrunner Cloud starts a Hosted Runner Playwright job with the stored state.
-  The test runs remotely; the paired device and CLI do not need to be online.
-
-Both paths navigate to the start URL and verify the same success condition
-used during capture.
-
-Testing the session before attaching it to a workflow is the quickest way to
-detect an expired server-side session, a changed login flow, or an unreliable
-success condition.
+Playrunner Cloud does not provide a separate **Test session** action. Attach
+the authenticated profile to a Playwright node and run the workflow on the
+**Hosted Runner**. This exercises the same stored state and secure delivery
+path used by a real Cloud workflow. The paired computer and CLI do not need to
+remain online after capture.
 
 ## Step 6 — Attach the profile to a supported Playwright node
 
@@ -153,23 +150,28 @@ execution-bound exchange and loads it into the Playwright browser context.
 Each profile shows its Environment, optional role, authentication status, last
 authentication time, and known expiry.
 
-| Action              | Effect                                                                                    |
-| ------------------- | ----------------------------------------------------------------------------------------- |
-| **Re-authenticate** | Replaces the stored browser state by running the manual sign-in flow again                |
-| **Test session**    | Restores the state and checks the success condition locally or on the Cloud Hosted Runner |
-| **Edit**            | Changes profile metadata or authentication settings                                       |
-| **Revoke**          | Immediately removes stored browser state but keeps the profile                            |
-| **Delete**          | Permanently removes the profile and its encrypted browser state                           |
+| Action                        | Effect                                                                     |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| **Re-authenticate**           | Replaces the stored browser state by running the manual sign-in flow again |
+| **Test session** (local only) | Restores the state locally and checks the configured success condition     |
+| **Edit**                      | Changes profile metadata or authentication settings                        |
+| **Revoke**                    | Immediately removes stored browser state but keeps the profile             |
+| **Delete**                    | Permanently removes the profile and its encrypted browser state            |
 
 An expired, revoked, unauthenticated, or reauthentication-required profile is
 disabled in the Playwright node selector until it is authenticated again.
 
 ## Security model
 
+- An Authentication Profile stores Playwright browser storage state, not one
+  session ID. The state can contain cookies, local storage, and IndexedDB data
+  for the captured origins. It does not contain the password entered in the
+  browser, saved browser passwords, browser history, or cache.
 - Authentication happens in a visible local browser; passwords are not sent
   to or stored by Playrunner.
 - The Cloud companion makes outbound requests only. It does not expose an
-  inbound port on the paired computer.
+  inbound port on the paired computer. Paired-device requests are signed, and
+  capture uploads use short-lived capabilities over HTTPS.
 - Captured browser state is encrypted at rest and omitted from normal profile
   API responses.
 - Profiles are isolated by owner and Environment.
@@ -180,9 +182,33 @@ disabled in the Playwright node selector until it is authenticated again.
   the session at the identity provider; use the provider's account controls if
   that is also required.
 
-Treat an Authentication Profile as a credential. Give its test account only
-the permissions the workflow needs, and reauthenticate or revoke it whenever
-access changes.
+Treat the decrypted browser state as a password-equivalent credential. Anyone
+who obtains a usable copy may be able to load it into a browser and act as the
+signed-in account without entering the password or completing multifactor
+authentication again. Give the account only the permissions the workflow
+needs, and reauthenticate or revoke the profile whenever access changes.
+
+Revoking or deleting the Playrunner profile prevents future Playrunner use but
+cannot invalidate a copy that was stolen earlier. If exposure is suspected,
+also revoke active sessions in the target application or identity provider.
+
+### Local installation storage
+
+Local Playrunner uses the same encrypted `AuthenticationProfile` database
+record as Cloud. In the standard Docker setup, PostgreSQL data persists in the
+`playrunner-postgres-data` Docker volume, mounted at
+`/var/lib/postgresql/data` in the container. A custom `DATABASE_URL` stores the
+record in the configured PostgreSQL database instead.
+
+The local credential-encryption keyring is generated into `apps/api/.env` as
+`PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS`, with the active version selected by
+`PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION`. Keep this file out of source
+control, restrict it to the operating-system user, and back it up securely.
+Losing or replacing the key makes previously stored profiles unreadable;
+obtaining both the database and key can allow an attacker to decrypt them.
+
+See [Environment variables](../local-dev/05-environment-variables.md) for the
+complete local configuration reference.
 
 ## Troubleshooting
 
@@ -194,8 +220,8 @@ access changes.
 | Authentication waits and then fails                | Check the success URL or selector, then press **Enter** in the Cloud companion terminal or complete the local capture |
 | The profile is disabled in the Playwright selector | Authenticate it again and confirm its status is **Authenticated**                                                     |
 | The workflow requires the profile's Environment    | Add that saved Environment node and connect it to the Playwright node                                                 |
-| A Hosted Runner session test fails                 | Re-authenticate the profile, then test it again; the CLI is not required for the test itself                          |
-| A previously working session fails                 | Click **Test session**, then **Re-authenticate** if the provider session expired                                      |
+| A Cloud workflow opens the sign-in page            | Re-authenticate the profile, then run the workflow again; the CLI is needed only during reauthentication              |
+| A previously working local session fails           | Click **Test session**, then **Re-authenticate** if the provider session expired                                      |
 
 For local browser configuration variables, see
 [Environment variables](../local-dev/05-environment-variables.md). For general

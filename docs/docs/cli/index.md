@@ -106,6 +106,8 @@ capture, revocation, security, and troubleshooting guide. The CLI also has an
 optional advanced background-service mode; it is not part of the required
 login-and-connect flow.
 
-The CLI is not involved after capture. **Test session** runs on the Cloud
-Hosted Runner, and Hosted Runner workflows restore the encrypted profile
-through an execution-bound handoff even when the paired computer is offline.
+The CLI is not involved after capture. Hosted Runner workflows restore the
+encrypted profile through an execution-bound handoff even when the paired
+computer is offline. Playrunner Cloud does not provide a separate session-test
+action; run the workflow to verify the stored state through the same path used
+by a real execution.

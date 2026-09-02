@@ -155,10 +155,32 @@ The CLI is needed only to capture or refresh an Authentication Profile. After
 the profile becomes **Authenticated**, you may stop `playrunner auth connect`
 and turn off the paired computer.
 
-Cloud **Test session** checks and Hosted Runner workflows run remotely. The
-Hosted Runner receives the stored state through a short-lived,
-execution-bound handoff; it does not contact the companion or open a browser on
-your computer.
+Hosted Runner workflows receive the stored state through a sealed,
+execution-bound handoff; they do not contact the companion or open a browser
+on your computer. Playrunner Cloud does not provide a separate session-test
+action. Attach the profile to a Playwright node and run the workflow to verify
+it through the real Hosted Runner execution path.
+
+## Security and captured data
+
+The companion uploads Playwright browser storage state rather than your
+password or a single session ID. This state can include cookies, local storage,
+and IndexedDB data for the captured origins. A usable copy may allow someone to
+act as the signed-in account without entering its password or completing
+multifactor authentication again, so treat it as a password-equivalent
+credential.
+
+The companion connects outbound over HTTPS. Its requests are signed with the
+paired device key, and capture uploads use short-lived capabilities. Captured
+state is encrypted at rest by Playrunner Cloud and omitted from normal profile
+API responses. During a workflow, only the authorized execution and selected
+Playwright node receive the state through a sealed handoff.
+
+Revoking a paired device prevents it from receiving new capture requests.
+Revoking or deleting an Authentication Profile removes Playrunner's stored
+copy, but it cannot invalidate a copy obtained earlier. If exposure is
+suspected, also revoke active sessions in the target application or identity
+provider.
 
 ## Troubleshooting
 
