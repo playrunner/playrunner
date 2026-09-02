@@ -34,8 +34,9 @@ export function resolveRepositoryWorkingDirectory(
   repositoryRoot: string,
   folder: unknown,
 ): string {
-  const configuredFolder = String(folder || '.');
-  const candidate = path.resolve(repositoryRoot, configuredFolder);
+  const configuredFolder = String(folder || '/').trim() || '/';
+  const repositoryRelativeFolder = configuredFolder.replace(/^\/+/, '') || '.';
+  const candidate = path.resolve(repositoryRoot, repositoryRelativeFolder);
   let realRepositoryRoot = '';
   let realCandidate = '';
   try {

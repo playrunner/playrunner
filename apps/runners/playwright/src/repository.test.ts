@@ -27,6 +27,30 @@ test('rejects malformed GitHub repository identifiers', () => {
   assert.throws(() => normalizeGitHubRepository('owner/repo/extra'));
 });
 
+test('resolves slash-prefixed folders from the repository root', () => {
+  const repositoryRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'playrunner-playwright-repository-'),
+  );
+  const e2eDirectory = path.join(repositoryRoot, 'e2e');
+  fs.mkdirSync(e2eDirectory);
+  try {
+    assert.equal(
+      resolveRepositoryWorkingDirectory(repositoryRoot, '/'),
+      repositoryRoot,
+    );
+    assert.equal(
+      resolveRepositoryWorkingDirectory(repositoryRoot, '/e2e'),
+      e2eDirectory,
+    );
+    assert.equal(
+      resolveRepositoryWorkingDirectory(repositoryRoot, 'e2e'),
+      e2eDirectory,
+    );
+  } finally {
+    fs.rmSync(repositoryRoot, { force: true, recursive: true });
+  }
+});
+
 test('rejects a configured folder that escapes through a symlink', () => {
   const temporaryRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), 'playrunner-playwright-repository-'),
@@ -39,6 +63,10 @@ test('rejects a configured folder that escapes through a symlink', () => {
   try {
     assert.throws(
       () => resolveRepositoryWorkingDirectory(repositoryRoot, 'escape'),
+      /inside the repository/,
+    );
+    assert.throws(
+      () => resolveRepositoryWorkingDirectory(repositoryRoot, '/../outside'),
       /inside the repository/,
     );
   } finally {

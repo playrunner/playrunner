@@ -621,7 +621,7 @@ test.describe('navigation', () => {
                     disabled={!config.repository}
                   />
                   <p className="text-[10px] text-muted">
-                    Specific directory within the repo to run tests from.
+                    Use / for the repository root or /e2e for its e2e folder.
                   </p>
                 </div>
               </>
