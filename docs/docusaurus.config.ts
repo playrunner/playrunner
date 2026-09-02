@@ -147,6 +147,9 @@ const config: Config = {
         },
         blog: {
           showReadingTime: true,
+          blogTitle: 'Playwright orchestration notes',
+          blogDescription:
+            'Release notes and field notes on orchestrating Playwright suites: automatic sharding, CI quality gates, heavy workloads, and reusable sessions.',
           feedOptions: {
             type: ['rss', 'atom'],
             xslt: true,

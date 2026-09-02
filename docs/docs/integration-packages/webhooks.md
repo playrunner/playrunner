@@ -2,7 +2,7 @@
 sidebar_position: 7
 sidebar_label: Webhooks
 title: Webhooks Integration
-description: Receive inbound workflow triggers and send outbound HTTPS requests.
+description: Start a Playwright run from any HTTP request and pass results onward. Inbound webhooks trigger workflows; outbound requests notify the systems you already run.
 hide_title: true
 ---
 

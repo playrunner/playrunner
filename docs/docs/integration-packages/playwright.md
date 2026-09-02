@@ -2,7 +2,7 @@
 sidebar_position: 2
 sidebar_label: Playwright
 title: Playwright Integration
-description: Trigger Playwright test runs from Playrunner workflows.
+description: Run a Playwright suite as a workflow node. Point it at a repository, set shards and workers or let auto mode size the run, and collect one merged report.
 hide_title: true
 ---
 
@@ -213,7 +213,7 @@ selected resources and the constraint that limited the plan. A failed shard
 marks the Playwright node as an error, while report merging can still succeed
 and preserve one combined report for diagnosis.
 
-![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](/img/playwright-auto-sharding-plan.png)
+![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](/img/playwright-auto-sharding-plan.webp)
 
 _An Auto plan running four shards with two workers each. The failed first shard
 is still included in the successfully merged report._

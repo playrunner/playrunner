@@ -215,7 +215,7 @@ function AutoShardingSection(): ReactNode {
         <figure className={styles.shardingFigure}>
           <img
             className={styles.shardingImage}
-            src={useBaseUrl('/img/playwright-auto-sharding-plan.png')}
+            src={useBaseUrl('/img/playwright-auto-sharding-plan.webp')}
             alt="An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge."
             width={1380}
             height={1140}

@@ -2,7 +2,7 @@
 sidebar_position: 7
 sidebar_label: Automatic sharding
 title: Choose a Playwright shard count automatically
-description: Stop hand-tuning shard counts and CI matrices. Auto sharding discovers the suite, sizes the plan against runner capacity, and merges every shard back into one report.
+description: Stop hand-tuning shard counts and CI matrices. Auto sharding sizes the plan against your runner capacity and merges every shard into one report.
 keywords:
   [
     'how many shards playwright',
