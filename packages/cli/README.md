@@ -2,6 +2,34 @@
 
 Run a saved Playrunner workflow from CI/CD with a revocable machine token.
 
+## Connect Playrunner Cloud Authentication Profiles
+
+Install the CLI globally on the computer where you want native Chrome to open:
+
+```bash
+npm install --global playrunner@latest
+playrunner login
+```
+
+Approve the matching pairing code in the Playrunner Cloud page that opens,
+then connect the authentication companion:
+
+```bash
+playrunner auth connect
+```
+
+Leave that terminal open. In Playrunner Cloud, open **Authentication
+Profiles**, choose the online paired device, create or select a profile, and
+click **Authenticate**. Complete sign-in in Chrome, return to the terminal, and
+press **Enter**. The CLI validates the profile's success condition and uploads
+the captured state through a one-time session.
+
+Use `playrunner auth status` to check the pairing and
+`playrunner auth disconnect` to revoke the device and remove its local
+credentials. See [Connect the CLI for Cloud Authentication
+Profiles](https://playrunner.dev/docs/cli/authentication-companion/) for the
+complete setup, service, security, and troubleshooting guide.
+
 ## Create or update a workflow
 
 Define a project and workflow in JSON. For example, save this as

@@ -5,5 +5,5 @@
     "type": "doc",
     "id": "cli/index"
   },
-  "description": "Create, update, and run Playrunner workflows from a terminal or CI/CD."
+  "description": "Create, update, and run workflows, or connect a browser for Cloud Authentication Profiles."
 }

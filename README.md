@@ -82,9 +82,20 @@ Trigger → Environment → Playwright → Condition → Slack / Jira / AI / Web
 
 Authentication Profiles let tests start from a real signed-in browser session
 without storing identity-provider passwords in Playrunner. Create a profile for
-an Environment, authenticate manually in the visible browser opened by the
-local Playrunner API, and let Playrunner capture the resulting encrypted
-session state when your success condition is reached.
+an Environment and authenticate manually in a visible browser. Local
+Playrunner opens the browser through its API; Playrunner Cloud uses a paired
+computer running the outbound-only CLI authentication companion.
+
+```bash
+npm install --global playrunner@latest
+playrunner login
+playrunner auth connect
+```
+
+Keep the companion terminal open, select the online device under
+**Authentication Profiles**, and start authentication. After signing in to the
+Chrome window, return to the terminal and press **Enter** to encrypt and upload
+the captured session state.
 
 Select the profile on any Playwright node that needs it. Playrunner restores
 the session for that execution while keeping profiles isolated by Environment.
@@ -92,7 +103,9 @@ Each profile records its application, role, authentication status, last sign-in,
 and known expiry, and can be reauthenticated, revoked, or removed when access
 changes. Follow the
 [Authentication Profiles tutorial](https://playrunner.dev/docs/tutorials/authentication-profiles/)
-to create a profile and attach it to a Local runner workflow.
+and [CLI companion guide](https://playrunner.dev/docs/cli/authentication-companion/)
+for pairing, capture, security, and the current Local runner execution
+limitation.
 
 ## Playrunner from the command line
 

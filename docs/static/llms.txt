@@ -21,6 +21,8 @@ resale. Playrunner Cloud is in free open beta with no card required.
 - [Playrunner CLI](https://playrunner.dev/docs/cli/): run, create, and update workflows from a terminal or CI/CD pipeline.
 - [Run a workflow with the CLI](https://playrunner.dev/docs/cli/run-workflow/): start a saved workflow, pass run context, and use its exit status as a quality gate.
 - [Create a workflow with the CLI](https://playrunner.dev/docs/cli/create-workflow/): create or update a workflow from a declarative JSON file.
+- [Connect the CLI for Cloud Authentication Profiles](https://playrunner.dev/docs/cli/authentication-companion/): pair a computer, connect the outbound-only companion, and capture a browser session in native Chrome.
+- [Authentication Profiles](https://playrunner.dev/docs/tutorials/authentication-profiles/): configure success conditions, capture encrypted browser state locally or through the Cloud companion, and attach it to a supported Local runner workflow.
 - [Pricing](https://playrunner.dev/pricing/): free to self-host; Cloud free during open beta.
 
 ## Automatic sharding
