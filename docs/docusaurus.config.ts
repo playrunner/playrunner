@@ -281,16 +281,20 @@ const config: Config = {
           'aria-label': 'Watch Playrunner on YouTube',
         },
         {
-          href: 'https://github.com/playrunner/playrunner',
-          position: 'right',
-          className: 'header-github-link',
-          'aria-label': 'View Playrunner on GitHub',
-        },
-        {
           href: 'https://discord.gg/4zPdBy3DwU',
           position: 'right',
           className: 'header-discord-link',
           'aria-label': 'Join our Discord',
+        },
+        // Replaces the bare GitHub icon that used to sit with the other social
+        // links. Same destination, but the icon asked for nothing; stars are
+        // the metric we are chasing, so the navbar states the ask.
+        {
+          href: 'https://github.com/playrunner/playrunner',
+          label: 'Star us on GitHub',
+          position: 'right',
+          className: 'header-github-star',
+          'aria-label': 'Star Playrunner on GitHub',
         },
         {
           href: 'https://playrunner.cloud',

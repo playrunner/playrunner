@@ -58,7 +58,6 @@
 /* Social icon navbar links */
 .header-npm-link::before,
 .header-youtube-link::before,
-.header-github-link::before,
 .header-discord-link::before {
   content: '';
   width: 24px;
@@ -74,15 +73,6 @@
   mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 780 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M240 250h100v-50h100V0H240v250zm100-200h50v100h-50V50zm140-50v200h100V50h50v150h50V50h50v150h50V0H480zM0 200h100V50h50v150h50V0H0v200z'/%3E%3C/svg%3E")
     no-repeat center;
   -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 780 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M240 250h100v-50h100V0H240v250zm100-200h50v100h-50V50zm140-50v200h100V50h50v150h50V50h50v150h50V0H480zM0 200h100V50h50v150h50V0H0v200z'/%3E%3C/svg%3E")
-    no-repeat center;
-  mask-size: contain;
-  -webkit-mask-size: contain;
-}
-
-.header-github-link::before {
-  mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.63 5.47 7.71.4.07.55-.18.55-.39 0-.19-.01-.83-.01-1.5-2.01.38-2.53-.5-2.69-.96-.09-.24-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.61.82-2.18-.08-.21-.36-1.04.08-2.15 0 0 .67-.22 2.2.83A7.48 7.48 0 018 3.93c.68 0 1.36.09 2 .27 1.53-1.05 2.2-.83 2.2-.83.44 1.11.16 1.94.08 2.15.51.57.82 1.29.82 2.18 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .21.15.46.55.39A8.06 8.06 0 0016 8.13C16 3.64 12.42 0 8 0Z'/%3E%3C/svg%3E")
-    no-repeat center;
-  -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 0C3.58 0 0 3.64 0 8.13c0 3.59 2.29 6.63 5.47 7.71.4.07.55-.18.55-.39 0-.19-.01-.83-.01-1.5-2.01.38-2.53-.5-2.69-.96-.09-.24-.48-.96-.82-1.15-.28-.15-.68-.53-.01-.54.63-.01 1.08.59 1.23.83.72 1.23 1.87.88 2.33.67.07-.53.28-.88.51-1.08-1.78-.21-3.64-.91-3.64-4.02 0-.89.31-1.61.82-2.18-.08-.21-.36-1.04.08-2.15 0 0 .67-.22 2.2.83A7.48 7.48 0 018 3.93c.68 0 1.36.09 2 .27 1.53-1.05 2.2-.83 2.2-.83.44 1.11.16 1.94.08 2.15.51.57.82 1.29.82 2.18 0 3.12-1.87 3.81-3.65 4.02.29.25.54.74.54 1.5 0 1.08-.01 1.95-.01 2.22 0 .21.15.46.55.39A8.06 8.06 0 0016 8.13C16 3.64 12.42 0 8 0Z'/%3E%3C/svg%3E")
     no-repeat center;
   mask-size: contain;
   -webkit-mask-size: contain;
@@ -108,7 +98,58 @@
 
 .header-npm-link:hover::before,
 .header-youtube-link:hover::before,
-.header-github-link:hover::before,
 .header-discord-link:hover::before {
   background-color: var(--ifm-navbar-link-hover-color);
+}
+
+/* Navbar star CTA. Styled as a pill rather than an icon so the ask is legible
+   next to the social links, using the same mask technique as those icons. */
+.header-github-star {
+  align-items: center;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  transition: border-color var(--ifm-transition-fast)
+    var(--ifm-transition-timing-default);
+}
+
+.header-github-star::before {
+  background-color: #eab308;
+  content: '';
+  display: block;
+  height: 16px;
+  mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.79L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z'/%3E%3C/svg%3E")
+    no-repeat center;
+  -webkit-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg viewBox='0 0 16 16' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.79L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z'/%3E%3C/svg%3E")
+    no-repeat center;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  width: 16px;
+}
+
+.header-github-star:hover {
+  border-color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+/* In the mobile drawer the navbar items are a plain list, where a bordered
+   pill reads as a stray button. Keep the star, drop the chrome. */
+.navbar-sidebar .header-github-star {
+  border: 0;
+  display: inline-flex;
+  padding: var(--ifm-menu-link-padding-vertical)
+    var(--ifm-menu-link-padding-horizontal);
+}
+
+/* Docusaurus appends an external-link glyph to any item with an href. Inside
+   the pill it crowds the label, and "GitHub" already says where the link
+   goes. Kept in the mobile drawer, where it matches the Sign in item. */
+.header-github-star > svg {
+  display: none;
+}
+
+.navbar-sidebar .header-github-star > svg {
+  display: inline;
 }
