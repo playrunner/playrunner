@@ -6,7 +6,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { captureAuthenticationState } from './authentication-capture.js';
 
-const VERSION = '0.2.2';
+const VERSION = '0.2.3';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 
