@@ -1,13 +1,21 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
+  captureRestoredBrowserStorage,
   createNativeBrowserProfile,
   nativeBrowserArguments,
   nativeBrowserExecutableCandidates,
   removeNativeBrowserProfile,
 } from './authentication-capture.js';
+
+const packageDirectory = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+);
 
 test('native capture launches an isolated browser without automation control', () => {
   const args = nativeBrowserArguments({
@@ -48,4 +56,67 @@ test('configured browser executable is the only candidate', () => {
     ),
     ['/opt/chrome'],
   );
+});
+
+test('cloud capture browser shutdown keeps the CLI process alive', () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '--eval',
+      `
+        import { waitForNativeBrowserClosePoll } from './src/authentication-capture.ts';
+        await waitForNativeBrowserClosePoll(20, true);
+        process.stdout.write('completed');
+      `,
+    ],
+    { cwd: packageDirectory, encoding: 'utf8' },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'completed');
+  assert.doesNotMatch(result.stderr, /unsettled top-level await/i);
+});
+
+test('storage capture retries after Chrome finishes restoring its session', async () => {
+  const calls: string[] = [];
+  const expected = { cookies: [], origins: [] };
+  const page = {
+    evaluate: async () => {
+      calls.push('evaluate');
+      return 'complete';
+    },
+    waitForLoadState: async () => {
+      calls.push('load');
+    },
+    waitForTimeout: async () => {
+      calls.push('retry-wait');
+    },
+  } as unknown as import('playwright').Page;
+  let attempts = 0;
+  const context = {
+    storageState: async () => {
+      calls.push('storage');
+      attempts += 1;
+      if (attempts === 1) {
+        throw new Error(
+          'Protocol error (Target.createTarget): Failed to open a new tab',
+        );
+      }
+      return expected;
+    },
+  } as unknown as import('playwright').BrowserContext;
+
+  assert.equal(await captureRestoredBrowserStorage(context, page), expected);
+  assert.deepEqual(calls, [
+    'load',
+    'evaluate',
+    'storage',
+    'retry-wait',
+    'load',
+    'evaluate',
+    'storage',
+  ]);
 });

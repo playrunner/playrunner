@@ -154,6 +154,7 @@ export async function launchNativeAuthenticationBrowser(args: {
 
 export async function closeNativeAuthenticationBrowser(
   browser: NativeAuthenticationBrowser,
+  options: { keepProcessAlive?: boolean } = {},
 ) {
   const pid = browser.process.pid;
   if (!pid) return;
@@ -168,10 +169,7 @@ export async function closeNativeAuthenticationBrowser(
   const waitForExit = async (timeoutMs: number) => {
     const deadline = Date.now() + timeoutMs;
     while (isRunning() && Date.now() < deadline) {
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 50);
-        timer.unref();
-      });
+      await waitForNativeBrowserClosePoll(50, options.keepProcessAlive);
     }
     return !isRunning();
   };
@@ -203,6 +201,16 @@ export async function closeNativeAuthenticationBrowser(
   }
 }
 
+export function waitForNativeBrowserClosePoll(
+  milliseconds: number,
+  keepProcessAlive = false,
+) {
+  return new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, milliseconds);
+    if (!keepProcessAlive) timer.unref();
+  });
+}
+
 export function removeNativeBrowserProfile(profileDirectory: string) {
   fs.rmSync(profileDirectory, {
     force: true,
@@ -228,6 +236,39 @@ async function conditionReached(
     : currentUrl.startsWith(condition.value);
 }
 
+function isChromeRestoreTargetError(error: unknown) {
+  return (
+    error instanceof Error &&
+    /Target\.createTarget|Failed to open a new tab/i.test(error.message)
+  );
+}
+
+async function waitForRestoredPage(page: import('playwright').Page) {
+  await page
+    .waitForLoadState('domcontentloaded', { timeout: 15_000 })
+    .catch(() => undefined);
+  await page.evaluate(() => document.readyState).catch(() => undefined);
+}
+
+export async function captureRestoredBrowserStorage(
+  context: import('playwright').BrowserContext,
+  page: import('playwright').Page,
+) {
+  await waitForRestoredPage(page);
+  try {
+    return await context.storageState({ indexedDB: true });
+  } catch (error) {
+    if (!isChromeRestoreTargetError(error)) throw error;
+
+    // Chrome can still be restoring the native session when Playwright first
+    // attaches. During that window storageState may fail to inspect the
+    // restored page and then Chrome rejects its fallback temporary tab.
+    await page.waitForTimeout(500);
+    await waitForRestoredPage(page);
+    return context.storageState({ indexedDB: true });
+  }
+}
+
 export async function captureAuthenticationState(args: {
   confirm: () => Promise<void>;
   env?: NodeJS.ProcessEnv;
@@ -246,7 +287,9 @@ export async function captureAuthenticationState(args: {
     });
     await args.confirm();
     const executablePath = nativeBrowser.executablePath;
-    await closeNativeAuthenticationBrowser(nativeBrowser);
+    await closeNativeAuthenticationBrowser(nativeBrowser, {
+      keepProcessAlive: true,
+    });
     nativeBrowser = undefined;
 
     const { chromium } = await import('playwright');
@@ -287,13 +330,13 @@ export async function captureAuthenticationState(args: {
         );
       }
     }
-    return context.storageState({ indexedDB: true });
+    return captureRestoredBrowserStorage(context, page);
   } finally {
     if (context) await context.close().catch(() => undefined);
     if (nativeBrowser) {
-      await closeNativeAuthenticationBrowser(nativeBrowser).catch(
-        () => undefined,
-      );
+      await closeNativeAuthenticationBrowser(nativeBrowser, {
+        keepProcessAlive: true,
+      }).catch(() => undefined);
     }
     removeNativeBrowserProfile(profileDirectory);
   }
