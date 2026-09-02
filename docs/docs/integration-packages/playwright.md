@@ -2,7 +2,7 @@
 sidebar_position: 2
 sidebar_label: Playwright
 title: Playwright Integration
-description: Trigger Playwright test runs from Playrunner workflows.
+description: Run a Playwright suite as a workflow node. Point it at a repository, set shards and workers or let auto mode size the run, and collect one merged report.
 hide_title: true
 ---
 

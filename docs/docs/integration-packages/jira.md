@@ -2,7 +2,7 @@
 sidebar_position: 5
 sidebar_label: Jira
 title: Jira Integration
-description: Create and sync Jira tickets from Playrunner workflows.
+description: Open and update Jira issues from a Playwright workflow. File a bug the moment a test fails, attach the run report, and keep issue status in step with the suite.
 hide_title: true
 ---
 

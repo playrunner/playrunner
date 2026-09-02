@@ -2,7 +2,7 @@
 sidebar_position: 6
 sidebar_label: Schedule
 title: Schedule Integration
-description: Start Playrunner workflows on recurring schedules.
+description: Run a Playwright suite on a recurring schedule without standing up a cron server. Set an interval or a cron expression and let the workflow start itself.
 hide_title: true
 ---
 
