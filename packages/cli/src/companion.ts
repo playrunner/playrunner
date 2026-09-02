@@ -4,9 +4,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline/promises';
-import { captureAuthenticationState } from './authentication-capture.js';
+import {
+  captureAuthenticationState,
+  testAuthenticationState,
+} from './authentication-capture.js';
 
-const VERSION = '0.2.3';
+const VERSION = '0.2.4';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 
@@ -264,7 +267,10 @@ async function login(args: string[], dependencies: CompanionDependencies) {
   const created = await jsonResponse(
     await dependencies.fetch(`${url}/api/auth-companion/device-codes`, {
       body: JSON.stringify({
-        capabilities: ['authentication_profile_capture_v1'],
+        capabilities: [
+          'authentication_profile_capture_v1',
+          'authentication_profile_test_v1',
+        ],
         cliVersion: VERSION,
         deviceName: os.hostname().slice(0, 120),
         platform: `${process.platform}/${process.arch}`,
@@ -351,6 +357,37 @@ async function processCommand(
     dependencies,
   );
   try {
+    if (command.mode === 'test') {
+      await companionRequest(
+        credentials,
+        `${pathPrefix}/status`,
+        { body: JSON.stringify({ status: 'validating' }), method: 'POST' },
+        dependencies,
+      );
+      const payload = await companionRequest(
+        credentials,
+        `${pathPrefix}/test-state`,
+        { body: '{}', method: 'POST' },
+        dependencies,
+      );
+      await testAuthenticationState({
+        env: dependencies.env,
+        startUrl: String(command.startUrl || ''),
+        state: payload.state,
+        successCondition: command.successCondition as {
+          type: 'element_visible' | 'url_exact' | 'url_prefix';
+          value: string;
+        },
+      });
+      await companionRequest(
+        credentials,
+        `${pathPrefix}/status`,
+        { body: JSON.stringify({ status: 'completed' }), method: 'POST' },
+        dependencies,
+      );
+      dependencies.stdout('Authentication Profile session test completed.');
+      return;
+    }
     const state = await captureAuthenticationState({
       confirm: () => promptForCapture(dependencies.stdout),
       env: dependencies.env,
@@ -380,7 +417,8 @@ async function processCommand(
       `${pathPrefix}/status`,
       {
         body: JSON.stringify({
-          errorCode: 'capture_failed',
+          errorCode:
+            command.mode === 'test' ? 'test_failed' : 'capture_failed',
           status: 'failed',
         }),
         method: 'POST',

@@ -4,6 +4,8 @@ import {
   createAuthenticationProfile,
   deleteAuthenticationProfile,
   listAuthenticationProfiles,
+  recordAuthenticationProfileAudit,
+  resolveAuthenticationState,
   revokeAuthenticationProfile,
   storeAuthenticationState,
   updateAuthenticationProfile,
@@ -170,6 +172,24 @@ authenticationProfilesRouter.post(
     res.json({
       profile: await revokeAuthenticationProfile(actorId, req.params.id),
     });
+  }),
+);
+
+authenticationProfilesRouter.post(
+  '/:id/companion-test-state',
+  route(async (req, res) => {
+    requireCompanionUpload(req);
+    const actorId = userId(req);
+    const resolved = await resolveAuthenticationState(actorId, req.params.id);
+    await recordAuthenticationProfileAudit({
+      action: 'test_state_delivered',
+      actorId,
+      outcome: 'success',
+      profileId: req.params.id,
+      sessionId: String(req.body?.sessionId || ''),
+    });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ state: resolved.state });
   }),
 );
 

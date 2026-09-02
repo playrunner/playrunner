@@ -236,6 +236,75 @@ async function conditionReached(
     : currentUrl.startsWith(condition.value);
 }
 
+async function waitForCondition(
+  page: import('playwright').Page,
+  condition: AuthenticationSuccessCondition,
+  timeout: number,
+) {
+  if (condition.type === 'element_visible') {
+    await page.locator(condition.value).waitFor({
+      state: 'visible',
+      timeout,
+    });
+    return;
+  }
+  await page.waitForURL(
+    (url) =>
+      condition.type === 'url_exact'
+        ? url.toString() === condition.value
+        : url.toString().startsWith(condition.value),
+    { timeout },
+  );
+}
+
+export async function testAuthenticationState(args: {
+  env?: NodeJS.ProcessEnv;
+  startUrl: string;
+  state: unknown;
+  successCondition: AuthenticationSuccessCondition;
+  timeoutMs?: number;
+}) {
+  if (
+    !args.state ||
+    typeof args.state !== 'object' ||
+    !Array.isArray((args.state as { cookies?: unknown }).cookies) ||
+    !Array.isArray((args.state as { origins?: unknown }).origins)
+  ) {
+    throw new Error('Authentication Profile test state is invalid.');
+  }
+  type StorageState = Exclude<
+    NonNullable<
+      Parameters<import('playwright').Browser['newContext']>[0]
+    >['storageState'],
+    string
+  >;
+  const { chromium } = await import('playwright');
+  const executablePath = nativeBrowserExecutableCandidates(args.env).find(
+    (candidate) => !path.isAbsolute(candidate) || fs.existsSync(candidate),
+  );
+  const browser = await chromium.launch({
+    ...(executablePath ? { executablePath } : {}),
+    headless: args.env?.PLAYRUNNER_AUTHENTICATION_HEADLESS === 'true',
+  });
+  try {
+    const context = await browser.newContext({
+      storageState: args.state as StorageState,
+    });
+    const page = await context.newPage();
+    await page.goto(args.startUrl, {
+      timeout: args.timeoutMs || 60_000,
+      waitUntil: 'domcontentloaded',
+    });
+    await waitForCondition(
+      page,
+      args.successCondition,
+      args.timeoutMs || 60_000,
+    );
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
+}
+
 function isChromeRestoreTargetError(error: unknown) {
   return (
     error instanceof Error &&
@@ -315,20 +384,11 @@ export async function captureAuthenticationState(args: {
         timeout: args.timeoutMs || 60_000,
         waitUntil: 'domcontentloaded',
       });
-      if (args.successCondition.type === 'element_visible') {
-        await page.locator(args.successCondition.value).waitFor({
-          state: 'visible',
-          timeout: args.timeoutMs || 60_000,
-        });
-      } else {
-        await page.waitForURL(
-          (url) =>
-            args.successCondition.type === 'url_exact'
-              ? url.toString() === args.successCondition.value
-              : url.toString().startsWith(args.successCondition.value),
-          { timeout: args.timeoutMs || 60_000 },
-        );
-      }
+      await waitForCondition(
+        page,
+        args.successCondition,
+        args.timeoutMs || 60_000,
+      );
     }
     return captureRestoredBrowserStorage(context, page);
   } finally {

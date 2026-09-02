@@ -83,6 +83,16 @@ const RUNNER_CONTROL_ACK_DEADLINE_SECONDS = 60;
 const RUNNER_CONTROL_RETENTION_SECONDS = 24 * 60 * 60;
 const PLAYWRIGHT_TASK_TIMEOUT = '90000s';
 
+export function prewarmedAuthenticationProfileMarker(
+  body: Record<string, any>,
+  nodeId: string,
+) {
+  return Array.isArray(body.authenticationProfileNodeIds) &&
+    body.authenticationProfileNodeIds.includes(nodeId)
+    ? { authenticationProfile: true as const }
+    : {};
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -916,6 +926,7 @@ async function prewarmPlaywrightNode(args: {
       bucketName: args.bucketName || null,
       cloudProvider: 'GCP',
       runnerControl,
+      ...prewarmedAuthenticationProfileMarker(args.body, args.node.id),
     },
     github: args.body.settings?.github,
     settings: args.body.settings,

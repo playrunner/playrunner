@@ -10,6 +10,7 @@ import {
   nativeBrowserArguments,
   nativeBrowserExecutableCandidates,
   removeNativeBrowserProfile,
+  testAuthenticationState,
 } from './authentication-capture.js';
 
 const packageDirectory = path.resolve(
@@ -31,6 +32,17 @@ test('native capture launches an isolated browser without automation control', (
       ),
     ),
     false,
+  );
+});
+
+test('stored-session tests reject malformed state before launching Chrome', async () => {
+  await assert.rejects(
+    testAuthenticationState({
+      startUrl: 'https://example.test',
+      state: { cookies: [] },
+      successCondition: { type: 'url_prefix', value: 'https://example.test' },
+    }),
+    /test state is invalid/,
   );
 });
 
