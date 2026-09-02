@@ -61,6 +61,29 @@ facts={[
 Environment does not require account credentials. Its variables are stored in
 Playrunner and injected into connected workflow nodes at runtime.
 
+## Variable names
+
+Variable names must start with a letter or underscore and contain only letters,
+numbers, and underscores. For example, `E2E_TEST` and `_INTERNAL_API_URL` are
+valid names.
+
+Playrunner reserves the following names for runner configuration and control:
+
+- `CODEX_HOME`
+- Names beginning with `DOCKER_`
+- `GCP_PROJECT`
+- `HOME`
+- `NODE_OPTIONS`
+- `PATH`
+- `PAYLOAD`
+- Names beginning with `PLAYRUNNER_`
+- `PUBSUB_EMULATOR_HOST`
+
+Reserved-name checks are case-insensitive. A variable such as
+`PLAYRUNNER_TEST` is therefore rejected before the workflow's Playwright runner
+starts. Use a name outside the reserved namespace, such as `E2E_TEST`, and
+update the test code to read the new name.
+
 ## Exports
 
 ```ts

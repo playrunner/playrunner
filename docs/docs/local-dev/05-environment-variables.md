@@ -178,11 +178,11 @@ non-secret metadata.
 
 The runner also receives these additional environment variables:
 
-| Variable                  | Description                                               |
-| ------------------------- | --------------------------------------------------------- |
-| `GCP_PROJECT`             | GCP project ID (`local-dev`)                              |
-| `PUBSUB_EMULATOR_HOST`    | Pub/Sub emulator endpoint for local Docker workflow runs  |
-| Any user-defined env vars | Injected from the Environment node's configured variables |
+| Variable                        | Description                                                                                                                                                                             |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GCP_PROJECT`                   | GCP project ID (`local-dev`)                                                                                                                                                            |
+| `PUBSUB_EMULATOR_HOST`          | Pub/Sub emulator endpoint for local Docker workflow runs                                                                                                                                |
+| Supported user-defined env vars | Injected from the Environment node's configured variables. See [Environment variable names](../integration-packages/environment.md#variable-names) for naming rules and reserved names. |
 
 ---
 
