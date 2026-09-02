@@ -2,7 +2,7 @@
 sidebar_position: 1
 sidebar_label: Overview
 title: Playrunner CLI
-description: Run, create, and update Playrunner workflows from a terminal or CI/CD pipeline.
+description: Run and define workflows from a terminal, or connect a local browser to Playrunner Cloud Authentication Profiles.
 keywords:
   [
     'playrunner cli',
@@ -15,8 +15,10 @@ keywords:
 # Playrunner CLI
 
 Use the Playrunner CLI to run saved workflows or create and update workflows
-from declarative JSON files. It works in an interactive terminal and in CI/CD
-systems that provide Node.js and network access to Playrunner.
+from declarative JSON files. It also pairs a computer with Playrunner Cloud so
+Authentication Profiles can capture a signed-in browser session in native
+Chrome. The CLI works in an interactive terminal and in CI/CD systems that
+provide Node.js and network access to Playrunner.
 
 ## Choose a task
 
@@ -27,11 +29,52 @@ systems that provide Node.js and network access to Playrunner.
 | Create or update a workflow from JSON              | [Create a workflow](./create-workflow.md)                             |
 | Capture a Cloud Authentication Profile with Chrome | [Connect the authentication companion](./authentication-companion.md) |
 
-## Requirements
+## Command overview
+
+| Command                                  | Purpose                                                        | Authentication          |
+| ---------------------------------------- | -------------------------------------------------------------- | ----------------------- |
+| `playrunner WORKFLOW_ID`                 | Run a saved workflow and optionally wait for its result        | API token               |
+| `playrunner workflow create --file FILE` | Create or update a project and workflow from JSON              | Unrestricted API token  |
+| `playrunner login`                       | Pair this computer with a Playrunner Cloud account             | Browser device approval |
+| `playrunner auth connect`                | Connect in the foreground and accept browser capture requests  | Paired device           |
+| `playrunner auth install`                | Install and start the companion as a user-level service        | Paired device           |
+| `playrunner auth status`                 | Show whether this computer is paired, online, or revoked       | Paired device           |
+| `playrunner auth disconnect`             | Revoke this computer, stop its service, and remove credentials | Paired device           |
+
+Run the top-level help or authentication help for the commands available in
+your installed version:
+
+```bash
+playrunner --help
+playrunner auth --help
+```
+
+## Install or run the CLI
+
+All commands require Node.js 20 or later.
+
+For workflow commands and CI/CD, you can run the CLI without installing it
+globally:
+
+```bash
+npx --yes playrunner@0.2.1 --help
+```
+
+Pinning the version in automation makes CLI upgrades deliberate.
+
+For the Authentication Profile companion, install the CLI globally on the
+computer where Chrome will open. This gives the optional background service a
+stable executable path:
+
+```bash
+npm install --global playrunner@latest
+playrunner --version
+```
+
+## Workflow command authentication
 
 All workflow run and workflow creation commands require:
 
-- Node.js 20 or later.
 - The URL of your Playrunner installation, supplied with `--url` or the
   `PLAYRUNNER_URL` environment variable.
 - A Playrunner API token supplied through `PLAYRUNNER_API_KEY`.
@@ -40,23 +83,30 @@ Create tokens under **Settings → API tokens**. Restrict a token to selected
 workflows when it only needs to run them. Creating or updating workflow
 definitions requires an unrestricted token.
 
-You can run the CLI without installing it globally:
-
-```bash
-npx playrunner --help
-```
-
-In automation, pin the package to a tested version so CLI upgrades are
-deliberate:
-
-```bash
-npx --yes playrunner@0.1.4 --help
-```
-
 Store API tokens in protected, masked secrets. Never commit them to source
 control or pass them in command-line arguments.
 
-Authentication companion commands use device pairing instead of an API token.
-For `playrunner login`, `playrunner auth connect`, and the complete browser
-capture flow, see
-[Connect the CLI for Cloud Authentication Profiles](./authentication-companion.md).
+## Authentication Profile companion
+
+Companion commands use device pairing instead of `PLAYRUNNER_API_KEY`. The
+shortest working Cloud setup is:
+
+```bash
+playrunner login
+playrunner auth connect
+```
+
+Approve the matching code in the Playrunner Cloud page opened by `login`. Keep
+the `auth connect` terminal open, then open **Authentication Profiles** in
+Cloud, choose the online computer under **Paired devices**, and click
+**Authenticate** on a profile. Complete sign-in in Chrome and press **Enter**
+in the companion terminal to validate and upload the captured state.
+
+See [Connect the CLI for Cloud Authentication
+Profiles](./authentication-companion.md) for the complete pairing, background
+service, browser capture, revocation, security, and troubleshooting guide.
+
+The current Cloud Hosted Runner does not yet consume Authentication Profiles.
+The companion can capture and manage encrypted profiles in Cloud, while
+workflow use remains limited to supported owner-initiated Local runner
+executions.

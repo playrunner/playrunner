@@ -145,7 +145,7 @@ jobs:
         env:
           PLAYRUNNER_API_KEY: ${{ secrets.PLAYRUNNER_API_KEY }}
         run: >-
-          npx --yes playrunner@0.1.4
+          npx --yes playrunner@0.2.1
           2cc84235-58f7-4cb1-89cd-0c379d3b6908
           --url https://playrunner.cloud
           --timeout 30m
