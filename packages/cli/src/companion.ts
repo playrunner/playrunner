@@ -6,7 +6,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { captureAuthenticationState } from './authentication-capture.js';
 
-const VERSION = '0.2.1';
+const VERSION = '0.2.2';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 
@@ -159,15 +159,23 @@ async function jsonResponse(response: Response) {
   return payload;
 }
 
-function wait(milliseconds: number, signal: AbortSignal) {
+export function waitForCompanionPoll(
+  milliseconds: number,
+  signal: AbortSignal,
+) {
   return new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, milliseconds);
+    const finish = () => {
+      signal.removeEventListener('abort', abort);
+      resolve();
+    };
+    const timer = setTimeout(finish, milliseconds);
     const abort = () => {
       clearTimeout(timer);
+      signal.removeEventListener('abort', abort);
       reject(signal.reason || new Error('Cancelled.'));
     };
     signal.addEventListener('abort', abort, { once: true });
-    timer.unref();
+    if (signal.aborted) abort();
   });
 }
 
@@ -279,7 +287,10 @@ async function login(args: string[], dependencies: CompanionDependencies) {
 
   const deadline = Date.now() + Number(created.expiresIn || 600) * 1_000;
   while (Date.now() < deadline) {
-    await wait(Number(created.interval || 3) * 1_000, dependencies.signal);
+    await waitForCompanionPoll(
+      Number(created.interval || 3) * 1_000,
+      dependencies.signal,
+    );
     const response = await dependencies.fetch(
       `${url}/api/auth-companion/device-codes/${encodeURIComponent(deviceCode)}/token`,
       { method: 'POST', signal: dependencies.signal },
@@ -412,7 +423,9 @@ async function connect(dependencies: CompanionDependencies) {
       dependencies.stderr(
         `Companion connection interrupted: ${error instanceof Error ? error.message : 'unknown error'}. Retrying…`,
       );
-      await wait(2_000, dependencies.signal).catch(() => undefined);
+      await waitForCompanionPoll(2_000, dependencies.signal).catch(
+        () => undefined,
+      );
     }
   }
   return 0;
