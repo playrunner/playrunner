@@ -33,7 +33,7 @@
     "@google-cloud/run": "^3.3.0",
     "@google-cloud/storage": "^7.19.0",
     "@playrunner/environment": "0.1.5",
-    "@playrunner/gcp": "0.1.4",
+    "@playrunner/gcp": "0.1.5",
     "@playrunner/github": "0.2.2",
     "@playrunner/integration-sdk": "0.1.6",
     "@playrunner/javascript": "0.1.2",
@@ -52,7 +52,7 @@
     "jose": "^6.2.10",
     "node-fetch": "^3.3.2",
     "pg": "^8.22.0",
-    "playrunner": "0.2.3",
+    "playrunner": "0.2.4",
     "playwright": "1.62.1",
     "socket.io": "^4.8.3"
   },
