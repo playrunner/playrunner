@@ -437,6 +437,91 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   });
 });
 
+export const MAX_MACHINE_PAGE_SIZE = 100;
+export const DEFAULT_MACHINE_PAGE_SIZE = 25;
+
+export function parseMachinePageSize(value: unknown) {
+  if (value === undefined) return { take: DEFAULT_MACHINE_PAGE_SIZE };
+  const parsed = typeof value === 'string' ? Number(value) : NaN;
+  if (
+    !Number.isInteger(parsed) ||
+    parsed < 1 ||
+    parsed > MAX_MACHINE_PAGE_SIZE
+  ) {
+    return {
+      error: `limit must be an integer between 1 and ${MAX_MACHINE_PAGE_SIZE}.`,
+    };
+  }
+  return { take: parsed };
+}
+
+machineExecutionsRouter.get('/', async (req, res) => {
+  const token = req.apiToken!;
+  const page = parseMachinePageSize(req.query.limit);
+  if ('error' in page) {
+    res.status(400).json({ error: page.error });
+    return;
+  }
+  const workflows = await prisma.workflow.findMany({
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+      project: { select: { id: true, title: true } },
+    },
+    take: page.take,
+    where: { userId: token.userId },
+  });
+  res.json({
+    // A restricted token must not learn that workflows it cannot run exist.
+    workflows: workflows
+      .filter((workflow) => canAccess(req, workflow.id))
+      .map((workflow) => ({
+        id: workflow.id,
+        projectId: workflow.project?.id ?? null,
+        projectTitle: workflow.project?.title ?? null,
+        title: workflow.title || 'Untitled Workflow',
+        updatedAt: workflow.updatedAt.toISOString(),
+      })),
+  });
+});
+
+machineExecutionsRouter.get('/:workflowId/executions', async (req, res) => {
+  const token = req.apiToken!;
+  const workflowId = req.params.workflowId;
+  if (!canAccess(req, workflowId)) {
+    res.status(404).json({ error: 'Workflow not found.' });
+    return;
+  }
+  const page = parseMachinePageSize(req.query.limit);
+  if ('error' in page) {
+    res.status(400).json({ error: page.error });
+    return;
+  }
+  const executions = await prisma.workflowExecution.findMany({
+    orderBy: { startedAt: 'desc' },
+    select: {
+      id: true,
+      status: true,
+      startedAt: true,
+      completedAt: true,
+    },
+    take: page.take,
+    where: { userId: token.userId, workflowId },
+  });
+  res.json({
+    executions: executions.map((execution) => ({
+      completedAt: execution.completedAt?.toISOString() ?? null,
+      executionId: execution.id,
+      startedAt: execution.startedAt.toISOString(),
+      status: execution.status,
+      workflowId,
+    })),
+    workflowId,
+  });
+});
+
 machineExecutionsRouter.get(
   '/:workflowId/executions/:executionId',
   async (req, res) => {
