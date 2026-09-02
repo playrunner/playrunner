@@ -36,7 +36,6 @@ npm install --global playrunner@latest
 playrunner --version
 ```
 
-A global installation gives the background service a stable executable path.
 You do not need `PLAYRUNNER_API_KEY` for pairing or capturing an Authentication
 Profile.
 
@@ -86,16 +85,19 @@ Leave that terminal open while creating or reauthenticating a profile. The
 computer appears as **Online** in the **Paired devices** panel within about 30
 seconds. You can click **Refresh** to update the list immediately.
 
-The CLI also supports installing a user-level service:
+## Optional advanced service mode
+
+`playrunner auth install` is not an additional setup step and does not replace
+`playrunner login`. It is an optional way to keep the companion process running
+as a user-level background service:
 
 ```bash
 playrunner auth install
 ```
 
-The service keeps the device paired across terminal sessions and restarts.
-For the current CLI release, use the foreground `playrunner auth connect`
-command when performing an interactive capture so you can respond to the
-terminal prompt after signing in.
+For interactive captures, use the foreground `playrunner auth connect` command
+so you can respond to the terminal prompt after signing in. Most users should
+use only the two-step `login`, then `auth connect` flow described above.
 
 ## Step 3 — Select the device in Cloud
 

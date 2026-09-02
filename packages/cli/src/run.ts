@@ -50,7 +50,7 @@ Commands:
   workflow create      Create or update a workflow from a JSON definition
   login                Pair this device with Playrunner Cloud
   auth connect         Receive Authentication Profile capture requests
-  auth install         Install and start the persistent companion
+  auth install         Advanced: install the persistent companion service
   auth status          Inspect this device's pairing status
   auth disconnect      Revoke and remove this device's pairing
 

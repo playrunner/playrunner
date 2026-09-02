@@ -37,7 +37,6 @@ provide Node.js and network access to Playrunner.
 | `playrunner workflow create --file FILE` | Create or update a project and workflow from JSON              | Unrestricted API token  |
 | `playrunner login`                       | Pair this computer with a Playrunner Cloud account             | Browser device approval |
 | `playrunner auth connect`                | Connect in the foreground and accept browser capture requests  | Paired device           |
-| `playrunner auth install`                | Install and start the companion as a user-level service        | Paired device           |
 | `playrunner auth status`                 | Show whether this computer is paired, online, or revoked       | Paired device           |
 | `playrunner auth disconnect`             | Revoke this computer, stop its service, and remove credentials | Paired device           |
 
@@ -57,14 +56,13 @@ For workflow commands and CI/CD, you can run the CLI without installing it
 globally:
 
 ```bash
-npx --yes playrunner@0.2.1 --help
+npx --yes playrunner@0.2.3 --help
 ```
 
 Pinning the version in automation makes CLI upgrades deliberate.
 
 For the Authentication Profile companion, install the CLI globally on the
-computer where Chrome will open. This gives the optional background service a
-stable executable path:
+computer where Chrome will open:
 
 ```bash
 npm install --global playrunner@latest
@@ -103,8 +101,10 @@ Cloud, choose the online computer under **Paired devices**, and click
 in the companion terminal to validate and upload the captured state.
 
 See [Connect the CLI for Cloud Authentication
-Profiles](./authentication-companion.md) for the complete pairing, background
-service, browser capture, revocation, security, and troubleshooting guide.
+Profiles](./authentication-companion.md) for the complete pairing, browser
+capture, revocation, security, and troubleshooting guide. The CLI also has an
+optional advanced background-service mode; it is not part of the required
+login-and-connect flow.
 
 The current Cloud Hosted Runner does not yet consume Authentication Profiles.
 The companion can capture and manage encrypted profiles in Cloud, while

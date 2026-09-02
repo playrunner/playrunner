@@ -52,7 +52,7 @@
     "jose": "^6.2.10",
     "node-fetch": "^3.3.2",
     "pg": "^8.22.0",
-    "playrunner": "0.2.1",
+    "playrunner": "0.2.3",
     "playwright": "1.62.1",
     "socket.io": "^4.8.3"
   },
