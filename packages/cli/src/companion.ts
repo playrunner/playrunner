@@ -6,11 +6,12 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { captureAuthenticationState } from './authentication-capture.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 
 type DeviceCredentials = {
+  credentialStore?: 'macos-keychain';
   deviceId: string;
   privateKey: string;
   publicKey: string;
@@ -48,7 +49,33 @@ async function writeCredentials(
   await fs.mkdir(directory, { mode: 0o700, recursive: true });
   const target = credentialPath(env);
   const temporary = `${target}.${process.pid}.tmp`;
-  await fs.writeFile(temporary, `${JSON.stringify(credentials)}\n`, {
+  let stored = credentials;
+  if (process.platform === 'darwin') {
+    try {
+      await runExecFile('security', [
+        'add-generic-password',
+        '-U',
+        '-a',
+        'playrunner',
+        '-s',
+        'playrunner-auth-companion',
+        '-w',
+        JSON.stringify({
+          privateKey: credentials.privateKey,
+          refreshToken: credentials.refreshToken,
+        }),
+      ]);
+      stored = {
+        ...credentials,
+        credentialStore: 'macos-keychain',
+        privateKey: '',
+        refreshToken: '',
+      };
+    } catch {
+      stored = credentials;
+    }
+  }
+  await fs.writeFile(temporary, `${JSON.stringify(stored)}\n`, {
     encoding: 'utf8',
     mode: 0o600,
   });
@@ -58,16 +85,48 @@ async function writeCredentials(
 
 async function readCredentials(env: NodeJS.ProcessEnv) {
   try {
-    return JSON.parse(
+    const stored = JSON.parse(
       await fs.readFile(credentialPath(env), 'utf8'),
     ) as DeviceCredentials;
+    if (stored.credentialStore === 'macos-keychain') {
+      const secret = JSON.parse(
+        await runExecFile('security', [
+          'find-generic-password',
+          '-a',
+          'playrunner',
+          '-s',
+          'playrunner-auth-companion',
+          '-w',
+        ]),
+      ) as Pick<DeviceCredentials, 'privateKey' | 'refreshToken'>;
+      return { ...stored, ...secret };
+    }
+    return stored;
   } catch {
     return null;
   }
 }
 
 async function removeCredentials(env: NodeJS.ProcessEnv) {
+  if (process.platform === 'darwin') {
+    await runExecFile('security', [
+      'delete-generic-password',
+      '-a',
+      'playrunner',
+      '-s',
+      'playrunner-auth-companion',
+    ]).catch(() => undefined);
+  }
   await fs.rm(credentialPath(env), { force: true });
+}
+
+function runExecFile(file: string, args: readonly string[]) {
+  return new Promise<string>((resolve, reject) => {
+    execFile(file, [...args], (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout.trim());
+    });
+  });
 }
 
 function normalizedUrl(value: string) {
@@ -337,13 +396,15 @@ async function connect(dependencies: CompanionDependencies) {
         { method: 'GET' },
         dependencies,
       );
-      cursor = String(payload.nextCursor || cursor);
       const commands = Array.isArray(payload.commands) ? payload.commands : [];
       for (const command of commands) {
         await processCommand(
           credentials,
           command as Record<string, unknown>,
           dependencies,
+        );
+        cursor = String(
+          (command as Record<string, unknown>).sequence || cursor,
         );
       }
     } catch (error) {
@@ -419,14 +480,35 @@ async function install(dependencies: CompanionDependencies) {
     recursive: true,
   });
   await fs.writeFile(service.target, service.contents, { mode: 0o600 });
-  await new Promise<void>((resolve, reject) => {
-    execFile(service.start[0], [...service.start[1]], (error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
+  await runExecFile(service.start[0], service.start[1]);
   dependencies.stdout('Installed and started the authentication companion.');
   return 0;
+}
+
+async function uninstallService(env: NodeJS.ProcessEnv) {
+  const service = serviceDefinition(env);
+  if (process.platform === 'darwin') {
+    await runExecFile('launchctl', [
+      'bootout',
+      `gui/${process.getuid?.()}`,
+      service.target,
+    ]).catch(() => undefined);
+  } else if (process.platform === 'win32') {
+    await runExecFile('schtasks', [
+      '/Delete',
+      '/F',
+      '/TN',
+      'Playrunner Authentication Companion',
+    ]).catch(() => undefined);
+  } else {
+    await runExecFile('systemctl', [
+      '--user',
+      'disable',
+      '--now',
+      'playrunner-auth-companion.service',
+    ]).catch(() => undefined);
+  }
+  await fs.rm(service.target, { force: true });
 }
 
 async function status(dependencies: CompanionDependencies) {
@@ -457,6 +539,7 @@ async function disconnect(dependencies: CompanionDependencies) {
       dependencies,
     ).catch(() => undefined);
   }
+  await uninstallService(dependencies.env);
   await removeCredentials(dependencies.env);
   dependencies.stdout('Disconnected this device from Playrunner Cloud.');
   return 0;

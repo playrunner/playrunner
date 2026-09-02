@@ -1,7 +1,7 @@
 import { runWorkflowCreateCli } from './workflow-create.js';
 import { runCompanionCommand } from './companion.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
 const EVENT_PAGE_SIZE = 100;

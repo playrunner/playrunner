@@ -48,7 +48,7 @@ test('--version reports the package version', async () => {
   const run = harness([]);
 
   assert.equal(await runCli(['--version'], run.dependencies), 0);
-  assert.deepEqual(run.stdout, ['0.2.0']);
+  assert.deepEqual(run.stdout, ['0.2.1']);
 });
 
 test('passes workflow inputs and acceptance criteria to the start request', async () => {
