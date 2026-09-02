@@ -22,6 +22,7 @@ import { storeRouter } from './routes/store';
 import { teamsRouter } from './routes/teams';
 import { apiTokensRouter } from './routes/api-tokens';
 import { machineExecutionsRouter } from './routes/machine-executions';
+import { mcpRouter } from './routes/mcp';
 import { createIntegrationCredentialStore } from './services/connections';
 import { createIntegrationApiHost } from './services/inbound-webhooks';
 import { tunnelService } from './services/tunnel';
@@ -33,6 +34,9 @@ const app = express();
 app.use(cors());
 registerPublicIntegrationApiRoutes(app, createIntegrationApiHost());
 app.use('/api/v1/workflows', machineExecutionsRouter);
+// MCP hosts authenticate with an API token per request; this router owns its
+// own auth and body parsing, so it mounts ahead of the session-auth stack.
+app.use('/mcp', mcpRouter);
 app.use(express.json({ limit: '100mb' }));
 
 app.get('/health', (_req, res) => {
