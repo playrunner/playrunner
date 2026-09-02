@@ -1000,7 +1000,7 @@ export async function prewarmGcpPlaywrightRunners(args: {
   }
 
   await publishGcpWorkflowLog(args.logTransport, {
-    message: `Prewarming ${playwrightNodes.length} Playwright runner${playwrightNodes.length === 1 ? '' : 's'} while Cloud Run orchestrator starts.`,
+    message: `Prewarming ${playwrightNodes.length} Playwright runner${playwrightNodes.length === 1 ? '' : 's'} while the Cloud Run orchestrator becomes ready.`,
     testId: args.testId,
     workflowId: args.workflowId,
   });
