@@ -102,9 +102,7 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
         await pom.nodeField('headers').fill('{"X-E2E":"true"}');
         await pom.nodeField('content-mode').selectOption('template');
         await pom.nodeField('template-id').fill(data.templateId);
-        await pom
-          .nodeField('template-variables')
-          .fill(data.templateVariables);
+        await pom.nodeField('template-variables').fill(data.templateVariables);
 
         await pom.nodeField('operation').selectOption('wait');
         await pom.nodeField('wait-recipient').fill(data.receivingAddress);
@@ -146,9 +144,7 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.nodeField('to')).toHaveValue(data.receivingAddress);
         await expect(pom.nodeField('subject')).toHaveValue(data.subject);
         await expect(pom.nodeField('content-mode')).toHaveValue('template');
-        await expect(pom.nodeField('template-id')).toHaveValue(
-          data.templateId,
-        );
+        await expect(pom.nodeField('template-id')).toHaveValue(data.templateId);
         await expect(pom.nodeField('template-variables')).toHaveValue(
           data.templateVariables,
         );
@@ -162,9 +158,7 @@ export const resendE2EContribution = definePlayrunnerE2EContribution({
           `id-${data.subject}`,
         );
         await expect(pom.nodeField('tags')).toHaveValue('{"suite":"e2e"}');
-        await expect(pom.nodeField('headers')).toHaveValue(
-          '{"X-E2E":"true"}',
-        );
+        await expect(pom.nodeField('headers')).toHaveValue('{"X-E2E":"true"}');
         await pom.nodeField('content-mode').selectOption('body');
         await expect(pom.nodeField('text')).toHaveValue(data.body);
         await expect(pom.nodeField('html')).toHaveValue(data.html);

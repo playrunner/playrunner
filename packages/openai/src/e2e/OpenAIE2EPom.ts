@@ -40,12 +40,8 @@ export class OpenAIE2EPom {
     );
     this.nodeModel = page.getByTestId('openai-node-model');
     this.nodePrompt = page.getByTestId('openai-node-prompt');
-    this.nodeReasoningEffort = page.getByTestId(
-      'openai-node-reasoning-effort',
-    );
-    this.nodeResponseFormat = page.getByTestId(
-      'openai-node-response-format',
-    );
+    this.nodeReasoningEffort = page.getByTestId('openai-node-reasoning-effort');
+    this.nodeResponseFormat = page.getByTestId('openai-node-response-format');
     this.nodeVerbosity = page.getByTestId('openai-node-verbosity');
   }
 

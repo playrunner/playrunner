@@ -198,9 +198,7 @@ export const githubE2EContribution = definePlayrunnerE2EContribution({
         await pom.saveWorkflow();
         await pom.reloadWorkflow();
         await pom.reopenNode();
-        await expect(pom.nodeField('action')).toHaveValue(
-          'createPullRequest',
-        );
+        await expect(pom.nodeField('action')).toHaveValue('createPullRequest');
         await expect(pom.nodeField('repository')).toHaveValue(data.repository);
         await expect(pom.nodeField('base')).toHaveValue('main');
         await expect(pom.nodeField('head')).toHaveValue('e2e-branch');

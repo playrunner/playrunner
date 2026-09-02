@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/slack",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Slack integration package for Playrunner.",
   "keywords": [
     "playrunner",

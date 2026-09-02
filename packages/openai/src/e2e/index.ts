@@ -61,9 +61,7 @@ export const openaiE2EContribution = definePlayrunnerE2EContribution({
         await expect(pom.nodeJsonSchema).toHaveValue(data.jsonSchema);
         await expect(pom.nodeReasoningEffort).toHaveValue('xhigh');
         await expect(pom.nodeVerbosity).toHaveValue('high');
-        await expect(pom.nodeMaxOutputTokens).toHaveValue(
-          data.maxOutputTokens,
-        );
+        await expect(pom.nodeMaxOutputTokens).toHaveValue(data.maxOutputTokens);
       },
     },
   ],

@@ -18,10 +18,9 @@ export const jiraApiContribution = {
 export default jiraApiContribution;
 
 function atlassianApiBaseUrl() {
-  return (process.env.PLAYRUNNER_JIRA_API_BASE_URL || 'https://api.atlassian.com').replace(
-    /\/+$/,
-    '',
-  );
+  return (
+    process.env.PLAYRUNNER_JIRA_API_BASE_URL || 'https://api.atlassian.com'
+  ).replace(/\/+$/, '');
 }
 
 async function refreshJiraCredentials(

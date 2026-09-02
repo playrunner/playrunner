@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/openai",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "OpenAI integration package for Playrunner.",
   "keywords": [
     "playrunner",
