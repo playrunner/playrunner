@@ -31,7 +31,7 @@
 
 <br />
 
-![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](docs/static/img/playwright-auto-sharding-plan.png)
+![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](docs/static/img/playwright-auto-sharding-plan.webp)
 
 <p align="center">
   <em>One Playwright node. Four concurrent shards. One merged report—even when a shard fails.</em>
