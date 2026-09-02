@@ -55,7 +55,7 @@ outputsRouter.post(
     ) {
       return res.status(400).json({ error: 'Invalid recipient public key.' });
     }
-    if (!executionAuthenticationGrants.has(testId, nodeId)) {
+    if (!(await executionAuthenticationGrants.has(testId, nodeId))) {
       return res
         .status(404)
         .json({ error: 'Execution Authentication Profile is unavailable.' });

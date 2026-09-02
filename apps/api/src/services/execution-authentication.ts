@@ -2,10 +2,11 @@ import {
   sealAuthenticationEnvelope,
   type AuthenticationEnvelope,
 } from '../../../runners/shared/authentication-envelope';
+import { prisma } from '../lib/prisma';
 import { resolveAuthenticationState } from './authentication-profiles';
 
 type Grant = {
-  expiresAt: number;
+  expiresAt: Date;
   fetches: number;
   ownerUserId: string;
   profileId: string;
@@ -14,36 +15,52 @@ type Grant = {
 const GRANT_TTL_MS = 2 * 60 * 60 * 1_000;
 const MAX_FETCHES_PER_GRANT = 128;
 
-class ExecutionAuthenticationGrants {
-  private readonly grants = new Map<string, Grant>();
+type ExecutionAuthenticationGrantStore = Pick<
+  typeof prisma.executionAuthenticationGrant,
+  'deleteMany' | 'findFirst' | 'findUniqueOrThrow' | 'updateMany' | 'upsert'
+>;
 
-  private key(executionId: string, nodeId: string) {
-    return `${executionId}\0${nodeId}`;
-  }
+export class ExecutionAuthenticationGrants {
+  constructor(
+    private readonly grantStore: ExecutionAuthenticationGrantStore = prisma.executionAuthenticationGrant,
+  ) {}
 
-  register(args: {
+  async register(args: {
     executionId: string;
     nodeId: string;
     ownerUserId: string;
     profileId: string;
   }) {
-    const key = this.key(args.executionId, args.nodeId);
     const grant = {
-      expiresAt: Date.now() + GRANT_TTL_MS,
+      expiresAt: new Date(Date.now() + GRANT_TTL_MS),
       fetches: 0,
       ownerUserId: args.ownerUserId,
       profileId: args.profileId,
-    };
-    this.grants.set(key, grant);
-    const timer = setTimeout(() => {
-      if (this.grants.get(key) === grant) this.grants.delete(key);
-    }, GRANT_TTL_MS);
-    timer.unref();
+    } satisfies Grant;
+    await this.grantStore.upsert({
+      create: { ...args, ...grant },
+      update: grant,
+      where: {
+        executionId_nodeId: {
+          executionId: args.executionId,
+          nodeId: args.nodeId,
+        },
+      },
+    });
   }
 
-  has(executionId: string, nodeId: string) {
-    const grant = this.grants.get(this.key(executionId, nodeId));
-    return Boolean(grant && grant.expiresAt > Date.now());
+  async has(executionId: string, nodeId: string) {
+    return Boolean(
+      await this.grantStore.findFirst({
+        select: { executionId: true },
+        where: {
+          executionId,
+          nodeId,
+          expiresAt: { gt: new Date() },
+          fetches: { lt: MAX_FETCHES_PER_GRANT },
+        },
+      }),
+    );
   }
 
   async seal(args: {
@@ -51,20 +68,29 @@ class ExecutionAuthenticationGrants {
     nodeId: string;
     recipientPublicKey: string;
   }): Promise<AuthenticationEnvelope> {
-    const key = this.key(args.executionId, args.nodeId);
-    const grant = this.grants.get(key);
-    if (
-      !grant ||
-      grant.expiresAt <= Date.now() ||
-      grant.fetches >= MAX_FETCHES_PER_GRANT
-    ) {
-      this.grants.delete(key);
+    const claimed = await this.grantStore.updateMany({
+      data: { fetches: { increment: 1 } },
+      where: {
+        executionId: args.executionId,
+        nodeId: args.nodeId,
+        expiresAt: { gt: new Date() },
+        fetches: { lt: MAX_FETCHES_PER_GRANT },
+      },
+    });
+    if (claimed.count !== 1) {
       throw Object.assign(
         new Error('Execution Authentication Profile is unavailable.'),
         { statusCode: 404 },
       );
     }
-    grant.fetches += 1;
+    const grant = await this.grantStore.findUniqueOrThrow({
+      where: {
+        executionId_nodeId: {
+          executionId: args.executionId,
+          nodeId: args.nodeId,
+        },
+      },
+    });
     const resolved = await resolveAuthenticationState(
       grant.ownerUserId,
       grant.profileId,
@@ -77,10 +103,10 @@ class ExecutionAuthenticationGrants {
     });
   }
 
-  clearExecution(executionId: string) {
-    for (const key of this.grants.keys()) {
-      if (key.startsWith(`${executionId}\0`)) this.grants.delete(key);
-    }
+  async clearExecution(executionId: string) {
+    await this.grantStore.deleteMany({
+      where: { executionId },
+    });
   }
 }
 

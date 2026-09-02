@@ -281,6 +281,21 @@ model AuthenticationProfileAudit {
   @@index([actorId, createdAt])
 }
 
+model ExecutionAuthenticationGrant {
+  executionId String
+  nodeId      String
+  ownerUserId String
+  profileId   String
+  expiresAt   DateTime
+  fetches     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@id([executionId, nodeId])
+  @@index([expiresAt])
+  @@index([profileId])
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String?  @unique

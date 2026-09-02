@@ -157,14 +157,6 @@ async function resolveAuthenticationProfiles(
       : [];
   });
   if (!selections.length) return;
-  if ((request.body.cloudProvider || 'LOCAL_RUNNER') !== 'LOCAL_RUNNER') {
-    throw Object.assign(
-      new Error(
-        'Authentication Profiles currently support the Local runner only.',
-      ),
-      { code: 'authentication_profile_runner_unsupported', statusCode: 409 },
-    );
-  }
   if (ownerUserId !== actorUserId) {
     throw Object.assign(
       new Error(
@@ -195,7 +187,7 @@ async function resolveAuthenticationProfiles(
         outcome: 'success',
         profileId,
       });
-      executionAuthenticationGrants.register({
+      await executionAuthenticationGrants.register({
         executionId: request.testId,
         nodeId,
         ownerUserId,
