@@ -90,6 +90,10 @@ an Environment and authenticate manually in a visible browser. Local
 Playrunner opens the browser through its API; Playrunner Cloud uses a paired
 computer running the outbound-only CLI authentication companion.
 
+<p align="center">
+  <img src="docs/static/img/authentication-profiles.png" alt="The Authentication Profiles page showing an online paired device and an authenticated profile." width="100%" />
+</p>
+
 ```bash
 npm install --global playrunner@latest
 playrunner login

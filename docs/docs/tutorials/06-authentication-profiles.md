@@ -24,6 +24,8 @@ to the profile.
 Use a separate profile for each application, Environment, and test role that
 needs an independent session.
 
+![The Authentication Profiles page showing an online paired device and an authenticated profile.](/img/authentication-profiles.png)
+
 ## Before you start
 
 You need:
