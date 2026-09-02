@@ -7,8 +7,41 @@ import {
   gcpStartFailureResult,
   invokeOrchestratorService,
   isAmbiguousOrchestratorInvocationError,
+  missingRunnerSettings,
   waitForOrchestratorServiceReady,
 } from './gcp-workflow-execution';
+
+test('custom orchestrator launchers do not require Cloud Run Service settings', () => {
+  const settings = {
+    cloudRunLocation: 'australia-southeast1',
+    playwrightImageUriTemplate: 'example/playwright:latest',
+  };
+  assert.deepEqual(missingRunnerSettings(settings, true), []);
+  assert.deepEqual(missingRunnerSettings(settings), [
+    'Orchestrator service name',
+    'Orchestrator minimum instance count',
+    'Orchestrator maximum instance count',
+    'Orchestrator CPU idle policy',
+    'Orchestrator image URI template',
+  ]);
+});
+
+test('renders the custom orchestrator target in definite failures', () => {
+  assert.deepEqual(
+    gcpStartFailureResult(
+      new Error('job rejected'),
+      'execution-job',
+      'Cloud Run Job',
+    ),
+    {
+      body: {
+        error: 'Failed to trigger Cloud Run Job: job rejected',
+        testId: 'execution-job',
+      },
+      status: 500,
+    },
+  );
+});
 
 const logTransport: LogTransport = {
   publish: async () => undefined,

@@ -21,12 +21,41 @@ import {
 import { writeOutputArtifactManifest } from './output-artifacts';
 import { executionAuthenticationGrants } from '../services/execution-authentication';
 import { AUTHENTICATION_ENVELOPE_MAX_BYTES } from '../../../runners/shared/authentication-envelope';
+import {
+  claimExecutionOrchestratorPayload,
+  ORCHESTRATOR_BOOTSTRAP_HEADER,
+} from '../services/execution-orchestrator-payload';
 
 export const outputsRouter = Router();
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
+
+outputsRouter.post('/:testId/orchestrator-payload', async (req, res) => {
+  const { testId } = req.params;
+  const token = getStringHeader(req.headers[ORCHESTRATOR_BOOTSTRAP_HEADER]);
+  if (!token) {
+    return res
+      .status(401)
+      .json({ error: `Missing ${ORCHESTRATOR_BOOTSTRAP_HEADER} header.` });
+  }
+  try {
+    const payload = await claimExecutionOrchestratorPayload({
+      executionId: testId,
+      token,
+    });
+    if (!payload) {
+      return res.status(403).json({ error: 'Invalid orchestrator bootstrap.' });
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ payload });
+  } catch {
+    return res.status(409).json({
+      error: 'Orchestrator execution payload could not be delivered.',
+    });
+  }
+});
 
 outputsRouter.post(
   '/:testId/:nodeId/authentication-state',

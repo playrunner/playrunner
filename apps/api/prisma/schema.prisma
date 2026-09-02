@@ -161,6 +161,19 @@ model WorkflowExecution {
   @@index([workflowId])
 }
 
+model ExecutionOrchestratorPayload {
+  executionId       String   @id
+  tokenHash         String
+  encryptedPayload  String
+  encryptionVersion Int
+  expiresAt         DateTime
+  fetches           Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
 model WorkflowEvent {
   id            BigInt            @id @default(autoincrement())
   executionId   String

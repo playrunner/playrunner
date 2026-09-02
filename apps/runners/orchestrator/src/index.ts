@@ -41,6 +41,10 @@ import {
   type TerminalWorkflowEventPayload,
   WorkflowEventPublishError,
 } from './runtime/terminal-workflow-events';
+import {
+  parseOrchestratorBootstrap,
+  runOrchestratorJob,
+} from './runtime/orchestrator-job';
 
 const app = express();
 app.use(express.json());
@@ -2400,6 +2404,25 @@ app.post('/stop', requireOrchestratorAuth, async (req, res) => {
 
 async function start() {
   await orchestratorRuntime.ready;
+  const bootstrap = parseOrchestratorBootstrap();
+  if (bootstrap) {
+    console.log(
+      `Starting one-shot orchestrator execution ${bootstrap.executionId}.`,
+    );
+    const keepAlive = setInterval(() => undefined, 60_000);
+    try {
+      await runOrchestratorJob({
+        bootstrap,
+        execute: executeWorkflow,
+      });
+      console.log(
+        `One-shot orchestrator execution ${bootstrap.executionId} finished.`,
+      );
+    } finally {
+      clearInterval(keepAlive);
+    }
+    return;
+  }
   console.log(`Standby Runner listening on port ${PORT}`);
 
   app.listen(PORT, () => {

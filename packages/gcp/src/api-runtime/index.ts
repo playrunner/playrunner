@@ -42,7 +42,14 @@ export function createGcpApiRuntimeContribution({
 export { GcpOutputProxyBackend } from './gcp-output-proxy';
 export { GcpOutputSyncBackend } from './gcp-output-sync';
 export { GcpCloudSchedulerProvisioner } from './gcp-scheduler';
-export { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';
+export {
+  AmbiguousOrchestratorInvocationError,
+  GcpWorkflowExecutionBackend,
+} from './gcp-workflow-execution';
+export type {
+  GcpOrchestratorLauncher,
+  GcpOrchestratorLaunchRequest,
+} from './gcp-workflow-execution';
 export {
   createGcpPubSubEventStreamManager,
   type GcpPubSubEventStreamManager,

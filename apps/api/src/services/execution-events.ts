@@ -6,6 +6,7 @@ import type {
 } from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
 import { persistAgentMemoryFromEvent } from './agent-memory';
+import { clearExecutionOrchestratorPayload } from './execution-orchestrator-payload';
 
 export const EXECUTION_TOKEN_HEADER = 'x-execution-token';
 
@@ -445,6 +446,7 @@ class ExecutionEventsService {
           completedAt: new Date(),
         },
       });
+      await clearExecutionOrchestratorPayload(execution.id);
     }
 
     return toStreamableEvent(storedEvent);

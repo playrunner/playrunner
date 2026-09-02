@@ -30,7 +30,7 @@ type GoogleIdentityAuth = Pick<
   'getCredentials' | 'getIdTokenClient'
 >;
 
-class AmbiguousOrchestratorInvocationError extends Error {
+export class AmbiguousOrchestratorInvocationError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'AmbiguousOrchestratorInvocationError';
@@ -67,14 +67,17 @@ export function gcpStartFailurePolicy(error: unknown): {
 export function gcpStartFailureResult(
   error: unknown,
   testId: string,
+  target = 'Cloud Run Service',
+  execution = 'service-invocation',
 ): WorkflowExecutionResult {
   if (isAmbiguousOrchestratorInvocationError(error)) {
+    const invocationLabel =
+      target === 'Cloud Run Service' ? 'Cloud Run' : target;
     return {
       body: {
-        execution: 'service-invocation',
+        execution,
         invocationOutcome: 'unknown',
-        message:
-          'The Cloud Run invocation response was lost. The workflow may already be running; poll this execution for updates. It will not be retried automatically.',
+        message: `The ${invocationLabel} invocation response was lost. The workflow may already be running; poll this execution for updates. It will not be retried automatically.`,
         testId,
       },
       status: 202,
@@ -84,49 +87,74 @@ export function gcpStartFailureResult(
   const message = boundedInvocationErrorMessage(error);
   return {
     body: {
-      error: `Failed to trigger Cloud Run Service: ${message}`,
+      error: `Failed to trigger ${target}: ${message}`,
       testId,
     },
     status: 500,
   };
 }
 
-function missingRunnerSettings(gcp: Record<string, any>): string[] {
+export type GcpOrchestratorLaunchRequest = {
+  accessToken: string;
+  cloudRunLocation: string;
+  projectId: string;
+  requestBody: Record<string, any>;
+  testId: string;
+  workflowId?: string;
+};
+
+export type GcpOrchestratorLauncher = {
+  execution: string;
+  launch(args: GcpOrchestratorLaunchRequest): Promise<{
+    execution: string;
+    logMessage: string;
+    message: string;
+  }>;
+  target: string;
+};
+
+export function missingRunnerSettings(
+  gcp: Record<string, any>,
+  usesCustomOrchestratorLauncher = false,
+): string[] {
   const missing: string[] = [];
 
   if (!gcp.cloudRunLocation) {
     missing.push('Cloud Run region');
   }
 
-  if (!gcp.orchestratorServiceName) {
+  if (!usesCustomOrchestratorLauncher && !gcp.orchestratorServiceName) {
     missing.push('Orchestrator service name');
   }
 
   if (
-    gcp.orchestratorMinInstanceCount === undefined ||
-    gcp.orchestratorMinInstanceCount === null ||
-    gcp.orchestratorMinInstanceCount === ''
+    !usesCustomOrchestratorLauncher &&
+    (gcp.orchestratorMinInstanceCount === undefined ||
+      gcp.orchestratorMinInstanceCount === null ||
+      gcp.orchestratorMinInstanceCount === '')
   ) {
     missing.push('Orchestrator minimum instance count');
   }
 
   if (
-    gcp.orchestratorMaxInstanceCount === undefined ||
-    gcp.orchestratorMaxInstanceCount === null ||
-    gcp.orchestratorMaxInstanceCount === ''
+    !usesCustomOrchestratorLauncher &&
+    (gcp.orchestratorMaxInstanceCount === undefined ||
+      gcp.orchestratorMaxInstanceCount === null ||
+      gcp.orchestratorMaxInstanceCount === '')
   ) {
     missing.push('Orchestrator maximum instance count');
   }
 
   if (
-    gcp.orchestratorCpuIdle === undefined ||
-    gcp.orchestratorCpuIdle === null ||
-    gcp.orchestratorCpuIdle === ''
+    !usesCustomOrchestratorLauncher &&
+    (gcp.orchestratorCpuIdle === undefined ||
+      gcp.orchestratorCpuIdle === null ||
+      gcp.orchestratorCpuIdle === '')
   ) {
     missing.push('Orchestrator CPU idle policy');
   }
 
-  if (!gcp.orchestratorImageUriTemplate) {
+  if (!usesCustomOrchestratorLauncher && !gcp.orchestratorImageUriTemplate) {
     missing.push('Orchestrator image URI template');
   }
 
@@ -368,22 +396,26 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
   private readonly logTransport: LogTransport;
   private readonly pubSubEventStreamManager: GcpPubSubEventStreamManager;
   private readonly state: GcpRuntimeState;
+  private readonly orchestratorLauncher?: GcpOrchestratorLauncher;
 
   constructor({
     executionEvents,
     logTransport,
     pubSubEventStreamManager,
     state,
+    orchestratorLauncher,
   }: {
     executionEvents: GcpExecutionEvents;
     logTransport: LogTransport;
     pubSubEventStreamManager: GcpPubSubEventStreamManager;
     state: GcpRuntimeState;
+    orchestratorLauncher?: GcpOrchestratorLauncher;
   }) {
     this.executionEvents = executionEvents;
     this.logTransport = logTransport;
     this.pubSubEventStreamManager = pubSubEventStreamManager;
     this.state = state;
+    this.orchestratorLauncher = orchestratorLauncher;
   }
 
   supports(cloudProvider: string): boolean {
@@ -418,7 +450,10 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
-    const missingSettings = missingRunnerSettings(gcp);
+    const missingSettings = missingRunnerSettings(
+      gcp,
+      Boolean(this.orchestratorLauncher),
+    );
     if (missingSettings.length > 0) {
       return {
         body: {
@@ -590,72 +625,93 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         });
       }
 
-      const serviceUri = await ensureOrchestratorService(
-        gcp.selectedProject,
-        refreshedToken,
-        {
-          cloudRunLocation: gcp.cloudRunLocation,
-          editorApiUrl,
-          orchestratorCallerServiceAccountEmail:
-            process.env
-              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL,
-          orchestratorCallerServiceAccountSubject:
-            process.env
-              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT,
-          orchestratorCpuIdle: gcp.orchestratorCpuIdle,
-          orchestratorImageUriTemplate: gcp.orchestratorImageUriTemplate,
-          orchestratorMaxInstanceCount: gcp.orchestratorMaxInstanceCount,
-          orchestratorMinInstanceCount: gcp.orchestratorMinInstanceCount,
-          orchestratorRuntimeServiceAccountEmail: `playrunner-orchestrator-runtime@${gcp.selectedProject}.iam.gserviceaccount.com`,
-          orchestratorServiceName: gcp.orchestratorServiceName,
-        },
-      );
-      const identityHeaders = await createGcpOrchestratorIdentityHeaders({
-        audience: serviceUri,
-        callerServiceAccountEmail:
-          process.env
-            .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL || '',
-        callerServiceAccountSubject:
-          process.env
-            .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT || '',
-      });
-
-      await waitForOrchestratorServiceReady(
-        serviceUri,
-        identityHeaders,
-        this.logTransport,
-        testId,
-        workflowId,
-      );
-
       if (prewarmPromise) {
         prewarmedPlaywrightRunners = await prewarmPromise;
       }
 
-      await invokeOrchestratorService(
-        serviceUri,
-        {
-          ...body,
-          editorApiUrl,
-          eventTransport,
-          gcpProject: gcp.selectedProject,
-          bucketName,
-          executionAuthToken: executionToken,
-          prewarmedPlaywrightRunners,
-          testId,
-        },
-        identityHeaders,
-        this.logTransport,
+      const orchestratorRequestBody = {
+        ...body,
+        editorApiUrl,
+        eventTransport,
+        gcpProject: gcp.selectedProject,
+        bucketName,
+        executionAuthToken: executionToken,
+        prewarmedPlaywrightRunners,
         testId,
-        workflowId,
-      );
+      };
+      let launchResult: {
+        execution: string;
+        logMessage: string;
+        message: string;
+      };
+      if (this.orchestratorLauncher) {
+        launchResult = await this.orchestratorLauncher.launch({
+          accessToken: refreshedToken,
+          cloudRunLocation: gcp.cloudRunLocation,
+          projectId: gcp.selectedProject,
+          requestBody: orchestratorRequestBody,
+          testId,
+          workflowId,
+        });
+      } else {
+        const serviceUri = await ensureOrchestratorService(
+          gcp.selectedProject,
+          refreshedToken,
+          {
+            cloudRunLocation: gcp.cloudRunLocation,
+            editorApiUrl,
+            orchestratorCallerServiceAccountEmail:
+              process.env
+                .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL,
+            orchestratorCallerServiceAccountSubject:
+              process.env
+                .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT,
+            orchestratorCpuIdle: gcp.orchestratorCpuIdle,
+            orchestratorImageUriTemplate: gcp.orchestratorImageUriTemplate,
+            orchestratorMaxInstanceCount: gcp.orchestratorMaxInstanceCount,
+            orchestratorMinInstanceCount: gcp.orchestratorMinInstanceCount,
+            orchestratorRuntimeServiceAccountEmail: `playrunner-orchestrator-runtime@${gcp.selectedProject}.iam.gserviceaccount.com`,
+            orchestratorServiceName: gcp.orchestratorServiceName,
+          },
+        );
+        const identityHeaders = await createGcpOrchestratorIdentityHeaders({
+          audience: serviceUri,
+          callerServiceAccountEmail:
+            process.env
+              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_EMAIL || '',
+          callerServiceAccountSubject:
+            process.env
+              .PLAYRUNNER_GCP_ORCHESTRATOR_CALLER_SERVICE_ACCOUNT_SUBJECT || '',
+        });
+
+        await waitForOrchestratorServiceReady(
+          serviceUri,
+          identityHeaders,
+          this.logTransport,
+          testId,
+          workflowId,
+        );
+        await invokeOrchestratorService(
+          serviceUri,
+          orchestratorRequestBody,
+          identityHeaders,
+          this.logTransport,
+          testId,
+          workflowId,
+        );
+        launchResult = {
+          execution: 'service-invocation',
+          logMessage: 'Orchestrator Cloud Run Service triggered successfully.',
+          message: `Workflow triggered on Cloud Run Service successfully, testId: ${testId}`,
+        };
+      }
 
       try {
         await this.logTransport.publish(
           JSON.stringify({
             executionId: testId,
             level: 'info',
-            message: 'Orchestrator Cloud Run Service triggered successfully.',
+            message: launchResult.logMessage,
             testId,
             timestamp: new Date().toISOString(),
             type: 'log',
@@ -668,14 +724,16 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
       return {
         body: {
-          message: `Workflow triggered on Cloud Run Service successfully, testId: ${testId}`,
-          execution: 'service-invocation',
+          message: launchResult.message,
+          execution: launchResult.execution,
           testId,
         },
         status: 200,
       };
     } catch (err: any) {
       console.error('[workflows] GCP Run failed:', err);
+      const invocationTarget =
+        this.orchestratorLauncher?.target || 'Cloud Run Service';
       const invocationOutcomeUnknown =
         isAmbiguousOrchestratorInvocationError(err);
       const failurePolicy = gcpStartFailurePolicy(err);
@@ -704,7 +762,7 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
             level: invocationOutcomeUnknown ? 'warn' : 'error',
             message: invocationOutcomeUnknown
               ? `Cloud Run invocation outcome unknown: ${failureDetails}. No automatic retry was attempted; poll this execution for updates.`
-              : `Failed to trigger Cloud Run Service: ${failureDetails}`,
+              : `Failed to trigger ${invocationTarget}: ${failureDetails}`,
             testId,
             timestamp: new Date().toISOString(),
             type: failurePolicy.eventType,
@@ -715,7 +773,12 @@ export class GcpWorkflowExecutionBackend implements WorkflowExecutionBackend {
         // Ignore best-effort log transport failures.
       }
 
-      return gcpStartFailureResult(err, testId);
+      return gcpStartFailureResult(
+        err,
+        testId,
+        invocationTarget,
+        this.orchestratorLauncher?.execution,
+      );
     }
   }
 }

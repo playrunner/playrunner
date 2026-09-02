@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/gcp",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Google Cloud runner integration package for Playrunner.",
   "keywords": [
     "playrunner",
@@ -68,7 +68,8 @@
     "LICENSE",
     "README.md",
     "assets",
-    "src"
+    "src",
+    "!src/**/*.test.ts"
   ],
   "scripts": {
     "lint": "eslint .",
