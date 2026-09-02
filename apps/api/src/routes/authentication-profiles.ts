@@ -11,6 +11,10 @@ import {
   updateAuthenticationProfile,
 } from '../services/authentication-profiles';
 import crypto from 'node:crypto';
+import {
+  getHostedAuthenticationTest,
+  startHostedAuthenticationTest,
+} from '../services/hosted-authentication-test';
 
 export const authenticationProfilesRouter = Router();
 
@@ -68,7 +72,16 @@ authenticationProfilesRouter.get('/capability', (_req, res) => {
 
 authenticationProfilesRouter.get(
   '/sessions/:sessionId',
-  route((req, res) => {
+  route(async (req, res) => {
+    if (req.params.sessionId.startsWith('hosted-test.')) {
+      res.json({
+        session: await getHostedAuthenticationTest({
+          actorId: userId(req),
+          sessionId: req.params.sessionId,
+        }),
+      });
+      return;
+    }
     res.json({
       session: localAuthenticationAgent.get(userId(req), req.params.sessionId),
     });
@@ -160,6 +173,19 @@ authenticationProfilesRouter.post(
         req.params.id,
         'test',
       ),
+    });
+  }),
+);
+
+authenticationProfilesRouter.post(
+  '/:id/hosted-test',
+  route(async (req, res) => {
+    res.status(202).json({
+      session: await startHostedAuthenticationTest({
+        actorId: userId(req),
+        profileId: req.params.id,
+        req,
+      }),
     });
   }),
 );

@@ -26,7 +26,7 @@ You need:
 - Node.js 20 or later.
 - Google Chrome or a compatible Chromium browser installed on the computer
   where you will sign in.
-- Playrunner CLI 0.2.1 or later.
+- Playrunner CLI 0.2.5 or later.
 - A signed-in account at [playrunner.cloud](https://playrunner.cloud).
 
 Install the CLI globally on the computer that will perform authentication:
@@ -149,14 +149,16 @@ You can also revoke another computer with the trash button in the **Paired
 devices** panel. Revocation prevents that device from receiving new capture
 requests. Run `playrunner login` again if you later want to pair it again.
 
-## Current execution limitation
+## After capture
 
-Playrunner Cloud can pair a device and store an encrypted Authentication
-Profile captured by that device. The current workflow runtime still permits
-Authentication Profiles only on owner-initiated **Local runner** executions.
-Selecting a profile on a Playrunner Cloud **Hosted Runner** workflow is rejected
-before execution. Hosted Runner consumption of the captured profile requires a
-separate runtime release.
+The CLI is needed only to capture or refresh an Authentication Profile. After
+the profile becomes **Authenticated**, you may stop `playrunner auth connect`
+and turn off the paired computer.
+
+Cloud **Test session** checks and Hosted Runner workflows run remotely. The
+Hosted Runner receives the stored state through a short-lived,
+execution-bound handoff; it does not contact the companion or open a browser on
+your computer.
 
 ## Troubleshooting
 

@@ -9,7 +9,7 @@ import {
   testAuthenticationState,
 } from './authentication-capture.js';
 
-const VERSION = '0.2.4';
+const VERSION = '0.2.5';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 

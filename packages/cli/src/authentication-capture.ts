@@ -338,6 +338,17 @@ export async function captureRestoredBrowserStorage(
   }
 }
 
+export async function captureAndCloseRestoredBrowserStorage(
+  context: import('playwright').BrowserContext,
+  page: import('playwright').Page,
+) {
+  try {
+    return await captureRestoredBrowserStorage(context, page);
+  } finally {
+    await context.close().catch(() => undefined);
+  }
+}
+
 export async function captureAuthenticationState(args: {
   confirm: () => Promise<void>;
   env?: NodeJS.ProcessEnv;
@@ -390,7 +401,9 @@ export async function captureAuthenticationState(args: {
         args.timeoutMs || 60_000,
       );
     }
-    return captureRestoredBrowserStorage(context, page);
+    const capturedContext = context;
+    context = undefined;
+    return await captureAndCloseRestoredBrowserStorage(capturedContext, page);
   } finally {
     if (context) await context.close().catch(() => undefined);
     if (nativeBrowser) {

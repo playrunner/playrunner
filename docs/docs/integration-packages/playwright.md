@@ -69,22 +69,23 @@ surfaces, so no shared registry edit is required.
    test command or inline script and runner resources.
 5. Optionally connect an Environment node to inject environment variables into
    the test run.
-6. For authenticated tests on a supported Local runner, optionally select an
-   authenticated profile after following the
+6. For authenticated tests, optionally select an authenticated profile after
+   following the
    [Authentication Profiles tutorial](../tutorials/06-authentication-profiles.md).
 
 ## Authentication Profiles
 
 The **Authentication Profile** setting restores a manually captured, encrypted
-browser session for a Local runner execution. The profile must be
+browser session for a Local or Playrunner Cloud Hosted Runner execution. The
+profile must be
 **Authenticated**, and the saved Environment assigned to that profile must be
 selected on an Environment node connected to the Playwright node. Playrunner
 Cloud users capture the state through a paired computer running the
 [CLI authentication companion](../cli/authentication-companion.md).
 
-Authentication Profiles currently support only owner-initiated Local runner
-executions. They are rejected for the Playrunner Cloud Hosted Runner, other
-remote runners, and shared workflow runs. See
+Authentication Profiles support owner-initiated Local runner and Playrunner
+Cloud Hosted Runner executions. They remain unavailable to shared workflow
+runs. See
 [Reuse Browser Sessions with Authentication Profiles](../tutorials/06-authentication-profiles.md)
 for profile creation, success conditions, session testing, lifecycle actions,
 security boundaries, and troubleshooting.

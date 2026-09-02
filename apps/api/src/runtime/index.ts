@@ -69,7 +69,12 @@ async function resolveWorkflowSettings(request: WorkflowExecutionRequest) {
         ? node.nodeType.trim()
         : '';
     if (nodeType && !HOST_NODE_TYPES.has(nodeType)) providers.add(nodeType);
-    if (nodeType === 'playwright' || nodeType === 'agent-container') {
+    const config =
+      node?.config && typeof node.config === 'object' ? node.config : {};
+    const playwrightNeedsRepository =
+      nodeType === 'playwright' &&
+      (config.action === 'clone' || (!config.action && config.repository));
+    if (playwrightNeedsRepository || nodeType === 'agent-container') {
       providers.add('github');
     }
   }

@@ -56,7 +56,7 @@ For workflow commands and CI/CD, you can run the CLI without installing it
 globally:
 
 ```bash
-npx --yes playrunner@0.2.3 --help
+npx --yes playrunner@0.2.5 --help
 ```
 
 Pinning the version in automation makes CLI upgrades deliberate.
@@ -106,7 +106,6 @@ capture, revocation, security, and troubleshooting guide. The CLI also has an
 optional advanced background-service mode; it is not part of the required
 login-and-connect flow.
 
-The current Cloud Hosted Runner does not yet consume Authentication Profiles.
-The companion can capture and manage encrypted profiles in Cloud, while
-workflow use remains limited to supported owner-initiated Local runner
-executions.
+The CLI is not involved after capture. **Test session** runs on the Cloud
+Hosted Runner, and Hosted Runner workflows restore the encrypted profile
+through an execution-bound handoff even when the paired computer is offline.

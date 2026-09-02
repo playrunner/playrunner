@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
+  captureAndCloseRestoredBrowserStorage,
   captureRestoredBrowserStorage,
   createNativeBrowserProfile,
   nativeBrowserArguments,
@@ -130,5 +131,48 @@ test('storage capture retries after Chrome finishes restoring its session', asyn
     'load',
     'evaluate',
     'storage',
+  ]);
+});
+
+test('storage capture settles before its browser context is closed', async () => {
+  const calls: string[] = [];
+  let finishStorage: (() => void) | undefined;
+  const storageFinished = new Promise<void>((resolve) => {
+    finishStorage = resolve;
+  });
+  const page = {
+    evaluate: async () => {
+      calls.push('evaluate');
+      return 'complete';
+    },
+    waitForLoadState: async () => {
+      calls.push('load');
+    },
+  } as unknown as import('playwright').Page;
+  const expected = { cookies: [], origins: [] };
+  const context = {
+    close: async () => {
+      calls.push('close');
+    },
+    storageState: async () => {
+      calls.push('storage-start');
+      await storageFinished;
+      calls.push('storage-finish');
+      return expected;
+    },
+  } as unknown as import('playwright').BrowserContext;
+
+  const capture = captureAndCloseRestoredBrowserStorage(context, page);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, ['load', 'evaluate', 'storage-start']);
+
+  finishStorage?.();
+  assert.equal(await capture, expected);
+  assert.deepEqual(calls, [
+    'load',
+    'evaluate',
+    'storage-start',
+    'storage-finish',
+    'close',
   ]);
 });

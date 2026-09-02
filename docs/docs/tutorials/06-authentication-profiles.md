@@ -13,8 +13,8 @@ keywords:
 
 Authentication Profiles let a Playwright node begin with a real signed-in
 browser session. You sign in manually in a visible browser, Playrunner captures
-the resulting browser state, and a supported Local runner execution restores
-that state without storing your identity-provider password.
+the resulting browser state, and Local or Cloud Hosted Runner executions
+restore that state without storing your identity-provider password.
 
 With local Playrunner, the API opens the browser directly. With Playrunner
 Cloud, the Playrunner CLI authentication companion opens Chrome on a computer
@@ -31,14 +31,13 @@ You need:
 - Google Chrome or a compatible Chromium browser.
 - A saved [Environment](../integration-packages/environment.md) for the target
   application.
-- For Playrunner Cloud, Node.js 20 or later and Playrunner CLI 0.2.1 or later
+- For Playrunner Cloud, Node.js 20 or later and Playrunner CLI 0.2.5 or later
   on the computer where you will sign in. Complete the
   [authentication companion setup](../cli/authentication-companion.md) first.
 - For local Playrunner, a running API with interactive authentication enabled
   and Chrome available on the API host.
-- To use the captured profile in a workflow, an owner-initiated workflow that
-  uses the **Local runner**. The current runtime does not allow Authentication
-  Profiles on the Playrunner Cloud Hosted Runner or other remote runners.
+- To use the captured profile in a workflow, an owner-initiated workflow using
+  the Local runner or Playrunner Cloud **Hosted Runner**.
 
 Authentication Profiles belong to their owner. A shared workflow run cannot
 use the workflow owner's saved browser session.
@@ -117,14 +116,14 @@ that the configured selector is visible, then authenticate again.
 
 ## Step 5 — Test the stored session
 
-For local Playrunner, click **Test session** on an authenticated profile.
-Playrunner opens a visible browser with the stored state, navigates to the
-start URL, and verifies the same success condition.
+Click **Test session** on an authenticated profile.
 
-Playrunner Cloud does not expose an interactive **Test session** action. A
-future supported Cloud workflow run will be the test for a Cloud-captured
-session; the current Hosted Runner does not yet consume Authentication
-Profiles.
+- Local Playrunner opens a visible browser with the stored state.
+- Playrunner Cloud starts a Hosted Runner Playwright job with the stored state.
+  The test runs remotely; the paired device and CLI do not need to be online.
+
+Both paths navigate to the start URL and verify the same success condition
+used during capture.
 
 Testing the session before attaching it to a workflow is the quickest way to
 detect an expired server-side session, a changed login flow, or an unreliable
@@ -138,16 +137,12 @@ success condition.
 3. Connect the Environment node to the **Playwright** node.
 4. Open the Playwright node configuration.
 5. Under **Authentication Profile**, select the authenticated profile.
-6. Select the **Local runner**, save the workflow, and run it.
-
-On Playrunner Cloud the workflow selector uses **Hosted Runner**. Although a
-Cloud user can capture and manage the profile, the current Hosted Runner
-runtime rejects a workflow that selects one. Do not attach a profile to a
-Hosted Runner workflow until Hosted Runner support is released.
+6. Select the Local runner or, in Playrunner Cloud, **Hosted Runner**. Save the
+   workflow and run it.
 
 Playrunner rejects the run if the matching Environment is not linked, the
-profile is not authenticated, the profile belongs to another user, or a remote
-runner is selected.
+profile is not authenticated, the profile belongs to another user, or the
+runner cannot perform the secure state handoff.
 
 At execution time, the API grants only the selected Playwright node access to
 the profile. The runner receives the decrypted browser state through a sealed,
@@ -158,13 +153,13 @@ execution-bound exchange and loads it into the Playwright browser context.
 Each profile shows its Environment, optional role, authentication status, last
 authentication time, and known expiry.
 
-| Action              | Effect                                                                                        |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| **Re-authenticate** | Replaces the stored browser state by running the manual sign-in flow again                    |
-| **Test session**    | In local Playrunner, restores the state in a visible browser and checks the success condition |
-| **Edit**            | Changes profile metadata or authentication settings                                           |
-| **Revoke**          | Immediately removes stored browser state but keeps the profile                                |
-| **Delete**          | Permanently removes the profile and its encrypted browser state                               |
+| Action              | Effect                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------- |
+| **Re-authenticate** | Replaces the stored browser state by running the manual sign-in flow again                |
+| **Test session**    | Restores the state and checks the success condition locally or on the Cloud Hosted Runner |
+| **Edit**            | Changes profile metadata or authentication settings                                       |
+| **Revoke**          | Immediately removes stored browser state but keeps the profile                            |
+| **Delete**          | Permanently removes the profile and its encrypted browser state                           |
 
 An expired, revoked, unauthenticated, or reauthentication-required profile is
 disabled in the Playwright node selector until it is authenticated again.
@@ -178,8 +173,9 @@ disabled in the Playwright node selector until it is authenticated again.
 - Captured browser state is encrypted at rest and omitted from normal profile
   API responses.
 - Profiles are isolated by owner and Environment.
-- Browser state is released only for the selected node in an authorized Local
-  runner execution.
+- Browser state is released only for the selected node in an authorized
+  execution. Hosted runners receive it through a sealed, execution-bound
+  exchange.
 - Revoking a profile removes its stored state immediately. It does not revoke
   the session at the identity provider; use the provider's account controls if
   that is also required.
@@ -198,8 +194,8 @@ access changes.
 | Authentication waits and then fails                | Check the success URL or selector, then press **Enter** in the Cloud companion terminal or complete the local capture |
 | The profile is disabled in the Playwright selector | Authenticate it again and confirm its status is **Authenticated**                                                     |
 | The workflow requires the profile's Environment    | Add that saved Environment node and connect it to the Playwright node                                                 |
-| The runner reports the profile is unsupported      | Use an owner-initiated **Local runner** execution; Hosted Runner support has not shipped                              |
-| A previously working local session fails           | Click **Test session**, then **Re-authenticate** if the provider session expired                                      |
+| A Hosted Runner session test fails                 | Re-authenticate the profile, then test it again; the CLI is not required for the test itself                          |
+| A previously working session fails                 | Click **Test session**, then **Re-authenticate** if the provider session expired                                      |
 
 For local browser configuration variables, see
 [Environment variables](../local-dev/05-environment-variables.md). For general

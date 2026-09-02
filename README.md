@@ -99,13 +99,15 @@ the captured session state.
 
 Select the profile on any Playwright node that needs it. Playrunner restores
 the session for that execution while keeping profiles isolated by Environment.
+The CLI is needed only while capturing or refreshing the profile. Cloud
+**Test session** checks and Hosted Runner workflows restore the encrypted
+stored state remotely and do not require the companion to remain connected.
 Each profile records its application, role, authentication status, last sign-in,
 and known expiry, and can be reauthenticated, revoked, or removed when access
 changes. Follow the
 [Authentication Profiles tutorial](https://playrunner.dev/docs/tutorials/authentication-profiles/)
 and [CLI companion guide](https://playrunner.dev/docs/cli/authentication-companion/)
-for pairing, capture, security, and the current Local runner execution
-limitation.
+for pairing, capture, hosted testing, and security.
 
 ## Playrunner from the command line
 
