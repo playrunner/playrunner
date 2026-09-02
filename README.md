@@ -15,6 +15,10 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/playrunner/playrunner">Please ⭐ <strong>star Playrunner if you find it useful</strong></a>
+</p>
+
+<p align="center">
   <a href="https://playrunner.cloud"><strong>Try Playrunner Cloud →</strong></a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://playrunner.dev/docs/tutorials/getting-started">Run it locally</a>
