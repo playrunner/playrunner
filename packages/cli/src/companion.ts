@@ -417,8 +417,7 @@ async function processCommand(
       `${pathPrefix}/status`,
       {
         body: JSON.stringify({
-          errorCode:
-            command.mode === 'test' ? 'test_failed' : 'capture_failed',
+          errorCode: command.mode === 'test' ? 'test_failed' : 'capture_failed',
           status: 'failed',
         }),
         method: 'POST',
