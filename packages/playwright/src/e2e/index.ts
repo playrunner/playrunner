@@ -64,6 +64,49 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
       },
     },
     {
+      id: 'compact-node-settings-layout',
+      mode: 'mock',
+      title: 'keeps tabs and resource settings visible at compact widths',
+      tags: ['@playwright', '@integration', '@node'],
+      async run({ expect, page, pom }) {
+        await page.setViewportSize({ width: 1056, height: 539 });
+        await pom.createNode();
+
+        const tabs = pom.field('tabs');
+        await expect(tabs).toBeVisible();
+        await expect(pom.field('tab-config')).toHaveAttribute(
+          'aria-selected',
+          'true',
+        );
+        await pom.field('tab-resources').click();
+        await expect(pom.field('tab-resources')).toHaveAttribute(
+          'aria-selected',
+          'true',
+        );
+
+        const tabLayout = await tabs.evaluate((element) => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }));
+        expect(tabLayout.scrollWidth).toBeLessThanOrEqual(
+          tabLayout.clientWidth,
+        );
+
+        const resourceLimits = pom.field('resource-limits');
+        await expect(resourceLimits).toBeVisible();
+        const resourceLayout = await resourceLimits.evaluate((element) => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }));
+        expect(resourceLayout.scrollWidth).toBeLessThanOrEqual(
+          resourceLayout.clientWidth,
+        );
+        await expect(pom.field('cpu')).toBeVisible();
+        await expect(pom.field('memory')).toBeVisible();
+        await expect(pom.field('workers')).toBeVisible();
+      },
+    },
+    {
       id: 'configure-run-and-upload-values',
       mode: 'mock',
       title: 'persists Playwright inline script and upload values',

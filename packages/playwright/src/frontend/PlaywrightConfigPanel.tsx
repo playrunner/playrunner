@@ -272,8 +272,16 @@ test.describe('navigation', () => {
 
   return (
     <>
-      <div className="flex items-center gap-2 mt-6 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+      <div
+        role="tablist"
+        aria-label="Playwright node settings"
+        data-testid="playwright-node-tabs"
+        className="mt-6 mb-4 flex flex-wrap items-center gap-2"
+      >
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'config'}
           data-testid="playwright-node-tab-config"
           onClick={() => setActiveTab('config')}
           className={cn(
@@ -286,6 +294,9 @@ test.describe('navigation', () => {
           Configuration
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'env'}
           data-testid="playwright-node-tab-env"
           onClick={() => setActiveTab('env')}
           className={cn(
@@ -298,6 +309,9 @@ test.describe('navigation', () => {
           Environment
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'resources'}
           data-testid="playwright-node-tab-resources"
           onClick={() => setActiveTab('resources')}
           className={cn(
@@ -900,8 +914,11 @@ test.describe('navigation', () => {
 
         {activeTab === 'resources' && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
+            <div
+              data-testid="playwright-node-resource-limits"
+              className="grid grid-cols-1 gap-4 xl:grid-cols-3"
+            >
+              <div className="min-w-0 space-y-1.5">
                 <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                   {config.shardingMode === 'auto'
                     ? 'Maximum CPU per shard'
@@ -924,7 +941,7 @@ test.describe('navigation', () => {
                   <option value={8}>8 CPUs</option>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                   {config.shardingMode === 'auto'
                     ? 'Maximum memory per shard'
@@ -950,7 +967,7 @@ test.describe('navigation', () => {
                   <option value={32}>32 GB</option>
                 </Select>
               </div>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <label className="text-[10px] font-medium text-muted uppercase tracking-wider">
                   {config.shardingMode === 'auto'
                     ? 'Maximum workers per shard'

@@ -57,6 +57,9 @@ type OutputAwareIntegration = {
 };
 
 const WORKFLOW_INPUT_PANEL_ID = '__workflow__';
+const LARGE_PANEL_LAYOUT_QUERY = '(min-width: 1536px)';
+const COMPACT_SIDE_PANEL_WIDTH = 25;
+const LARGE_SIDE_PANEL_WIDTH = 33.33;
 const WORKFLOW_INPUT_VARIABLES: WorkflowInputVariable[] = [
   { path: 'workflow.definition.id', type: 'string' },
   { path: 'workflow.definition.name', type: 'string' },
@@ -105,6 +108,12 @@ const NODE_DIAGNOSTIC_OUTPUT_VARIABLES: readonly OutputVariable[] = [
   { path: 'logs.build', type: 'array' },
   { path: 'logs.debug', type: 'array' },
 ];
+
+function defaultSidePanelWidth(): number {
+  return window.matchMedia(LARGE_PANEL_LAYOUT_QUERY).matches
+    ? LARGE_SIDE_PANEL_WIDTH
+    : COMPACT_SIDE_PANEL_WIDTH;
+}
 
 function setDragText(event: React.DragEvent, dragText: string) {
   event.dataTransfer.setData('text/plain', dragText);
@@ -422,8 +431,8 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
     Record<string, boolean>
   >({});
 
-  const [leftWidth, setLeftWidth] = useState(33.33);
-  const [rightWidth, setRightWidth] = useState(33.33);
+  const [leftWidth, setLeftWidth] = useState(defaultSidePanelWidth);
+  const [rightWidth, setRightWidth] = useState(defaultSidePanelWidth);
   const containerRef = useRef<HTMLDivElement>(null);
   const latestConfigRef = useRef(config);
   const latestOnChangeRef = useRef(onChange);
@@ -435,6 +444,20 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   useEffect(() => {
     latestOnChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    const largeLayout = window.matchMedia(LARGE_PANEL_LAYOUT_QUERY);
+    const applyDefaultLayout = () => {
+      const sidePanelWidth = largeLayout.matches
+        ? LARGE_SIDE_PANEL_WIDTH
+        : COMPACT_SIDE_PANEL_WIDTH;
+      setLeftWidth(sidePanelWidth);
+      setRightWidth(sidePanelWidth);
+    };
+
+    largeLayout.addEventListener('change', applyDefaultLayout);
+    return () => largeLayout.removeEventListener('change', applyDefaultLayout);
+  }, []);
 
   const startResize = (e: React.PointerEvent, side: 'left' | 'right') => {
     e.preventDefault();
@@ -470,12 +493,9 @@ export const IntegrationConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
 
   const handleConfigFieldDrop = (event: React.DragEvent<HTMLDivElement>) => {
     const field = event.target;
-    if (
-      !(
-        field instanceof HTMLInputElement ||
-        field instanceof HTMLTextAreaElement
-      )
-    ) {
+    if (!(
+      field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement
+    )) {
       return;
     }
 
