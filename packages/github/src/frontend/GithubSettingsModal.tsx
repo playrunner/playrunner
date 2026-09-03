@@ -669,17 +669,8 @@ export function GithubSettingsModal({
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
                   Use the setup guide to create the GitHub App, configure
-                  repository permissions (Issues and Pull requests: Read and
-                  write; Contents: Read and write), and find the app slug,
-                  client ID, and client secret. Install the app on each source
-                  repository where Playrunner should create bot branches and
-                  draft pull requests. Private repositories are supported.
-                  Configure workflows to withhold deployment and production
-                  secrets from branches under playrunner/tests/. Generated-test
-                  delivery rejects source workflows using pull_request_target,
-                  workflow_run, self-hosted/custom runner labels, runner groups,
-                  dynamic runner expressions, or reusable-workflow indirection.
-                  Use static standard GitHub-hosted runners for bot PR checks.
+                  repository permissions, and find the app slug, client ID, and
+                  client secret.
                 </p>
                 <a
                   href={GITHUB_SETUP_DOCS_URL}
