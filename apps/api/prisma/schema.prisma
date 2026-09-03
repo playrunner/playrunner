@@ -11,13 +11,14 @@ datasource db {
 }
 
 model Project {
-  id        String          @id
-  userId    String
-  title     String?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
-  workflows Workflow[]
-  memories  ProjectMemory[]
+  id               String          @id
+  userId           String
+  title            String?
+  defaultNodeTypes Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  workflows        Workflow[]
+  memories         ProjectMemory[]
 
   @@index([userId])
 }

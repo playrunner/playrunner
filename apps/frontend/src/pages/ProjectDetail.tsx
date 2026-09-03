@@ -15,6 +15,7 @@ import {
 import { Button, Badge, Input } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
 import { ProjectSettingsModal } from '../components/ProjectSettingsModal';
+import { NODE_TYPES } from '../components/NodeSelectorModal';
 import { useHeader } from '../components/PageLayout';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
@@ -22,6 +23,18 @@ import {
   getCloudProvider,
   getDefaultWorkflowCloudProviderId,
 } from '../runtime/cloudProviders';
+import {
+  createStarterWorkflow,
+  normalizeProjectNodeTypes,
+} from '../lib/projectDefaults';
+
+const AVAILABLE_STARTING_NODE_TYPES = NODE_TYPES.filter(
+  (nodeType) => nodeType.executionRole === 'workflow',
+).sort((left, right) => {
+  const leftOrder = left.nodeSelectorOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = right.nodeSelectorOrder ?? Number.MAX_SAFE_INTEGER;
+  return leftOrder - rightOrder || left.label.localeCompare(right.label);
+});
 
 const getProviderIcon = (provider?: string) => {
   const p = provider?.toUpperCase();
@@ -74,11 +87,14 @@ export default function ProjectDetail() {
     }
   }, [editedTitle, project]);
 
-  const handleSaveProjectSettings = async (title: string) => {
+  const handleSaveProjectSettings = async (settings: {
+    title: string;
+    defaultNodeTypes: string[];
+  }) => {
     if (!auth.currentUser || !project) return;
-    await DbAPI.saveProject(auth.currentUser.uid, project.id, { title });
-    setProject((previous: any) => ({ ...previous, title }));
-    setEditedTitle(title);
+    await DbAPI.saveProject(auth.currentUser.uid, project.id, settings);
+    setProject((previous: any) => ({ ...previous, ...settings }));
+    setEditedTitle(settings.title);
   };
 
   const handleRenameWorkflow = async () => {
@@ -209,41 +225,14 @@ export default function ProjectDetail() {
     if (!auth.currentUser || !project || isCreatingWorkflow) return;
     setIsCreatingWorkflow(true);
     try {
-      const envId = `env-${Date.now()}`;
-      const pwId = `playwright-${Date.now()}`;
-      const defaultNodes = [
-        {
-          id: envId,
-          nodeType: 'environment',
-          label: 'Environment',
-          x: 200,
-          y: 300,
-          width: 128,
-          height: 128,
-        },
-        {
-          id: pwId,
-          nodeType: 'playwright',
-          label: 'Playwright',
-          x: 500,
-          y: 300,
-          width: 128,
-          height: 128,
-        },
-      ];
-      const defaultConnections = [
-        {
-          id: `conn-${Date.now()}`,
-          sourceId: envId,
-          targetId: pwId,
-          sourcePort: 'right',
-          targetPort: 'left',
-        },
-      ];
+      const { nodes, connections } = createStarterWorkflow(
+        normalizeProjectNodeTypes(project.defaultNodeTypes),
+        AVAILABLE_STARTING_NODE_TYPES,
+      );
       const newId = await DbAPI.createWorkflow(auth.currentUser.uid, {
         projectId: project.id,
-        nodes: defaultNodes,
-        connections: defaultConnections,
+        nodes,
+        connections,
         title: 'New Workflow',
         cloudProvider: getDefaultWorkflowCloudProviderId(),
       });
@@ -434,6 +423,8 @@ export default function ProjectDetail() {
       <ProjectSettingsModal
         isOpen={isSettingsOpen}
         projectTitle={project.title || 'Untitled Project'}
+        defaultNodeTypes={normalizeProjectNodeTypes(project.defaultNodeTypes)}
+        availableNodeTypes={AVAILABLE_STARTING_NODE_TYPES}
         onClose={() => setIsSettingsOpen(false)}
         onSave={handleSaveProjectSettings}
       />

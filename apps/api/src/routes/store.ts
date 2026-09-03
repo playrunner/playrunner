@@ -69,6 +69,17 @@ function toOptionalNumber(value: unknown) {
     : undefined;
 }
 
+function toOptionalStringArray(value: unknown) {
+  if (value === undefined) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every((item) => typeof item === 'string')
+  ) {
+    return undefined;
+  }
+  return value as string[];
+}
+
 function toOptionalDate(value: unknown) {
   if (typeof value !== 'string' || !value.trim()) {
     return undefined;
@@ -101,6 +112,7 @@ function serializeProject(project: {
   id: string;
   userId: string;
   title: string | null;
+  defaultNodeTypes: Prisma.JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
 }) {
@@ -108,6 +120,7 @@ function serializeProject(project: {
     id: project.id,
     userId: project.userId,
     title: project.title,
+    defaultNodeTypes: project.defaultNodeTypes,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };
@@ -204,6 +217,9 @@ storeRouter.post(
         id: crypto.randomUUID(),
         userId,
         title: toNullableString(req.body?.title) ?? null,
+        defaultNodeTypes:
+          toJsonValue(toOptionalStringArray(req.body?.defaultNodeTypes)) ??
+          Prisma.JsonNull,
         createdAt: toOptionalDate(req.body?.createdAt),
       },
     });
@@ -223,6 +239,7 @@ storeRouter.put(
       },
     });
     const title = toNullableString(req.body?.title);
+    const defaultNodeTypes = toOptionalStringArray(req.body?.defaultNodeTypes);
 
     if (!existing) {
       const project = await prisma.project.create({
@@ -230,6 +247,7 @@ storeRouter.put(
           id: req.params.id,
           userId,
           title: title ?? null,
+          defaultNodeTypes: toJsonValue(defaultNodeTypes) ?? Prisma.JsonNull,
           createdAt: toOptionalDate(req.body?.createdAt),
         },
       });
@@ -239,7 +257,12 @@ storeRouter.put(
 
     const project = await prisma.project.update({
       where: { id: existing.id },
-      data: title !== undefined ? { title } : {},
+      data: {
+        ...(title !== undefined ? { title } : {}),
+        ...(defaultNodeTypes !== undefined
+          ? { defaultNodeTypes: toJsonValue(defaultNodeTypes) }
+          : {}),
+      },
     });
 
     res.json({ project: serializeProject(project) });
