@@ -139,14 +139,26 @@ export default function ProjectDetail() {
         </button>
         <div className="h-6 w-px bg-subtle mx-2" />
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center shrink-0">
-            <span className="text-[var(--foreground)] font-semibold text-xs">
-              {project?.title
-                ? project.title.substring(0, 2).toUpperCase()
-                : 'P'}
-            </span>
-          </div>
-          {isEditingTitle ? (
+          {isLoading ? (
+            <div
+              className="h-8 w-8 shrink-0 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface-hover)]"
+              aria-hidden="true"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] flex items-center justify-center shrink-0">
+              <span className="text-[var(--foreground)] font-semibold text-xs">
+                {project?.title
+                  ? project.title.substring(0, 2).toUpperCase()
+                  : 'P'}
+              </span>
+            </div>
+          )}
+          {isLoading ? (
+            <div
+              className="h-4 w-32 animate-pulse rounded bg-[var(--surface-hover)]"
+              aria-hidden="true"
+            />
+          ) : isEditingTitle ? (
             <input
               autoFocus
               type="text"
@@ -190,6 +202,7 @@ export default function ProjectDetail() {
     editedTitle,
     handleSaveTitle,
     isEditingTitle,
+    isLoading,
     navigate,
     project?.title,
     setHeaderLeft,
