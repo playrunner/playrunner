@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
+  FolderPlus,
   Info,
+  Loader2,
   Plus,
   RotateCcw,
   Settings,
@@ -14,6 +17,7 @@ import type { AppNodeType } from './NodeSelectorModal';
 import { DEFAULT_PROJECT_NODE_TYPES } from '../lib/projectDefaults';
 
 interface ProjectSettingsModalProps {
+  mode?: 'create' | 'edit';
   isOpen: boolean;
   projectTitle: string;
   defaultNodeTypes: string[];
@@ -26,6 +30,7 @@ interface ProjectSettingsModalProps {
 }
 
 export function ProjectSettingsModal({
+  mode = 'edit',
   isOpen,
   projectTitle,
   defaultNodeTypes,
@@ -36,20 +41,36 @@ export function ProjectSettingsModal({
   const [title, setTitle] = useState(projectTitle);
   const [nodeTypes, setNodeTypes] = useState(defaultNodeTypes);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setTitle(projectTitle);
       setNodeTypes(defaultNodeTypes);
+      setError('');
     }
   }, [defaultNodeTypes, isOpen, projectTitle]);
 
   const handleSave = async () => {
     if (!title.trim() || isSaving) return;
     setIsSaving(true);
+    setError('');
     try {
       await onSave({ title: title.trim(), defaultNodeTypes: nodeTypes });
       onClose();
+    } catch (saveError) {
+      console.error(
+        mode === 'create'
+          ? 'Failed to create project:'
+          : 'Failed to save project settings:',
+        saveError,
+      );
+      setError(
+        mode === 'create'
+          ? 'The project could not be created. Please try again.'
+          : 'The project settings could not be saved. Please try again.',
+      );
     } finally {
       setIsSaving(false);
     }
@@ -76,10 +97,23 @@ export function ProjectSettingsModal({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title="Project settings"
-      subtitle="Manage the settings for this project."
-      icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+      onClose={() => {
+        if (!isSaving) onClose();
+      }}
+      title={mode === 'create' ? 'Create project' : 'Project settings'}
+      subtitle={
+        mode === 'create'
+          ? 'Name the project and choose how its workflows begin.'
+          : 'Manage the settings for this project.'
+      }
+      icon={
+        mode === 'create' ? (
+          <FolderPlus className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Settings className="h-4 w-4" aria-hidden="true" />
+        )
+      }
+      initialFocusRef={mode === 'create' ? titleInputRef : undefined}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={isSaving}>
@@ -87,10 +121,18 @@ export function ProjectSettingsModal({
           </Button>
           <Button
             variant="primary"
+            className="gap-2"
             onClick={handleSave}
             disabled={!title.trim() || isSaving}
           >
-            {isSaving ? 'Saving…' : 'Save changes'}
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {isSaving
+              ? mode === 'create'
+                ? 'Creating…'
+                : 'Saving…'
+              : mode === 'create'
+                ? 'Create project'
+                : 'Save changes'}
           </Button>
         </>
       }
@@ -104,9 +146,13 @@ export function ProjectSettingsModal({
             Project name
           </label>
           <Input
+            ref={titleInputRef}
             id="project-settings-title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
+            onFocus={(event) => {
+              if (mode === 'create') event.currentTarget.select();
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') void handleSave();
             }}
@@ -136,8 +182,9 @@ export function ProjectSettingsModal({
           <div className="flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3 text-muted shadow-inner">
             <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p className="text-xs leading-relaxed">
-              Changing these defaults only affects workflows created after you
-              save. Existing workflows stay unchanged.
+              {mode === 'create'
+                ? 'These nodes will be added to the first workflow and used as defaults for new workflows.'
+                : 'Changing these defaults only affects workflows created after you save. Existing workflows stay unchanged.'}
             </p>
           </div>
 
@@ -221,6 +268,16 @@ export function ProjectSettingsModal({
             Add starting node
           </Button>
         </section>
+
+        {error ? (
+          <div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-red-500">
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            <p className="text-xs leading-relaxed">{error}</p>
+          </div>
+        ) : null}
       </div>
     </Modal>
   );

@@ -1,27 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  GitBranch,
-  Plus,
-  Search,
-  Loader2,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react';
+import { GitBranch, Plus, Search, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Badge, Button, Input } from '../components/ui';
+import { ProjectSettingsModal } from '../components/ProjectSettingsModal';
+import { NODE_TYPES } from '../components/NodeSelectorModal';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
+import {
+  createStarterWorkflow,
+  DEFAULT_PROJECT_NODE_TYPES,
+} from '../lib/projectDefaults';
 import {
   CLOUD_PROVIDERS,
   getDefaultWorkflowCloudProviderId,
 } from '../runtime/cloudProviders';
 import { PremiumOnboardingModal } from '../runtime/onboarding';
 
+const AVAILABLE_STARTING_NODE_TYPES = NODE_TYPES.filter(
+  (nodeType) => nodeType.executionRole === 'workflow',
+).sort((left, right) => {
+  const leftOrder = left.nodeSelectorOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = right.nodeSelectorOrder ?? Number.MAX_SAFE_INTEGER;
+  return leftOrder - rightOrder || left.label.localeCompare(right.label);
+});
+
 export default function Projects() {
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showCreateProject, setShowCreateProject] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [sharedWorkflows, setSharedWorkflows] = useState<any[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
+  const [starterWorkflow, setStarterWorkflow] = useState<{
+    nodes: any[];
+    connections: any[];
+    defaultNodeTypes: string[];
+  } | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -80,17 +92,16 @@ export default function Projects() {
     setShowOnboarding(false);
 
     if (auth.currentUser) {
-      const projectId = await DbAPI.createProject(auth.currentUser.uid, {
-        title: 'New Project',
-      });
-      await DbAPI.createWorkflow(auth.currentUser.uid, {
-        projectId,
+      setStarterWorkflow({
         nodes,
         connections,
-        title: 'Default Workflow',
-        cloudProvider: getDefaultWorkflowCloudProviderId(),
+        defaultNodeTypes: nodes
+          .map((node) => node.nodeType)
+          .filter(
+            (nodeType): nodeType is string => typeof nodeType === 'string',
+          ),
       });
-      navigate(`/projects/${projectId}`);
+      setShowCreateProject(true);
     } else {
       navigate('/workflow', {
         state: { initialNodes: nodes, initialConnections: connections },
@@ -103,57 +114,61 @@ export default function Projects() {
     setShowOnboarding(false);
   };
 
-  const handleCreateProject = async () => {
-    if (!auth.currentUser || isCreating) return;
-    setIsCreating(true);
+  const openCreateProject = () => {
+    const { nodes, connections } = createStarterWorkflow(
+      DEFAULT_PROJECT_NODE_TYPES,
+      NODE_TYPES,
+    );
+    setStarterWorkflow({
+      nodes,
+      connections,
+      defaultNodeTypes: DEFAULT_PROJECT_NODE_TYPES,
+    });
+    setShowCreateProject(true);
+  };
+
+  const handleCreateProject = async (settings: {
+    title: string;
+    defaultNodeTypes: string[];
+  }) => {
+    if (!auth.currentUser || !starterWorkflow) {
+      throw new Error('A signed-in user and starter workflow are required.');
+    }
+
+    const hasChangedStartingNodes =
+      settings.defaultNodeTypes.length !==
+        starterWorkflow.defaultNodeTypes.length ||
+      settings.defaultNodeTypes.some(
+        (nodeType, index) =>
+          nodeType !== starterWorkflow.defaultNodeTypes[index],
+      );
+    const workflow = hasChangedStartingNodes
+      ? createStarterWorkflow(
+          settings.defaultNodeTypes,
+          AVAILABLE_STARTING_NODE_TYPES,
+        )
+      : starterWorkflow;
+    const projectId = await DbAPI.createProject(auth.currentUser.uid, {
+      ...settings,
+    });
     try {
-      const defaultNodes = [
-        {
-          id: `env-${Date.now()}`,
-          nodeType: 'environment',
-          label: 'Environment',
-          x: 200,
-          y: 300,
-          width: 128,
-          height: 128,
-        },
-        {
-          id: `playwright-${Date.now()}`,
-          nodeType: 'playwright',
-          label: 'Playwright',
-          x: 500,
-          y: 300,
-          width: 128,
-          height: 128,
-        },
-      ];
-
-      const defaultConnections = [
-        {
-          id: `conn-${Date.now()}`,
-          sourceId: defaultNodes[0].id,
-          targetId: defaultNodes[1].id,
-          sourcePort: 'right',
-          targetPort: 'left',
-        },
-      ];
-
-      const projectId = await DbAPI.createProject(auth.currentUser.uid, {
-        title: 'New Project',
-      });
       await DbAPI.createWorkflow(auth.currentUser.uid, {
         projectId,
-        nodes: defaultNodes,
-        connections: defaultConnections,
-        title: 'Default Workflow',
+        nodes: workflow.nodes,
+        connections: workflow.connections,
+        title: settings.title,
         cloudProvider: getDefaultWorkflowCloudProviderId(),
       });
-      navigate(`/projects/${projectId}`);
     } catch (error) {
-      console.error('Failed to create project:', error);
-    } finally {
-      setIsCreating(false);
+      await DbAPI.deleteProject(auth.currentUser.uid, projectId).catch(
+        (cleanupError) => {
+          console.error('Failed to clean up incomplete project:', cleanupError);
+        },
+      );
+      throw error;
     }
+    setShowCreateProject(false);
+    navigate(`/projects/${projectId}`);
   };
 
   const handleDeleteProject = async (e: React.MouseEvent, id: string) => {
@@ -180,6 +195,18 @@ export default function Projects() {
         />
       ) : null}
 
+      <ProjectSettingsModal
+        mode="create"
+        isOpen={showCreateProject}
+        projectTitle="New Project"
+        defaultNodeTypes={
+          starterWorkflow?.defaultNodeTypes ?? DEFAULT_PROJECT_NODE_TYPES
+        }
+        availableNodeTypes={AVAILABLE_STARTING_NODE_TYPES}
+        onClose={() => setShowCreateProject(false)}
+        onSave={handleCreateProject}
+      />
+
       <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between mb-8">
           <div className="relative w-64">
@@ -191,15 +218,10 @@ export default function Projects() {
           <Button
             variant="primary"
             className="gap-2"
-            onClick={handleCreateProject}
-            disabled={isCreating}
+            onClick={openCreateProject}
           >
-            {isCreating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Plus className="w-4 h-4" />
-            )}
-            {isCreating ? 'Creating...' : 'New Project'}
+            <Plus className="w-4 h-4" />
+            New Project
           </Button>
         </div>
 
@@ -271,15 +293,10 @@ export default function Projects() {
               <Button
                 variant="primary"
                 className="gap-2"
-                onClick={handleCreateProject}
-                disabled={isCreating}
+                onClick={openCreateProject}
               >
-                {isCreating ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                {isCreating ? 'Creating...' : 'New Project'}
+                <Plus className="w-4 h-4" />
+                New Project
               </Button>
             </div>
           )}
