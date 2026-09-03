@@ -10,8 +10,11 @@ import {
   Trash2,
   MoreHorizontal,
   Monitor,
+  Pencil,
 } from 'lucide-react';
-import { Button, Badge } from '../components/ui';
+import { Button, Badge, Input } from '../components/ui';
+import { Modal } from '../components/ui/Modal';
+import { ProjectSettingsModal } from '../components/ProjectSettingsModal';
 import { useHeader } from '../components/PageLayout';
 import { auth } from '../lib/auth';
 import { DbAPI } from '../lib/db';
@@ -46,6 +49,10 @@ export default function ProjectDetail() {
   const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [workflowToRename, setWorkflowToRename] = useState<any>(null);
+  const [workflowTitle, setWorkflowTitle] = useState('');
+  const [isRenamingWorkflow, setIsRenamingWorkflow] = useState(false);
 
   const { setHeaderLeft } = useHeader();
   const handleSaveTitle = useCallback(async () => {
@@ -66,6 +73,44 @@ export default function ProjectDetail() {
       }
     }
   }, [editedTitle, project]);
+
+  const handleSaveProjectSettings = async (title: string) => {
+    if (!auth.currentUser || !project) return;
+    await DbAPI.saveProject(auth.currentUser.uid, project.id, { title });
+    setProject((previous: any) => ({ ...previous, title }));
+    setEditedTitle(title);
+  };
+
+  const handleRenameWorkflow = async () => {
+    if (
+      !auth.currentUser ||
+      !workflowToRename ||
+      !workflowTitle.trim() ||
+      isRenamingWorkflow
+    ) {
+      return;
+    }
+
+    setIsRenamingWorkflow(true);
+    try {
+      const title = workflowTitle.trim();
+      await DbAPI.saveWorkflow(auth.currentUser.uid, workflowToRename.id, {
+        title,
+      });
+      setWorkflows((previous) =>
+        previous.map((workflow) =>
+          workflow.id === workflowToRename.id
+            ? { ...workflow, title }
+            : workflow,
+        ),
+      );
+      setWorkflowToRename(null);
+    } catch (error) {
+      console.error('Failed to rename workflow:', error);
+    } finally {
+      setIsRenamingWorkflow(false);
+    }
+  };
 
   useEffect(() => {
     setHeaderLeft(
@@ -102,13 +147,24 @@ export default function ProjectDetail() {
               className="text-sm font-semibold bg-transparent border-b border-strong outline-none text-[var(--foreground)] px-1 py-0.5 min-w-[200px]"
             />
           ) : (
-            <h1
-              className="text-sm font-semibold text-[var(--foreground)] cursor-text hover:opacity-80 transition-opacity"
-              onDoubleClick={() => setIsEditingTitle(true)}
-              title="Double-click to edit"
-            >
-              {project?.title || 'Untitled Project'}
-            </h1>
+            <div className="flex items-center gap-1">
+              <h1
+                className="text-sm font-semibold text-[var(--foreground)] cursor-text hover:opacity-80 transition-opacity"
+                onDoubleClick={() => setIsEditingTitle(true)}
+                title="Double-click to edit"
+              >
+                {project?.title || 'Untitled Project'}
+              </h1>
+              <button
+                type="button"
+                onClick={() => setIsEditingTitle(true)}
+                className="rounded p-1 text-muted transition-colors hover:bg-surface-hover hover:text-[var(--foreground)]"
+                aria-label="Rename project"
+                title="Rename project"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
         </div>
       </>,
@@ -238,7 +294,11 @@ export default function ProjectDetail() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" className="gap-2">
+            <Button
+              variant="secondary"
+              className="gap-2"
+              onClick={() => setIsSettingsOpen(true)}
+            >
               <Settings className="w-4 h-4" />
               Settings
             </Button>
@@ -310,6 +370,18 @@ export default function ProjectDetail() {
                         />
                         <div className="absolute right-0 mt-1 w-36 bg-surface border border-subtle rounded-lg shadow-lg z-20 py-1 overflow-hidden">
                           <button
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenMenuId(null);
+                              setWorkflowToRename(wf);
+                              setWorkflowTitle(wf.title || 'Untitled Workflow');
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors text-left"
+                          >
+                            <Pencil className="w-4 h-4" />
+                            Rename
+                          </button>
+                          <button
                             onClick={(e) => handleDeleteWorkflow(e, wf.id)}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors text-left"
                           >
@@ -359,6 +431,55 @@ export default function ProjectDetail() {
           )}
         </div>
       </main>
+      <ProjectSettingsModal
+        isOpen={isSettingsOpen}
+        projectTitle={project.title || 'Untitled Project'}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={handleSaveProjectSettings}
+      />
+      <Modal
+        isOpen={Boolean(workflowToRename)}
+        onClose={() => setWorkflowToRename(null)}
+        title="Rename workflow"
+        subtitle="Choose a clear name for this workflow."
+        icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setWorkflowToRename(null)}
+              disabled={isRenamingWorkflow}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleRenameWorkflow}
+              disabled={!workflowTitle.trim() || isRenamingWorkflow}
+            >
+              {isRenamingWorkflow ? 'Saving…' : 'Rename workflow'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <label
+            htmlFor="workflow-title"
+            className="block text-sm font-medium text-[var(--foreground)]"
+          >
+            Workflow name
+          </label>
+          <Input
+            id="workflow-title"
+            autoFocus
+            value={workflowTitle}
+            onChange={(event) => setWorkflowTitle(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void handleRenameWorkflow();
+            }}
+          />
+        </div>
+      </Modal>
     </>
   );
 }
