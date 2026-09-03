@@ -34,7 +34,7 @@
     "@playrunner/codex-cli": "0.1.0",
     "@playrunner/environment": "0.1.5",
     "@playrunner/gcp": "0.1.5",
-    "@playrunner/github": "file:../../packages/github",
+    "@playrunner/github": "0.2.3",
     "@playrunner/huggingface": "0.1.3",
     "@playrunner/integration-sdk": "0.1.6",
     "@playrunner/javascript": "0.1.2",
