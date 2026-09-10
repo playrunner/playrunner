@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   machineExecutionJsonError,
   machineExecutionReplayResponse,
+  parseMachinePageSize,
 } from './machine-executions';
 
 test('machine execution body parser errors are bounded JSON responses', () => {
@@ -62,4 +63,13 @@ test('a start failure without an execution remains a bounded failure response', 
       httpStatus: 503,
     },
   );
+});
+
+test('machine list endpoints default their page size and reject bad limits', () => {
+  assert.deepEqual(parseMachinePageSize(undefined), { take: 25 });
+  assert.deepEqual(parseMachinePageSize('10'), { take: 10 });
+  assert.ok('error' in parseMachinePageSize('0'));
+  assert.ok('error' in parseMachinePageSize('101'));
+  assert.ok('error' in parseMachinePageSize('all'));
+  assert.ok('error' in parseMachinePageSize('1.5'));
 });
