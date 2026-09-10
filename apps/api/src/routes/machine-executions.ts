@@ -1,3 +1,8 @@
+import {
+  executeIdempotentMachineRun,
+  machineRunRequestHash,
+  parseMachineIdempotencyKey,
+} from '../services/machine-run-idempotency';
 import crypto from 'node:crypto';
 import express, { Router, type ErrorRequestHandler } from 'express';
 import { requireApiToken } from '../auth/api-token.middleware';
@@ -217,6 +222,93 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     return;
   }
 
+  if (!ci) {
+    let idempotencyKey;
+    try {
+      idempotencyKey = parseMachineIdempotencyKey(req.get('Idempotency-Key'));
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+      return;
+    }
+    const response = await executeIdempotentMachineRun({
+      apiTokenId: token.id,
+      workflowId,
+      idempotencyKey,
+      requestHash: machineRunRequestHash(
+        runInputs.inputs,
+        runInputs.acceptanceCriteria,
+      ),
+      start: async (executionId) => {
+        const runner = await apiRuntime.runnerProvisioner.start(
+          workflow.cloudProvider || 'LOCAL_RUNNER',
+        );
+        if (runner.status < 200 || runner.status >= 300)
+          return {
+            status: failureHttpStatus(runner.status),
+            body: { error: publicStartError(runner.status, runner.body.error) },
+          };
+        try {
+          const started = await executeSavedWorkflow({
+            body: {
+              ...(Object.keys(runInputs.inputs).length
+                ? { inputs: runInputs.inputs }
+                : {}),
+              ...(runInputs.acceptanceCriteria.length
+                ? { acceptanceCriteria: runInputs.acceptanceCriteria }
+                : {}),
+            },
+            executionId,
+            req,
+            trigger: { data: {}, name: 'cli' },
+            userId: token.userId,
+            workflowId,
+          });
+          if (!started) {
+            return { status: 404, body: { error: 'Workflow not found.' } };
+          }
+          if (started.result.status < 200 || started.result.status >= 300) {
+            const status = failureHttpStatus(started.result.status);
+            return {
+              status,
+              body: {
+                error: publicStartError(status, started.result.body.error),
+                executionId,
+                status: 'failed_to_start',
+                workflowId,
+              },
+            };
+          }
+          try {
+            await apiTokens.auditExecution({
+              apiTokenId: token.id,
+              executionId,
+              userId: token.userId,
+              workflowId,
+            });
+          } catch (error) {
+            console.error('Failed to audit API token execution:', error);
+          }
+          return {
+            status: 202,
+            body: {
+              executionId,
+              status: 'running',
+              workflowId,
+            },
+          };
+        } catch (error) {
+          console.error('Failed to start CLI workflow execution:', error);
+          return {
+            status: 500,
+            body: { error: 'Workflow could not be started.' },
+          };
+        }
+      },
+    });
+    res.status(response.status).json(response.body);
+    return;
+  }
+
   const runner = await apiRuntime.runnerProvisioner.start(
     workflow.cloudProvider || 'LOCAL_RUNNER',
   );
@@ -224,60 +316,6 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     res.status(failureHttpStatus(runner.status)).json({
       error: publicStartError(runner.status, runner.body.error),
     });
-    return;
-  }
-
-  if (!ci) {
-    const executionId = crypto.randomUUID();
-    try {
-      const started = await executeSavedWorkflow({
-        body: {
-          ...(Object.keys(runInputs.inputs).length
-            ? { inputs: runInputs.inputs }
-            : {}),
-          ...(runInputs.acceptanceCriteria.length
-            ? { acceptanceCriteria: runInputs.acceptanceCriteria }
-            : {}),
-        },
-        executionId,
-        req,
-        trigger: { data: {}, name: 'cli' },
-        userId: token.userId,
-        workflowId,
-      });
-      if (!started) {
-        res.status(404).json({ error: 'Workflow not found.' });
-        return;
-      }
-      if (started.result.status < 200 || started.result.status >= 300) {
-        const status = failureHttpStatus(started.result.status);
-        res.status(status).json({
-          error: publicStartError(status, started.result.body.error),
-          executionId,
-          status: 'failed_to_start',
-          workflowId,
-        });
-        return;
-      }
-      try {
-        await apiTokens.auditExecution({
-          apiTokenId: token.id,
-          executionId,
-          userId: token.userId,
-          workflowId,
-        });
-      } catch (error) {
-        console.error('Failed to audit API token execution:', error);
-      }
-      res.status(202).json({
-        executionId,
-        status: 'running',
-        workflowId,
-      });
-    } catch (error) {
-      console.error('Failed to start CLI workflow execution:', error);
-      res.status(500).json({ error: 'Workflow could not be started.' });
-    }
     return;
   }
 

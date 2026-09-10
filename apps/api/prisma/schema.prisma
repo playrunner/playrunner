@@ -24,22 +24,23 @@ model Project {
 }
 
 model Workflow {
-  id               String                    @id
-  userId           String
-  projectId        String?
-  title            String?
-  nodes            Json?
-  connections      Json?
-  cloudProvider    String?
-  concurrency      Int?
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
-  project          Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  schedules        WorkflowSchedule[]
-  teamShares       WorkflowTeamShare[]
-  webhookEndpoints WorkflowWebhookEndpoint[]
-  ciExecutions     WorkflowCiExecution[]
-  memories         ProjectMemory[]
+  id                String                     @id
+  userId            String
+  projectId         String?
+  title             String?
+  nodes             Json?
+  connections       Json?
+  cloudProvider     String?
+  concurrency       Int?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  project           Project?                   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  schedules         WorkflowSchedule[]
+  teamShares        WorkflowTeamShare[]
+  webhookEndpoints  WorkflowWebhookEndpoint[]
+  machineExecutions WorkflowMachineExecution[]
+  ciExecutions      WorkflowCiExecution[]
+  memories          ProjectMemory[]
 
   @@index([userId])
   @@index([projectId])
@@ -196,17 +197,18 @@ model WorkflowEvent {
 }
 
 model ApiToken {
-  id                 String          @id @default(cuid())
+  id                 String                     @id @default(cuid())
   userId             String
   name               String
-  tokenHash          String          @unique
+  tokenHash          String                     @unique
   displayPrefix      String
   scopes             Json
   allowedWorkflowIds Json?
-  createdAt          DateTime        @default(now())
+  createdAt          DateTime                   @default(now())
   lastUsedAt         DateTime?
   expiresAt          DateTime?
   revokedAt          DateTime?
+  machineExecutions  WorkflowMachineExecution[]
   auditEvents        ApiTokenAudit[]
 
   @@index([userId])
@@ -399,4 +401,21 @@ model EnvironmentSecret {
   @@unique([userId, key])
   @@index([userId])
   @@map("EnvironmentSecrets")
+}
+
+model WorkflowMachineExecution {
+  id             String   @id @default(cuid())
+  apiTokenId     String
+  workflowId     String
+  idempotencyKey String
+  requestHash    String
+  executionId    String   @unique
+  httpStatus     Int?
+  response       Json?
+  createdAt      DateTime @default(now())
+  apiToken       ApiToken @relation(fields: [apiTokenId], references: [id], onDelete: Cascade)
+  workflow       Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([apiTokenId, workflowId, idempotencyKey])
+  @@index([workflowId])
 }
