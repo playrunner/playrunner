@@ -1,7 +1,11 @@
 import { useState, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { INTEGRATIONS } from '../integrations/registry';
+import { NODE_TYPES } from '../integrations/nodeCatalog';
+import type { AppNodeType } from '../integrations/nodeTypes';
+
+export { NODE_TYPES } from '../integrations/nodeCatalog';
+export type { AppNodeType } from '../integrations/nodeTypes';
 
 interface NodeSelectorModalProps {
   attachmentKind?: 'agent' | 'memory' | 'tool' | null;
@@ -10,40 +14,6 @@ interface NodeSelectorModalProps {
   onSelect: (data: { typeId: string; label: string }) => void;
   getNodeDisabledReason?: (node: AppNodeType) => string | null | undefined;
 }
-
-export type AppNodeType = {
-  id: string;
-  label: string;
-  type: string;
-  iconSrc?: string;
-  iconRenderMode?: 'image' | 'mask';
-  fallbackIcon?: any;
-  color?: string;
-  fallbackText?: string;
-  nodeSelectorOrder?: number;
-  acceptsInboundConnection: boolean;
-  executionRole: 'workflow' | 'attachment';
-  attachmentKind?: 'agent' | 'memory' | 'tool';
-  acceptsAttachments: readonly ('agent' | 'memory' | 'tool')[];
-};
-
-export const NODE_TYPES: AppNodeType[] = [
-  ...INTEGRATIONS.filter((i) => i.showInNodeSelector !== false).map((i) => ({
-    id: i.id,
-    label: i.name,
-    type: i.nodeType || 'action',
-    color: i.color,
-    iconRenderMode: i.iconRenderMode,
-    nodeSelectorOrder: i.nodeSelectorOrder,
-    acceptsInboundConnection: i.showInputPanel !== false,
-    executionRole: i.executionRole || 'workflow',
-    attachmentKind: i.attachmentKind,
-    acceptsAttachments: i.acceptsAttachments || [],
-    ...(typeof i.icon === 'string'
-      ? { iconSrc: i.icon }
-      : { fallbackIcon: i.icon }),
-  })),
-];
 
 export function NodeSelectorModal({
   attachmentKind,
@@ -155,9 +125,9 @@ export function NodeSelectorModal({
             ? 'Add Agent'
             : attachmentKind === 'memory'
               ? 'Add Memory'
-            : attachmentKind === 'tool'
-              ? 'Add Tool'
-              : 'Add node'
+              : attachmentKind === 'tool'
+                ? 'Add Tool'
+                : 'Add node'
         }
         aria-modal="true"
         role="dialog"
@@ -175,9 +145,9 @@ export function NodeSelectorModal({
                   ? 'Search agents...'
                   : attachmentKind === 'memory'
                     ? 'Search memory providers...'
-                  : attachmentKind === 'tool'
-                    ? 'Search tools...'
-                    : 'Search nodes...'
+                    : attachmentKind === 'tool'
+                      ? 'Search tools...'
+                      : 'Search nodes...'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}

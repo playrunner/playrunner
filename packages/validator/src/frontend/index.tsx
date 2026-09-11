@@ -386,6 +386,7 @@ export const validatorIntegration: Integration = {
   nodeSelectorOrder: 14,
   showAuthenticationPanel: false,
   showInIntegrationsPage: false,
+  showInNodeSelector: false,
   showInputPanel: false,
   executionRole: 'attachment',
   attachmentKind: 'tool',

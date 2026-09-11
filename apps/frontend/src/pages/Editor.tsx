@@ -39,7 +39,8 @@ import {
 import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
 
-import { NodeSelectorModal, NODE_TYPES } from '../components/NodeSelectorModal';
+import { NodeSelectorModal } from '../components/NodeSelectorModal';
+import { ALL_NODE_TYPES } from '../integrations/nodeCatalog';
 import type { AppNodeType } from '../components/NodeSelectorModal';
 import { IntegrationConfigPanel } from '../components/IntegrationConfigPanel';
 import { getIntegration } from '../integrations/registry';
@@ -184,12 +185,12 @@ interface DrawingConnection {
 }
 
 function nodeTypeAcceptsInboundConnection(typeId?: string) {
-  const nodeType = NODE_TYPES.find((n) => n.id === typeId);
+  const nodeType = ALL_NODE_TYPES.find((n) => n.id === typeId);
   return nodeType?.acceptsInboundConnection ?? true;
 }
 
 function getNodeType(typeId?: string) {
-  return NODE_TYPES.find((nodeType) => nodeType.id === typeId);
+  return ALL_NODE_TYPES.find((nodeType) => nodeType.id === typeId);
 }
 
 function createCanvasConnection(
@@ -251,7 +252,9 @@ function renderNodeTypeIcon(
   nodeTypeId: string | undefined,
   alt: string,
 ): React.ReactNode {
-  const nodeType = NODE_TYPES.find((candidate) => candidate.id === nodeTypeId);
+  const nodeType = ALL_NODE_TYPES.find(
+    (candidate) => candidate.id === nodeTypeId,
+  );
   if (!nodeType) return undefined;
 
   if (nodeType.iconSrc) {
@@ -2784,7 +2787,7 @@ export default function Editor() {
   };
 
   const renderNodeIcon = (nodeTypeId: string) => {
-    const nodeType = NODE_TYPES.find((n) => n.id === nodeTypeId);
+    const nodeType = ALL_NODE_TYPES.find((n) => n.id === nodeTypeId);
     if (nodeType) {
       if (nodeType.iconSrc) {
         if (nodeType.iconRenderMode === 'mask') {

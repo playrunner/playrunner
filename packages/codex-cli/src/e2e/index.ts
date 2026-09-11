@@ -1,47 +1,36 @@
 import { definePlayrunnerE2EContribution } from '@playrunner/integration-sdk/e2e';
+import configuration from './configuration-scenarios';
 
 export const codexCliE2EContribution = definePlayrunnerE2EContribution({
-  id: 'codex-cli',
-  createData: ({ runId }) => ({ runId }),
-  createPom: ({ host, page }) => ({ host, page }),
+  ...configuration,
   scenarios: [
     {
-      id: 'configure-codex-cli',
+      id: 'hidden-from-discovery',
       mode: 'mock',
-      title: 'configures and persists a Codex CLI attachment',
+      title: 'keeps Codex CLI out of node and integration discovery',
       tags: ['@codex-cli', '@integration', '@node'],
       async run({ expect, host, page }) {
         await host.openNewWorkflow();
-        await host.addNode('codex-cli');
-        await host.openNodeSettings('codex-cli');
-        await expect(page.getByText('Input', { exact: true })).toBeVisible();
-        const apiKey = page.getByTestId('codex-cli-api-key');
-        await apiKey.evaluate((field) => {
-          const dataTransfer = new DataTransfer();
-          dataTransfer.setData('text/plain', 'process.env.OPENAI_API_KEY');
-          field.dispatchEvent(
-            new DragEvent('drop', { bubbles: true, dataTransfer }),
-          );
+        await page.getByTitle('Add Node').click();
+        const selector = page.getByRole('dialog', {
+          name: 'Add node',
+          exact: true,
         });
-        await expect(apiKey).toHaveValue('{{env.OPENAI_API_KEY}}');
-        const model = page.getByTestId('codex-cli-model');
-        await expect(model).toContainText('GPT-5.6 Sol');
-        await expect(model).toContainText('GPT-5.6 Terra');
-        await expect(model).toContainText('GPT-5.6 Luna');
-        await model.selectOption('gpt-5.6-terra');
-        await page
-          .getByTestId('codex-cli-reasoning-effort')
-          .selectOption('high');
-        await host.closeNodeSettings();
-        await host.saveWorkflow();
-        await host.reloadWorkflow();
-        await host.openNodeSettings('codex-cli');
-        await expect(page.getByTestId('codex-cli-model')).toHaveValue(
-          'gpt-5.6-terra',
-        );
-        await expect(page.getByTestId('codex-cli-api-key')).toHaveValue(
-          '{{env.OPENAI_API_KEY}}',
-        );
+        await expect(selector).toBeVisible();
+        await expect(
+          selector.getByTestId('node-selector-option-playwright'),
+        ).toBeVisible();
+        await expect(
+          selector.getByTestId('node-selector-option-codex-cli'),
+        ).toHaveCount(0);
+        await selector.getByPlaceholder('Search nodes...').fill('Codex CLI');
+        await expect(
+          selector.getByTestId('node-selector-option-codex-cli'),
+        ).toHaveCount(0);
+        await host.gotoIntegrations();
+        await expect(
+          page.getByTestId('integration-card-codex-cli'),
+        ).toHaveCount(0);
       },
     },
   ],

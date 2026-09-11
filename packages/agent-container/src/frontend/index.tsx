@@ -1513,6 +1513,7 @@ export const agentContainerIntegration: Integration = {
   nodeSelectorOrder: 12,
   showAuthenticationPanel: false,
   showInIntegrationsPage: false,
+  showInNodeSelector: false,
   authProviders: [{ id: 'github', label: 'GitHub' }],
   getAuthPath: (uid) => `users/${uid}/integrations/github`,
   SettingsModal: GithubSettingsModal,

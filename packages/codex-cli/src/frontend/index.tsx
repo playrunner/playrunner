@@ -123,6 +123,7 @@ export const codexCliIntegration: Integration = {
   nodeSelectorOrder: 13,
   showAuthenticationPanel: false,
   showInIntegrationsPage: false,
+  showInNodeSelector: false,
   showInputPanel: true,
   executionRole: 'attachment',
   attachmentKind: 'agent',

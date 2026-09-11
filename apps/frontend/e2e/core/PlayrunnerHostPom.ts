@@ -10,10 +10,19 @@ export class PlayrunnerHostPom implements PlayrunnerE2EHost {
       .getByRole('button', { name: 'New Project' })
       .first()
       .click();
+    const dialog = this.page.getByRole('dialog', { name: 'Create project' });
+    const projectName = await dialog
+      .getByRole('textbox', { name: 'Project name' })
+      .inputValue();
+    await dialog
+      .getByRole('button', { name: 'Create project', exact: true })
+      .click();
     await this.page
       .getByRole('heading', { name: 'Project Dashboard' })
       .waitFor();
-    await this.page.getByText('Default Workflow', { exact: true }).click();
+    await this.page
+      .getByRole('heading', { name: projectName, level: 3, exact: true })
+      .click();
     await this.page.getByTitle('Add Node').waitFor();
   }
 
