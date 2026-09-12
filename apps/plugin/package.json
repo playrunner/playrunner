@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/codex-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Codex plugin for Playrunner Cloud workflows with an optional local authentication companion.",
   "type": "module",

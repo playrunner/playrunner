@@ -14,21 +14,33 @@ manual MCP configuration, global npm installation, or a local Playrunner server.
 1. Call `get_account`. If the plugin is disconnected, use Codex's connection flow
    and open the offered Playrunner browser sign-in. The user signs in or creates
    a Playrunner Cloud account and approves the requested access.
-2. If onboarding is incomplete, open the returned setup URL. Let the user choose
-   their workspace and complete any required account or billing steps. Continue
-   with `get_account` after they finish. Never accept terms or payment on their behalf.
+2. If a workspace must be created, open `setupUrl` only when `get_account` returns
+   `setupKind: workspace_only` and a non-null URL. Let the user complete that setup,
+   then call `get_account` again. If no such handoff is available, explain the
+   returned account limitation neutrally. Do not invent or substitute a setup URL.
+   Never accept terms on the user's behalf.
 3. Read projects, environments, Authentication Profiles, integrations and
    workflows relevant to the request. Reuse existing resources when appropriate.
    Ask only for details you cannot determine, such as the intended staging URL
    or the GitHub repository when several are plausible.
+
+Users may connect an existing account with an active subscription and use its
+available features. If account access, entitlement or workflow allowance prevents
+an operation, explain the returned limitation neutrally and stop that operation.
+Do not prompt the user to subscribe, start a paid trial, purchase or upgrade a plan,
+or update a payment method. Do not open or provide links to checkout, billing,
+subscription management, or onboarding that routes into those steps. Do not use
+a Cloud UI fallback to bypass this boundary. Account sign-in and the workspace-only
+setup described above are allowed; do not infer access from a successful sign-in.
 
 ## Build the workflow
 
 Use `get_authoring_guide` before authoring. Use `create_project`,
 `configure_environment`, `save_authentication_profile`, and `save_workflow` as
 needed for the requested workflow. Read an existing workflow before editing it
-and preserve unrelated nodes and connections. Save returns the resource ID;
-link to `https://playrunner.cloud/workflow/WORKFLOW_ID`.
+and preserve unrelated nodes and connections. Report the saved workflow's name
+and resource ID. Use dedicated handoff URLs returned by the tools when needed;
+do not construct links to the ordinary Cloud dashboard or workflow pages.
 
 Environment configuration accepts non-secret variables and preserves existing
 secret variables. For secrets, open the returned Cloud environment page and let
@@ -102,6 +114,8 @@ actual test evidence. Include test counts or artifact links only if returned.
 An accepted run or a completed workflow does not alone prove tests passed.
 Stopping a local wait or companion does not cancel a Cloud workflow.
 
-If a required capability is unavailable, state the concrete limitation and use
-the Cloud UI for that step when available. Never claim that a deployment, sign-in,
-workflow save, test result, or public plugin publication succeeded without evidence.
+If a required capability is unavailable, state the concrete limitation. Use only
+a dedicated handoff URL returned by the tools for that step, subject to the
+account and commerce boundaries above. Do not guess Cloud navigation as a
+workaround. Never claim that a deployment, sign-in, workflow save, test result,
+or public plugin publication succeeded without evidence.

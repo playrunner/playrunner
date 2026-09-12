@@ -27,5 +27,21 @@
     "country availability",
     "policy attestations",
     "Submit for Review and subsequent publication"
-  ]
+  ],
+  "snapshotNote": "The saved fields, scan status and pending list describe the portal at checkedAt. They are historical records, not the current portal state.",
+  "localChanges": {
+    "status": "commerce-fix-prepared-locally-not-uploaded",
+    "portalUpdated": false,
+    "skillUploadRequired": true,
+    "reviewCasesUpdatedLocally": true,
+    "requiredBeforeAttestation": [
+      "Deploy and verify the workspace-only setup handoff and neutral entitlement responses.",
+      "Run the commerce review cases for new, entitled, unentitled and exhausted-allowance accounts with billing enabled.",
+      "Upload the rebuilt skill ZIP and updated review cases, then verify the portal scans.",
+      "Complete publisher declarations only after validating the deployed user paths."
+    ],
+    "pluginVersion": "0.1.1",
+    "skillFilename": "playrunner-skill-0.1.1.zip",
+    "skillSha256": "2606167822428b5f7045ec00e29b5fc5880854fcd54d874ac0aba7068a735647"
+  }
 }

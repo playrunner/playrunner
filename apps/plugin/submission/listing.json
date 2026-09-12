@@ -27,7 +27,7 @@
   },
   "supportURL": "https://github.com/playrunner/playrunner/issues",
   "releaseNotes": "Initial release: connect a Playrunner Cloud account to configure environments and Authentication Profiles, build Playwright workflows, connect GitHub, run saved workflows and inspect test results. Optional local browser authentication companion.",
-  "releaseStatus": "deployed-and-live-tested-awaiting-publisher-attestations",
+  "releaseStatus": "commerce-fix-local-awaiting-hosted-validation-and-publisher-attestations",
   "reviewerCredentials": null,
   "availability": "All supported countries",
   "domainChallenge": "Verified in OpenAI publisher portal",
