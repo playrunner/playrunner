@@ -9,6 +9,7 @@ export const releaseFiles = [
   'plugin.json',
   '.codex-plugin/plugin.json',
   '.mcp.json',
+  'mcp.json',
   'package.json',
   'LICENSE',
   'README.md',
@@ -123,7 +124,8 @@ export async function packagePlugin(output = join(pluginRoot, 'dist')) {
   // Public remote-MCP submissions register their endpoint in the portal. Upload
   // only the portable skill bundle, without a local MCP server declaration.
   const submissionFiles = releaseFiles.filter(
-    (file) => !['.mcp.json', '.codex-plugin/plugin.json'].includes(file),
+    (file) =>
+      !['mcp.json', '.mcp.json', '.codex-plugin/plugin.json'].includes(file),
   );
   command('zip', ['-q', '-X', submissionZip, ...submissionFiles], {
     cwd: destination,

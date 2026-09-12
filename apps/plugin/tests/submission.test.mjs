@@ -21,6 +21,14 @@ test('public skills upload excludes local MCP configuration and private submissi
     listing.stdout,
     /\.mcp\.json|\.codex-plugin|submission\/|node_modules|\.env|test/,
   );
+  assert.doesNotMatch(listing.stdout, /^mcp\.json$/m);
+  const portable = JSON.parse(
+    await readFile(join(pluginRoot, 'mcp.json'), 'utf8'),
+  );
+  assert.deepEqual(portable.mcpServers.playrunner, {
+    type: 'streamable-http',
+    url: 'https://playrunner.cloud/mcp',
+  });
   const local = JSON.parse(
     await readFile(join(pluginRoot, '.mcp.json'), 'utf8'),
   );
