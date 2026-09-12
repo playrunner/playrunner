@@ -1,29 +1,39 @@
 {
   "positive": [
     {
-      "prompt": "Set up a Playrunner Cloud project and staging environment.",
-      "expected": "Connect Cloud account, complete onboarding via browser if needed, create project and merge non-secret environment values. Return IDs without variable values.",
-      "requires": "An onboarded reviewer Cloud account."
+      "scenario": "Create a project and staging environment",
+      "prompt": "In Playrunner Cloud, create a project named Review Example and an environment named Review Example Staging with BASE_URL=https://playrunner.dev. Reuse them if already present.",
+      "tools": "get_account, list_projects, list_environments, create_project, configure_environment",
+      "expected": "Returns owned project/environment IDs. Lists variable names and types without variable values. The dedicated reviewer workspace is already onboarded.",
+      "requires": "Dedicated reviewer account; no local CLI required."
     },
     {
-      "prompt": "Connect my GitHub repository and create a checkout test workflow.",
-      "expected": "Open Cloud GitHub authorization, verify repositories and branch, read authoring guide and save a Cloud workflow with verified IDs.",
-      "requires": "Reviewer-owned GitHub repository with Playwright tests and authorization."
+      "scenario": "Author an inline Playwright workflow",
+      "prompt": "In Plugin Review Demo, use Plugin Review Staging and create or update a workflow named Review Heading Test. Use an inline TypeScript Playwright test that sets a page heading to Playrunner MCP connected and asserts it is visible. Use the Cloud runner.",
+      "tools": "get_authoring_guide, list_projects, list_environments, list_workflows, get_workflow, save_workflow",
+      "expected": "Saves a Cloud workflow with linked environment and inline test nodes. Reads existing workflow before editing. Current runner version comes from the authoring guide. Sample project ID: 00e0755c-db45-43d2-9e22-f3e878ba8464; environment ID: ec1b933b-09ed-4448-8399-5d7476c885e2.",
+      "requires": "Preconfigured reviewer sample workspace."
     },
     {
-      "prompt": "Create an Authentication Profile for the staging login.",
-      "expected": "Save profile metadata, pair/reuse local companion, request capture, let reviewer sign in directly in native browser, poll until ready. No passwords in chat.",
-      "requires": "Local Codex with Node/npm, reviewer test app and non-production login."
+      "scenario": "Configure an Authentication Profile and explain browser setup",
+      "prompt": "Create or inspect Plugin Review Profile in Plugin Review Staging for https://playrunner.dev, with URL-prefix success at https://playrunner.dev. Check whether a companion is connected. Do not capture credentials yet.",
+      "tools": "list_environments, list_authentication_profiles, save_authentication_profile, list_companion_devices",
+      "expected": "Returns profile metadata and readiness without browser storage. No companion is pre-paired, so explain optional local Node/npm companion setup. Do not claim authentication is complete or request passwords in chat.",
+      "requires": "Preconfigured sample environment; capture is deliberately excluded from this setup-only case."
     },
     {
-      "prompt": "Run my saved workflow and explain any failures.",
-      "expected": "Dispatch through Cloud quota checks with a new requestKey, poll execution and event cursors, report actual test evidence.",
-      "requires": "Saved Cloud workflow and available workflow-run quota."
+      "scenario": "Run saved workflow and inspect actual test evidence",
+      "prompt": "Run the saved Playrunner Cloud workflow Plugin Review Smoke (97378887-bc5b-4209-9026-85e650fb8988) once, then report its actual Playwright results and recent run history.",
+      "tools": "get_workflow, run_workflow, get_run_status, list_runs",
+      "expected": "Uses one fresh requestKey, obtains execution ID, follows event cursors to terminal state, and reports Playwright report counts separately from lifecycle completion. The sample test expects 1 passed and 0 failed. Cloud runner startup may take several minutes.",
+      "requires": "Preconfigured inline workflow; no GitHub connection or local CLI required."
     },
     {
-      "prompt": "Change the staging base URL but keep my existing secret values.",
-      "expected": "Merge BASE_URL, preserve all secret entries, return only variable metadata.",
-      "requires": "Environment containing BASE_URL and a secret variable."
+      "scenario": "Inspect integrations and hand off GitHub authorization",
+      "prompt": "Check my Playrunner integrations and show me where to connect GitHub. Do not authorize it for me.",
+      "tools": "list_integrations, connect_github",
+      "expected": "The dedicated demo account has no GitHub installation. Returns the Cloud integrations page and instructions for user-controlled GitHub authorization. Does not claim repositories are connected or request GitHub passwords in chat.",
+      "requires": "Dedicated reviewer account; no social login needed to exercise the handoff."
     }
   ],
   "negative": [

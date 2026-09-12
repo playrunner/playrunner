@@ -26,12 +26,13 @@
     "termsOfServiceURL": "https://playrunner.cloud/terms"
   },
   "supportURL": "https://github.com/playrunner/playrunner/issues",
-  "releaseNotes": "Initial Playrunner Cloud plugin with guided account and browser companion setup, workflow authoring and execution tools. Requires production validation before submission.",
-  "releaseStatus": "draft-created-awaiting-deployment-and-live-validation",
+  "releaseNotes": "Initial release: connect a Playrunner Cloud account to configure environments and Authentication Profiles, build Playwright workflows, connect GitHub, run saved workflows and inspect test results. Optional local browser authentication companion.",
+  "releaseStatus": "deployed-and-live-tested-awaiting-publisher-attestations",
   "reviewerCredentials": null,
-  "availability": null,
-  "domainChallenge": null,
+  "availability": "All supported countries",
+  "domainChallenge": "Verified in OpenAI publisher portal",
   "policyAttestations": null,
   "developerIdentity": "Business \u2014 Concept AI PTY LTD",
-  "draftUrl": "https://platform.openai.com/plugins/edit/asdk_app_6aa4c16111fc819193738d69a4b471b6/asdk_app_v_6aa4c16390188191b92c37813a3887fb"
+  "draftUrl": "https://platform.openai.com/plugins/edit/asdk_app_6aa4c16111fc819193738d69a4b471b6/asdk_app_v_6aa4c16390188191b92c37813a3887fb",
+  "demoRecordingUrl": "https://playrunner.cloud/plugin-demo/playrunner-codex-demo.mp4"
 }

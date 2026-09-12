@@ -3494,6 +3494,8 @@ export default function Editor() {
 
               const isNodeConfigured = (n: NodeData) => {
                 if (n.nodeType === 'environment') {
+                  // Linked environments are hydrated by the API at execution.
+                  if (n.config?.environmentId) return true;
                   const vars = n.config?.variables || [];
                   return vars.some(
                     (v: any) => v.key || v.initialValue || v.currentValue,
