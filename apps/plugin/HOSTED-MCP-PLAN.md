@@ -21,10 +21,18 @@ Implemented in the Cloud repository:
 - Tests for OAuth lifecycle, scope enforcement, owner binding, secret preservation,
   graph validation and gateway quota enforcement.
 
-Remaining release work: production migration/gateway/hosting deployment; real Cloud
-OAuth, GitHub and companion workflow smoke test; domain challenge; reviewer credentials, supported countries and policy attestations;
-OpenAI review and publication. Local tests use controlled accounts/API fixtures and
-do not claim those production actions have happened.
+Production validation on 12 September 2026 completed the database migration,
+gateway and hosting deployments, domain verification, OAuth connection from Codex
+and OpenAI's scanner, and two real Codex Cloud workflow runs. Both runs reported
+one passing Playwright test and zero failures. The dedicated reviewer account is
+onboarded with sample data; account isolation and secret-write rejection were
+checked through production MCP. API tests: 69 passing; frontend tests: 33 passing.
+The Playrunner directory and composer icons are configured for both themes.
+
+Remaining release work: publisher declarations, OpenAI review and publication.
+The demo account has no GitHub installation or paired companion. Its supplied
+review cases test GitHub authorization handoff and profile configuration; they do
+not claim a completed third-party GitHub authorization or native browser capture.
 
 Additional package-specific integration configuration can use the existing graph
 and its package-owned UI. The initial MCP catalog includes a Playwright/environment

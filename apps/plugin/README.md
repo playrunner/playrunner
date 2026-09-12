@@ -61,8 +61,8 @@ in their browser. Hosted MCP operations do not require the CLI.
 
 A local marketplace install does not make a plugin publicly searchable. Rebuilds
 are cached by Codex; use the plugin-creator cachebuster/reinstall flow for development
-updates. Do not manually edit installed cache files. Keep the currently installed
-version until the new hosted endpoint is ready.
+updates. Do not manually edit installed cache files. The bundle includes portable
+`mcp.json` wiring and the legacy `.mcp.json` compatibility configuration.
 
 ## Hosted service and public submission
 
@@ -88,10 +88,16 @@ cases, upload the skill ZIP under Skills, and register the universal hosted URL.
 Complete domain verification using the portal's exact challenge token, scan the
 production tools, supply reviewer access and confirm availability/attestations.
 
-Concept AI PTY LTD is verified and the Playrunner MCP draft has been created in
-the Playrunner project. A production deployment, domain verification and live
-account smoke test are still required. This source bundle is not an approved or
-published public-directory listing.
+As of 12 September 2026, the Cloud migration, gateway and hosting are deployed,
+Concept AI PTY LTD and the domain are verified, and OpenAI has scanned the tools
+and skill. Two actual Codex workflow runs passed, including the dedicated reviewer
+account: each reported one passing Playwright test and zero failures. The reviewer
+workspace has sample projects, environment, profile and workflow data. Reviewer
+credentials are stored privately in the portal, never in this repository.
+
+The [demo walkthrough](https://playrunner.cloud/plugin-demo/) includes live Cloud
+captures and the recorded Codex result. Publisher declarations, OpenAI review and
+public publication remain pending. This bundle is not yet publicly searchable.
 
 From the Cloud repository, preview the ordered migration, gateway and hosting
 release with `npm run deploy:mcp`. After reviewing and committing the changes,
