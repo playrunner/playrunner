@@ -1,0 +1,100 @@
+{
+  "checkedAt": "2026-09-12T02:41:41.715Z",
+  "package": "playrunner",
+  "version": "0.2.5",
+  "registry": "https://registry.npmjs.org",
+  "distTags": {
+    "latest": "0.2.5"
+  },
+  "sourceCommit": "1dd39054af816b18795b814a51eb14e4a52b45d2",
+  "publishedIntegrity": "sha512-aZxq0B8nX0N+0vRdtNzt/s868kZhkOdXuhX98mLAnvs2hMDwVtN5kJ7G4aPPKE+YCygKRaz8Kn7fYhNB4Ynjtw==",
+  "identicalToFreshLocalBuild": true,
+  "installedVersionAndExportsVerified": true,
+  "files": [
+    {
+      "path": "LICENSE",
+      "bytes": 5718,
+      "sha256": "9299e67ce63bb1caca51930369ae3bb8d930827057f8193766daf880da7e59fe"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4171,
+      "sha256": "85bb950b192bf77d060f22e9a3fd13b81761c2042f12ee72d50d6d3e208566b6"
+    },
+    {
+      "path": "dist/authentication-capture.d.ts",
+      "bytes": 3018,
+      "sha256": "b34fa70705b9c714529c62a52e4cf50d7379c8e0e2523218853631387a26bb10"
+    },
+    {
+      "path": "dist/authentication-capture.js",
+      "bytes": 10253,
+      "sha256": "9333f42fe667231c6238f0caea291b423b6f77224d912daa06d4bd5b2b5048c5"
+    },
+    {
+      "path": "dist/cli.d.ts",
+      "bytes": 31,
+      "sha256": "43e818adf60173644896298637f47b01d5819b17eda46eaa32d0c7d64724d012"
+    },
+    {
+      "path": "dist/cli.js",
+      "bytes": 329,
+      "sha256": "038de07d2216d55825f4998e186ff5413b7b489dea605338e4c564f272f9beeb"
+    },
+    {
+      "path": "dist/companion.d.ts",
+      "bytes": 436,
+      "sha256": "5f8c9cfc86926c85efb1ad4996f4e5fc69182e91b4977de8bac2b58186aff7f2"
+    },
+    {
+      "path": "dist/companion.js",
+      "bytes": 17296,
+      "sha256": "876f31ebd482b07117964e7e7b7d0aef03b098714a9f81195ee845f0ae34f2ea"
+    },
+    {
+      "path": "dist/index.d.ts",
+      "bytes": 528,
+      "sha256": "786232cdbef93a918544c9070110cd1f875501cfb9f9f0dac3c9a23717829d7c"
+    },
+    {
+      "path": "dist/index.js",
+      "bytes": 362,
+      "sha256": "827b82a78edf32c4e557ea9ec0706cd27ecdc7610e560b23e12dc45155601e59"
+    },
+    {
+      "path": "dist/local-env.d.ts",
+      "bytes": 90,
+      "sha256": "51d541408cc0060e04bb7f7f54233a98aab8a47b3a39fcc9b98d9aab7bf5e3e9"
+    },
+    {
+      "path": "dist/local-env.js",
+      "bytes": 256,
+      "sha256": "2c9ec9341c40ad5e066169e9143f7f5110ef315c7ccc982a3bdb396740c73401"
+    },
+    {
+      "path": "dist/run.d.ts",
+      "bytes": 454,
+      "sha256": "014edc3d1c6987368cab08b1551b2d5dfaf91f26af71efc20fe2e5dfd2f89f94"
+    },
+    {
+      "path": "dist/run.js",
+      "bytes": 18436,
+      "sha256": "c2421ab4b538080993526c01076b14b7754927c38a3f82ad9a36f28560ec4583"
+    },
+    {
+      "path": "dist/workflow-create.d.ts",
+      "bytes": 367,
+      "sha256": "dc022a8935d0b22d4242c55108f36f12ab9a57ded565cf033433e3d58054f4a3"
+    },
+    {
+      "path": "dist/workflow-create.js",
+      "bytes": 4710,
+      "sha256": "da61479be7e69d9ffd49cf403a6efcf597416cf1e2d7f3d56d66e7f3e6abda1f"
+    },
+    {
+      "path": "package.json",
+      "bytes": 1765,
+      "sha256": "edee57544a419516af7b193118d426a741de489c3d642d90a62ed44c1d3d8c13"
+    }
+  ]
+}

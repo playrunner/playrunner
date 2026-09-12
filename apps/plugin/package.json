@@ -1,0 +1,31 @@
+{
+  "name": "@playrunner/codex-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex plugin for Playrunner Cloud workflows with an optional local authentication companion.",
+  "type": "module",
+  "author": "Concept AI PTY LTD",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=20"
+  },
+  "config": {
+    "playrunnerVersion": "0.2.5"
+  },
+  "scripts": {
+    "package": "node scripts/package.mjs",
+    "install:codex": "node scripts/install.mjs",
+    "cli": "node scripts/playrunner.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "verify:cli": "node scripts/verify-cli-release.mjs",
+    "test:submission": "node --test tests/submission.test.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run test && npm run format:check",
+    "verify:hosted": "node scripts/verify-hosted.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.8.4"
+  }
+}

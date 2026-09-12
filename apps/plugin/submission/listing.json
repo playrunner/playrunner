@@ -1,0 +1,37 @@
+{
+  "organisation": "Concept AI PTY LTD",
+  "organisationId": "org-RlSxqRwuojoOzB1ZTJ8Zzqhg",
+  "project": "Playrunner",
+  "projectId": "proj_3emUPw7CHBDZMWMElRVgVqIj",
+  "submissionType": "With MCP",
+  "serverUrlType": "Universal",
+  "mcpServerUrl": "https://playrunner.cloud/mcp",
+  "authentication": "OAuth 2.1 authorization code with PKCE S256 and dynamic client registration",
+  "interface": {
+    "displayName": "Playrunner",
+    "shortDescription": "Build and run test workflows",
+    "longDescription": "Create Playrunner Cloud projects, environments, Authentication Profiles and Playwright workflows from Codex. Connect GitHub, run saved workflows and investigate execution results.\n\nConnect a Playrunner Cloud account to get started. Account setup and usage limits apply. Codex guides browser authorization when GitHub access or a test sign-in is needed.\n\nBrowser sign-ins for Authentication Profiles require a local computer with Node.js 20+ and npm. With command approval, the included skill downloads the pinned Playrunner CLI into npm\u2019s cache and pairs the authentication companion. Other Cloud workflow operations use the hosted MCP server without a local CLI. Passwords and MFA codes are entered directly in the browser.\n\nRunning tests may consume workflow-run allowance. Workflow completion is reported separately from test evidence. The plugin does not upload uncommitted application changes automatically.",
+    "developerName": "Concept AI PTY LTD",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://playrunner.dev",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png",
+    "defaultPrompt": [
+      "Set up a Playrunner Cloud workflow for my staging checkout tests.",
+      "Connect GitHub and configure an Authentication Profile for my tests.",
+      "Run my Playrunner workflow and explain any failures."
+    ],
+    "privacyPolicyURL": "https://playrunner.cloud/privacy",
+    "termsOfServiceURL": "https://playrunner.cloud/terms"
+  },
+  "supportURL": "https://github.com/playrunner/playrunner/issues",
+  "releaseNotes": "Initial Playrunner Cloud plugin with guided account and browser companion setup, workflow authoring and execution tools. Requires production validation before submission.",
+  "releaseStatus": "draft-created-awaiting-deployment-and-live-validation",
+  "reviewerCredentials": null,
+  "availability": null,
+  "domainChallenge": null,
+  "policyAttestations": null,
+  "developerIdentity": "Business \u2014 Concept AI PTY LTD",
+  "draftUrl": "https://platform.openai.com/plugins/edit/asdk_app_6aa4c16111fc819193738d69a4b471b6/asdk_app_v_6aa4c16390188191b92c37813a3887fb"
+}

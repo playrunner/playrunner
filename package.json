@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "./start-local.sh",
     "dev:setup": "./start-local.sh --setup",
+    "plugin:package": "npm run package --prefix apps/plugin",
+    "plugin:install": "npm run install:codex --prefix apps/plugin",
+    "plugin:check": "npm run check --prefix apps/plugin",
     "build": "npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
     "build:e2e:orchestrator": "./infra/scripts/rebuild-orchestrator.sh",
     "start:e2e:services": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; docker compose up -d postgres pubsub",

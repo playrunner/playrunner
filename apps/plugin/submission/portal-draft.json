@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-09-12T03:14:04.972269+00:00",
+  "draftUrl": "https://platform.openai.com/plugins/edit/asdk_app_6aa4c16111fc819193738d69a4b471b6/asdk_app_v_6aa4c16390188191b92c37813a3887fb",
+  "businessIdentity": "Concept AI PTY LTD",
+  "project": "Playrunner",
+  "saved": [
+    "listing",
+    "developer identity",
+    "directory icon",
+    "composer icon",
+    "MCP URL and OAuth selection",
+    "three starter prompts",
+    "five positive test cases",
+    "three negative test cases"
+  ],
+  "skillUpload": {
+    "filename": "playrunner-skill-0.1.0.zip",
+    "sha256": "acae9cc31be7fe6bb9bf00d6f8d3cd11827dbf90ed8352eb5ce0be4c208ca26b",
+    "status": "scanning"
+  },
+  "pending": [
+    "production migration and gateway/hosting deployment",
+    "OAuth discovery and tool scan",
+    "domain challenge",
+    "reviewer demo account and live tests",
+    "demo recording",
+    "country availability",
+    "policy attestations",
+    "Submit for Review and subsequent publication"
+  ]
+}
