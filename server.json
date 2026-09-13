@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.playrunner/playrunner",
+  "title": "Playrunner",
+  "description": "Discover Playwright workflows, start runs, and inspect results in Playrunner Cloud.",
+  "version": "0.1.0",
+  "websiteUrl": "https://playrunner.dev",
+  "repository": {
+    "url": "https://github.com/playrunner/playrunner",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://playrunner.cloud/mcp"
+    }
+  ]
+}
