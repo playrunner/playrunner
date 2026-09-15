@@ -52,6 +52,23 @@ claude mcp add --transport http playrunner https://playrunner.cloud/mcp
 
 Then run `/mcp` and authorise when prompted.
 
+### Codex
+
+Playrunner is packaged as a Codex plugin. Install it from the Codex plugin
+directory, then ask Codex to work with Playrunner — it handles the connection
+and browser sign-in itself. You do not need an API token or any manual MCP
+configuration.
+
+The plugin also carries a skill covering workflow authoring, GitHub connection,
+and the local browser authentication companion used for Authentication
+Profiles.
+
+:::note
+The plugin listing is still in review. Until it is published, add
+`https://playrunner.cloud/mcp` to Codex as a remote MCP server and authorise it
+in the browser — the same tools are available either way.
+:::
+
 ### Other hosts
 
 Anything that accepts a remote MCP server takes the same URL. Where a host asks for a transport, choose **streamable HTTP**.
