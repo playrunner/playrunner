@@ -78,6 +78,23 @@ Add the server with **MCP: Add Server** from the command palette, or commit a
 
 Copilot prompts you to authorise in the browser the first time it connects.
 
+### Cursor
+
+Add the server under **Settings → MCP**, or commit a `.cursor/mcp.json` to share
+it with the project:
+
+```json
+{
+  "mcpServers": {
+    "playrunner": {
+      "url": "https://playrunner.cloud/mcp"
+    }
+  }
+}
+```
+
+Cursor opens the browser to authorise on first use.
+
 ### Kody
 
 1. Open [`/account/mcp-servers`](https://kody.codes/account/mcp-servers) and choose **Add any remote MCP server**.
