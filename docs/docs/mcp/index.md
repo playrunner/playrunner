@@ -1,6 +1,6 @@
 ---
 sidebar_position: 1
-sidebar_label: Overview
+sidebar_label: MCP server
 title: Playrunner MCP server
 description: Connect an AI agent to Playrunner over the Model Context Protocol to discover, run, and inspect Playwright workflows from any MCP host.
 keywords:
