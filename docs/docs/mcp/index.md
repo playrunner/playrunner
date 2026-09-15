@@ -35,15 +35,6 @@ You approve a named set of permissions and can revoke them at any time from your
 
 ## Add it to a host
 
-### Kody
-
-1. Open [`/account/mcp-servers`](https://kody.codes/account/mcp-servers) and choose **Add any remote MCP server**.
-2. Set the **Server name** to `playrunner` and the **Server URL** to `https://playrunner.cloud/mcp`.
-3. Kody returns an authorisation link. Open it, sign in to Playrunner Cloud, and approve.
-4. The tools appear as `kody.mcp["playrunner"].list_workflows(...)`.
-
-The name must be lowercase kebab-case — Kody uses it as the accessor in code.
-
 ### Claude Code
 
 ```bash
@@ -68,6 +59,33 @@ The plugin listing is still in review. Until it is published, add
 `https://playrunner.cloud/mcp` to Codex as a remote MCP server and authorise it
 in the browser — the same tools are available either way.
 :::
+
+### VS Code
+
+Add the server with **MCP: Add Server** from the command palette, or commit a
+`.vscode/mcp.json` so the whole team picks it up:
+
+```json
+{
+  "servers": {
+    "playrunner": {
+      "type": "http",
+      "url": "https://playrunner.cloud/mcp"
+    }
+  }
+}
+```
+
+Copilot prompts you to authorise in the browser the first time it connects.
+
+### Kody
+
+1. Open [`/account/mcp-servers`](https://kody.codes/account/mcp-servers) and choose **Add any remote MCP server**.
+2. Set the **Server name** to `playrunner` and the **Server URL** to `https://playrunner.cloud/mcp`.
+3. Kody returns an authorisation link. Open it, sign in to Playrunner Cloud, and approve.
+4. The tools appear as `kody.mcp["playrunner"].list_workflows(...)`.
+
+The name must be lowercase kebab-case — Kody uses it as the accessor in code.
 
 ### Other hosts
 
