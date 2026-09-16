@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.playrunner/mcp",
+  "name": "dev.playrunner/mcp",
   "title": "Playrunner",
   "description": "Discover Playwright workflows, start runs, and inspect results in Playrunner Cloud.",
   "version": "0.1.0",
