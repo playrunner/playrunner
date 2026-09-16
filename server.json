@@ -3,7 +3,7 @@
   "name": "dev.playrunner/mcp",
   "title": "Playrunner",
   "description": "Discover Playwright workflows, start runs, and inspect results in Playrunner Cloud.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "websiteUrl": "https://playrunner.dev",
   "repository": {
     "url": "https://github.com/playrunner/playrunner",
@@ -13,6 +13,22 @@
     {
       "type": "streamable-http",
       "url": "https://playrunner.cloud/mcp"
+    }
+  ],
+  "icons": [
+    {
+      "src": "https://playrunner.dev/img/icons/icon-512.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    },
+    {
+      "src": "https://playrunner.dev/img/icons/icon-192.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "192x192"
+      ]
     }
   ]
 }
