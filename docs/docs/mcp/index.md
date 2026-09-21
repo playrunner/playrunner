@@ -120,6 +120,31 @@ Anything that accepts a remote MCP server takes the same URL. Where a host asks 
 
 `run_workflow` returns a run id immediately rather than waiting, so an agent starts a suite and polls `get_run_status` for the outcome.
 
+## Try it without writing a workflow first
+
+A new account has nothing to run, which makes the first conversation with an
+agent a dead end. Point it at the public demo suite instead:
+
+> Create a Playrunner workflow that runs the tests in
+> `playrunner/playwright-demo-testsuite` on the `demo/sharding-report-merge`
+> branch, with auto sharding. Then run it and tell me what failed.
+
+The agent connects GitHub if it needs to, creates the project, saves the
+workflow, and starts the run. That branch holds 128 tests, so auto sharding
+splits them across runners and merges the reports into one result — which is
+the behaviour worth seeing first.
+
+Other branches in that repository are useful too:
+
+| Branch                       | What it shows                               |
+| ---------------------------- | ------------------------------------------- |
+| `demo/sharding-report-merge` | 128 tests, auto sharding, one merged report |
+| `1.61.1/pass`                | a clean run                                 |
+| `1.61.1/fail`                | a failure, for exercising the triage path   |
+
+A run consumes the same allowance as any other trigger, so an agent should ask
+before starting one.
+
 ## Limits worth knowing
 
 Runs started through MCP consume the same workflow-run allowance as any other trigger, and the same per-minute request limits apply. Repeated calls carrying the same idempotency key return the original run instead of starting a second one.
