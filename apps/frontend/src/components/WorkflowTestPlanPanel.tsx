@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Upload } from 'lucide-react';
 import { Button, Input, Textarea } from './ui';
 
 type PlanCase = {
@@ -61,6 +62,7 @@ export function WorkflowTestPlanPanel({
   onChange: (plan: WorkflowTestPlan | undefined) => void;
 }) {
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const updateCase = (index: number, patch: Partial<PlanCase>) => {
     if (value)
       onChange({
@@ -81,10 +83,21 @@ export function WorkflowTestPlanPanel({
         multiple nodes and require action nodes to succeed. Unmapped cases and
         exit criteria remain unresolved.
       </p>
-      <label className="block text-sm">
-        Upload test plan
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant="secondary"
+          className="gap-2"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4" aria-hidden="true" />
+          {value ? 'Replace plan' : 'Choose file'}
+        </Button>
+        <span className="text-xs text-muted">Markdown (.md), up to 256 KB</span>
         <input
-          className="block mt-2 text-xs"
+          ref={fileInputRef}
+          className="hidden"
+          aria-label="Upload test plan"
           type="file"
           accept=".md,text/markdown"
           onChange={async (event) => {
@@ -110,7 +123,7 @@ export function WorkflowTestPlanPanel({
             }
           }}
         />
-      </label>
+      </div>
       {error && (
         <p role="alert" className="text-sm text-error">
           {error}
