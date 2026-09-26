@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
@@ -129,6 +129,8 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null);
   const [displayName, setDisplayName] = useState(
     getUserDisplayName(auth.currentUser),
   );
@@ -139,6 +141,36 @@ export function Sidebar({
       setDisplayName(getUserDisplayName(user));
     });
   }, []);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !userMenuRef.current?.contains(event.target)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+        userMenuButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        dismissOnOutsidePointer,
+        true,
+      );
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [isUserMenuOpen]);
 
   const textClass = cn(
     'whitespace-nowrap transition-[opacity,width] duration-100',
@@ -270,7 +302,10 @@ export function Sidebar({
               />
             </div>
 
-            <div className="relative border-t border-subtle shrink-0">
+            <div
+              ref={userMenuRef}
+              className="relative border-t border-subtle shrink-0"
+            >
               {isUserMenuOpen && (
                 <div
                   className={cn(
@@ -314,7 +349,8 @@ export function Sidebar({
                 </div>
               )}
               <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                ref={userMenuButtonRef}
+                onClick={() => setIsUserMenuOpen((open) => !open)}
                 className={cn(
                   'w-full flex items-center hover:bg-surface-hover transition-colors text-left focus:outline-none py-3 overflow-hidden',
                   isOpen ? 'gap-3 px-2.5' : 'justify-center px-2',

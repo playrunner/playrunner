@@ -1,6 +1,39 @@
 import { expect, test } from '../fixtures';
 import { SidebarPom } from '../core/SidebarPom';
 
+for (const collapsed of [false, true]) {
+  test(`account menu dismisses outside and with Escape when ${collapsed ? 'collapsed' : 'expanded'} @sidebar`, async ({
+    page,
+  }) => {
+    await page.goto('/projects');
+    if (collapsed)
+      await page.getByTitle('Collapse Sidebar', { exact: true }).click();
+    const sidebar = new SidebarPom(page);
+    const account = await sidebar.expectAccountVisible();
+    const settings = page.getByRole('button', {
+      name: 'Settings',
+      exact: true,
+    });
+
+    await sidebar.openAccountMenu();
+    await page
+      .getByText('No projects found. Create one to get started.')
+      .click();
+    await expect(settings).toBeHidden();
+    await expect(account).toHaveAttribute('aria-expanded', 'false');
+
+    await sidebar.openAccountMenu();
+    await settings.focus();
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeHidden();
+    await expect(account).toBeFocused();
+
+    await sidebar.openAccountMenu();
+    await account.click();
+    await expect(settings).toBeHidden();
+  });
+}
+
 for (const viewport of [
   { width: 1280, height: 720 },
   { width: 1280, height: 480 },
