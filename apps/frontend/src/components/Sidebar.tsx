@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   User,
@@ -129,6 +129,8 @@ export function Sidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuButtonRef = useRef<HTMLButtonElement>(null);
   const [displayName, setDisplayName] = useState(
     getUserDisplayName(auth.currentUser),
   );
@@ -139,6 +141,36 @@ export function Sidebar({
       setDisplayName(getUserDisplayName(user));
     });
   }, []);
+
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+
+    const dismissOnOutsidePointer = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !userMenuRef.current?.contains(event.target)
+      ) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+        userMenuButtonRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener(
+        'pointerdown',
+        dismissOnOutsidePointer,
+        true,
+      );
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [isUserMenuOpen]);
 
   const textClass = cn(
     'whitespace-nowrap transition-[opacity,width] duration-100',
@@ -158,12 +190,12 @@ export function Sidebar({
         className={cn(
           'flex min-h-0 flex-col bg-surface/50 backdrop-blur-md z-50 shadow-none transition-[width] duration-300 ease-in-out shrink-0 border-r border-strong',
           isPinned
-            ? 'sticky top-0 h-dvh max-h-dvh self-start'
-            : 'h-full self-stretch',
+            ? 'sticky top-[var(--app-banner-height)] h-[calc(100dvh_-_var(--app-banner-height))] self-start'
+            : 'relative self-stretch',
           isOpen ? 'w-56' : 'w-[52px]',
         )}
       >
-        <div className="w-full h-full flex flex-col overflow-hidden">
+        <div className="w-full min-h-0 flex-1 flex flex-col">
           <div
             className={cn(
               'h-16 flex items-center shrink-0 overflow-hidden',
@@ -199,8 +231,8 @@ export function Sidebar({
             </span>
           </div>
 
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto px-2.5 py-4 space-y-1">
+          <div className="min-h-0 flex-1 flex flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-4 space-y-1">
               <NavItem
                 icon={FolderClosed}
                 label="Projects"
@@ -270,7 +302,10 @@ export function Sidebar({
               />
             </div>
 
-            <div className="relative border-t border-subtle shrink-0">
+            <div
+              ref={userMenuRef}
+              className="relative border-t border-subtle shrink-0"
+            >
               {isUserMenuOpen && (
                 <div
                   className={cn(
@@ -314,12 +349,15 @@ export function Sidebar({
                 </div>
               )}
               <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                ref={userMenuButtonRef}
+                onClick={() => setIsUserMenuOpen((open) => !open)}
                 className={cn(
                   'w-full flex items-center hover:bg-surface-hover transition-colors text-left focus:outline-none py-3 overflow-hidden',
                   isOpen ? 'gap-3 px-2.5' : 'justify-center px-2',
                 )}
                 title="User Menu"
+                aria-label={`User Menu: ${displayName}`}
+                aria-expanded={isUserMenuOpen}
               >
                 <div className="w-8 h-8 rounded-full bg-surface-hover border border-strong flex items-center justify-center shrink-0">
                   <User className="w-4 h-4 text-muted" />
@@ -327,7 +365,7 @@ export function Sidebar({
                 <span
                   className={cn(
                     textClass,
-                    'text-sm font-medium text-[var(--foreground)] truncate',
+                    'min-w-0 text-sm font-medium text-[var(--foreground)] truncate',
                   )}
                 >
                   {displayName}

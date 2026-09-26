@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ExternalLink, GitPullRequest, X } from 'lucide-react';
 import { Sidebar } from './Sidebar';
@@ -28,6 +34,8 @@ export function PageLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [headerLeft, setHeaderLeft] = useState<React.ReactNode>(null);
   const [headerCenter, setHeaderCenter] = useState<React.ReactNode>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const [bannerHeight, setBannerHeight] = useState(0);
   const [isContributorBannerDismissed, setIsContributorBannerDismissed] =
     useState(() => {
       if (typeof window === 'undefined') {
@@ -41,6 +49,20 @@ export function PageLayout() {
   const contributingUrl = getDocsUrl('docs/contributing');
   const isWorkflowRoute = location.pathname.startsWith('/workflow');
 
+  useLayoutEffect(() => {
+    const banner = bannerRef.current;
+    if (!banner) {
+      setBannerHeight(0);
+      return;
+    }
+    const updateHeight = () =>
+      setBannerHeight(banner.getBoundingClientRect().height);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(banner);
+    return () => observer.disconnect();
+  }, [isContributorBannerDismissed]);
+
   const dismissContributorBanner = () => {
     setIsContributorBannerDismissed(true);
     window.localStorage.setItem(CONTRIBUTOR_BANNER_DISMISSED_KEY, 'true');
@@ -49,13 +71,19 @@ export function PageLayout() {
   return (
     <HeaderContext.Provider value={{ setHeaderLeft, setHeaderCenter }}>
       <div
+        style={
+          { '--app-banner-height': `${bannerHeight}px` } as React.CSSProperties
+        }
         className={cn(
           'flex flex-col bg-background',
           isWorkflowRoute ? 'h-dvh' : 'min-h-dvh',
         )}
       >
         {isContributorBannerDismissed ? null : (
-          <div className="grid min-h-10 w-full shrink-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-subtle bg-surface px-3 py-2 text-sm font-medium text-[var(--foreground)]">
+          <div
+            ref={bannerRef}
+            className="sticky top-0 z-[60] grid min-h-10 w-full shrink-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-subtle bg-surface px-3 py-2 text-sm font-medium text-[var(--foreground)]"
+          >
             <span aria-hidden="true" />
             <a
               href={contributingUrl}
@@ -101,7 +129,12 @@ export function PageLayout() {
               isWorkflowRoute && 'min-h-0',
             )}
           >
-            <header className="sticky top-0 h-16 border-b border-subtle flex items-center px-6 gap-4 shrink-0 bg-surface/50 backdrop-blur-md z-30">
+            <header
+              className={cn(
+                'sticky h-16 border-b border-subtle flex items-center px-6 gap-4 shrink-0 bg-surface/50 backdrop-blur-md z-30',
+                isWorkflowRoute ? 'top-0' : 'top-[var(--app-banner-height)]',
+              )}
+            >
               {headerLeft}
               <div className="flex-1 flex justify-center">{headerCenter}</div>
               <HeaderActions />
