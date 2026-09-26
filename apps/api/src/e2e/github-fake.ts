@@ -25,7 +25,20 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === 'GET' && url.pathname === '/user/installations') {
-    sendJson(response, 200, { installations: [{ id: 1 }] });
+    sendJson(response, 200, {
+      installations: [
+        {
+          id: 1,
+          app_slug: 'playrunner-e2e',
+          permissions: {
+            contents: 'write',
+            pull_requests: 'write',
+            issues: 'write',
+            metadata: 'read',
+          },
+        },
+      ],
+    });
     return;
   }
 

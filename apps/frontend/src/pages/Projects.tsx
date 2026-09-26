@@ -229,6 +229,7 @@ export default function Projects() {
           {projects.map((proj) => (
             <div
               key={proj.id}
+              data-testid="project-card"
               onClick={() => navigate(`/projects/${proj.id}`)}
               className="group bg-surface border border-subtle rounded-xl p-6 cursor-pointer hover:border-strong transition-colors shadow-sm hover:shadow-md"
             >
@@ -243,6 +244,7 @@ export default function Projects() {
 
                 <div className="relative">
                   <button
+                    aria-label={`Project options for ${proj.title}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       setOpenMenuId(openMenuId === proj.id ? null : proj.id);

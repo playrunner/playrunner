@@ -41,10 +41,37 @@ export class WebhooksE2EPom {
 
   async open() {
     await this.host.gotoIntegrations();
+    const settings = this.waitForSettings();
     await this.integrationCard()
       .getByRole('button', { name: 'Connect' })
       .click();
+    await settings;
     await this.dialog.waitFor();
+  }
+
+  private async waitForSettings() {
+    const response = await this.page.waitForResponse(
+      (candidate) =>
+        candidate.request().method() === 'GET' &&
+        new URL(candidate.url()).pathname === '/api/webhooks/settings',
+    );
+    if (!response.ok())
+      throw new Error(`Webhooks settings load failed: ${response.status()}`);
+    await response.finished();
+  }
+
+  async save() {
+    const saved = this.page.waitForResponse(
+      (candidate) =>
+        candidate.request().method() === 'PUT' &&
+        new URL(candidate.url()).pathname === '/api/webhooks/settings',
+    );
+    const settings = this.waitForSettings();
+    await this.saveButton.click();
+    const response = await saved;
+    if (!response.ok())
+      throw new Error(`Webhooks settings save failed: ${response.status()}`);
+    await settings;
   }
 
   async close() {
@@ -62,9 +89,11 @@ export class WebhooksE2EPom {
   }
 
   async reopen() {
+    const settings = this.waitForSettings();
     await this.integrationCard()
       .getByRole('button', { name: 'Configure Webhooks' })
       .click();
+    await settings;
     await this.dialog.waitFor();
   }
 

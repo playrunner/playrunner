@@ -149,6 +149,7 @@ export default function Environments() {
             {environments.map((env) => (
               <div
                 key={env.id}
+                data-testid="environment-card"
                 onClick={() => {
                   setEditingEnv(env);
                   setIsCreateModalOpen(true);
@@ -164,6 +165,7 @@ export default function Environments() {
 
                   <div className="relative">
                     <button
+                      aria-label={`Environment options for ${env.name}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setOpenMenuId(openMenuId === env.id ? null : env.id);

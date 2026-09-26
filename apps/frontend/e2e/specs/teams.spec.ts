@@ -1,48 +1,19 @@
 import { expect, test } from '../fixtures';
-import type { Page } from '@playwright/test';
-
-async function authenticatedApi(
-  page: Page,
-  path: string,
-  init: { body?: unknown; method?: string } = {},
-) {
-  return page.evaluate(
-    async ({ init, path }) => {
-      const session = JSON.parse(
-        window.localStorage.getItem('playrunner.localAuthSession') || '{}',
-      ) as { token?: string };
-      const response = await fetch(path, {
-        method: init.method,
-        headers: {
-          Authorization: `Bearer ${session.token || ''}`,
-          ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        },
-        body: init.body ? JSON.stringify(init.body) : undefined,
-      });
-      return {
-        payload: await response.json().catch(() => null),
-        status: response.status,
-      };
-    },
-    { init, path },
-  );
-}
+import { authenticatedApi } from '../support/authenticatedApi';
 
 test('creates a team and securely manages an invited member @teams', async ({
   page,
-}, testInfo) => {
-  const suffix = `${testInfo.workerIndex}-${testInfo.retry}`;
+  projects,
+  teams,
+  data,
+  guestPage: invitedPage,
+}) => {
+  const suffix = data.memberEmail.split('@')[0];
   const teamName = `E2E Collaboration ${suffix}`;
   const memberEmail = `member-${suffix}@playrunner.dev`;
 
-  await page.goto('/projects');
-  await page.getByRole('button', { name: 'New Project' }).first().click();
-  await expect(
-    page.getByRole('heading', { name: 'Project Dashboard' }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole('heading', { name: 'Default Workflow' }),
-  ).toBeVisible();
+  await projects.goto();
+  await projects.create('Default Workflow');
   const ownedWorkflows = await authenticatedApi(page, '/api/store/workflows');
   const ownerWorkflow = (
     ownedWorkflows.payload as {
@@ -87,11 +58,10 @@ test('creates a team and securely manages an invited member @teams', async ({
     ).status,
   ).toBe(200);
 
-  await page.goto('/teams');
-  await page.getByLabel('Team name').fill(teamName);
-  await page.getByRole('button', { name: 'Create team' }).click();
+  await teams.goto();
+  await teams.create(teamName);
   const teamCard = page
-    .getByTestId('team-card')
+    .getByTestId('team-details')
     .filter({ has: page.getByRole('heading', { name: teamName }) });
   await expect(teamCard).toBeVisible();
   await expect(
@@ -119,10 +89,6 @@ test('creates a team and securely manages an invited member @teams', async ({
     'A pending invitation already exists',
   );
 
-  const browser = page.context().browser();
-  if (!browser) throw new Error('The teams E2E test requires a browser.');
-  const invitedContext = await browser.newContext();
-  const invitedPage = await invitedContext.newPage();
   await invitedPage.goto(invitationPayload.invitation.invitationPath);
   await expect(invitedPage).toHaveURL(/\/login\?returnTo=/);
   await invitedPage
@@ -157,7 +123,8 @@ test('creates a team and securely manages an invited member @teams', async ({
   expect(beforeShare.status).toBe(200);
   expect(beforeShare.payload).toEqual({ workflows: [] });
 
-  await page.goto('/teams');
+  await teams.goto();
+  await teams.open(teamName);
   await expect(
     teamCard.getByText(memberEmail, { exact: true }).first(),
   ).toBeVisible();
@@ -182,7 +149,7 @@ test('creates a team and securely manages an invited member @teams', async ({
   await expect(teamCard.getByRole('listbox')).toBeVisible();
   expect(
     await teamCard.getByRole('listbox').evaluate((listbox) => {
-      const card = listbox.closest('[data-testid="team-card"]');
+      const card = listbox.closest('[data-testid="team-details"]');
       return (
         card !== null &&
         listbox.getBoundingClientRect().bottom <=
@@ -260,6 +227,4 @@ test('creates a team and securely manages an invited member @teams', async ({
     (retainedOwnerWorkflow.payload as { workflow?: { title?: string } })
       .workflow?.title,
   ).toBe('Default Workflow');
-
-  await invitedContext.close();
 });

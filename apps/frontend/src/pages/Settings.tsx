@@ -203,6 +203,7 @@ export default function Settings() {
             tokens.map((token) => (
               <div
                 key={token.id}
+                data-testid="api-token-row"
                 className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
               >
                 <div>
@@ -323,18 +324,28 @@ export default function Settings() {
         ) : (
           <div className="space-y-5">
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium">Token name</label>
+              <label
+                htmlFor="api-token-name"
+                className="block text-sm font-medium"
+              >
+                Token name
+              </label>
               <Input
+                id="api-token-name"
                 value={name}
                 maxLength={100}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-sm font-medium">
+              <label
+                htmlFor="api-token-expiry"
+                className="block text-sm font-medium"
+              >
                 Expiry (optional)
               </label>
               <Input
+                id="api-token-expiry"
                 type="datetime-local"
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}

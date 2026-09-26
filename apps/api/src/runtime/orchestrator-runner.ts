@@ -11,7 +11,8 @@ import {
 import { state } from '../state';
 
 const execFileAsync = promisify(execFile);
-const LOCAL_ORCHESTRATOR_CONTAINER_NAME = 'playrunner-orchestrator-local';
+const LOCAL_ORCHESTRATOR_CONTAINER_NAME =
+  process.env.ORCHESTRATOR_CONTAINER_NAME || 'playrunner-orchestrator-local';
 export const LOCAL_ORCHESTRATOR_AUTH_HEADER = 'x-playrunner-orchestrator-token';
 const LOCAL_ORCHESTRATOR_AUTH_ENV = 'PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN';
 const localOrchestratorAuthToken = crypto.randomBytes(32).toString('base64url');

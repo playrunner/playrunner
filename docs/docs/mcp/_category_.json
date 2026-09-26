@@ -1,9 +1,9 @@
 {
-  "label": "MCP server",
+  "label": "MCP",
   "position": 2.3,
   "link": {
     "type": "doc",
     "id": "mcp/index"
   },
-  "description": "Let an AI agent discover, run, and inspect your Playwright workflows from any MCP host."
+  "description": "Connect AI assistants to Playrunner to build workflows, run tests, and inspect results."
 }

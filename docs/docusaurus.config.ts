@@ -265,6 +265,7 @@ const config: Config = {
           label: 'Docs',
         },
         { to: '/docs/cli', label: 'CLI', position: 'left' },
+        { to: '/docs/mcp', label: 'MCP', position: 'left' },
         { to: '/pricing', label: 'Pricing', position: 'left' },
         { to: '/blog', label: 'Blog', position: 'left' },
         ...(algolia ? ([{ type: 'search', position: 'right' }] as const) : []),
@@ -374,6 +375,7 @@ const config: Config = {
           title: 'Resources',
           items: [
             { label: 'Documentation', to: '/docs/overview' },
+            { label: 'MCP', to: '/docs/mcp' },
             {
               label: 'npm packages',
               href: 'https://www.npmjs.com/org/playrunner',

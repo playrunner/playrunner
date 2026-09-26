@@ -20,7 +20,8 @@ export const webhooksE2EContribution = definePlayrunnerE2EContribution({
         await pom.exposureSelect.selectOption('public-url');
         await pom.enterPublicUrl(data.publicUrl);
         await pom.enterBearerToken(data.bearerToken);
-        await pom.saveButton.click();
+        await pom.save();
+        await expect(pom.saveButton).toBeEnabled();
 
         await pom.close();
         await pom.page.reload();

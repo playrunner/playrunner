@@ -1,94 +1,44 @@
+import { EditorPom } from './EditorPom';
+import { randomUUID } from 'node:crypto';
+import { ProjectsPom } from './ProjectsPom';
 import type { Page } from '@playwright/test';
 import type { PlayrunnerE2EHost } from '@playrunner/integration-sdk/e2e';
 
 export class PlayrunnerHostPom implements PlayrunnerE2EHost {
-  constructor(readonly page: Page) {}
+  readonly editor: EditorPom;
+  constructor(readonly page: Page) {
+    this.editor = new EditorPom(page);
+  }
 
   async openNewWorkflow() {
-    await this.page.goto('/projects');
-    await this.page
-      .getByRole('button', { name: 'New Project' })
-      .first()
+    const projects = new ProjectsPom(this.page);
+    const name = `E2E Workflow ${randomUUID().slice(0, 8)}`;
+    await projects.goto();
+    await projects.create(name, []);
+    await projects
+      .workflow(name)
+      .getByRole('heading', { name, exact: true })
       .click();
-    const dialog = this.page.getByRole('dialog', { name: 'Create project' });
-    const projectName = await dialog
-      .getByRole('textbox', { name: 'Project name' })
-      .inputValue();
-    await dialog
-      .getByRole('button', { name: 'Create project', exact: true })
-      .click();
-    await this.page
-      .getByRole('heading', { name: 'Project Dashboard' })
-      .waitFor();
-    await this.page
-      .getByRole('heading', { name: projectName, level: 3, exact: true })
-      .click();
-    await this.page.getByTitle('Add Node').waitFor();
+    await this.editor.ready();
   }
 
   async addNode(nodeType: string) {
-    await this.page.getByTitle('Add Node').click();
-    await this.page.getByTestId(`node-selector-option-${nodeType}`).click();
-    await this.page.getByTestId(`canvas-node-${nodeType}`).last().waitFor();
+    await this.editor.addNode(nodeType);
   }
-
   async openNodeSettings(nodeType: string) {
-    const node = this.page.getByTestId(`canvas-node-${nodeType}`).last();
-    const setupButton = node.getByTitle(
-      'Node not fully configured. Click to setup.',
-    );
-    if (await setupButton.isVisible()) {
-      await setupButton.click();
-    } else {
-      await node.click({ button: 'right' });
-      await this.page
-        .getByRole('button', { name: 'Configure', exact: true })
-        .click();
-    }
-    await this.page.getByRole('dialog').last().waitFor();
+    await this.editor.openNodeSettings(nodeType);
   }
-
   async closeNodeSettings() {
-    await this.page.getByRole('dialog').last().getByTitle('Close').click();
+    await this.editor.closeNodeSettings();
   }
-
   async saveWorkflow() {
-    const response = this.page.waitForResponse((candidate) => {
-      const url = new URL(candidate.url());
-      return (
-        candidate.request().method() === 'PUT' &&
-        url.pathname.startsWith('/api/store/workflows/')
-      );
-    });
-    await this.page.getByTitle('Save Workflow').click();
-    const result = await response;
-    if (!result.ok()) {
-      throw new Error(`Workflow save failed with ${result.status()}.`);
-    }
+    await this.editor.saveWorkflow();
   }
-
   async reloadWorkflow() {
-    await this.page.reload();
-    await this.page.getByTitle('Add Node').waitFor();
+    await this.editor.reloadWorkflow();
   }
-
-  async runWorkflowNode(nodeType: string): Promise<'error' | 'success'> {
-    const node = this.page.getByTestId(`canvas-node-${nodeType}`).last();
-    await this.page.getByTitle('Play Simulation').click();
-    await this.page.waitForFunction(
-      (type) => {
-        const nodes = document.querySelectorAll(
-          `[data-testid="canvas-node-${type}"]`,
-        );
-        const node = nodes[nodes.length - 1];
-        return ['success', 'error'].includes(
-          node?.getAttribute('data-node-status') ?? '',
-        );
-      },
-      nodeType,
-      { timeout: 120_000 },
-    );
-    return (await node.getAttribute('data-node-status')) as 'error' | 'success';
+  async runWorkflowNode(nodeType: string) {
+    return this.editor.runWorkflowNode(nodeType);
   }
 
   integrationCard(id: string) {

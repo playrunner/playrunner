@@ -18,6 +18,7 @@ Playrunner is a visual workflow orchestration platform for running automated Pla
 | Section                                                         | Description                                                                  |
 | --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [Tutorials](./tutorials/index.md)                               | Step-by-step guides to get up and running                                    |
+| [MCP](./mcp/index.md)                                           | Connect AI assistants to build workflows, run tests, and inspect results     |
 | [Development](./local-dev/index.md)                             | Integration package authoring, workflow internals, and the local stack       |
 | [Development → Integrations](./local-dev/integrations/index.md) | Frontend, API, and Orchestrator contribution contracts and build workflows   |
 | [Integration Reference](./integration-packages/index.md)        | Available providers, configuration, and currently supported package surfaces |

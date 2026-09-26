@@ -308,6 +308,7 @@ export function Sidebar({
             >
               {isUserMenuOpen && (
                 <div
+                  data-testid="account-menu"
                   className={cn(
                     'absolute bottom-full mb-2 bg-surface shadow-lg border border-strong rounded-lg overflow-hidden py-1 z-50',
                     isOpen ? 'left-3 right-3' : 'left-full ml-2 w-48',

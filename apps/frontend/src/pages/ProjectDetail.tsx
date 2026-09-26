@@ -330,6 +330,7 @@ export default function ProjectDetail() {
           {workflows.map((wf) => (
             <div
               key={wf.id}
+              data-testid="workflow-card"
               onClick={() => navigate(`/workflow/${wf.id}`)}
               className="group bg-surface border border-subtle rounded-xl p-6 cursor-pointer hover:border-strong transition-colors shadow-sm hover:shadow-md col-span-1"
             >

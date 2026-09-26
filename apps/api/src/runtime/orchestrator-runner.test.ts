@@ -17,6 +17,10 @@ test('binds the privileged local orchestrator to loopback with a secret-free arg
     getLocalOrchestratorRequestHeaders()[LOCAL_ORCHESTRATOR_AUTH_HEADER];
 
   assert.ok(args.includes(`127.0.0.1:${ORCHESTRATOR_PORT}:8080`));
+  assert.equal(
+    args[args.indexOf('--name') + 1],
+    process.env.ORCHESTRATOR_CONTAINER_NAME || 'playrunner-orchestrator-local',
+  );
   assert.ok(args.includes('PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN'));
   assert.equal(args.includes(token), false);
   assert.ok(token.length >= 43);

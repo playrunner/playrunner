@@ -2,15 +2,9 @@ import { expect, test } from '../fixtures';
 
 test('adds, verifies, and removes every implemented canvas node @nodes', async ({
   page,
+  host,
 }) => {
-  await page.goto('/projects');
-  await page.getByRole('button', { name: 'New Project' }).first().click();
-  await page.getByRole('heading', { name: 'Project Dashboard' }).waitFor();
-  await page.getByText('Default Workflow', { exact: true }).click();
-
-  await expect(
-    page.getByRole('progressbar', { name: 'Loading page' }),
-  ).toBeHidden();
+  await host.openNewWorkflow();
 
   const addNodeButton = page.getByTitle('Add Node');
   await addNodeButton.waitFor();

@@ -1,9 +1,29 @@
-import { test as base, expect, type APIRequestContext } from '@playwright/test';
+import {
+  test as base,
+  expect,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
 import { PlayrunnerHostPom } from './core/PlayrunnerHostPom';
+import { NavigationPom } from './core/NavigationPom';
+import { ProjectsPom } from './core/ProjectsPom';
+import { EnvironmentsPom } from './core/EnvironmentsPom';
+import { AuthenticationProfilesPom } from './core/AuthenticationProfilesPom';
+import { TeamsPom } from './core/TeamsPom';
+import { SettingsPom } from './core/SettingsPom';
+import { createWorkspaceData } from './data';
 
 type PlayrunnerFixtures = {
   host: PlayrunnerHostPom;
   realPlayrunnerApi: void;
+  navigation: NavigationPom;
+  projects: ProjectsPom;
+  environments: EnvironmentsPom;
+  profiles: AuthenticationProfilesPom;
+  teams: TeamsPom;
+  settings: SettingsPom;
+  data: ReturnType<typeof createWorkspaceData>;
+  guestPage: Page;
 };
 
 async function clearIntegrationConnections(
@@ -45,6 +65,33 @@ async function clearIntegrationConnections(
 
 async function clearOwnedResources(request: APIRequestContext, token: string) {
   const headers = { Authorization: `Bearer ${token}` };
+  const teamsResponse = await request.get('http://127.0.0.1:3999/api/teams', {
+    headers,
+  });
+  if (!teamsResponse.ok())
+    throw new Error(`Failed to list E2E teams: ${teamsResponse.status()}`);
+  for (const team of (await teamsResponse.json()).teams ?? []) {
+    const result = await request.delete(
+      `http://127.0.0.1:3999/api/teams/${encodeURIComponent(team.id)}`,
+      { headers },
+    );
+    if (!result.ok())
+      throw new Error(`Failed to clear E2E team: ${result.status()}`);
+  }
+  const tokensResponse = await request.get('http://127.0.0.1:3999/api/tokens', {
+    headers,
+  });
+  if (!tokensResponse.ok())
+    throw new Error(`Failed to list E2E tokens: ${tokensResponse.status()}`);
+  for (const apiToken of (await tokensResponse.json()).tokens ?? []) {
+    if (apiToken.revokedAt) continue;
+    const result = await request.post(
+      `http://127.0.0.1:3999/api/tokens/${encodeURIComponent(apiToken.id)}/revoke`,
+      { headers },
+    );
+    if (!result.ok())
+      throw new Error(`Failed to revoke E2E token: ${result.status()}`);
+  }
   const profilesResponse = await request.get(
     'http://127.0.0.1:3999/api/authentication-profiles',
     { headers },
@@ -95,6 +142,14 @@ async function clearOwnedResources(request: APIRequestContext, token: string) {
 }
 
 export const test = base.extend<PlayrunnerFixtures>({
+  guestPage: async ({ browser, baseURL }, use) => {
+    const context = await browser.newContext({ baseURL });
+    try {
+      await use(await context.newPage());
+    } finally {
+      await context.close();
+    }
+  },
   realPlayrunnerApi: [
     async ({ context, request }, use) => {
       const response = await request.post(
@@ -127,16 +182,39 @@ export const test = base.extend<PlayrunnerFixtures>({
         window.localStorage.setItem('hasCompletedOnboarding', 'true');
       }, authSession);
 
-      await use();
-
-      await clearIntegrationConnections(request, authSession.token);
-      await clearOwnedResources(request, authSession.token);
+      try {
+        await use();
+      } finally {
+        await clearIntegrationConnections(request, authSession.token);
+        await clearOwnedResources(request, authSession.token);
+      }
     },
     { auto: true },
   ],
 
   host: async ({ page }, use) => {
     await use(new PlayrunnerHostPom(page));
+  },
+  navigation: async ({ page }, use) => {
+    await use(new NavigationPom(page));
+  },
+  projects: async ({ page }, use) => {
+    await use(new ProjectsPom(page));
+  },
+  environments: async ({ page }, use) => {
+    await use(new EnvironmentsPom(page));
+  },
+  profiles: async ({ page }, use) => {
+    await use(new AuthenticationProfilesPom(page));
+  },
+  teams: async ({ page }, use) => {
+    await use(new TeamsPom(page));
+  },
+  settings: async ({ page }, use) => {
+    await use(new SettingsPom(page));
+  },
+  data: async ({}, use, info) => {
+    await use(createWorkspaceData(info));
   },
 });
 

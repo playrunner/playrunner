@@ -9,6 +9,7 @@ if (!Number.isFinite(slowMo) || slowMo < 0) {
 
 export default defineConfig({
   testDir: './e2e/specs',
+  globalTeardown: './e2e/global-teardown.ts',
   timeout: 120_000,
   fullyParallel: false,
   forbidOnly: isCi,

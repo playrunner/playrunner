@@ -10,7 +10,7 @@
     "plugin:install": "npm run install:codex --prefix apps/plugin",
     "plugin:check": "npm run check --prefix apps/plugin",
     "build": "npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
-    "build:e2e:orchestrator": "./infra/scripts/rebuild-orchestrator.sh",
+    "build:e2e:orchestrator": "ORCHESTRATOR_IMAGE_TAG=playrunner-orchestrator-e2e ORCHESTRATOR_CONTAINER_NAME=playrunner-orchestrator-e2e ./infra/scripts/rebuild-orchestrator.sh",
     "start:e2e:services": "set -a; [ ! -f .env.local ] || . ./.env.local; set +a; docker compose up -d postgres pubsub",
     "show:e2e-report": "npm exec --prefix apps/frontend playwright -- show-report apps/frontend/playwright-report",
     "test:e2e": "npm run e2e --prefix apps/frontend --",
