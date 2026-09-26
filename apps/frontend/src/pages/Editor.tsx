@@ -4620,6 +4620,7 @@ export default function Editor() {
         isOpen={isTestPlanOpen}
         onClose={() => setIsTestPlanOpen(false)}
         title="Workflow test plan"
+        icon={<FileText className="h-4 w-4 text-muted" aria-hidden="true" />}
         maxWidth="max-w-4xl"
         footer={
           <Button
