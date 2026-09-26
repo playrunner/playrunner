@@ -1,4 +1,8 @@
 import fs from 'fs';
+import {
+  captureExecutionDefinition,
+  executionDefinitionContext,
+} from '../services/execution-definition';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import type {
@@ -234,6 +238,7 @@ class WorkflowExecutionRegistry {
     if (!resourceOwnerUserId) {
       throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
     }
+    const definition = captureExecutionDefinition(request.body);
     request.body.nodes = await hydrateLinkedWorkflowEnvironments(
       request.body.nodes,
       resourceOwnerUserId,
@@ -254,7 +259,9 @@ class WorkflowExecutionRegistry {
       };
     }
 
-    return backend.execute(request);
+    return executionDefinitionContext.run(definition, () =>
+      backend.execute(request),
+    );
   }
 
   register(backends: WorkflowExecutionBackend[]) {

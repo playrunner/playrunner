@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { executionDefinitionContext } from './execution-definition';
 import type {
   Prisma,
   WorkflowEvent,
@@ -316,6 +317,7 @@ class ExecutionEventsService {
     workflowId?: string | null;
   }) {
     const executionToken = crypto.randomBytes(32).toString('hex');
+    const definition = executionDefinitionContext.getStore();
     const execution = await prisma.workflowExecution.create({
       data: {
         id: params.executionId,
@@ -323,6 +325,18 @@ class ExecutionEventsService {
         workflowId: params.workflowId ?? null,
         cloudProvider: params.cloudProvider,
         ingestTokenHash: hashExecutionToken(executionToken),
+        ...(definition
+          ? {
+              events: {
+                create: {
+                  userId: params.userId,
+                  workflowId: params.workflowId ?? null,
+                  type: 'execution_definition',
+                  payload: definition,
+                },
+              },
+            }
+          : {}),
       },
     });
 

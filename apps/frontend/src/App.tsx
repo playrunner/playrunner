@@ -23,6 +23,7 @@ import Environments from './pages/Environments';
 import AuthenticationProfiles from './pages/AuthenticationProfiles';
 import Integrations from './pages/Integrations';
 import Insights from './pages/Insights';
+import Executions from './pages/Executions';
 import Teams from './pages/Teams';
 import OAuthCallback from './pages/OAuthCallback';
 import TeamInvitation from './pages/TeamInvitation';
@@ -98,6 +99,7 @@ function AppShell() {
               element={<AuthenticationProfiles />}
             />
             <Route path="/integrations" element={<Integrations />} />
+            <Route path="/executions" element={<Executions />} />
             <Route path="/insights" element={<Insights />} />
             <Route
               path="/reports"

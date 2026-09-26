@@ -244,6 +244,13 @@ export function Sidebar({
               />
               <NavItem
                 icon={BarChart2}
+                label="Live executions"
+                isOpen={isOpen}
+                isActive={location.pathname === '/executions'}
+                onClick={() => navigate('/executions')}
+              />
+              <NavItem
+                icon={BarChart2}
                 label="Insights"
                 isOpen={isOpen}
                 isActive={

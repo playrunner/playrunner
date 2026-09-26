@@ -1,9 +1,55 @@
 import { Router } from 'express';
+import { listDashboardExecutions } from '../services/execution-dashboard';
 import { requireAuth } from '../auth/auth.middleware';
 import { executionEvents } from '../services/execution-events';
 import { state } from '../state';
 
 export const executionsRouter = Router();
+
+// Complete, authorized snapshots make initial load and reconnection identical.
+executionsRouter.get('/live', requireAuth, async (req, res) => {
+  try {
+    res.json({
+      executions: await listDashboardExecutions(req.authUser!.providerUserId),
+    });
+  } catch {
+    res.status(503).json({ error: 'Execution service unavailable.' });
+  }
+});
+
+executionsRouter.get('/live/stream', requireAuth, (req, res) => {
+  let closed = false;
+  let polling = false;
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+  const flush = async () => {
+    if (closed || polling) return;
+    polling = true;
+    try {
+      // Recheck team membership on every snapshot, including after access revocation.
+      const executions = await listDashboardExecutions(
+        req.authUser!.providerUserId,
+      );
+      if (!closed) res.write(`data: ${JSON.stringify({ executions })}\n\n`);
+    } catch {
+      if (!closed) res.end();
+    } finally {
+      polling = false;
+    }
+  };
+  const interval = setInterval(() => {
+    void flush();
+  }, 1000);
+  const cleanup = () => {
+    closed = true;
+    clearInterval(interval);
+  };
+  res.on('close', cleanup);
+  res.on('error', cleanup);
+  void flush();
+});
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
