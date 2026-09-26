@@ -1,4 +1,5 @@
 import { validateTestPlan } from '../../../runners/shared/test-plan';
+import { normalizeWorkflowNodes } from '../../../runners/shared/workflow-geometry';
 import crypto from 'crypto';
 import { Prisma } from '../generated/prisma/client.cts';
 import { Request, Response, Router } from 'express';
@@ -358,7 +359,7 @@ storeRouter.post(
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
     const testPlan = parsePlan(req.body?.testPlan);
-    const nodes = toJsonValue(req.body?.nodes);
+    const nodes = toJsonValue(normalizeWorkflowNodes(req.body?.nodes));
     const connections = toJsonValue(req.body?.connections);
     const cloudProvider = toNullableString(req.body?.cloudProvider) ?? null;
 
@@ -417,7 +418,7 @@ storeRouter.put(
     const cloudProvider = toNullableString(req.body?.cloudProvider);
     const concurrency = toOptionalNumber(req.body?.concurrency);
     const testPlan = parsePlan(req.body?.testPlan);
-    const nodes = toJsonValue(req.body?.nodes);
+    const nodes = toJsonValue(normalizeWorkflowNodes(req.body?.nodes));
     const connections = toJsonValue(req.body?.connections);
     const nextCloudProvider = cloudProvider ?? existing?.cloudProvider ?? null;
     const nextNodes = nodes !== undefined ? nodes : existing?.nodes;

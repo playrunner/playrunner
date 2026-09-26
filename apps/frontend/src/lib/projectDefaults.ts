@@ -1,4 +1,5 @@
 import type { AppNodeType } from '../components/NodeSelectorModal';
+import { getNodeDimensions } from '../../../runners/shared/workflow-geometry';
 
 export const DEFAULT_PROJECT_NODE_TYPES = ['environment', 'playwright'];
 
@@ -27,8 +28,7 @@ export function createStarterWorkflow(
         label: nodeType.label,
         x: 200 + index * 300,
         y: 300,
-        width: 128,
-        height: 128,
+        ...getNodeDimensions({ nodeType: nodeType.id }),
       },
     ];
   });

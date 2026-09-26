@@ -1,5 +1,11 @@
 import { migrateNodePlans } from '../lib/workflow-test-plan';
 import {
+  AI_CONTAINER_WIDTH,
+  AI_CONTAINER_HEIGHT,
+  getNodeDimensions,
+  normalizeWorkflowNode,
+} from '../../../runners/shared/workflow-geometry';
+import {
   WorkflowTestPlanPanel,
   type WorkflowTestPlan,
 } from '../components/WorkflowTestPlanPanel';
@@ -80,25 +86,9 @@ interface NodeData {
 type PortPosition = 'top' | 'right' | 'bottom' | 'left';
 type AttachmentKind = 'agent' | 'memory' | 'tool';
 
-const AI_CONTAINER_WIDTH = 360;
-const AI_CONTAINER_HEIGHT = 128;
-const REGULAR_HEXAGON_WIDTH_RATIO = 2 / Math.sqrt(3);
 // Retain the per-node controls so they can be restored without rebuilding the
 // execution handlers or context-menu layout.
 const SHOW_NODE_EXECUTION_CONTROLS = false;
-
-function getNodeDimensions(node: NodeData) {
-  if (node.nodeType === 'agent-container') {
-    return { width: AI_CONTAINER_WIDTH, height: AI_CONTAINER_HEIGHT };
-  }
-  if (node.nodeType === 'environment') {
-    return {
-      width: node.height * REGULAR_HEXAGON_WIDTH_RATIO,
-      height: node.height,
-    };
-  }
-  return { width: node.width, height: node.height };
-}
 
 type ConnectionType =
   | 'sequential'
@@ -768,7 +758,9 @@ export default function Editor() {
     | Connection[]
     | undefined;
 
-  const [nodes, setNodes] = useState<NodeData[]>(initialNodes || []);
+  const [nodes, setNodes] = useState<NodeData[]>(() =>
+    (initialNodes || []).map(normalizeWorkflowNode),
+  );
   const [connections, setConnections] = useState<Connection[]>(
     initialConnections || [],
   );
@@ -1311,7 +1303,7 @@ export default function Editor() {
                   data.nodes,
                   data.testPlan,
                 );
-                setNodes(migrated.nodes);
+                setNodes(migrated.nodes.map(normalizeWorkflowNode));
                 setTestPlan(migrated.testPlan);
               }
               if (data.connections) setConnections(data.connections);
@@ -1343,7 +1335,7 @@ export default function Editor() {
                   parsed.nodes,
                   parsed.testPlan,
                 );
-                setNodes(migrated.nodes);
+                setNodes(migrated.nodes.map(normalizeWorkflowNode));
                 setTestPlan(migrated.testPlan);
               }
               if (parsed.connections) setConnections(parsed.connections);
@@ -2251,8 +2243,7 @@ export default function Editor() {
         data.typeId === 'agent-container' && !pendingConnectionSource
           ? pos.y - (AI_CONTAINER_HEIGHT - 128) / 2
           : pos.y,
-      width: data.typeId === 'agent-container' ? AI_CONTAINER_WIDTH : 128,
-      height: data.typeId === 'agent-container' ? AI_CONTAINER_HEIGHT : 128,
+      ...getNodeDimensions({ nodeType: data.typeId }),
       ...(pendingAttachmentKind === 'tool' &&
       (data.typeId === 'github' || data.typeId === 'jira')
         ? { config: { action: 'read' } }
@@ -3706,8 +3697,8 @@ export default function Editor() {
                   style={{
                     left: node.x,
                     top: node.y,
-                    width: isScheduleNode ? 128 : nodeDimensions.width,
-                    height: isScheduleNode ? 128 : nodeDimensions.height,
+                    width: nodeDimensions.width,
+                    height: nodeDimensions.height,
                   }}
                   onPointerDown={(e) => handleNodePointerDown(e, node.id)}
                   onContextMenu={(e) => handleNodeContextMenu(e, node.id)}

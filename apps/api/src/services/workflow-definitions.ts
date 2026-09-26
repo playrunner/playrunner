@@ -3,6 +3,7 @@ import {
   type TestPlan,
 } from '../../../runners/shared/test-plan';
 import crypto from 'node:crypto';
+import { normalizeWorkflowNode } from '../../../runners/shared/workflow-geometry';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -183,7 +184,7 @@ export function parseWorkflowDefinition(value: unknown): WorkflowDefinition {
       ...(testPlan ? { testPlan } : {}),
       connections,
       key: definitionKey(workflow.key, 'workflow.key'),
-      nodes,
+      nodes: nodes.map(normalizeWorkflowNode),
       title: requiredString(workflow.title, 'workflow.title', 200),
     },
   };
