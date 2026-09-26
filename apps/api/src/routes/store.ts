@@ -1,3 +1,4 @@
+import { validateTestPlan } from '../../../runners/shared/test-plan';
 import crypto from 'crypto';
 import { Prisma } from '../generated/prisma/client.cts';
 import { Request, Response, Router } from 'express';
@@ -126,12 +127,23 @@ function serializeProject(project: {
   };
 }
 
+function parsePlan(value: unknown) {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.DbNull;
+  try {
+    return validateTestPlan(value);
+  } catch (error) {
+    throw Object.assign(error as Error, { statusCode: 400 });
+  }
+}
+
 function serializeWorkflow(
   workflow: {
     id: string;
     userId: string;
     projectId: string | null;
     title: string | null;
+    testPlan?: Prisma.JsonValue | null;
     nodes: Prisma.JsonValue | null;
     connections: Prisma.JsonValue | null;
     cloudProvider: string | null;
@@ -150,6 +162,7 @@ function serializeWorkflow(
     userId: workflow.userId,
     projectId: workflow.projectId,
     title: workflow.title,
+    testPlan: workflow.testPlan ?? null,
     nodes: workflow.nodes,
     connections: workflow.connections,
     cloudProvider: workflow.cloudProvider,
@@ -344,6 +357,7 @@ storeRouter.post(
   '/workflows',
   createRouteHandler(async (req, res) => {
     const userId = getUserId(req);
+    const testPlan = parsePlan(req.body?.testPlan);
     const nodes = toJsonValue(req.body?.nodes);
     const connections = toJsonValue(req.body?.connections);
     const cloudProvider = toNullableString(req.body?.cloudProvider) ?? null;
@@ -359,6 +373,7 @@ storeRouter.post(
         userId,
         projectId: toNullableString(req.body?.projectId) ?? null,
         title: toNullableString(req.body?.title) ?? null,
+        testPlan,
         nodes,
         connections,
         cloudProvider,
@@ -401,6 +416,7 @@ storeRouter.put(
     const title = toNullableString(req.body?.title);
     const cloudProvider = toNullableString(req.body?.cloudProvider);
     const concurrency = toOptionalNumber(req.body?.concurrency);
+    const testPlan = parsePlan(req.body?.testPlan);
     const nodes = toJsonValue(req.body?.nodes);
     const connections = toJsonValue(req.body?.connections);
     const nextCloudProvider = cloudProvider ?? existing?.cloudProvider ?? null;
@@ -418,6 +434,7 @@ storeRouter.put(
           userId,
           projectId: projectId ?? null,
           title: title ?? null,
+          testPlan,
           nodes,
           connections,
           cloudProvider: cloudProvider ?? null,
@@ -440,6 +457,7 @@ storeRouter.put(
     }
 
     const data: Record<string, unknown> = {};
+    if (testPlan !== undefined) data.testPlan = testPlan;
     if (projectId !== undefined) {
       data.projectId = projectId;
     }

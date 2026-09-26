@@ -117,6 +117,7 @@ machineExecutionsRouter.put('/definitions/:workflowKey', async (req, res) => {
           userId: token.userId,
           projectId: ids.projectId,
           title: definition.workflow.title,
+          testPlan: definition.workflow.testPlan ?? Prisma.DbNull,
           nodes: definition.workflow.nodes as Prisma.InputJsonValue,
           connections: definition.workflow.connections as Prisma.InputJsonValue,
           cloudProvider: definition.workflow.cloudProvider,
@@ -125,6 +126,7 @@ machineExecutionsRouter.put('/definitions/:workflowKey', async (req, res) => {
         update: {
           projectId: ids.projectId,
           title: definition.workflow.title,
+          testPlan: definition.workflow.testPlan ?? Prisma.DbNull,
           nodes: definition.workflow.nodes as Prisma.InputJsonValue,
           connections: definition.workflow.connections as Prisma.InputJsonValue,
           cloudProvider: definition.workflow.cloudProvider,

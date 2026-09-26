@@ -1,9 +1,11 @@
+import { readTests, type ReportTest } from '../../shared/test-plan';
 import fs from 'fs';
 import path from 'path';
 
 type JsonRecord = Record<string, any>;
 
 export type PlaywrightReportData = {
+  planTests?: ReportTest[];
   errorContexts: Array<{
     path: string;
     text: string;
@@ -228,6 +230,12 @@ function compactInlineReport(
     }
     report.truncation.truncated = true;
   }
+  if (
+    Buffer.byteLength(JSON.stringify(report), 'utf8') > MAX_INLINE_REPORT_BYTES
+  ) {
+    delete report.planTests;
+    report.truncation.truncated = true;
+  }
   return report;
 }
 
@@ -369,6 +377,14 @@ export function readPlaywrightReportData(args: {
   }
 
   const errorContexts = collectErrorContexts(args);
+  let planTests: ReportTest[] | undefined;
+  try {
+    const evidence = readTests(report);
+    if (Buffer.byteLength(JSON.stringify(evidence)) <= 512 * 1024)
+      planTests = evidence;
+  } catch {
+    // Missing or excessive evidence leaves workflow plan cases unresolved.
+  }
   return compactInlineReport({
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -379,6 +395,7 @@ export function readPlaywrightReportData(args: {
       ? (boundedJsonValue(report.errors) as unknown[])
       : [],
     errorContexts: errorContexts.contexts,
+    ...(planTests ? { planTests } : {}),
     failures,
     truncation: {
       contextsFound: errorContexts.contextsFound,

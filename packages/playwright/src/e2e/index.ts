@@ -23,6 +23,25 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
           name: data.zipFileName,
         });
         await expect(pom.field('zip-file-name')).toHaveText(data.zipFileName);
+        await host.closeNodeSettings();
+        await page
+          .getByRole('button', { name: 'Test plan', exact: true })
+          .click();
+        const dialog = page.getByRole('dialog', {
+          name: 'Workflow test plan',
+          exact: true,
+        });
+        const savePlan = async () => {
+          const saved = page.waitForResponse(
+            (r) =>
+              r.url().includes('/api/store/workflows/') &&
+              r.request().method() === 'PUT',
+          );
+          await dialog
+            .getByRole('button', { name: 'Save workflow', exact: true })
+            .click();
+          expect((await saved).ok()).toBe(true);
+        };
         const panel = page.getByRole('region', {
           name: 'Test plan',
           exact: true,
@@ -49,16 +68,22 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
           .getByLabel('Required tests')
           .fill('desktop :: skipped');
         await panel
-          .getByRole('heading', { name: 'Test plan (optional)' })
+          .getByRole('heading', { name: 'Workflow test plan' })
           .click();
-        await pom.saveReloadAndReopenNode();
+        await savePlan();
+        await page.reload();
+        await page
+          .getByRole('button', { name: 'Test plan', exact: true })
+          .click();
         await expect(
           panel
             .getByRole('group', { name: /^Case \d+$/ })
             .nth(0)
             .getByLabel('Required tests'),
         ).toHaveValue('desktop :: passes\nmobile :: passes');
-        await host.closeNodeSettings();
+        await dialog
+          .getByRole('button', { name: 'Close', exact: true })
+          .click();
         const response = page.waitForResponse(
           (r) =>
             r.url().endsWith('/api/workflows/start') &&
@@ -86,11 +111,12 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
           name: `Execution ${run.testId}`,
           exact: true,
         });
-        const popup = page.waitForEvent('popup');
-        await region
-          .getByRole('button', { name: 'Report', exact: true })
-          .click();
-        const report = await popup;
+        const report = await page.context().newPage();
+        const reportUrl = await region
+          .getByRole('link', { name: 'Test plan report', exact: true })
+          .getAttribute('href');
+        expect(reportUrl).toBeTruthy();
+        await report.goto(reportUrl!);
         await expect(
           report.getByRole('heading', {
             name: 'Overall plan: FAIL',
@@ -115,18 +141,20 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
           .textContent();
         await report.close();
         await page.goto(`/workflow/${snapshot.workflowId}`);
-        await host.openNodeSettings('playwright');
+        await page
+          .getByRole('button', { name: 'Test plan', exact: true })
+          .click();
         await panel.getByLabel('Upload test plan').setInputFiles({
           buffer: Buffer.from('# Replacement plan'),
           mimeType: 'text/markdown',
           name: 'replacement.md',
         });
-        await pom.saveReloadAndReopenNode();
+        await savePlan();
         await expect(
           panel.getByText('replacement.md', { exact: true }),
         ).toBeVisible();
         const oldReport = await page.context().newPage();
-        await oldReport.goto(node.reportUrl);
+        await oldReport.goto(reportUrl!);
         await expect(oldReport.locator('pre')).toHaveText(original!);
         await expect(
           oldReport.getByText('Plan version:', { exact: false }),

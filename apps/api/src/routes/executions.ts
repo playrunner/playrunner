@@ -1,3 +1,4 @@
+import { getWorkflowPlanReport } from '../services/workflow-test-plan';
 import { Router } from 'express';
 import { listDashboardExecutions } from '../services/execution-dashboard';
 import { requireAuth } from '../auth/auth.middleware';
@@ -50,6 +51,31 @@ executionsRouter.get('/live/stream', requireAuth, (req, res) => {
   res.on('error', cleanup);
   void flush();
 });
+
+executionsRouter.get(
+  '/:executionId/test-plan',
+  requireAuth,
+  async (req, res) => {
+    try {
+      const report = await getWorkflowPlanReport(
+        req.params.executionId,
+        req.authUser!.providerUserId,
+      );
+      res.setHeader('Cache-Control', 'private, no-store');
+      if (!report) {
+        res.status(404).json({
+          error: 'No workflow test plan was captured for this execution.',
+        });
+        return;
+      }
+      res.json(report);
+    } catch {
+      res
+        .status(500)
+        .json({ error: 'Could not load the workflow test plan report.' });
+    }
+  },
+);
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;

@@ -5,7 +5,8 @@ export type TestPlan = {
     id: string;
     description: string;
     criteria: string;
-    tests: Array<{ title: string; project: string }>;
+    tests: Array<{ title: string; project: string; nodeId?: string }>;
+    nodes?: string[];
   }>;
 };
 export type PlanStatus = 'PASS' | 'FAIL' | 'BLOCKED' | 'SKIPPED' | 'NOT RUN';
@@ -44,6 +45,18 @@ export function validateTestPlan(value: unknown): TestPlan {
       throw new Error(
         'Plan cases require unique IDs, descriptions, criteria, and explicit test mappings.',
       );
+    if (
+      item.nodes !== undefined &&
+      (!Array.isArray(item.nodes) ||
+        item.nodes.length > 100 ||
+        item.nodes.some(
+          (id) => typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,200}$/.test(id),
+        ))
+    ) {
+      throw new Error(
+        'Required actions must reference valid workflow node IDs.',
+      );
+    }
     ids.add(item.id);
     for (const mapping of item.tests) {
       if (
@@ -52,7 +65,10 @@ export function validateTestPlan(value: unknown): TestPlan {
         !mapping.title.trim() ||
         mapping.title.length > 2000 ||
         typeof mapping.project !== 'string' ||
-        mapping.project.length > 200
+        mapping.project.length > 200 ||
+        (mapping.nodeId !== undefined &&
+          (typeof mapping.nodeId !== 'string' ||
+            !/^[A-Za-z0-9_-]{1,200}$/.test(mapping.nodeId)))
       )
         throw new Error(
           'Each test mapping requires an exact title and project (empty for the default project).',
@@ -67,18 +83,25 @@ export function validateTestPlan(value: unknown): TestPlan {
       id: c.id,
       description: c.description,
       criteria: c.criteria,
-      tests: c.tests.map((t) => ({ title: t.title, project: t.project })),
+      tests: c.tests.map((t) => ({
+        title: t.title,
+        project: t.project,
+        ...(t.nodeId ? { nodeId: t.nodeId } : {}),
+      })),
+      ...(c.nodes ? { nodes: [...c.nodes] } : {}),
     })),
   };
 }
 
-type ReportTest = {
+export type ReportTest = {
+  nodeId?: string;
+  kind?: 'test' | 'node';
   title: string;
   project: string;
   status: PlanStatus;
   evidenceId: string;
 };
-function readTests(report: any): ReportTest[] {
+export function readTests(report: any): ReportTest[] {
   const tests: ReportTest[] = [];
   let visited = 0;
   const walk = (suite: any, parents: string[], depth: number) => {
@@ -117,16 +140,33 @@ function readTests(report: any): ReportTest[] {
 }
 
 export function evaluateTestPlan(plan: TestPlan, report: unknown) {
-  const tests = readTests(report);
-  const reportErrors =
-    Array.isArray((report as any)?.errors) && (report as any).errors.length > 0;
+  return evaluatePlanEvidence(
+    plan,
+    readTests(report),
+    Array.isArray((report as any)?.errors) && (report as any).errors.length > 0,
+  );
+}
+
+export function evaluatePlanEvidence(
+  plan: TestPlan,
+  tests: ReportTest[],
+  reportErrors = false,
+) {
   const cases = plan.cases.map((item) => {
-    const matches = item.tests.map((mapping) =>
-      tests.filter(
-        (test) =>
-          test.title === mapping.title && test.project === mapping.project,
+    const matches = [
+      ...item.tests.map((mapping) =>
+        tests.filter(
+          (test) =>
+            test.kind !== 'node' &&
+            test.title === mapping.title &&
+            test.project === mapping.project &&
+            (!mapping.nodeId || test.nodeId === mapping.nodeId),
+        ),
       ),
-    );
+      ...(item.nodes ?? []).map((id) =>
+        tests.filter((test) => test.kind === 'node' && test.nodeId === id),
+      ),
+    ];
     const evidence = matches.flat();
     const missing = matches.some((group) => group.length === 0);
     const ambiguous = matches.some((group) => group.length > 1);
@@ -135,7 +175,7 @@ export function evaluateTestPlan(plan: TestPlan, report: unknown) {
     if (!item.criteria.trim()) {
       status = 'BLOCKED';
       reason = 'SUCCESS/PASS criteria have not been defined.';
-    } else if (!item.tests.length) {
+    } else if (!item.tests.length && !item.nodes?.length) {
       status = 'NOT RUN';
       reason =
         'No executable tests mapped; manual verification remains unresolved.';
@@ -175,7 +215,7 @@ export function evaluateTestPlan(plan: TestPlan, report: unknown) {
   };
   for (const item of cases) {
     counts[item.status]++;
-    if (!item.tests.length) counts.unmapped++;
+    if (!item.tests.length && !item.nodes?.length) counts.unmapped++;
   }
   const status: PlanStatus = cases.some((c) => c.status === 'FAIL')
     ? 'FAIL'

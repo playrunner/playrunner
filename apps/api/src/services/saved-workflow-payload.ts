@@ -5,6 +5,7 @@ type SavedWorkflow = {
   id: string;
   nodes: unknown;
   title: string | null;
+  testPlan?: unknown;
 };
 
 export function buildSavedWorkflowExecutionBody(params: {
@@ -41,6 +42,9 @@ export function buildSavedWorkflowExecutionBody(params: {
       definition: {
         id: params.workflow.id,
         name: params.workflow.title || 'Untitled Workflow',
+        ...(params.workflow.testPlan
+          ? { testPlan: params.workflow.testPlan }
+          : {}),
       },
       run: { runner: cloudProvider, trigger: params.triggerName },
       trigger: params.triggerData,

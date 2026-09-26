@@ -11,6 +11,7 @@ type Execution = {
   title: string;
   projectTitle: string | null;
   status: string;
+  testPlanReportUrl?: string | null;
   activityStale: boolean;
   lastActivityAt: string;
   startedAt: string;
@@ -163,6 +164,14 @@ export default function Executions() {
           >
             {execution.activityStale ? 'Status unconfirmed' : execution.status}
           </Badge>
+          {execution.testPlanReportUrl && (
+            <Link
+              className="text-sm underline"
+              to={execution.testPlanReportUrl}
+            >
+              Test plan report
+            </Link>
+          )}
           {execution.workflowId && (
             <Link
               className="text-sm underline"

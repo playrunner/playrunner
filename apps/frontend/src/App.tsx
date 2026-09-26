@@ -1,3 +1,4 @@
+import WorkflowTestPlanReport from './pages/WorkflowTestPlanReport';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -100,6 +101,10 @@ function AppShell() {
             />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/executions" element={<Executions />} />
+            <Route
+              path="/executions/:executionId/test-plan"
+              element={<WorkflowTestPlanReport />}
+            />
             <Route path="/insights" element={<Insights />} />
             <Route
               path="/reports"

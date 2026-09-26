@@ -47,6 +47,7 @@ workflowsRouter.post('/start', async (req, res) => {
             definition: {
               id: workflow.id,
               name: workflow.title || 'Untitled Workflow',
+              testPlan: workflow.testPlan ?? null,
             },
             run: {
               runner: cloudProvider,

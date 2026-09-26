@@ -1,4 +1,3 @@
-import { TestPlanPanel } from './TestPlanPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import {
@@ -869,10 +868,6 @@ test.describe('navigation', () => {
                 </div>
               </>
             )}
-            <TestPlanPanel
-              value={config.testPlan}
-              onChange={(testPlan) => onChange(nodeId, { ...config, testPlan })}
-            />
           </div>
         )}
 

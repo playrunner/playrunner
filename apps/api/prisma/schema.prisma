@@ -28,6 +28,7 @@ model Workflow {
   userId            String
   projectId         String?
   title             String?
+  testPlan          Json?
   nodes             Json?
   connections       Json?
   cloudProvider     String?

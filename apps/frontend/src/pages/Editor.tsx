@@ -1,3 +1,8 @@
+import { migrateNodePlans } from '../lib/workflow-test-plan';
+import {
+  WorkflowTestPlanPanel,
+  type WorkflowTestPlan,
+} from '../components/WorkflowTestPlanPanel';
 import React, {
   useState,
   useRef,
@@ -35,6 +40,7 @@ import {
   ArrowLeft,
   Monitor,
   Clock,
+  FileText,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useHeader } from '../components/PageLayout';
@@ -741,6 +747,8 @@ export default function Editor() {
   const { id: workflowId } = useParams<{ id: string }>();
   const activeWorkflowId = workflowId || 'current';
   const { setHeaderLeft, setHeaderCenter } = useHeader();
+  const [testPlan, setTestPlan] = useState<WorkflowTestPlan | null>(null);
+  const [isTestPlanOpen, setIsTestPlanOpen] = useState(false);
   const [workflowName, setWorkflowName] = useState('Untitled Workflow');
   const [workflowAccess, setWorkflowAccess] = useState<{
     canEdit: boolean;
@@ -1298,7 +1306,14 @@ export default function Editor() {
             );
             if (data) {
               if (data.access) setWorkflowAccess(data.access);
-              if (data.nodes) setNodes(data.nodes);
+              if (data.nodes) {
+                const migrated = migrateNodePlans<NodeData>(
+                  data.nodes,
+                  data.testPlan,
+                );
+                setNodes(migrated.nodes);
+                setTestPlan(migrated.testPlan);
+              }
               if (data.connections) setConnections(data.connections);
               if (data.name) setWorkflowName(data.name);
               if (data.title) setWorkflowName(data.title);
@@ -1323,7 +1338,14 @@ export default function Editor() {
           if (localData) {
             try {
               const parsed = JSON.parse(localData);
-              if (parsed.nodes) setNodes(parsed.nodes);
+              if (parsed.nodes) {
+                const migrated = migrateNodePlans<NodeData>(
+                  parsed.nodes,
+                  parsed.testPlan,
+                );
+                setNodes(migrated.nodes);
+                setTestPlan(migrated.testPlan);
+              }
               if (parsed.connections) setConnections(parsed.connections);
               if (parsed.name) setWorkflowName(parsed.name);
               if (parsed.title) setWorkflowName(parsed.title);
@@ -1586,6 +1608,7 @@ export default function Editor() {
             definition: {
               id: activeWorkflowId,
               name: workflowName,
+              testPlan,
             },
             run: {
               runner: currentCloudProvider,
@@ -1655,6 +1678,7 @@ export default function Editor() {
       handleExecutionEvent,
       updateWorkflowStartupStatus,
       workflowName,
+      testPlan,
     ],
   );
 
@@ -1797,6 +1821,7 @@ export default function Editor() {
           nodes: exportedNodes,
           connections,
           title: workflowName,
+          testPlan,
           cloudProvider,
           concurrency,
         }),
@@ -1810,6 +1835,7 @@ export default function Editor() {
         nodes: exportedNodes,
         connections,
         title: workflowName,
+        testPlan,
         cloudProvider,
         concurrency,
       });
@@ -1827,6 +1853,7 @@ export default function Editor() {
     activeWorkflowId,
     connections,
     workflowName,
+    testPlan,
     cloudProvider,
     concurrency,
     isReadOnly,
@@ -2907,6 +2934,7 @@ export default function Editor() {
   }, [
     projectId,
     workflowName,
+    testPlan,
     isEditingName,
     setHeaderLeft,
     navigate,
@@ -2929,6 +2957,14 @@ export default function Editor() {
           cloudProjectId={cloudProjectId}
           providers={availableCloudProviders}
         />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsTestPlanOpen(true)}
+        >
+          <FileText className="w-4 h-4" />
+          Test plan
+        </Button>
         <div className="h-4 w-px bg-strong mx-1" />
         <button
           onClick={handleAddNode}
@@ -4580,6 +4616,33 @@ export default function Editor() {
       <LogsPanel logs={orchestratorLogs} />
 
       {/* Toast Notification */}
+      <Modal
+        isOpen={isTestPlanOpen}
+        onClose={() => setIsTestPlanOpen(false)}
+        title="Workflow test plan"
+        maxWidth="max-w-4xl"
+        footer={
+          <Button
+            onClick={async () => {
+              await handleSaveWorkflow();
+            }}
+            disabled={isReadOnly || isSaving}
+          >
+            Save workflow
+          </Button>
+        }
+      >
+        <fieldset disabled={isReadOnly}>
+          <WorkflowTestPlanPanel
+            value={testPlan}
+            nodes={nodes}
+            onChange={(plan) => {
+              setTestPlan(plan ?? null);
+              setShouldAutoSave(true);
+            }}
+          />
+        </fieldset>
+      </Modal>
       {saveStatus && (
         <div
           className={cn(

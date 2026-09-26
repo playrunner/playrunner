@@ -1,3 +1,7 @@
+import {
+  validateTestPlan,
+  type TestPlan,
+} from '../../../runners/shared/test-plan';
 import crypto from 'node:crypto';
 
 type JsonRecord = Record<string, unknown>;
@@ -13,6 +17,7 @@ export type WorkflowDefinition = {
     key: string;
     nodes: JsonRecord[];
     title: string;
+    testPlan?: TestPlan;
   };
 };
 
@@ -155,6 +160,14 @@ export function parseWorkflowDefinition(value: unknown): WorkflowDefinition {
     );
   }
 
+  let testPlan: TestPlan | undefined;
+  if (workflow.testPlan) {
+    try {
+      testPlan = validateTestPlan(workflow.testPlan);
+    } catch (error) {
+      throw new WorkflowDefinitionValidationError((error as Error).message);
+    }
+  }
   return {
     project: {
       key: definitionKey(project.key, 'project.key'),
@@ -167,6 +180,7 @@ export function parseWorkflowDefinition(value: unknown): WorkflowDefinition {
           ? workflow.cloudProvider.trim()
           : 'LOCAL_RUNNER',
       ...(concurrency === undefined ? {} : { concurrency }),
+      ...(testPlan ? { testPlan } : {}),
       connections,
       key: definitionKey(workflow.key, 'workflow.key'),
       nodes,

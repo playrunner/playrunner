@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useIntegrationHost } from '@playrunner/integration-sdk';
+import { Button, Input, Textarea } from './ui';
 
 type PlanCase = {
   id: string;
   description: string;
   criteria: string;
-  tests: Array<{ project: string; title: string }>;
+  tests: Array<{ project: string; title: string; nodeId?: string }>;
+  nodes?: string[];
 };
-type Plan = { name: string; markdown: string; cases: PlanCase[] };
+export type WorkflowTestPlan = {
+  name: string;
+  markdown: string;
+  cases: PlanCase[];
+};
 
 function importCases(markdown: string): PlanCase[] {
   const cases: PlanCase[] = [];
@@ -46,16 +51,15 @@ function importCases(markdown: string): PlanCase[] {
   return cases;
 }
 
-export function TestPlanPanel({
+export function WorkflowTestPlanPanel({
   value,
   onChange,
+  nodes,
 }: {
-  value?: Plan;
-  onChange: (plan: Plan | undefined) => void;
+  value?: WorkflowTestPlan | null;
+  nodes: Array<{ id: string; label: string }>;
+  onChange: (plan: WorkflowTestPlan | undefined) => void;
 }) {
-  const { ui } = useIntegrationHost();
-  const { Input, Textarea } = ui;
-  const Button = ui.Button!;
   const [error, setError] = useState('');
   const updateCase = (index: number, patch: Partial<PlanCase>) => {
     if (value)
@@ -71,11 +75,11 @@ export function TestPlanPanel({
       className="space-y-3 border-t border-subtle pt-4"
       aria-label="Test plan"
     >
-      <h3 className="text-sm font-medium">Test plan (optional)</h3>
+      <h3 className="text-sm font-medium">Workflow test plan</h3>
       <p className="text-xs text-muted">
-        Upload Markdown with your suite. Define the checks that must pass and
-        map each case to exact test titles and projects. Unmapped cases and exit
-        criteria remain unresolved.
+        Upload a Markdown plan for this entire workflow. Cases can span tests in
+        multiple nodes and require action nodes to succeed. Unmapped cases and
+        exit criteria remain unresolved.
       </p>
       <label className="block text-sm">
         Upload test plan
@@ -134,11 +138,23 @@ export function TestPlanPanel({
           </details>
           <p className="text-xs text-muted">
             Review imported cases and add any missing requirements. Mapping
-            format: one <code>project :: full test title</code> per line. Use{' '}
-            <code>(default)</code> for an unnamed project and <code> › </code>{' '}
-            between describe groups and the test title. List every required
-            browser/device variant explicitly.
+            format: one <code>node ID :: project :: full test title</code> per
+            line. Use <code>(default)</code> for an unnamed project and{' '}
+            <code> › </code> between describe groups and the test title. List
+            every required browser/device variant explicitly.
           </p>
+          <details>
+            <summary className="cursor-pointer text-sm">
+              Workflow nodes for test mappings
+            </summary>
+            <ul className="text-xs text-muted space-y-1">
+              {nodes.map((node) => (
+                <li key={node.id}>
+                  {node.label}: <code>{node.id}</code>
+                </li>
+              ))}
+            </ul>
+          </details>
           {value.cases.map((item, index) => (
             <fieldset
               key={`${value.name}-${index}-${value.markdown.length}`}
@@ -172,6 +188,28 @@ export function TestPlanPanel({
                   }
                 />
               </label>
+              <fieldset className="space-y-1">
+                <legend className="text-xs">Required successful actions</legend>
+                {nodes.map((node) => (
+                  <label
+                    key={node.id}
+                    className="flex items-center gap-2 text-xs"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.nodes?.includes(node.id) ?? false}
+                      onChange={(event) =>
+                        updateCase(index, {
+                          nodes: event.target.checked
+                            ? [...(item.nodes ?? []), node.id]
+                            : (item.nodes ?? []).filter((id) => id !== node.id),
+                        })
+                      }
+                    />
+                    {node.label}
+                  </label>
+                ))}
+              </fieldset>
               <TestMappings
                 value={item.tests}
                 onChange={(tests) => updateCase(index, { tests })}
@@ -224,22 +262,29 @@ function TestMappings({
   value: PlanCase['tests'];
   onChange: (tests: PlanCase['tests']) => void;
 }) {
-  const {
-    ui: { Textarea },
-  } = useIntegrationHost();
   const [text, setText] = useState(
-    value.map((t) => `${t.project || '(default)'} :: ${t.title}`).join('\n'),
+    value
+      .map(
+        (t) =>
+          `${t.nodeId ? t.nodeId + ' :: ' : ''}${t.project || '(default)'} :: ${t.title}`,
+      )
+      .join('\n'),
   );
   useEffect(() => {
     setText(
-      value.map((t) => `${t.project || '(default)'} :: ${t.title}`).join('\n'),
+      value
+        .map(
+          (t) =>
+            `${t.nodeId ? t.nodeId + ' :: ' : ''}${t.project || '(default)'} :: ${t.title}`,
+        )
+        .join('\n'),
     );
   }, [value]);
   return (
     <label className="block text-xs">
       Required tests
       <Textarea
-        placeholder="chromium :: Policy › matches source"
+        placeholder="playwright-node :: chromium :: Policy › matches source"
         value={text}
         onChange={(event) => setText(event.target.value)}
         onBlur={() => {
@@ -248,15 +293,13 @@ function TestMappings({
               .split('\n')
               .filter((line) => line.trim())
               .map((line) => {
-                const separator = line.indexOf('::');
-                const project =
-                  separator < 0 ? '' : line.slice(0, separator).trim();
+                const parts = line.split('::').map((part) => part.trim());
+                const nodeId = parts.length >= 3 ? parts.shift() : undefined;
+                const project = parts.length >= 2 ? parts.shift()! : '';
                 return {
+                  ...(nodeId ? { nodeId } : {}),
                   project: project === '(default)' ? '' : project,
-                  title: (separator < 0
-                    ? line
-                    : line.slice(separator + 2)
-                  ).trim(),
+                  title: parts.join(' :: ').trim(),
                 };
               }),
           );

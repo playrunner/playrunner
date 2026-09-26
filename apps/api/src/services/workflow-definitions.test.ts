@@ -100,3 +100,48 @@ test('rejects secret values embedded in a definition file', () => {
     /must not contain secret/,
   );
 });
+
+test('API definitions retain workflow plans and reject invalid node mappings', () => {
+  const input = {
+    ...definition(),
+    workflow: {
+      ...definition().workflow,
+      testPlan: {
+        name: 'workflow.md',
+        markdown: '# Plan',
+        cases: [
+          {
+            id: 'CASE-1',
+            description: 'Check',
+            criteria: 'Action succeeds',
+            tests: [],
+            nodes: ['container'],
+          },
+        ],
+      },
+    },
+  };
+  assert.deepEqual(
+    parseWorkflowDefinition(input).workflow.testPlan,
+    input.workflow.testPlan,
+  );
+  assert.throws(
+    () =>
+      parseWorkflowDefinition({
+        ...input,
+        workflow: {
+          ...input.workflow,
+          testPlan: {
+            ...input.workflow.testPlan,
+            cases: [
+              {
+                ...input.workflow.testPlan.cases[0],
+                tests: [{ title: 'check', project: '', nodeId: 123 }],
+              },
+            ],
+          },
+        },
+      }),
+    /exact title and project/,
+  );
+});

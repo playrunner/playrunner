@@ -123,6 +123,9 @@ export function projectExecution(
     title: definition.title || workflow?.title || 'Workflow',
     projectTitle: workflow?.project?.title ?? null,
     status,
+    testPlanReportUrl: definition.testPlan
+      ? '/executions/' + encodeURIComponent(execution.id) + '/test-plan'
+      : null,
     lastActivityAt: new Date(lastActivityAt).toISOString(),
     activityStale:
       status === 'running' && now - lastActivityAt > ACTIVITY_STALE_AFTER_MS,
