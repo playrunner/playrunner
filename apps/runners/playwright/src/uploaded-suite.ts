@@ -106,9 +106,11 @@ export async function prepareUploadedSuite(data: Record<string, any>) {
   const contents = Buffer.concat(chunks);
   if (createHash('sha256').update(contents).digest('hex') !== suite.sha256)
     throw new Error('Uploaded test suite checksum mismatch.');
-  const directory = fs.mkdtempSync(
-    path.join(process.cwd(), '.playrunner-suite-'),
-  );
+  // The runner's WORKDIR is /app. Match GitHub's /app/repo in every
+  // isolated container so shard reports contain the same test root.
+  const directory = path.join(process.cwd(), 'repo');
+  // Fail rather than overwrite an existing workspace.
+  fs.mkdirSync(directory);
   try {
     await extractTestSuite(contents, directory);
   } catch (error) {
