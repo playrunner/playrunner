@@ -76,6 +76,18 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'config' | 'env' | 'resources'>(
     'config',
   );
+  const selectedProfiles: Array<{
+    profileId: string;
+    environmentVariable?: string;
+  }> =
+    config.authenticationProfiles ??
+    (config.authenticationProfileId
+      ? [{ profileId: config.authenticationProfileId }]
+      : []);
+  const updateProfiles = (profiles: typeof selectedProfiles) => {
+    const { authenticationProfileId: _legacyProfile, ...rest } = config;
+    onChange(nodeId, { ...rest, authenticationProfiles: profiles });
+  };
   const latestConfigRef = useRef(config);
 
   useEffect(() => {
@@ -440,38 +452,115 @@ test.describe('navigation', () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted">
-                Authentication Profile
-              </label>
-              <Select
-                data-testid="playwright-node-authentication-profile"
-                value={config.authenticationProfileId || ''}
-                onChange={(event) =>
-                  onChange(nodeId, {
-                    ...config,
-                    authenticationProfileId: event.target.value || undefined,
-                  })
+              <p className="text-xs font-medium text-muted">
+                Authentication Profiles
+              </p>
+              {selectedProfiles.map((selection, index) => (
+                <div
+                  key={index}
+                  role="group"
+                  aria-label={`Authentication Profile ${index + 1}`}
+                  className="space-y-2 rounded-xl border border-subtle p-3"
+                >
+                  <Select
+                    aria-label={`Authentication Profile ${index + 1}`}
+                    value={selection.profileId}
+                    onChange={(event) =>
+                      updateProfiles(
+                        selectedProfiles.map((entry, position) =>
+                          position === index
+                            ? { ...entry, profileId: event.target.value }
+                            : entry,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="">Select a profile</option>
+                    {selection.profileId &&
+                    !authenticationProfiles.some(
+                      (profile) => profile.id === selection.profileId,
+                    ) ? (
+                      <option value={selection.profileId}>
+                        Unavailable profile
+                      </option>
+                    ) : null}
+                    {authenticationProfiles.map((profile) => (
+                      <option
+                        key={profile.id}
+                        value={profile.id}
+                        disabled={
+                          profile.status !== 'authenticated' ||
+                          selectedProfiles.some(
+                            (entry, position) =>
+                              position !== index &&
+                              entry.profileId === profile.id,
+                          )
+                        }
+                      >
+                        {profile.name}
+                        {profile.roleLabel ? ` — ${profile.roleLabel}` : ''}
+                        {profile.status !== 'authenticated'
+                          ? ` (${profile.status.replaceAll('_', ' ')})`
+                          : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input
+                    aria-label={`Session variable ${index + 1}`}
+                    placeholder={
+                      index === 0
+                        ? 'E2E_REGRESSION_STORAGE_STATE (optional)'
+                        : 'E2E_STEADFAST_STORAGE_STATE'
+                    }
+                    value={selection.environmentVariable || ''}
+                    onChange={(event) =>
+                      updateProfiles(
+                        selectedProfiles.map((entry, position) =>
+                          position === index
+                            ? {
+                                ...entry,
+                                environmentVariable: event.target.value,
+                              }
+                            : entry,
+                        ),
+                      )
+                    }
+                  />
+                  {index === 0 ? (
+                    <p className="text-[10px] text-muted">
+                      Default browser session
+                    </p>
+                  ) : null}
+                  <Button
+                    variant="tertiary"
+                    onClick={() =>
+                      updateProfiles(
+                        selectedProfiles.filter(
+                          (_, position) => position !== index,
+                        ),
+                      )
+                    }
+                    aria-label={`Remove Authentication Profile ${index + 1}`}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="secondary"
+                disabled={selectedProfiles.length >= 10}
+                onClick={() =>
+                  updateProfiles([...selectedProfiles, { profileId: '' }])
                 }
               >
-                <option value="">No authenticated session</option>
-                {authenticationProfiles.map((profile) => (
-                  <option
-                    key={profile.id}
-                    value={profile.id}
-                    disabled={profile.status !== 'authenticated'}
-                  >
-                    {profile.name}
-                    {profile.roleLabel ? ` — ${profile.roleLabel}` : ''}
-                    {profile.status !== 'authenticated'
-                      ? ` (${profile.status.replaceAll('_', ' ')})`
-                      : ''}
-                  </option>
-                ))}
-              </Select>
+                Add Authentication Profile
+              </Button>
               <p className="text-[10px] text-muted">
-                Restores an encrypted browser session for Local runner
-                executions. The matching Environment must also be linked to this
-                workflow.
+                The first profile is the default browser session. To use
+                separate browser contexts, give each profile a session variable
+                ending in _STORAGE_STATE. Tests receive the saved session’s file
+                path in that variable. Each profile’s Environment must be linked
+                to this workflow.
               </p>
               {authenticationProfilesError ? (
                 <p className="text-[10px] text-red-400">

@@ -1,3 +1,7 @@
+import {
+  MAX_AUTHENTICATION_STATE_BYTES,
+  normalizeAuthenticationProfiles,
+} from '../../shared/authentication-profiles';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,8 +12,6 @@ import {
   openAuthenticationEnvelope,
   type AuthenticationEnvelope,
 } from '../../shared/authentication-envelope';
-
-const MAX_AUTHENTICATION_STATE_BYTES = 5 * 1024 * 1024;
 
 export type PreparedAuthenticationState = {
   cleanup: () => void;
@@ -167,17 +169,46 @@ export function prepareAuthenticationState(args: {
   state: unknown;
   workingDir: string;
 }): PreparedAuthenticationState {
-  const serialized = assertAuthenticationState(args.state);
+  const bundle = args.state as { profiles?: unknown } | null;
+  const entries =
+    bundle && typeof bundle === 'object' && 'profiles' in bundle
+      ? bundle.profiles
+      : [{ profileId: 'default', state: args.state }];
+  const selections = normalizeAuthenticationProfiles({
+    authenticationProfiles: entries,
+  });
+  if (!selections.length)
+    throw new Error('Authentication Profile state is invalid.');
+  const serialized = (entries as Array<{ state: unknown }>).map((entry) =>
+    assertAuthenticationState(entry.state),
+  );
+  if (
+    Buffer.byteLength(JSON.stringify(entries), 'utf8') >
+    MAX_AUTHENTICATION_STATE_BYTES
+  ) {
+    throw new Error('Authentication Profile states are too large.');
+  }
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'playrunner-auth-state-'),
   );
   fs.chmodSync(directory, 0o700);
   const statePath = path.join(directory, 'storage-state.json');
-  writeProtectedFile(statePath, serialized);
+  const environment: NodeJS.ProcessEnv = {
+    PLAYRUNNER_AUTH_STATE_PATH: statePath,
+  };
 
   let configPath: string | undefined;
   let pythonPlugin: string | undefined;
   try {
+    selections.forEach((selection, index) => {
+      const profilePath =
+        index === 0
+          ? statePath
+          : path.join(directory, `storage-state-${index}.json`);
+      writeProtectedFile(profilePath, serialized[index]);
+      if (selection.environmentVariable)
+        environment[selection.environmentVariable] = profilePath;
+    });
     if (args.runtime === 'typescript') {
       configPath = createTypescriptConfig(args.workingDir, statePath);
     } else {
@@ -195,7 +226,7 @@ export function prepareAuthenticationState(args: {
     },
     configPath,
     environment: {
-      PLAYRUNNER_AUTH_STATE_PATH: statePath,
+      ...environment,
       ...(pythonPlugin
         ? {
             PYTHONPATH: [directory, process.env.PYTHONPATH]

@@ -9,6 +9,144 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
   createPom: ({ host, page }) => new PlaywrightE2EPom(page, host),
   scenarios: [
     {
+      id: 'multiple-authentication-profiles',
+      mode: 'mock',
+      title: 'persists multiple authenticated sessions and removes selections',
+      tags: ['@playwright', '@authentication'],
+      async run({ data, expect, pom, page }) {
+        await page.goto('/projects');
+        const api = (url: string, body?: Record<string, unknown>) =>
+          page.evaluate(
+            async ({ url, body }) => {
+              const session = JSON.parse(
+                localStorage.getItem('playrunner.localAuthSession') || '{}',
+              );
+              const response = await fetch(url, {
+                method: body ? 'POST' : 'GET',
+                headers: {
+                  Authorization: `Bearer ${session.token}`,
+                  'Content-Type': 'application/json',
+                },
+                ...(body ? { body: JSON.stringify(body) } : {}),
+              });
+              if (!response.ok)
+                throw new Error(`E2E API failed: ${response.status}`);
+              return response.json();
+            },
+            { url, body },
+          );
+        const environmentId = `multi-auth-${data.runId}`;
+        await page.evaluate(async (id) => {
+          const session = JSON.parse(
+            localStorage.getItem('playrunner.localAuthSession') || '{}',
+          );
+          const response = await fetch(`/api/store/environments/${id}`, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${session.token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: id, variables: [] }),
+          });
+          if (!response.ok) throw new Error('Could not create Environment');
+        }, environmentId);
+        const ids: string[] = [];
+        for (const name of ['Bunker', 'Steadfast']) {
+          const ticket = `${data.runId}-${name}`;
+          const { profile } = await api('/api/authentication-profiles', {
+            environmentId,
+            name: `${name} ${data.runId}`,
+            startUrl: `http://127.0.0.1:4013/login?ticket=${ticket}`,
+            successCondition: {
+              type: 'element_visible',
+              value: '[data-testid="authenticated-app"]',
+            },
+          });
+          ids.push(profile.id);
+          const { session } = await api(
+            `/api/authentication-profiles/${profile.id}/authenticate`,
+            {},
+          );
+          await expect
+            .poll(
+              async () =>
+                (
+                  await api(
+                    `/api/authentication-profiles/sessions/${session.id}`,
+                  )
+                ).session.status,
+              { timeout: 30_000 },
+            )
+            .toBe('browser_launched');
+          await expect
+            .poll(
+              async () =>
+                (
+                  await (
+                    await page.request.get(
+                      `http://127.0.0.1:4013/ready?ticket=${encodeURIComponent(ticket)}`,
+                    )
+                  ).json()
+                ).ready,
+            )
+            .toBe(true);
+          await api(
+            `/api/authentication-profiles/sessions/${session.id}/complete`,
+            {},
+          );
+          await expect
+            .poll(
+              async () =>
+                (
+                  await api(
+                    `/api/authentication-profiles/sessions/${session.id}`,
+                  )
+                ).session.status,
+              { timeout: 30_000 },
+            )
+            .toBe('completed');
+        }
+        await pom.createNode();
+        await pom.addAuthenticationProfile(
+          ids[0],
+          'E2E_REGRESSION_STORAGE_STATE',
+        );
+        await pom.addAuthenticationProfile(
+          ids[1],
+          'E2E_STEADFAST_STORAGE_STATE',
+        );
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.profileSelector(1)).toHaveValue(ids[0]);
+        await expect(pom.sessionVariable(1)).toHaveValue(
+          'E2E_REGRESSION_STORAGE_STATE',
+        );
+        await expect(pom.profileSelector(2)).toHaveValue(ids[1]);
+        await expect(pom.sessionVariable(2)).toHaveValue(
+          'E2E_STEADFAST_STORAGE_STATE',
+        );
+        await expect(
+          pom.profileSelector(2).locator(`option[value="${ids[0]}"]`),
+        ).toBeDisabled();
+        await page
+          .getByRole('button', {
+            name: 'Remove Authentication Profile 2',
+            exact: true,
+          })
+          .click();
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.profileSelector(1)).toHaveValue(ids[0]);
+        await expect(pom.profileSelector(2)).toHaveCount(0);
+        await page
+          .getByRole('button', {
+            name: 'Remove Authentication Profile 1',
+            exact: true,
+          })
+          .click();
+        await pom.saveReloadAndReopenNode();
+        await expect(pom.profileSelector(1)).toHaveCount(0);
+      },
+    },
+    {
       id: 'uploaded-test-plan-report',
       mode: 'mock',
       title:

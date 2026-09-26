@@ -35,6 +35,31 @@ export class PlaywrightE2EPom {
     await this.host.openNodeSettings('playwright');
   }
 
+  profileSelector(index: number) {
+    return this.dialog.getByRole('combobox', {
+      name: `Authentication Profile ${index}`,
+      exact: true,
+    });
+  }
+
+  sessionVariable(index: number) {
+    return this.dialog.getByRole('textbox', {
+      name: `Session variable ${index}`,
+      exact: true,
+    });
+  }
+
+  async addAuthenticationProfile(profileId: string, variable: string) {
+    await this.dialog
+      .getByRole('button', { name: 'Add Authentication Profile', exact: true })
+      .click();
+    const count = await this.dialog
+      .getByRole('group', { name: /^Authentication Profile \d+$/ })
+      .count();
+    await this.profileSelector(count).selectOption(profileId);
+    await this.sessionVariable(count).fill(variable);
+  }
+
   async fillScript(script: string) {
     await this.field('script').locator('.view-lines').click();
     await this.page.keyboard.press('Control+A');

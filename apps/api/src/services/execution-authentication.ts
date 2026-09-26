@@ -1,4 +1,9 @@
 import {
+  MAX_AUTHENTICATION_STATE_BYTES,
+  normalizeAuthenticationProfiles,
+  type AuthenticationProfileSelection,
+} from '../../../runners/shared/authentication-profiles';
+import {
   sealAuthenticationEnvelope,
   type AuthenticationEnvelope,
 } from '../../../runners/shared/authentication-envelope';
@@ -10,6 +15,7 @@ type Grant = {
   fetches: number;
   ownerUserId: string;
   profileId: string;
+  profiles: AuthenticationProfileSelection[];
 };
 
 const GRANT_TTL_MS = 2 * 60 * 60 * 1_000;
@@ -23,22 +29,31 @@ type ExecutionAuthenticationGrantStore = Pick<
 export class ExecutionAuthenticationGrants {
   constructor(
     private readonly grantStore: ExecutionAuthenticationGrantStore = prisma.executionAuthenticationGrant,
+    private readonly resolveState = resolveAuthenticationState,
   ) {}
 
   async register(args: {
     executionId: string;
     nodeId: string;
     ownerUserId: string;
-    profileId: string;
+    profileId?: string;
+    profiles?: AuthenticationProfileSelection[];
   }) {
+    const profiles = normalizeAuthenticationProfiles({
+      authenticationProfiles: args.profiles,
+      authenticationProfileId: args.profileId,
+    });
+    if (!profiles.length)
+      throw new Error('Authentication Profile selection is required.');
     const grant = {
       expiresAt: new Date(Date.now() + GRANT_TTL_MS),
       fetches: 0,
       ownerUserId: args.ownerUserId,
-      profileId: args.profileId,
+      profileId: profiles[0].profileId,
+      profiles,
     } satisfies Grant;
     await this.grantStore.upsert({
-      create: { ...args, ...grant },
+      create: { executionId: args.executionId, nodeId: args.nodeId, ...grant },
       update: grant,
       where: {
         executionId_nodeId: {
@@ -91,14 +106,30 @@ export class ExecutionAuthenticationGrants {
         },
       },
     });
-    const resolved = await resolveAuthenticationState(
-      grant.ownerUserId,
-      grant.profileId,
+    const selections = normalizeAuthenticationProfiles({
+      authenticationProfiles: grant.profiles,
+      authenticationProfileId: grant.profileId,
+    });
+    const profiles = await Promise.all(
+      selections.map(async (selection) => ({
+        ...selection,
+        state: (await this.resolveState(grant.ownerUserId, selection.profileId))
+          .state,
+      })),
     );
+    // Preserve the original wire format for a single unmapped session.
+    const state =
+      profiles.length === 1 && !profiles[0].environmentVariable
+        ? profiles[0].state
+        : { profiles };
+    const plaintext = Buffer.from(JSON.stringify(state), 'utf8');
+    if (plaintext.length > MAX_AUTHENTICATION_STATE_BYTES) {
+      throw new Error('Authentication Profile states are too large.');
+    }
     return sealAuthenticationEnvelope({
       executionId: args.executionId,
       nodeId: args.nodeId,
-      plaintext: Buffer.from(JSON.stringify(resolved.state), 'utf8'),
+      plaintext,
       recipientPublicKey: args.recipientPublicKey,
     });
   }

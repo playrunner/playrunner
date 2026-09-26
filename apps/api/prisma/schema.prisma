@@ -303,6 +303,7 @@ model ExecutionAuthenticationGrant {
   nodeId      String
   ownerUserId String
   profileId   String
+  profiles    Json?
   expiresAt   DateTime
   fetches     Int      @default(0)
   createdAt   DateTime @default(now())

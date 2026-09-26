@@ -39,15 +39,8 @@ import {
   getEnvironmentSecretKeys,
   hydrateEnvironmentSecretVariables,
 } from '../services/environment-secrets';
-import {
-  getLinkedEnvironmentIds,
-  hydrateLinkedWorkflowEnvironments,
-} from '../services/workflow-environments';
-import {
-  recordAuthenticationProfileAudit,
-  resolveAuthenticationState,
-} from '../services/authentication-profiles';
-import { executionAuthenticationGrants } from '../services/execution-authentication';
+import { hydrateLinkedWorkflowEnvironments } from '../services/workflow-environments';
+import { prepareExecutionAuthentication } from '../services/prepare-execution-authentication';
 
 const HOST_NODE_TYPES = new Set([
   'agent-container',
@@ -150,63 +143,14 @@ async function resolveEnvironmentSecrets(request: WorkflowExecutionRequest) {
 async function resolveAuthenticationProfiles(
   request: WorkflowExecutionRequest,
 ) {
-  const ownerUserId =
-    request.resourceOwnerUserId ?? request.req.authUser?.providerUserId;
-  const actorUserId = request.req.authUser?.providerUserId;
-  if (!ownerUserId || !actorUserId) {
-    throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
-  }
-  const nodes = Array.isArray(request.body.nodes) ? request.body.nodes : [];
-  const selections = nodes.flatMap((node: any) => {
-    const profileId = node?.config?.authenticationProfileId;
-    return node?.nodeType === 'playwright' &&
-      typeof profileId === 'string' &&
-      profileId.trim()
-      ? [{ nodeId: String(node.id), profileId: profileId.trim() }]
-      : [];
-  });
-  if (!selections.length) return;
-  if (ownerUserId !== actorUserId) {
-    throw Object.assign(
-      new Error(
-        'Shared workflow runs cannot use the owner’s Authentication Profiles.',
-      ),
-      { code: 'authentication_profile_owner_only', statusCode: 403 },
-    );
-  }
-  const linkedEnvironmentIds = new Set(getLinkedEnvironmentIds(nodes));
-  await Promise.all(
-    selections.map(async ({ nodeId, profileId }) => {
-      const resolved = await resolveAuthenticationState(ownerUserId, profileId);
-      if (!linkedEnvironmentIds.has(resolved.profile.environmentId)) {
-        throw Object.assign(
-          new Error(
-            `Authentication Profile “${resolved.profile.name}” requires its Environment to be linked in this workflow.`,
-          ),
-          {
-            code: 'authentication_profile_environment_mismatch',
-            statusCode: 409,
-          },
-        );
-      }
-      await recordAuthenticationProfileAudit({
-        action: 'execution_used',
-        actorId: actorUserId,
-        executionId: String(request.testId),
-        outcome: 'success',
-        profileId,
-      });
-      await executionAuthenticationGrants.register({
-        executionId: request.testId,
-        nodeId,
-        ownerUserId,
-        profileId,
-      });
-    }),
-  );
-  request.body.authenticationProfileNodeIds = selections.map(
-    ({ nodeId }) => nodeId,
-  );
+  request.body.authenticationProfileNodeIds =
+    await prepareExecutionAuthentication({
+      ownerUserId:
+        request.resourceOwnerUserId ?? request.req.authUser?.providerUserId,
+      actorUserId: request.req.authUser?.providerUserId,
+      nodes: Array.isArray(request.body.nodes) ? request.body.nodes : [],
+      executionId: request.testId,
+    });
 }
 
 class StaticCloudProviderRegistry implements CloudProviderRegistry {
