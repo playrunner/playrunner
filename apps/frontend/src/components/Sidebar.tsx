@@ -9,6 +9,7 @@ import {
   Server,
   Boxes,
   BarChart2,
+  Activity,
   Users,
   PanelLeft,
   GitPullRequest,
@@ -275,7 +276,7 @@ export function Sidebar({
                 }}
               />
               <NavItem
-                icon={BarChart2}
+                icon={Activity}
                 label="Live executions"
                 isOpen={isOpen}
                 isActive={location.pathname === '/executions'}
