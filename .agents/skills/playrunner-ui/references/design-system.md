@@ -5,6 +5,7 @@
 - `apps/frontend/src/pages/DesignSystem.tsx`
 - `apps/frontend/src/components/ui/Button.tsx`
 - `apps/frontend/src/components/ui/Input.tsx`
+- `apps/frontend/src/components/ui/FilePicker.tsx`
 - `apps/frontend/src/components/ui/Badge.tsx`
 - `apps/frontend/src/index.css`
 - `apps/setup/src/index.css`
@@ -51,6 +52,15 @@
 - Use `Badge` for status and small state chips.
 - For icon containers inside cards, use compact inset surfaces like `h-8 w-8` or `h-9 w-9`, `rounded-lg`, `bg-[var(--surface-hover)]`, `border border-[var(--border)]`.
 - For integration authentication choices, use the Slack-style segmented control: a `flex gap-2 border-b border-subtle pb-2` group with compact `rounded-lg px-3 py-1.5 text-xs font-medium` buttons. Select the action-oriented OAuth/provider option by default when available. Active options use `bg-[var(--accent)] text-[var(--accent-foreground)]`, which appears dark in the light theme and white in the dark theme; inactive options use `text-muted hover:text-[var(--foreground)]`. Add a group label and `aria-pressed` states.
+
+## File Pickers
+
+- Use `FilePicker` from `apps/frontend/src/components/ui`; the Design System page has an interactive example and a disabled state. `WorkflowTestPlanPanel.tsx` shows validation and replacement of an attached plan.
+- The canonical treatment is a shared secondary `Button`, default size, `gap-2`, and a decorative Lucide `Upload` icon at `h-4 w-4`. The native file input is hidden and opened by the button. The row wraps with `flex flex-wrap items-center gap-3`; the optional hint uses `text-xs text-muted` and is linked to the button with `aria-describedby`.
+- Supply an action-specific `ariaLabel` for the input, `accept` for the file chooser filter, and a hint naming the supported format and actual size limit. Use `Choose file` initially and a contextual replacement label such as `Replace plan` when a file is attached. Display the filename separately with wrapping where needed.
+- `onFileSelected(file)` runs only when a file was selected. The primitive clears the native input so selecting the same file again works; cancelling leaves caller state unchanged. Pass `disabled` while selection is unavailable; native disabled fieldsets also apply.
+- The caller owns file validation, reading/uploading, loading and error states, and the selected filename. The `accept` attribute is only a chooser filter, not validation. Preserve existing domain-specific checks and announce errors with `role="alert"`.
+- Package-owned UI must continue using the integration SDK boundary, not import from `apps/frontend`. Until the SDK exposes a file picker, reproduce this treatment using the host-provided `Button` and a hidden input; preserve accessibility, cancellation, reselection, and disabled behavior.
 
 ## Code And Command Blocks
 

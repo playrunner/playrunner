@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Upload } from 'lucide-react';
-import { Button, Input, Textarea } from './ui';
+import { useEffect, useState } from 'react';
+import { Button, FilePicker, Input, Textarea } from './ui';
 
 type PlanCase = {
   id: string;
@@ -62,7 +61,6 @@ export function WorkflowTestPlanPanel({
   onChange: (plan: WorkflowTestPlan | undefined) => void;
 }) {
   const [error, setError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const updateCase = (index: number, patch: Partial<PlanCase>) => {
     if (value)
       onChange({
@@ -83,47 +81,31 @@ export function WorkflowTestPlanPanel({
         multiple nodes and require action nodes to succeed. Unmapped cases and
         exit criteria remain unresolved.
       </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          variant="secondary"
-          className="gap-2"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <Upload className="h-4 w-4" aria-hidden="true" />
-          {value ? 'Replace plan' : 'Choose file'}
-        </Button>
-        <span className="text-xs text-muted">Markdown (.md), up to 256 KB</span>
-        <input
-          ref={fileInputRef}
-          className="hidden"
-          aria-label="Upload test plan"
-          type="file"
-          accept=".md,text/markdown"
-          onChange={async (event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (!file) return;
-            try {
-              if (!/\.md$/i.test(file.name) || file.size > 256 * 1024)
-                throw new Error('Choose a Markdown (.md) file up to 256 KB.');
-              const markdown = await file.text();
-              if (!markdown.trim()) throw new Error('The test plan is empty.');
-              const cases = importCases(markdown);
-              if (cases.length > 200)
-                throw new Error('A plan supports at most 200 cases.');
-              onChange({ name: file.name, markdown, cases });
-              setError('');
-            } catch (cause) {
-              setError(
-                cause instanceof Error
-                  ? cause.message
-                  : 'Could not read test plan.',
-              );
-            }
-          }}
-        />
-      </div>
+      <FilePicker
+        ariaLabel="Upload test plan"
+        label={value ? 'Replace plan' : 'Choose file'}
+        hint="Markdown (.md), up to 256 KB"
+        accept=".md,text/markdown"
+        onFileSelected={async (file) => {
+          try {
+            if (!/\.md$/i.test(file.name) || file.size > 256 * 1024)
+              throw new Error('Choose a Markdown (.md) file up to 256 KB.');
+            const markdown = await file.text();
+            if (!markdown.trim()) throw new Error('The test plan is empty.');
+            const cases = importCases(markdown);
+            if (cases.length > 200)
+              throw new Error('A plan supports at most 200 cases.');
+            onChange({ name: file.name, markdown, cases });
+            setError('');
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : 'Could not read test plan.',
+            );
+          }
+        }}
+      />
       {error && (
         <p role="alert" className="text-sm text-error">
           {error}

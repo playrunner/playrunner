@@ -13,6 +13,7 @@ import {
   Badge,
   Button,
   ConfirmDialog,
+  FilePicker,
   Input,
   SearchableMultiSelect,
   Select,
@@ -29,6 +30,7 @@ export default function DesignSystem() {
     'oauth',
   );
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState('');
   const handleBackClick = () => {
     if (window.history.state?.idx > 0) {
       navigate(-1);
@@ -254,6 +256,40 @@ export default function DesignSystem() {
                 />
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-6" aria-labelledby="file-picker-heading">
+          <div className="border-b border-subtle pb-2">
+            <h2
+              id="file-picker-heading"
+              className="text-xl font-medium text-[var(--foreground)] mb-1"
+            >
+              File picker
+            </h2>
+            <p className="text-sm text-muted">
+              Use a secondary button with an upload icon and a hint for accepted
+              file types and limits. Show the selected filename separately.
+            </p>
+          </div>
+          <div className="max-w-2xl rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm space-y-4">
+            <FilePicker
+              ariaLabel="Example file picker"
+              label={selectedFileName ? 'Replace file' : 'Choose file'}
+              hint="Select a file to preview its name. Nothing is uploaded."
+              onFileSelected={(file) => setSelectedFileName(file.name)}
+            />
+            {selectedFileName && (
+              <p className="text-sm break-words" role="status">
+                {selectedFileName}
+              </p>
+            )}
+            <FilePicker
+              ariaLabel="Disabled file picker"
+              disabled
+              hint="File selection is unavailable."
+              onFileSelected={() => {}}
+            />
           </div>
         </section>
 

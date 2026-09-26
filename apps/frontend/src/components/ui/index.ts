@@ -1,5 +1,6 @@
 export * from './Button';
 export * from './Input';
+export * from './FilePicker';
 export * from './Textarea';
 export * from './Select';
 export * from './Badge';

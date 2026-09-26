@@ -1,6 +1,6 @@
 ---
 name: playrunner-design-system
-description: Align frontend UI changes in the Playrunner repo to the existing Design System and shared primitives. Use when editing styling, layout, forms, cards, buttons, badges, onboarding/setup screens, or other React pages in `apps/web` or `apps/setup`, especially when the request mentions polish, consistency, or following the Design System page.
+description: Align frontend UI changes in the Playrunner repo to the existing Design System and shared primitives. Use when editing styling, layout, forms, file pickers, cards, buttons, badges, onboarding/setup screens, or other React pages in `apps/frontend` or `apps/setup`, especially when the request mentions polish, consistency, or following the Design System page.
 ---
 
 # Playrunner Design System
@@ -21,6 +21,7 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 ## Rules
 
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
+- Use the shared `FilePicker` for single-file selection in the frontend. It supplies the secondary upload-icon button, hidden native input, and muted hint; keep validation and selected-file state in the caller. Follow the [file picker reference](references/design-system.md#file-pickers) for labels, limits, and package-owned UI. Do not show an unstyled native file input.
 - Render copy actions for commands, URLs, IDs, secrets, and other code-like values as icon-only buttons using the canonical `IntegrationCopyableCode`/GCP pattern: a Lucide `Copy` icon, a temporary green `Check` icon after success, and an accessible `aria-label` plus `title`. Do not render visible `Copy` or `Copied` text inside copyable value fields.
 - In integration connection/settings dialogs, use `IntegrationConnectionInput` from `@playrunner/integration-sdk` instead of raw `Input` for manual fields, and include `IntegrationConnectionAutofillGuard` in custom modals so browsers and password-manager extensions do not autofill connection credentials.
 - Render every connection-dialog instructions or setup-guide callout with the canonical GCP/GitHub pattern: a `BookOpen` icon in the left inset icon container, title and supporting copy on the right, and an underlined guide link ending with an `ExternalLink` icon. Preserve the canonical sizing, spacing, theme-token classes, new-tab behavior, and `noopener noreferrer` relationship documented in `references/design-system.md`.
