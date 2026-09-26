@@ -17,12 +17,14 @@
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/storage": "^7.19.0",
-    "google-auth-library": "^11.0.2"
+    "google-auth-library": "^11.0.2",
+    "yauzl": "^3.4.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@playwright/test": "1.62.1",
     "@types/node": "^25.6.2",
+    "@types/yauzl": "^2.10.3",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "10.1.8",
     "globals": "^17.6.0",

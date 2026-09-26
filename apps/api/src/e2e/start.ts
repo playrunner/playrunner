@@ -77,6 +77,7 @@ async function startE2EApi() {
     prisma.workflowScheduleTrigger.deleteMany(),
     prisma.workflowSchedule.deleteMany(),
     prisma.workflowExecution.deleteMany(),
+    prisma.testSuiteUpload.deleteMany(),
     prisma.workflow.deleteMany(),
     prisma.project.deleteMany(),
     prisma.connection.deleteMany(),

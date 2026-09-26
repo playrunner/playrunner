@@ -1,3 +1,5 @@
+import { writeTestPlanReport } from './test-plan-report';
+import { prepareUploadedSuite } from './uploaded-suite';
 import { spawn } from 'child_process';
 import path from 'path';
 import crypto from 'crypto';
@@ -456,6 +458,7 @@ async function uploadOutputs(
   gcpProject?: string,
   cloudProvider: string = 'LOCAL_RUNNER',
   blobArtifact?: PlaywrightBlobArtifact,
+  testPlan?: unknown,
 ): Promise<Record<string, unknown>> {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
@@ -464,6 +467,15 @@ async function uploadOutputs(
 
   await publishLog(`Preparing test outputs for node ${nodeId}...`);
 
+  let planResult: ReturnType<typeof writeTestPlanReport> | undefined;
+  if (testPlan && !blobArtifact) {
+    planResult = writeTestPlanReport(
+      path.join(workingDir, 'playwright-report'),
+      testPlan,
+      testId,
+      nodeId,
+    );
+  }
   const hasPlaywrightReport = fs.existsSync(
     path.join(workingDir, 'playwright-report'),
   );
@@ -485,6 +497,7 @@ async function uploadOutputs(
     );
     const reportOutput: Record<string, unknown> = {
       ...(blobArtifact ? { blobArtifact } : {}),
+      ...(planResult ? { testPlan: planResult } : {}),
     };
     if (hasPlaywrightReport && fs.existsSync(reportPath)) {
       const report = readPlaywrightReportData({
@@ -797,6 +810,10 @@ async function prepareWorkingDirectory(
     }
   }
 
+  if (payload?.data?.action === 'upload') {
+    workingDir = await prepareUploadedSuite(payload.data);
+  }
+
   let testLanguage = payload?.data?.testLanguage || 'typescript';
 
   if (
@@ -1064,6 +1081,8 @@ async function run() {
         payload?.settings?.gcp?.accessToken,
         payload?.settings?.gcp?.selectedProject,
         cloudProvider,
+        undefined,
+        payload?.data?.testPlan,
       );
       const aggregateOutput = { ...output, shards: artifacts };
       await publishNodeState('success');
@@ -1162,6 +1181,7 @@ async function run() {
     payload?.settings?.gcp?.selectedProject,
     cloudProvider,
     blobArtifact,
+    payload?.data?.testPlan,
   );
   await publishNodeState(testFailed ? 'error' : 'success');
   await publishRunnerStatus(

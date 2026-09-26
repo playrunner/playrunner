@@ -1,3 +1,4 @@
+import { TestPlanPanel } from './TestPlanPanel';
 import React, { useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import {
@@ -56,6 +57,8 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   }, []);
   const Input = ui.Input;
   const Select = ui.Select;
+  const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [repositories, setRepositories] = useState<
     { id: string; full_name: string }[]
   >([]);
@@ -716,10 +719,49 @@ test.describe('navigation', () => {
                     type="file"
                     accept=".zip"
                     className="hidden"
-                    onChange={(e) => {
+                    disabled={isUploading}
+                    onChange={async (e) => {
                       const file = e.target.files?.[0];
-                      if (file) {
-                        onChange(nodeId, { ...config, zipFileName: file.name });
+                      e.target.value = '';
+                      if (!file) return;
+                      setIsUploading(true);
+                      setUploadError('');
+                      try {
+                        if (
+                          !/\.zip$/i.test(file.name) ||
+                          file.size > 50 * 1024 * 1024
+                        )
+                          throw new Error('Choose a ZIP file up to 50 MB.');
+                        const token = await auth.currentUser?.getIdToken();
+                        const response = await fetch(
+                          `/api/test-suites?name=${encodeURIComponent(file.name)}`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              Authorization: `Bearer ${token}`,
+                              'Content-Type': 'application/zip',
+                            },
+                            body: file,
+                          },
+                        );
+                        const result = await response.json();
+                        if (!response.ok)
+                          throw new Error(
+                            result.error || 'Test suite upload failed.',
+                          );
+                        onChange(nodeId, {
+                          ...latestConfigRef.current,
+                          zipFileName: file.name,
+                          testSuite: result,
+                        });
+                      } catch (cause) {
+                        setUploadError(
+                          cause instanceof Error
+                            ? cause.message
+                            : 'Upload failed.',
+                        );
+                      } finally {
+                        setIsUploading(false);
                       }
                     }}
                     id="zip-upload"
@@ -730,6 +772,16 @@ test.describe('navigation', () => {
                   />
                 </div>
 
+                {isUploading && (
+                  <p role="status" className="text-sm text-muted">
+                    Uploading test suite…
+                  </p>
+                )}
+                {uploadError && (
+                  <p role="alert" className="text-sm text-error">
+                    {uploadError}
+                  </p>
+                )}
                 {config.zipFileName && (
                   <div className="flex items-center gap-2 p-2 bg-surface border border-subtle rounded-md">
                     <svg
@@ -815,6 +867,10 @@ test.describe('navigation', () => {
                 </div>
               </>
             )}
+            <TestPlanPanel
+              value={config.testPlan}
+              onChange={(testPlan) => onChange(nodeId, { ...config, testPlan })}
+            />
           </div>
         )}
 

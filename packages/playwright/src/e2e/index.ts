@@ -1,3 +1,4 @@
+import { createTestSuiteZip, testPlanMarkdown } from './test-suite-fixture';
 import { definePlayrunnerE2EContribution } from '@playrunner/integration-sdk/e2e';
 import { createPlaywrightE2EData } from './data';
 import { PlaywrightE2EPom } from './PlaywrightE2EPom';
@@ -7,6 +8,132 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
   createData: createPlaywrightE2EData,
   createPom: ({ host, page }) => new PlaywrightE2EPom(page, host),
   scenarios: [
+    {
+      id: 'uploaded-test-plan-report',
+      mode: 'mock',
+      title:
+        'executes an uploaded suite and preserves versioned test plan outcomes',
+      tags: ['@playwright', '@test-plan'],
+      async run({ data, expect, pom, page, host }) {
+        await pom.createNode();
+        await pom.field('action').selectOption('upload');
+        await pom.field('zip-file').setInputFiles({
+          buffer: createTestSuiteZip(),
+          mimeType: 'application/zip',
+          name: data.zipFileName,
+        });
+        await expect(pom.field('zip-file-name')).toHaveText(data.zipFileName);
+        const panel = page.getByRole('region', {
+          name: 'Test plan',
+          exact: true,
+        });
+        await panel.getByLabel('Upload test plan').setInputFiles({
+          buffer: Buffer.from(testPlanMarkdown),
+          mimeType: 'text/markdown',
+          name: 'regression.md',
+        });
+        await expect(
+          panel.getByRole('group', { name: /^Case \d+$/ }),
+        ).toHaveCount(5);
+        const cases = panel.getByRole('group', { name: /^Case \d+$/ });
+        await cases
+          .nth(0)
+          .getByLabel('Required tests')
+          .fill('desktop :: passes\nmobile :: passes');
+        await cases
+          .nth(1)
+          .getByLabel('Required tests')
+          .fill('desktop :: fails');
+        await cases
+          .nth(2)
+          .getByLabel('Required tests')
+          .fill('desktop :: skipped');
+        await panel
+          .getByRole('heading', { name: 'Test plan (optional)' })
+          .click();
+        await pom.saveReloadAndReopenNode();
+        await expect(
+          panel
+            .getByRole('group', { name: /^Case \d+$/ })
+            .nth(0)
+            .getByLabel('Required tests'),
+        ).toHaveValue('desktop :: passes\nmobile :: passes');
+        await host.closeNodeSettings();
+        const response = page.waitForResponse(
+          (r) =>
+            r.url().endsWith('/api/workflows/start') &&
+            r.request().method() === 'POST',
+        );
+        expect(await host.runWorkflowNode('playwright')).toBe('error');
+        const run = await (await response).json();
+        const snapshot = await page.evaluate(async (id) => {
+          const session = JSON.parse(
+            localStorage.getItem('playrunner.localAuthSession') || '{}',
+          );
+          const response = await fetch('/api/executions/live', {
+            headers: { Authorization: `Bearer ${session.token}` },
+          });
+          const payload = await response.json();
+          return payload.executions.find((e: { id: string }) => e.id === id);
+        }, run.testId);
+        const node = snapshot.nodes.find(
+          (n: { reportUrl: string | null }) => n.reportUrl,
+        );
+        expect(node, JSON.stringify(snapshot)).toBeTruthy();
+        // Use the same authenticated report opening path as the product.
+        await page.goto('/executions');
+        const region = page.getByRole('region', {
+          name: `Execution ${run.testId}`,
+          exact: true,
+        });
+        const popup = page.waitForEvent('popup');
+        await region
+          .getByRole('button', { name: 'Report', exact: true })
+          .click();
+        const report = await popup;
+        await expect(
+          report.getByRole('heading', {
+            name: 'Overall plan: FAIL',
+            exact: true,
+          }),
+        ).toBeVisible();
+        await expect(
+          report
+            .getByRole('row')
+            .filter({ hasText: 'PASS-01' })
+            .getByText('PASS', { exact: true }),
+        ).toBeVisible();
+        await expect(
+          report.getByRole('row').filter({ hasText: 'SKIP-01' }),
+        ).toContainText('SKIPPED');
+        await expect(
+          report.getByRole('row').filter({ hasText: 'MANUAL-01' }),
+        ).toContainText('NOT RUN');
+        const original = await report.locator('pre').textContent();
+        const version = await report
+          .getByText('Plan version:', { exact: false })
+          .textContent();
+        await report.close();
+        await page.goto(`/workflow/${snapshot.workflowId}`);
+        await host.openNodeSettings('playwright');
+        await panel.getByLabel('Upload test plan').setInputFiles({
+          buffer: Buffer.from('# Replacement plan'),
+          mimeType: 'text/markdown',
+          name: 'replacement.md',
+        });
+        await pom.saveReloadAndReopenNode();
+        await expect(
+          panel.getByText('replacement.md', { exact: true }),
+        ).toBeVisible();
+        const oldReport = await page.context().newPage();
+        await oldReport.goto(node.reportUrl);
+        await expect(oldReport.locator('pre')).toHaveText(original!);
+        await expect(
+          oldReport.getByText('Plan version:', { exact: false }),
+        ).toHaveText(version!);
+        await oldReport.close();
+      },
+    },
     {
       id: 'node-only-composition',
       mode: 'mock',
@@ -117,10 +244,11 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
         await pom.fillScript(data.script);
         await pom.field('action').selectOption('upload');
         await pom.field('zip-file').setInputFiles({
-          buffer: Buffer.from('playrunner-e2e'),
+          buffer: createTestSuiteZip(),
           mimeType: 'application/zip',
           name: data.zipFileName,
         });
+        await expect(pom.field('zip-file-name')).toHaveText(data.zipFileName);
         await pom.saveReloadAndReopenNode();
         await expect(pom.field('action')).toHaveValue('upload');
         await expect(pom.field('zip-file-name')).toHaveText(data.zipFileName);

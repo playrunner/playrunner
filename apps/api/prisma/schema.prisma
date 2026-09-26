@@ -419,3 +419,14 @@ model WorkflowMachineExecution {
   @@unique([apiTokenId, workflowId, idempotencyKey])
   @@index([workflowId])
 }
+
+model TestSuiteUpload {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  sha256    String
+  contents  Bytes
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

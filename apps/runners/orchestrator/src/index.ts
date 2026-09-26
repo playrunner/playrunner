@@ -47,7 +47,7 @@ import {
 } from './runtime/orchestrator-job';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3012;
 const EDITOR_API_URL = process.env.EDITOR_API_URL?.trim() || '';
@@ -728,7 +728,8 @@ export function environmentVariableFromTemplate(value: unknown) {
 
 function isSensitivePayloadKey(key: string): boolean {
   return (
-    key.toLowerCase() === 'code' || SENSITIVE_PAYLOAD_KEY_PATTERN.test(key)
+    ['code', 'testplan'].includes(key.toLowerCase()) ||
+    SENSITIVE_PAYLOAD_KEY_PATTERN.test(key)
   );
 }
 
@@ -1170,6 +1171,8 @@ export async function executeWorkflow(reqBody: any) {
             action: config.action,
             executionAuthToken: reqBody.executionAuthToken,
             testScript: config.testScript,
+            testPlan: config.testPlan,
+            testSuite: config.testSuite,
             nodeId: runtimeNodeId,
             logicalNodeId: node.id,
             executionMode: overrides.executionMode || 'test',

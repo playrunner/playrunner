@@ -11,6 +11,7 @@ import { workflowsRouter } from './routes/workflows';
 import { outputsRouter } from './routes/outputs';
 import { systemRouter } from './routes/system';
 import { executionsRouter } from './routes/executions';
+import { testSuitesRouter } from './routes/test-suites';
 import { authRouter } from './routes/auth';
 import { insightsRouter } from './routes/insights';
 import { schedulerRouter } from './routes/scheduler';
@@ -53,6 +54,7 @@ app.use('/outputs', express.static(path.join(__dirname, '../public/outputs')));
 // Mixed-auth routes: editor presence stream, execution event ingestion/streaming, and runner output uploads.
 app.use('/api', systemRouter);
 app.use('/api/executions', executionsRouter);
+app.use('/api/test-suites', testSuitesRouter);
 app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/scheduler', schedulerRouter);

@@ -238,7 +238,24 @@ class WorkflowExecutionRegistry {
     if (!resourceOwnerUserId) {
       throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
     }
-    const definition = captureExecutionDefinition(request.body);
+    let definition;
+    try {
+      definition = captureExecutionDefinition(request.body);
+    } catch (error) {
+      throw Object.assign(error as Error, { statusCode: 400 });
+    }
+    for (const node of definition.nodes) {
+      if (!node.suiteId) continue;
+      const suite = await prisma.testSuiteUpload.findFirst({
+        where: { id: node.suiteId, userId: resourceOwnerUserId },
+        select: { id: true },
+      });
+      if (!suite)
+        throw Object.assign(
+          new Error('Test suite not found or you do not own it.'),
+          { statusCode: 404 },
+        );
+    }
     request.body.nodes = await hydrateLinkedWorkflowEnvironments(
       request.body.nodes,
       resourceOwnerUserId,
