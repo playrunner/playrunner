@@ -16,6 +16,43 @@ const event = (
   occurredAt: new Date(time.getTime() + id * 1000),
   createdAt: time,
 });
+
+test('flags silent runs without inventing a terminal outcome and recovers on any new event', () => {
+  const execution = {
+    id: 'old-run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [event(1, 'node_state', { state: 'running' })],
+  };
+  const now = time.getTime() + 10 * 60 * 1000;
+  const stale = projectExecution(execution, undefined, now);
+  assert.equal(stale.activityStale, true);
+  assert.equal(stale.status, 'running');
+  assert.equal(stale.completedAt, null);
+  assert.equal(stale.lastActivityAt, time.toISOString());
+  assert.equal(stale.nodes[0].status, 'running');
+
+  const logging = projectExecution(
+    { ...execution, lastEventAt: new Date(now - 1000) },
+    undefined,
+    now,
+  );
+  assert.equal(logging.activityStale, false);
+  assert.equal(logging.lastActivityAt, new Date(now - 1000).toISOString());
+  assert.equal(
+    projectExecution({ ...execution, status: 'failed' }, undefined, now)
+      .activityStale,
+    false,
+  );
+  assert.equal(
+    projectExecution({ ...execution, events: [] }, undefined, now)
+      .activityStale,
+    true,
+  );
+});
 test('snapshot recovers nodes and outcomes without exposing configuration or regressing terminal states', () => {
   const result = projectExecution({
     id: 'run',

@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { accessibleWorkflowWhere } from './workflow-access';
 
 const terminal = new Set(['succeeded', 'failed', 'cancelled', 'skipped']);
+const ACTIVITY_STALE_AFTER_MS = 5 * 60 * 1000;
 const stateNames: Record<string, string> = {
   idle: 'pending',
   pending: 'pending',
@@ -31,9 +32,11 @@ export function projectExecution(
     cloudProvider: string;
     startedAt: Date;
     completedAt: Date | null;
+    lastEventAt?: Date | null;
     events: Event[];
   },
   workflow?: { title: string | null; project: { title: string | null } | null },
+  now = Date.now(),
 ) {
   const definition = record(
     execution.events.find((e) => e.type === 'execution_definition')?.payload,
@@ -105,12 +108,24 @@ export function projectExecution(
       node.reportUrl = url;
     nodes.set(node.id, node);
   }
+  // Receipt time also counts logs and other events, not just node transitions.
+  // Silence is not a failure: keep the recorded outcome and flag uncertainty.
+  const lastActivityAt = execution.events.reduce(
+    (latest, event) => Math.max(latest, event.createdAt.getTime()),
+    Math.max(
+      execution.startedAt.getTime(),
+      execution.lastEventAt?.getTime() ?? 0,
+    ),
+  );
   return {
     id: execution.id,
     workflowId: execution.workflowId,
     title: definition.title || workflow?.title || 'Workflow',
     projectTitle: workflow?.project?.title ?? null,
     status,
+    lastActivityAt: new Date(lastActivityAt).toISOString(),
+    activityStale:
+      status === 'running' && now - lastActivityAt > ACTIVITY_STALE_AFTER_MS,
     cloudProvider: execution.cloudProvider,
     startedAt: execution.startedAt.toISOString(),
     completedAt: execution.completedAt?.toISOString() ?? null,
@@ -154,7 +169,7 @@ export async function listDashboardExecutions(userId: string) {
     },
   };
   // Active runs are never pushed out of the window by recent completed runs.
-  const [active, recent] = await prisma.$transaction(
+  const [active, recent, activity] = await prisma.$transaction(
     [
       prisma.workflowExecution.findMany({
         where: { ...access, status: 'running' },
@@ -167,11 +182,22 @@ export async function listDashboardExecutions(userId: string) {
         orderBy: { startedAt: 'desc' },
         take: 30,
       }),
+      prisma.workflowEvent.groupBy({
+        by: ['executionId'],
+        where: { execution: { ...access, status: 'running' } },
+        _max: { createdAt: true },
+      }),
     ],
     { isolationLevel: 'RepeatableRead' },
   );
   const byId = new Map(workflows.map((w) => [w.id, w]));
+  const lastEventById = new Map(
+    activity.map((event) => [event.executionId, event._max.createdAt]),
+  );
   return [...active, ...recent].map((e) =>
-    projectExecution(e, byId.get(e.workflowId ?? '')),
+    projectExecution(
+      { ...e, lastEventAt: lastEventById.get(e.id) },
+      byId.get(e.workflowId ?? ''),
+    ),
   );
 }

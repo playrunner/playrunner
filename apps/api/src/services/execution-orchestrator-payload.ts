@@ -109,7 +109,8 @@ export async function claimExecutionOrchestratorPayload({
 }
 
 export async function clearExecutionOrchestratorPayload(executionId: string) {
-  await prisma.executionOrchestratorPayload
-    .delete({ where: { executionId } })
-    .catch(() => undefined);
+  // Local runs may have no bootstrap payload, and terminal events can repeat.
+  await prisma.executionOrchestratorPayload.deleteMany({
+    where: { executionId },
+  });
 }
