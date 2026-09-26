@@ -57,6 +57,8 @@ export const PlaywrightConfigPanel: React.FC<IntegrationConfigPanelProps> = ({
   }, []);
   const Input = ui.Input;
   const Select = ui.Select;
+  const Button = ui.Button!;
+  const [environmentVariableName, setEnvironmentVariableName] = useState('');
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [repositories, setRepositories] = useState<
@@ -907,6 +909,41 @@ test.describe('navigation', () => {
               <label className="text-xs font-medium text-muted">
                 Injected Environment Variables
               </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  aria-label="Environment variable name"
+                  placeholder="Variable name from a connected Environment"
+                  value={environmentVariableName}
+                  onChange={(event) =>
+                    setEnvironmentVariableName(event.target.value)
+                  }
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={
+                    !/^[A-Za-z_][A-Za-z0-9_]*$/.test(
+                      environmentVariableName.trim(),
+                    ) ||
+                    (config.envVars || []).includes(
+                      environmentVariableName.trim(),
+                    )
+                  }
+                  onClick={() => {
+                    onChange(nodeId, {
+                      ...config,
+                      envVars: [
+                        ...(config.envVars || []),
+                        environmentVariableName.trim(),
+                      ],
+                    });
+                    setEnvironmentVariableName('');
+                  }}
+                >
+                  Add variable
+                </Button>
+              </div>
               <div
                 data-testid="playwright-node-env-vars"
                 onDrop={handleDrop}
