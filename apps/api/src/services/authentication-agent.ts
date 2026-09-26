@@ -423,7 +423,19 @@ class LocalAuthenticationAgent {
         break;
       }
     }
-    if (!successful) {
+    if (successful) {
+      // Restored native tabs can predate Playwright's origin tracking. Navigate
+      // again so storageState includes their localStorage and IndexedDB.
+      await page.reload({
+        timeout: CAPTURE_TIMEOUT_MS,
+        waitUntil: 'domcontentloaded',
+      });
+      await waitForSuccess({
+        page,
+        timeout: CAPTURE_TIMEOUT_MS,
+        ...condition,
+      });
+    } else {
       await page.goto(profile.startUrl, {
         timeout: CAPTURE_TIMEOUT_MS,
         waitUntil: 'domcontentloaded',

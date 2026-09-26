@@ -1,4 +1,8 @@
-import { createTestSuiteZip, testPlanMarkdown } from './test-suite-fixture';
+import {
+  authenticationSmokeScript,
+  createTestSuiteZip,
+  testPlanMarkdown,
+} from './test-suite-fixture';
 import { definePlayrunnerE2EContribution } from '@playrunner/integration-sdk/e2e';
 import { createPlaywrightE2EData } from './data';
 import { PlaywrightE2EPom } from './PlaywrightE2EPom';
@@ -11,9 +15,9 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
     {
       id: 'multiple-authentication-profiles',
       mode: 'mock',
-      title: 'persists multiple authenticated sessions and removes selections',
+      title: 'executes multiple authenticated sessions and persists selections',
       tags: ['@playwright', '@authentication'],
-      async run({ data, expect, pom, page }) {
+      async run({ data, expect, pom, page, host }) {
         await page.goto('/projects');
         const api = (url: string, body?: Record<string, unknown>) =>
           page.evaluate(
@@ -56,7 +60,7 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
           const { profile } = await api('/api/authentication-profiles', {
             environmentId,
             name: `${name} ${data.runId}`,
-            startUrl: `http://127.0.0.1:4013/login?ticket=${ticket}`,
+            startUrl: `http://${name === 'Bunker' ? '127.0.0.1' : 'localhost'}:4013/login?ticket=${ticket}`,
             successCondition: {
               type: 'element_visible',
               value: '[data-testid="authenticated-app"]',
@@ -127,6 +131,23 @@ export const playwrightE2EContribution = definePlayrunnerE2EContribution({
         await expect(
           pom.profileSelector(2).locator(`option[value="${ids[0]}"]`),
         ).toBeDisabled();
+        await pom.field('action').selectOption('run');
+        await pom.fillScript(authenticationSmokeScript);
+        await host.closeNodeSettings();
+        await host.addNode('environment');
+        await host.openNodeSettings('environment');
+        await page
+          .getByRole('dialog', { name: 'Environment', exact: true })
+          .getByRole('combobox')
+          .first()
+          .selectOption(environmentId);
+        await host.closeNodeSettings();
+        await page
+          .getByRole('button', { name: 'Auto-arrange nodes', exact: true })
+          .click();
+        await host.saveWorkflow();
+        expect(await host.runWorkflowNode('playwright')).toBe('success');
+        await host.openNodeSettings('playwright');
         await page
           .getByRole('button', {
             name: 'Remove Authentication Profile 2',

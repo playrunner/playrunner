@@ -67,3 +67,28 @@ export const testPlanMarkdown = `# Regression plan
 ## Exit criteria
 - All required business checks are verified.
 `;
+
+export const authenticationSmokeScript = `import { test, expect } from '@playwright/test';
+import fs from 'node:fs';
+test('restores Bunker and Steadfast sessions in separate contexts', async ({ browser, context }) => {
+  const bunker = process.env.E2E_REGRESSION_STORAGE_STATE;
+  const steadfast = process.env.E2E_STEADFAST_STORAGE_STATE;
+  expect(bunker).toBeTruthy();
+  expect(steadfast).toBeTruthy();
+  expect(bunker).not.toBe(steadfast);
+  expect(JSON.parse(fs.readFileSync(bunker, 'utf8')).origins.map(entry => entry.origin)).toContain('http://127.0.0.1:4013');
+  expect((await context.storageState()).origins.map(entry => entry.origin)).toContain('http://127.0.0.1:4013');
+  for (const [statePath, origin] of [[bunker, 'http://127.0.0.1:4013'], [steadfast, 'http://localhost:4013']]) {
+    expect(fs.statSync(statePath).mode & 0o777).toBe(0o600);
+    const isolated = await browser.newContext({ storageState: statePath });
+    try {
+      await isolated.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<html>App</html>' }));
+      const page = await isolated.newPage();
+      await page.goto(origin);
+      expect(await page.evaluate(() => localStorage.getItem('demo-auth'))).toBe('authenticated');
+      const other = origin.includes('127.0.0.1') ? 'http://localhost:4013' : 'http://127.0.0.1:4013';
+      await page.goto(other);
+      expect(await page.evaluate(() => localStorage.getItem('demo-auth'))).toBeNull();
+    } finally { await isolated.close(); }
+  }
+});`;
