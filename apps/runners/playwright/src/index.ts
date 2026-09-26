@@ -1,3 +1,5 @@
+import { createInterface } from 'node:readline';
+import { readTestProgress } from '../../shared/test-progress';
 import { writeTestPlanReport } from './test-plan-report';
 import { prepareUploadedSuite } from './uploaded-suite';
 import { spawn } from 'child_process';
@@ -278,9 +280,13 @@ async function runTypescriptTest(
   }
   if (shard) {
     args.push(`--shard=${shard.index}/${shard.total}`);
-    args.push('--reporter=blob');
+    args.push(
+      `--reporter=blob,${path.join(__dirname, 'progress-reporter.js')}`,
+    );
   } else {
-    args.push('--reporter=html,json');
+    args.push(
+      `--reporter=html,json,${path.join(__dirname, 'progress-reporter.js')}`,
+    );
   }
   args.push('--workers', String(workers));
 
@@ -290,6 +296,7 @@ async function runTypescriptTest(
   await new Promise<void>((resolve, reject) => {
     const testProc = spawn(command.command, args, {
       cwd: workingDir,
+      stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
       env: {
         ...repositoryProcessEnvironment(),
         ...(authentication?.environment || {}),
@@ -307,6 +314,18 @@ async function runTypescriptTest(
         ),
       },
     });
+    const progressLines = createInterface({
+      input: testProc.stdio[3] as NodeJS.ReadableStream,
+    });
+    progressLines.on('line', (line) => {
+      try {
+        const progress = readTestProgress(JSON.parse(line));
+        if (progress) void publishEvent({ type: 'test_progress', progress });
+      } catch {
+        /* Ignore malformed telemetry without affecting test outcomes. */
+      }
+    });
+    testProc.once('error', reject);
     testProc.stdout.on('data', (data) =>
       console.log(`[playwright]: ${data.toString().trim()}`),
     );

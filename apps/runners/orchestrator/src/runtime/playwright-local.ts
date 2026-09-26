@@ -29,15 +29,26 @@ function resolveExecutionId(request: PlaywrightExecutionRequest): string {
   );
 }
 
-export function createLocalPlaywrightDockerArgs(args: {
-  containerName: string;
-  cpu: unknown;
-  executionId: string;
-  image: string;
-  memory: unknown;
-  nodeId: string;
-  pubSubEmulatorHost?: string;
-}): string[] {
+export function createLocalPlaywrightDockerArgs(
+  args: {
+    containerName: string;
+    cpu: unknown;
+    executionId: string;
+    image: string;
+    memory: unknown;
+    nodeId: string;
+    pubSubEmulatorHost?: string;
+  },
+  localDockerPlatform = process.env.PLAYRUNNER_LOCAL_DOCKER_PLATFORM?.trim(),
+): string[] {
+  if (
+    localDockerPlatform &&
+    !/^linux\/(?:amd64|arm64)$/.test(localDockerPlatform)
+  ) {
+    throw new Error(
+      `Unsupported local Docker platform: ${localDockerPlatform}`,
+    );
+  }
   const dockerArgs = [
     'run',
     '-i',
@@ -65,11 +76,10 @@ export function createLocalPlaywrightDockerArgs(args: {
     `${Number(args.memory) || 4}g`,
     '--shm-size',
     '1g',
-    '--platform',
-    'linux/amd64',
     '--add-host',
     'host.docker.internal:host-gateway',
   ];
+  if (localDockerPlatform) dockerArgs.push('--platform', localDockerPlatform);
   const emulatorHost = resolveDockerPubSubEmulatorHost(args.pubSubEmulatorHost);
   if (emulatorHost) {
     dockerArgs.push('-e', `PUBSUB_EMULATOR_HOST=${emulatorHost}`);

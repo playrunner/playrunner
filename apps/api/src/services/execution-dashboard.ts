@@ -1,3 +1,7 @@
+import {
+  readTestProgress,
+  type TestProgress,
+} from '../../../runners/shared/test-progress';
 import { prisma } from '../lib/prisma';
 import { accessibleWorkflowWhere } from './workflow-access';
 
@@ -50,6 +54,7 @@ export function projectExecution(
       status: string;
       updatedAt: string | null;
       reportUrl: string | null;
+      progress: TestProgress | null;
     }
   >();
   for (const node of Array.isArray(definition.nodes) ? definition.nodes : []) {
@@ -60,6 +65,7 @@ export function projectExecution(
       status: 'pending',
       updatedAt: null,
       reportUrl: null,
+      progress: null,
     });
   }
   let status = execution.status;
@@ -83,7 +89,12 @@ export function projectExecution(
       status: 'pending',
       updatedAt: null,
       reportUrl: null,
+      progress: null,
     };
+    if (event.type === 'test_progress') {
+      const progress = readTestProgress(payload.progress);
+      if (progress) node.progress = progress;
+    }
     const next =
       event.type === 'node_state'
         ? stateNames[payload.state]
@@ -162,6 +173,7 @@ export async function listDashboardExecutions(userId: string) {
             'node_failed',
             'node_cancelled',
             'node_output',
+            'test_progress',
             'workflow_completed',
             'workflow_failed',
             'workflow_cancelled',

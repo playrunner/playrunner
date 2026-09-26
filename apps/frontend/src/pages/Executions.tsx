@@ -1,4 +1,9 @@
+import { TestProgressBar } from '../components/TestProgressBar';
+import type { TestProgress } from '../../../runners/shared/test-progress';
 import { useEffect, useState } from 'react';
+import { NodeTypeIcon } from '../components/NodeTypeIcon';
+import { RunnerResources, NodeResources } from '../components/RunnerResources';
+import type { RunnerResourceSnapshot } from '../../../runners/shared/runner-resources';
 import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, FileText } from 'lucide-react';
 import { Badge, Button } from '../components/ui';
@@ -20,8 +25,10 @@ type Execution = {
   nodes: Array<{
     id: string;
     title: string;
+    type: string;
     status: string;
     reportUrl: string | null;
+    progress?: TestProgress | null;
   }>;
 };
 const variant = (status: string) =>
@@ -33,6 +40,9 @@ const variant = (status: string) =>
 
 export default function Executions() {
   const [executions, setExecutions] = useState<Execution[]>([]);
+  const [resources, setResources] = useState<RunnerResourceSnapshot | null>(
+    null,
+  );
   const [connection, setConnection] = useState('Connecting');
   const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
@@ -62,6 +72,7 @@ export default function Executions() {
         const snapshot = await response.json();
         if (closed) return;
         setExecutions(snapshot.executions);
+        setResources(snapshot.resources ?? null);
         stream = new EventSource(
           `/api/executions/live/stream?token=${encodeURIComponent(token)}`,
         );
@@ -72,6 +83,7 @@ export default function Executions() {
             if (!Array.isArray(data.executions))
               throw new Error('Invalid execution snapshot.');
             setExecutions(data.executions);
+            setResources(data.resources ?? null);
             setConnection('Live');
             setError('');
             lastMessage = Date.now();
@@ -199,12 +211,32 @@ export default function Executions() {
             key={node.id}
             className="flex items-center justify-between gap-3 rounded-lg border border-subtle bg-background p-3"
           >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <span
                 aria-hidden="true"
                 className={`w-1 self-stretch rounded-full ${node.status === 'running' && !execution.activityStale ? 'bg-[var(--accent)] animate-pulse' : node.status === 'failed' ? 'bg-red-500' : node.status === 'succeeded' ? 'bg-emerald-500' : 'bg-[var(--border-strong)]'}`}
               />
-              <span className="text-sm truncate">{node.title}</span>
+              <NodeTypeIcon type={node.type} />
+              <div className="min-w-0 space-y-2 w-full">
+                <span className="block text-sm truncate">{node.title}</span>
+                <TestProgressBar
+                  progress={node.progress}
+                  status={node.status}
+                  type={node.type}
+                  stale={connection !== 'Live' || execution.activityStale}
+                />
+                {connection === 'Live' &&
+                  resources?.available &&
+                  now - Date.parse(resources.sampledAt) < 15000 && (
+                    <NodeResources
+                      runners={resources.runners.filter(
+                        (runner) =>
+                          runner.executionId === execution.id &&
+                          runner.nodeId === node.id,
+                      )}
+                    />
+                  )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={variant(node.status)}>
@@ -265,6 +297,11 @@ export default function Executions() {
           No executions yet. Start a workflow to see its progress here.
         </p>
       )}
+      <RunnerResources
+        snapshot={resources}
+        live={connection === 'Live'}
+        now={now}
+      />
       {active.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-medium">Active runs</h2>

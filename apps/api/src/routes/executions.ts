@@ -1,5 +1,6 @@
 import { getWorkflowPlanReport } from '../services/workflow-test-plan';
 import { Router } from 'express';
+import { getRunnerResources } from '../services/runner-resources';
 import { listDashboardExecutions } from '../services/execution-dashboard';
 import { requireAuth } from '../auth/auth.middleware';
 import { executionEvents } from '../services/execution-events';
@@ -10,9 +11,13 @@ export const executionsRouter = Router();
 // Complete, authorized snapshots make initial load and reconnection identical.
 executionsRouter.get('/live', requireAuth, async (req, res) => {
   try {
-    res.json({
-      executions: await listDashboardExecutions(req.authUser!.providerUserId),
-    });
+    const executions = await listDashboardExecutions(
+      req.authUser!.providerUserId,
+    );
+    const resources = await getRunnerResources(
+      new Set(executions.map((execution) => execution.id)),
+    );
+    res.json({ executions, resources });
   } catch {
     res.status(503).json({ error: 'Execution service unavailable.' });
   }
@@ -33,7 +38,11 @@ executionsRouter.get('/live/stream', requireAuth, (req, res) => {
       const executions = await listDashboardExecutions(
         req.authUser!.providerUserId,
       );
-      if (!closed) res.write(`data: ${JSON.stringify({ executions })}\n\n`);
+      const resources = await getRunnerResources(
+        new Set(executions.map((execution) => execution.id)),
+      );
+      if (!closed)
+        res.write(`data: ${JSON.stringify({ executions, resources })}\n\n`);
     } catch {
       if (!closed) res.end();
     } finally {

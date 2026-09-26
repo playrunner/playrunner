@@ -90,3 +90,29 @@ test('snapshot recovers nodes and outcomes without exposing configuration or reg
   assert.equal(result.nodes[0].reportUrl, null);
   assert.ok(!JSON.stringify(result).includes('secret'));
 });
+
+test('projects structured progress and ignores malformed counts and extra fields', () => {
+  const progress = {
+    total: 10,
+    completed: 4,
+    passed: 3,
+    failed: 1,
+    skipped: 0,
+    running: 2,
+  };
+  const result = projectExecution({
+    id: 'run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [
+      event(1, 'test_progress', {
+        progress: { ...progress, secret: 'do not expose' },
+      }),
+      event(2, 'test_progress', { progress: { ...progress, completed: 99 } }),
+    ],
+  });
+  assert.deepEqual(result.nodes[0].progress, progress);
+});

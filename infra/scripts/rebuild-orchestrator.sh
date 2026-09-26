@@ -18,6 +18,14 @@ WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
 BASE_DIR="${BASE_DIR:-$WORKSPACE_ROOT}"
 ORCHESTRATOR_IMAGE_TAG="${ORCHESTRATOR_IMAGE_TAG:-playrunner-orchestrator}"
 ORCHESTRATOR_CONTAINER_NAME="${ORCHESTRATOR_CONTAINER_NAME:-playrunner-orchestrator-local}"
+DOCKER_PLATFORM_ARGS=()
+if [ -n "${PLAYRUNNER_LOCAL_DOCKER_PLATFORM:-}" ]; then
+    case "${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}" in
+        linux/amd64|linux/arm64) ;;
+        *) echo "Unsupported local Docker platform: ${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}"; exit 1 ;;
+    esac
+    DOCKER_PLATFORM_ARGS=(--platform "${PLAYRUNNER_LOCAL_DOCKER_PLATFORM}")
+fi
 
 # The Dockerfile copies the whole repo and locates the orchestrator via
 # BASE_PATH, relative to the build context (WORKSPACE_ROOT).
@@ -28,6 +36,7 @@ fi
 
 echo "🔨 Building Orchestrator Docker image (${ORCHESTRATOR_IMAGE_TAG})..."
 docker build \
+    "${DOCKER_PLATFORM_ARGS[@]}" \
     --build-arg BASE_PATH="${BASE_PATH_ARG}" \
     -f "${BASE_DIR}/apps/runners/orchestrator/Dockerfile" \
     -t "${ORCHESTRATOR_IMAGE_TAG}" \
