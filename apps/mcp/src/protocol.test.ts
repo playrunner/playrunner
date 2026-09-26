@@ -84,10 +84,20 @@ test("an unknown method is MethodNotFound, which is what host fallback keys off"
   assert.equal(failure.id, 7);
 });
 
-test("v1 exposes discovery, dispatch and inspection, never workflow mutation", () => {
+test("tools cover discovery, execution, event inspection and management", () => {
   assert.deepEqual(
     MCP_TOOLS.map((tool) => tool.name),
-    ["list_workflows", "run_workflow", "get_run_status", "list_runs"],
+    [
+      "list_projects",
+      "save_workflow",
+      "delete_project",
+      "delete_workflow",
+      "get_run_events",
+      "list_workflows",
+      "run_workflow",
+      "get_run_status",
+      "list_runs",
+    ],
   );
 });
 

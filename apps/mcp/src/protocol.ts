@@ -29,14 +29,15 @@ export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
 export const MCP_SERVER_INFO = {
   name: "playrunner",
   title: "Playrunner",
-  version: "1",
+  version: "2",
 } as const;
 
 export const JSON_RPC_INVALID_REQUEST = -32600;
 export const JSON_RPC_METHOD_NOT_FOUND = -32601;
 export const JSON_RPC_INTERNAL_ERROR = -32603;
 
-export const MAX_MCP_BODY_BYTES = 131_072;
+// Workflow definitions are accepted up to 2 MiB by the machine API, plus the RPC envelope.
+export const MAX_MCP_BODY_BYTES = 2 * 1024 * 1024 + 16_384;
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 100;
 
@@ -57,6 +58,70 @@ const limitProperty = {
 } as const;
 
 export const MCP_TOOLS = [
+  {
+    name: "list_projects",
+    title: "List projects",
+    description:
+      "List owned projects. Requires an unrestricted workflow:write key.",
+    inputSchema: {
+      type: "object",
+      properties: { limit: limitProperty },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "save_workflow",
+    title: "Save a workflow",
+    description:
+      "Create or update a workflow using a machine API definition with project and workflow keys, nodes, connections, cloudProvider, optional concurrency and testPlan. Requires unrestricted workflow:write. Keep secrets in environment references.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        definition: {
+          type: "object",
+          required: ["project", "workflow"],
+          properties: {
+            project: { type: "object" },
+            workflow: { type: "object" },
+          },
+        },
+      },
+      required: ["definition"],
+      additionalProperties: false,
+    },
+  },
+  ...(["project", "workflow"] as const).map((kind) => ({
+    name: `delete_${kind}`,
+    title: `Delete ${kind}`,
+    description: `Permanently delete an owned ${kind}. Requires unrestricted workflow:write. Projects must be empty; workflows must have no active executions. Existing execution reports are retained.`,
+    annotations: {
+      destructiveHint: true,
+      readOnlyHint: false,
+      idempotentHint: false,
+    },
+    inputSchema: {
+      type: "object",
+      properties: { [`${kind}Id`]: { type: "string", minLength: 1 } },
+      required: [`${kind}Id`],
+      additionalProperties: false,
+    },
+  })),
+  {
+    name: "get_run_events",
+    title: "Get run events",
+    description:
+      "Read sanitized execution events after a cursor. Use event IDs as the next after value.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workflowId: { type: "string" },
+        executionId: { type: "string" },
+        after: { type: "string", pattern: "^[0-9]+$" },
+      },
+      required: ["workflowId", "executionId"],
+      additionalProperties: false,
+    },
+  },
   {
     name: "list_workflows",
     title: "List workflows",
@@ -84,6 +149,22 @@ export const MCP_TOOLS = [
           type: "object",
           description: "Optional run inputs passed through to the workflow.",
           additionalProperties: true,
+        },
+        acceptanceCriteria: {
+          anyOf: [
+            { type: "string", maxLength: 4096 },
+            {
+              type: "array",
+              maxItems: 20,
+              items: { type: "string", maxLength: 4096 },
+            },
+          ],
+          description: "Acceptance criteria supported by the workflow run API.",
+        },
+        changeContext: {
+          type: "object",
+          description:
+            "Optional CI context: repository {owner,name}, baseSha, headSha, baseRef, headRef, eventType and optional pullRequestNumber. Validated by the machine API.",
         },
         idempotencyKey: {
           type: "string",
@@ -231,7 +312,9 @@ export function initializeResult(params: Record<string, unknown>) {
   };
 }
 
-export function parseLimit(value: unknown) {
+export function parseLimit(
+  value: unknown,
+): { error: string } | { limit: number } {
   if (value === undefined) return { limit: DEFAULT_PAGE_SIZE };
   if (
     typeof value !== "number" ||
@@ -246,7 +329,9 @@ export function parseLimit(value: unknown) {
   return { limit: value };
 }
 
-export function parseWorkflowId(args: Record<string, unknown>) {
+export function parseWorkflowId(
+  args: Record<string, unknown>,
+): { error: string } | { workflowId: string } {
   const workflowId = args.workflowId;
   if (typeof workflowId !== "string" || !workflowId.trim()) {
     return { error: "workflowId is required." };
@@ -254,7 +339,17 @@ export function parseWorkflowId(args: Record<string, unknown>) {
   return { workflowId: workflowId.trim() };
 }
 
-export function parseRunWorkflowArguments(args: Record<string, unknown>) {
+export function parseRunWorkflowArguments(
+  args: Record<string, unknown>,
+):
+  | { error: string }
+  | {
+      workflowId: string;
+      idempotencyKey?: string;
+      inputs: Record<string, unknown>;
+      acceptanceCriteria?: string | string[];
+      changeContext?: Record<string, unknown>;
+    } {
   const workflow = parseWorkflowId(args);
   if ("error" in workflow) return workflow;
   const inputs = args.inputs;
@@ -264,6 +359,46 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>) {
   ) {
     return { error: "inputs must be an object." };
   }
+  const acceptanceCriteria = args.acceptanceCriteria;
+  if (
+    acceptanceCriteria !== undefined &&
+    !(
+      typeof acceptanceCriteria === "string" ||
+      (Array.isArray(acceptanceCriteria) &&
+        acceptanceCriteria.length <= 20 &&
+        acceptanceCriteria.every(
+          (item) => typeof item === "string" && item.length <= 4096,
+        ))
+    )
+  )
+    return {
+      error: "acceptanceCriteria must be a string or at most 20 strings.",
+    };
+  if (
+    typeof acceptanceCriteria === "string" &&
+    acceptanceCriteria.length > 4096
+  )
+    return { error: "acceptanceCriteria exceeds 4096 characters." };
+  const changeContext = args.changeContext;
+  if (
+    changeContext !== undefined &&
+    (!changeContext ||
+      typeof changeContext !== "object" ||
+      Array.isArray(changeContext) ||
+      Object.keys(changeContext).some(
+        (key) =>
+          ![
+            "repository",
+            "baseSha",
+            "headSha",
+            "baseRef",
+            "headRef",
+            "eventType",
+            "pullRequestNumber",
+          ].includes(key),
+      ))
+  )
+    return { error: "changeContext contains unsupported fields." };
   const idempotencyKey = args.idempotencyKey;
   if (
     idempotencyKey !== undefined &&
@@ -274,13 +409,19 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>) {
     };
   }
   return {
+    ...(acceptanceCriteria === undefined ? {} : { acceptanceCriteria }),
+    ...(changeContext === undefined
+      ? {}
+      : { changeContext: changeContext as Record<string, unknown> }),
     idempotencyKey: idempotencyKey?.trim() || undefined,
     inputs: (inputs as Record<string, unknown> | undefined) ?? {},
     workflowId: workflow.workflowId,
   };
 }
 
-export function parseGetRunStatusArguments(args: Record<string, unknown>) {
+export function parseGetRunStatusArguments(
+  args: Record<string, unknown>,
+): { error: string } | { executionId: string; workflowId: string } {
   const workflow = parseWorkflowId(args);
   if ("error" in workflow) return workflow;
   const executionId = args.executionId;

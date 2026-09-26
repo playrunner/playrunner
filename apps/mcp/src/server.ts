@@ -2,6 +2,7 @@ import express, { type Request, type Response } from "express";
 import {
   callMachineApi,
   interpretListResponse,
+  interpretMutationResponse,
   interpretRunWorkflowResponse,
   machineRequest,
 } from "./playrunner-client";
@@ -41,6 +42,79 @@ export async function callTool(
       ? (params.arguments as Record<string, unknown>)
       : {};
 
+  if (name === "list_projects") {
+    const limit = parseLimit(args.limit);
+    if ("error" in limit) return toolFailure(limit.error);
+    return interpretListResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "GET",
+          path: "/api/v1/projects",
+          query: { limit: limit.limit },
+        }),
+      ),
+      { notFound: "No projects available to this management key." },
+    );
+  }
+  if (name === "delete_project" || name === "delete_workflow") {
+    const field = name === "delete_project" ? "projectId" : "workflowId";
+    const id = args[field];
+    if (typeof id !== "string" || !id.trim())
+      return toolFailure(`${field} is required.`);
+    const kind = name === "delete_project" ? "projects" : "workflows";
+    return interpretMutationResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "DELETE",
+          path: `/api/v1/${kind}/${encodeURIComponent(id.trim())}`,
+        }),
+      ),
+    );
+  }
+  if (name === "save_workflow") {
+    const definition = args.definition as
+      | { workflow?: { key?: unknown } }
+      | undefined;
+    const key = definition?.workflow?.key;
+    if (
+      typeof key !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(key)
+    )
+      return toolFailure(
+        "definition.workflow.key is required and must be a valid workflow key.",
+      );
+    return interpretMutationResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "PUT",
+          path: `/api/v1/workflows/definitions/${encodeURIComponent(key)}`,
+          payload: definition,
+        }),
+      ),
+    );
+  }
+  if (name === "get_run_events") {
+    const parsed = parseGetRunStatusArguments(args);
+    if ("error" in parsed) return toolFailure(parsed.error);
+    const after = args.after ?? "0";
+    if (typeof after !== "string" || !/^\d+$/.test(after))
+      return toolFailure("after must be a non-negative integer string.");
+    return interpretListResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "GET",
+          path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/executions/${encodeURIComponent(parsed.executionId)}/events`,
+          query: { after },
+        }),
+      ),
+      { notFound: "Workflow execution not found." },
+    );
+  }
+
   if (name === "list_workflows") {
     const limit = parseLimit(args.limit);
     if ("error" in limit) return toolFailure(limit.error);
@@ -66,9 +140,15 @@ export async function callTool(
         idempotencyKey: parsed.idempotencyKey,
         method: "POST",
         path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/executions`,
-        payload: Object.keys(parsed.inputs).length
-          ? { inputs: parsed.inputs }
-          : {},
+        payload: {
+          ...parsed.changeContext,
+          ...(Object.keys(parsed.inputs).length
+            ? { inputs: parsed.inputs }
+            : {}),
+          ...(parsed.acceptanceCriteria === undefined
+            ? {}
+            : { acceptanceCriteria: parsed.acceptanceCriteria }),
+        },
       }),
     );
     return interpretRunWorkflowResponse(response, parsed.workflowId);

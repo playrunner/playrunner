@@ -16,7 +16,7 @@ export type PlayrunnerResponse = { body: unknown; status: number };
 export function machineRequest(params: {
   authorization: string;
   idempotencyKey?: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PUT" | "DELETE";
   path: string;
   payload?: unknown;
   query?: Record<string, string | number | undefined>;
@@ -28,13 +28,14 @@ export function machineRequest(params: {
   const headers: Record<string, string> = {
     authorization: params.authorization,
   };
-  if (params.method === "POST") {
+  if (params.method === "POST" || params.method === "PUT") {
     headers["content-type"] = "application/json";
-    headers["idempotency-key"] = params.idempotencyKey || crypto.randomUUID();
+    if (params.method === "POST")
+      headers["idempotency-key"] = params.idempotencyKey || crypto.randomUUID();
   }
   return {
     init: {
-      ...(params.method === "POST"
+      ...(params.method === "POST" || params.method === "PUT"
         ? { body: JSON.stringify(params.payload ?? {}) }
         : {}),
       headers,
@@ -118,4 +119,13 @@ export function interpretListResponse(
     return toolSuccess((response.body ?? {}) as Record<string, unknown>);
   }
   return machineFailure(response, context);
+}
+
+export function interpretMutationResponse(response: PlayrunnerResponse) {
+  if (response.status === 204) return toolSuccess({ deleted: true });
+  if (response.status === 200 || response.status === 201)
+    return toolSuccess(response.body as Record<string, unknown>);
+  return machineFailure(response, {
+    notFound: "Resource not found or not owned by this API key's account.",
+  });
 }
