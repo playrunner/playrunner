@@ -22,9 +22,9 @@ function tenant(value: unknown): string {
 function baseUrl(kind: 'auth' | 'graph'): string {
   return (
     kind === 'auth'
-      ? process.env.PLAYRUNNER_TEAMS_AUTH_BASE_URL ||
+      ? process.env.PLAYRUNNER_MICROSOFT_TEAMS_AUTH_BASE_URL ||
         'https://login.microsoftonline.com'
-      : process.env.PLAYRUNNER_TEAMS_GRAPH_BASE_URL ||
+      : process.env.PLAYRUNNER_MICROSOFT_TEAMS_GRAPH_BASE_URL ||
         'https://graph.microsoft.com'
   ).replace(/\/+$/, '');
 }
@@ -61,7 +61,7 @@ async function exchange(tenantId: string, params: URLSearchParams) {
 export async function refreshTeamsCredentials(
   store: IntegrationCredentialStore,
 ) {
-  const connection = await store.resolve('integration', 'teams');
+  const connection = await store.resolve('integration', 'microsoft-teams');
   if (!connection) return;
   const { secrets, config } = connection;
   if (
@@ -87,7 +87,7 @@ export async function refreshTeamsCredentials(
         scope: teamsScopes,
       }),
     );
-    await store.updateSecrets('integration', 'teams', {
+    await store.updateSecrets('integration', 'microsoft-teams', {
       ...tokens,
       refreshToken: tokens.refreshToken || secrets.refreshToken,
     });
@@ -116,7 +116,7 @@ teamsRouter.post('/oauth-token', async (req, res) => {
       !text(body.clientId) ||
       !text(body.clientSecret) ||
       !/^[A-Za-z0-9._~-]{43,128}$/.test(text(body.codeVerifier)) ||
-      redirect.pathname !== '/oauth/callback/teams' ||
+      redirect.pathname !== '/oauth/callback/microsoft-teams' ||
       redirect.search ||
       redirect.hash ||
       redirect.username ||
@@ -148,8 +148,8 @@ teamsRouter.post('/oauth-token', async (req, res) => {
       }),
     );
     if (!tokens.refreshToken) throw new Error('Missing offline access.');
-    await store.save('integration', 'teams', {
-      provider: 'teams',
+    await store.save('integration', 'microsoft-teams', {
+      provider: 'microsoft-teams',
       config: { authMode: 'oauth', tenantId },
       secrets: {
         clientId: text(body.clientId),
@@ -168,7 +168,7 @@ teamsRouter.post('/oauth-token', async (req, res) => {
 
 async function listResources(store: IntegrationCredentialStore, path: string) {
   await refreshTeamsCredentials(store);
-  const connection = await store.resolve('integration', 'teams');
+  const connection = await store.resolve('integration', 'microsoft-teams');
   const accessToken = text(connection?.secrets.accessToken);
   if (!accessToken) throw new Error('Not connected.');
   const base = new URL(baseUrl('graph'));
@@ -212,7 +212,7 @@ async function listResources(store: IntegrationCredentialStore, path: string) {
 for (const route of ['/teams', '/teams/:teamId/channels']) {
   teamsRouter.get(route, async (req, res) => {
     const store = getIntegrationCredentialStore(req);
-    if (!store || !(await store.resolve('integration', 'teams'))) {
+    if (!store || !(await store.resolve('integration', 'microsoft-teams'))) {
       return res
         .status(401)
         .json({ error: 'Microsoft Teams is not connected.' });
@@ -236,7 +236,7 @@ for (const route of ['/teams', '/teams/:teamId/channels']) {
 }
 
 export const teamsApiContribution = {
-  id: 'teams',
+  id: 'microsoft-teams',
   // /api/teams belongs to Playrunner's own team management API.
   mountPath: '/api/microsoft-teams',
   router: teamsRouter,

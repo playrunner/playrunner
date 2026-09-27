@@ -14,15 +14,15 @@ IntegrationHero,
 
 <IntegrationHero
 name="Microsoft Teams"
-packageName="@playrunner/teams"
+packageName="@playrunner/microsoft-teams"
 description="Send templated channel notifications from Playrunner workflows using a connected work or school account."
-icon="teams"
-installCommand="Local source: packages/teams"
-sourceUrl="https://github.com/playrunner/playrunner/tree/main/packages/teams"
+icon="microsoft-teams"
+installCommand="npm install @playrunner/microsoft-teams"
+npmUrl="https://www.npmjs.com/package/@playrunner/microsoft-teams"
 badges={['Action node', 'OAuth', 'Channel messages']}
 facts={[
 { label: 'Node type', value: 'Action' },
-{ label: 'Auth path', value: 'users/{uid}/integrations/teams' },
+{ label: 'Auth path', value: 'users/{uid}/integrations/microsoft-teams' },
 { label: 'Backend mount', value: '/api/microsoft-teams' },
 ]}
 />
@@ -56,10 +56,10 @@ facts={[
 
 :::important[Build-time installation only]
 
-Teams is currently available as local source in `packages/teams`; it has not
-been published to npm. The frontend, API, and orchestrator consume it through
-direct `file:` dependencies. Each app discovers the package's declared surfaces
-at build time. A running workflow never downloads or installs the package.
+The install command is for building a Playrunner deployment. Add
+`@playrunner/microsoft-teams` as a direct production dependency of the frontend,
+API, and orchestrator. Each app discovers the package's declared surfaces at
+build time. A running workflow never downloads or installs the package.
 
 Connecting an account and configuring a Teams node use code already bundled
 into Playrunner. Adding or upgrading the package requires rebuilding and
@@ -91,7 +91,7 @@ In Playrunner, open **Integrations**, find **Microsoft Teams**, and choose
 **Connect**. Copy the **Web redirect URL** displayed in the dialog.
 
 For local development it normally looks like
-`http://localhost:3100/oauth/callback/teams`. For a hosted deployment, use the
+`http://localhost:3100/oauth/callback/microsoft-teams`. For a hosted deployment, use the
 HTTPS URL shown by that deployment. Copy it exactly, including the host, port,
 and callback path; `localhost` and `127.0.0.1` are different hosts.
 
@@ -163,9 +163,11 @@ or **Disconnect** to remove the saved Playrunner connection.
 import teamsIntegration, {
   TeamsConfigPanel,
   TeamsSettingsModal,
-} from '@playrunner/teams';
-import teamsApiContribution, { teamsRouter } from '@playrunner/teams/api';
-import teamsOrchestratorContribution from '@playrunner/teams/orchestrator';
+} from '@playrunner/microsoft-teams';
+import teamsApiContribution, {
+  teamsRouter,
+} from '@playrunner/microsoft-teams/api';
+import teamsOrchestratorContribution from '@playrunner/microsoft-teams/orchestrator';
 ```
 
 The default exports are the build-composition contract. The same contribution
@@ -173,7 +175,7 @@ objects are also available as named exports.
 
 ## Frontend
 
-The frontend contribution registers the `teams` action node, connection dialog,
+The frontend contribution registers the `microsoft-teams` action node, connection dialog,
 and configuration panel. It uses the package-owned SVG and shared SDK host
 services. No provider-specific edit to the host registry is needed.
 
@@ -215,7 +217,7 @@ the node output.
 
 ## Orchestrator
 
-The `teamsOrchestratorContribution` registers the default executor for `teams`
+The `teamsOrchestratorContribution` registers the default executor for `microsoft-teams`
 workflow nodes. The executor posts a text message to Microsoft Graph's
 `/v1.0/teams/{teamId}/channels/{channelId}/messages` endpoint. It respects workflow
 cancellation, limits a request to 30 seconds, and reports sanitized errors
@@ -246,5 +248,5 @@ and [channel discovery](https://learn.microsoft.com/en-us/graph/api/channel-list
 
 ## Assets
 
-The Teams logo is exported from `@playrunner/teams/assets/teams.svg` and resolved
+The Teams logo is exported from `@playrunner/microsoft-teams/assets/microsoft-teams.svg` and resolved
 by the frontend entrypoint. The documentation reuses the same package-owned SVG.

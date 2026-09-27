@@ -109,12 +109,11 @@ page describes its available user setup and package surfaces.
   />
   <IntegrationDirectoryItem
     name="Microsoft Teams"
-    packageName="@playrunner/teams"
+    packageName="@playrunner/microsoft-teams"
     description="Send workflow notifications to Microsoft Teams channels."
-    icon="teams"
-    href="/docs/integration-packages/teams"
-    installCommand="Local source: packages/teams"
-    sourceUrl="https://github.com/playrunner/playrunner/tree/main/packages/teams"
+    icon="microsoft-teams"
+    href="/docs/integration-packages/microsoft-teams"
+    installCommand="npm install @playrunner/microsoft-teams"
   />
   <IntegrationDirectoryItem
     name="Webhooks"

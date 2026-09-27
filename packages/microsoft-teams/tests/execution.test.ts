@@ -11,7 +11,7 @@ function context(): NodeExecutionContext {
     executionId: 'run',
     node: {
       id: 'node',
-      nodeType: 'teams',
+      nodeType: 'microsoft-teams',
       config: {
         teamId: 'team/id',
         channelId: '19:channel@thread.tacv2',

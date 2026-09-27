@@ -2,7 +2,7 @@ import { definePlayrunnerE2EContribution } from '@playrunner/integration-sdk/e2e
 import { createTeamsE2EData } from './data';
 import { TeamsE2EPom } from './TeamsE2EPom';
 export default definePlayrunnerE2EContribution({
-  id: 'teams',
+  id: 'microsoft-teams',
   createData: createTeamsE2EData,
   createPom: ({ page, host }) => new TeamsE2EPom(page, host),
   scenarios: [
@@ -10,7 +10,7 @@ export default definePlayrunnerE2EContribution({
       id: 'connect-reload-disconnect',
       mode: 'mock',
       title: 'connects Teams through OAuth, reloads, and disconnects',
-      tags: ['@teams', '@integration'],
+      tags: ['@microsoft-teams', '@integration'],
       async run({ data, expect, page, pom }) {
         await pom.fakeAuthorization();
         await pom.open();
@@ -38,7 +38,7 @@ export default definePlayrunnerE2EContribution({
         await page.reload();
         await expect(
           page
-            .getByTestId('integration-card-teams')
+            .getByTestId('integration-card-microsoft-teams')
             .getByRole('button', { name: 'Connect', exact: true }),
         ).toBeVisible();
       },
@@ -48,7 +48,7 @@ export default definePlayrunnerE2EContribution({
       mode: 'mock',
       title:
         'persists Teams channel and templated message and clears channel when team changes',
-      tags: ['@teams', '@integration', '@node'],
+      tags: ['@microsoft-teams', '@integration', '@node'],
       async run({ data, expect, pom }) {
         await pom.connect(data);
         await pom.createNode();
@@ -68,7 +68,7 @@ export default definePlayrunnerE2EContribution({
       id: 'oauth-denied',
       mode: 'mock',
       title: 'shows an actionable Teams authorization failure',
-      tags: ['@teams', '@integration'],
+      tags: ['@microsoft-teams', '@integration'],
       async run({ data, expect, pom }) {
         await pom.fakeAuthorization(true);
         await pom.open();

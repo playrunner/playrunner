@@ -9,7 +9,7 @@ test('creates unique state and PKCE S256 challenge with minimal delegated scopes
   const input = {
     tenantId: 'tenant',
     clientId: 'app',
-    redirectUri: 'http://localhost/oauth/callback/teams',
+    redirectUri: 'http://localhost/oauth/callback/microsoft-teams',
   };
   const first = await createTeamsAuthorization(input);
   const second = await createTeamsAuthorization(input);

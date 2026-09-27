@@ -82,8 +82,10 @@ export async function executeTeams(
 
 export const teamsOrchestratorContribution = {
   contractVersion: 1,
-  id: 'teams',
-  executors: [{ nodeType: 'teams', default: true, execute: executeTeams }],
+  id: 'microsoft-teams',
+  executors: [
+    { nodeType: 'microsoft-teams', default: true, execute: executeTeams },
+  ],
 } satisfies OrchestratorIntegrationContribution;
 
 export default teamsOrchestratorContribution;

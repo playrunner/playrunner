@@ -118,7 +118,7 @@
 }
 
 .slackIcon,
-.teamsIcon {
+.microsoft-teamsIcon {
   background: #ffffff;
 }
 
@@ -155,7 +155,7 @@
 }
 
 :global([data-theme='dark']) .slackIcon,
-:global([data-theme='dark']) .teamsIcon {
+:global([data-theme='dark']) .microsoft-teamsIcon {
   background: #111827;
 }
 

@@ -10,17 +10,23 @@ let server: Server;
 let base: string;
 let connection: Awaited<ReturnType<IntegrationCredentialStore['resolve']>>;
 const store: IntegrationCredentialStore = {
-  async resolve() {
+  async resolve(kind, provider) {
+    assert.equal(kind, 'integration');
+    assert.equal(provider, 'microsoft-teams');
     return connection;
   },
-  async save(_kind, _provider, value) {
+  async save(kind, provider, value) {
+    assert.equal(kind, 'integration');
+    assert.equal(provider, 'microsoft-teams');
     connection = {
-      provider: 'teams',
+      provider: 'microsoft-teams',
       config: value.config ?? {},
       secrets: value.secrets ?? {},
     };
   },
-  async updateSecrets(_kind, _provider, patch) {
+  async updateSecrets(kind, provider, patch) {
+    assert.equal(kind, 'integration');
+    assert.equal(provider, 'microsoft-teams');
     Object.assign(connection!.secrets, patch);
   },
 };
@@ -30,11 +36,11 @@ const input = {
   clientSecret: 'private-secret',
   code: 'private-code',
   codeVerifier: 'v'.repeat(43),
-  redirectUri: 'http://localhost/oauth/callback/teams',
+  redirectUri: 'http://localhost/oauth/callback/microsoft-teams',
 };
 function connected(expiresAt = Date.now() + 3600_000) {
   connection = {
-    provider: 'teams',
+    provider: 'microsoft-teams',
     config: { tenantId: input.tenantId },
     secrets: {
       clientId: input.clientId,
@@ -118,7 +124,7 @@ test('rejects invalid OAuth inputs before calling Microsoft', async () => {
   for (const patch of [
     { tenantId: '../common' },
     { codeVerifier: 'short' },
-    { redirectUri: 'http://evil.test/oauth/callback/teams' },
+    { redirectUri: 'http://evil.test/oauth/callback/microsoft-teams' },
     { clientSecret: '' },
   ]) {
     assert.equal(

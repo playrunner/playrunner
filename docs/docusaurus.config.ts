@@ -132,6 +132,20 @@ const config: Config = {
 
   themes: ['@docusaurus/theme-mermaid'],
 
+  plugins: [
+    [
+      '@docusaurus/plugin-client-redirects',
+      {
+        redirects: [
+          {
+            from: '/docs/integration-packages/teams/',
+            to: '/docs/integration-packages/microsoft-teams/',
+          },
+        ],
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',

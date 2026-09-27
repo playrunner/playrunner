@@ -8,7 +8,7 @@ import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import { ResendIcon } from '../../../../packages/resend/src/frontend/ResendIcon';
 import SlackLogo from '../../../../packages/slack/assets/slack.svg';
-import TeamsLogo from '../../../../packages/teams/assets/teams.svg';
+import TeamsLogo from '../../../../packages/microsoft-teams/assets/microsoft-teams.svg';
 import styles from './styles.module.css';
 
 type IconKind =
@@ -23,7 +23,7 @@ type IconKind =
   | 'resend'
   | 'schedule'
   | 'slack'
-  | 'teams'
+  | 'microsoft-teams'
   | 'webhooks';
 
 type Fact = {
@@ -57,7 +57,7 @@ function renderIntegrationIcon(icon: IconKind) {
       return <ResendIcon />;
     case 'slack':
       return <SlackLogo aria-hidden="true" />;
-    case 'teams':
+    case 'microsoft-teams':
       return <TeamsLogo aria-hidden="true" />;
     case 'webhooks':
       return (

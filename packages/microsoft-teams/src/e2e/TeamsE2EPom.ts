@@ -33,7 +33,10 @@ export class TeamsE2EPom {
     return this.page.getByRole('textbox', { name: 'Message', exact: true });
   }
   async open() {
-    await this.host.openIntegration({ id: 'teams', name: 'Microsoft Teams' });
+    await this.host.openIntegration({
+      id: 'microsoft-teams',
+      name: 'Microsoft Teams',
+    });
   }
   async close() {
     await this.dialog.getByTitle('Close').click();
@@ -82,13 +85,13 @@ export class TeamsE2EPom {
   async createNode() {
     await this.close();
     await this.host.openNewWorkflow();
-    await this.host.addNode('teams');
-    await this.host.openNodeSettings('teams');
+    await this.host.addNode('microsoft-teams');
+    await this.host.openNodeSettings('microsoft-teams');
   }
   async reloadNode() {
     await this.host.closeNodeSettings();
     await this.host.saveWorkflow();
     await this.host.reloadWorkflow();
-    await this.host.openNodeSettings('teams');
+    await this.host.openNodeSettings('microsoft-teams');
   }
 }

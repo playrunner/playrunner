@@ -12,7 +12,7 @@ import { createTeamsAuthorization, isTeamsCallback } from './oauth';
 
 const DEFAULT_DOCS_URL = 'https://playrunner.dev';
 const TEAMS_SETUP_DOCS_URL = getDocsUrl(
-  'docs/integration-packages/teams#setup',
+  'docs/integration-packages/microsoft-teams#setup',
 );
 
 type DocsImportMeta = ImportMeta & {
@@ -45,7 +45,7 @@ export function TeamsSettingsModal({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const cleanupRef = useRef<(() => void) | null>(null);
-  const callbackUrl = `${window.location.origin}/oauth/callback/teams`;
+  const callbackUrl = `${window.location.origin}/oauth/callback/microsoft-teams`;
 
   useEffect(() => {
     let active = true;
@@ -54,7 +54,7 @@ export function TeamsSettingsModal({
     setPending(false);
     if (isOpen && auth.currentUser) {
       void store
-        .getIntegration(auth.currentUser.uid, 'teams')
+        .getIntegration(auth.currentUser.uid, 'microsoft-teams')
         .then((connection) => {
           if (active)
             setConnected(Boolean(connection?.credentialStatus.configured));
@@ -190,7 +190,7 @@ export function TeamsSettingsModal({
   const disconnect = async () => {
     if (!auth.currentUser) return;
     try {
-      await store.deleteIntegration(auth.currentUser.uid, 'teams');
+      await store.deleteIntegration(auth.currentUser.uid, 'microsoft-teams');
       setConnected(false);
       setClientSecret('');
       setError('');
@@ -266,7 +266,7 @@ export function TeamsSettingsModal({
         </div>
         <IntegrationConfigField label="Tenant ID or domain">
           <IntegrationConnectionInput
-            connectionId="teams"
+            connectionId="microsoft-teams"
             fieldSlot="a"
             aria-label="Tenant ID or domain"
             value={tenantId}
@@ -277,7 +277,7 @@ export function TeamsSettingsModal({
         </IntegrationConfigField>
         <IntegrationConfigField label="Application ID">
           <IntegrationConnectionInput
-            connectionId="teams"
+            connectionId="microsoft-teams"
             fieldSlot="b"
             aria-label="Application ID"
             value={clientId}
@@ -288,7 +288,7 @@ export function TeamsSettingsModal({
         </IntegrationConfigField>
         <IntegrationConfigField label="Client secret">
           <IntegrationConnectionInput
-            connectionId="teams"
+            connectionId="microsoft-teams"
             fieldSlot="c"
             aria-label="Client secret"
             mode="secret"

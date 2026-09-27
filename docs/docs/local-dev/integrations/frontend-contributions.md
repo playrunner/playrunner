@@ -148,7 +148,7 @@ guide does not justify linking the app to vendor documentation instead.
 
 Use the configured `VITE_DOCS_URL` with the established Playrunner docs fallback,
 preserving a deployment's base path. Append the provider route and section anchor,
-for example `docs/integration-packages/teams#setup`; do not replace the configured
+for example `docs/integration-packages/microsoft-teams#setup`; do not replace the configured
 base path with an origin-relative URL. Verify that the destination and anchor
 exist in the documentation build.
 
