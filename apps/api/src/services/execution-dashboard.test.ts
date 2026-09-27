@@ -116,3 +116,113 @@ test('projects structured progress and ignores malformed counts and extra fields
   });
   assert.deepEqual(result.nodes[0].progress, progress);
 });
+
+test('keeps workflow order and groups discovery, numeric shards and aggregate under each test', () => {
+  const child = (
+    id: number,
+    parentNodeId: string,
+    childKind: string,
+    shardIndex?: number,
+  ) =>
+    event(
+      id,
+      'node_state',
+      { state: 'pending', parentNodeId, childKind, shardIndex },
+      `${parentNodeId}--${childKind}${shardIndex ?? ''}`,
+    );
+  const execution = {
+    id: 'run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [
+      event(
+        1,
+        'execution_definition',
+        {
+          nodes: [
+            { id: 'env', title: 'Environment', type: 'environment' },
+            { id: 'desktop', title: 'Desktop UI', type: 'playwright' },
+            { id: 'fixtures', title: 'Fixture cases', type: 'playwright' },
+          ],
+        },
+        null,
+      ),
+      // Events can arrive interleaved and out of shard order.
+      child(2, 'fixtures', 'shard', 2),
+      child(3, 'desktop', 'aggregate'),
+      child(4, 'desktop', 'shard', 10),
+      child(5, 'desktop', 'shard', 2),
+      child(6, 'desktop', 'discovery'),
+      child(7, 'desktop', 'shard', 1),
+      child(8, 'fixtures', 'discovery'),
+      child(9, 'fixtures', 'shard', 1),
+      // Later runner events omit the ordering metadata.
+      event(10, 'node_state', { state: 'success' }, 'desktop--shard2'),
+      event(
+        11,
+        'node_output',
+        { output: { reportUrl: '/outputs/run/desktop/report.html' } },
+        'desktop--aggregate',
+      ),
+    ],
+  };
+  const expected = [
+    'env',
+    'desktop',
+    'desktop--discovery',
+    'desktop--shard1',
+    'desktop--shard2',
+    'desktop--shard10',
+    'desktop--aggregate',
+    'fixtures',
+    'fixtures--discovery',
+    'fixtures--shard1',
+    'fixtures--shard2',
+  ];
+  const result = projectExecution(execution);
+  assert.deepEqual(
+    result.nodes.map((node) => node.id),
+    expected,
+  );
+  assert.equal(result.nodes[4].status, 'succeeded');
+  assert.equal(result.nodes[6].reportUrl, '/outputs/run/desktop/report.html');
+  assert.deepEqual(
+    projectExecution({
+      ...execution,
+      events: [...execution.events].reverse(),
+    }).nodes,
+    result.nodes,
+  );
+  assert.deepEqual(
+    projectExecution({
+      ...execution,
+      events: [...execution.events, child(12, 'fixtures', 'aggregate')],
+    }).nodes.map((node) => node.id),
+    [...expected, 'fixtures--aggregate'],
+  );
+});
+
+test('retains unparented, orphaned and cyclic runtime nodes exactly once', () => {
+  const result = projectExecution({
+    id: 'run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [
+      event(1, 'node_state', { state: 'running' }, 'plain'),
+      event(2, 'node_state', { parentNodeId: 'missing' }, 'orphan'),
+      event(3, 'node_state', { parentNodeId: 'b' }, 'a'),
+      event(4, 'node_state', { parentNodeId: 'a' }, 'b'),
+      event(5, 'node_state', { parentNodeId: 'self' }, 'self'),
+    ],
+  });
+  assert.deepEqual(
+    result.nodes.map((node) => node.id),
+    ['plain', 'orphan', 'a', 'b', 'self'],
+  );
+});

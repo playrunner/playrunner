@@ -25,6 +25,15 @@ type Event = {
   occurredAt: Date | null;
   createdAt: Date;
 };
+type DashboardNode = {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  updatedAt: string | null;
+  reportUrl: string | null;
+  progress: TestProgress | null;
+};
 const record = (value: unknown): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
@@ -45,17 +54,10 @@ export function projectExecution(
   const definition = record(
     execution.events.find((e) => e.type === 'execution_definition')?.payload,
   );
-  const nodes = new Map<
+  const nodes = new Map<string, DashboardNode>();
+  const runtimePositions = new Map<
     string,
-    {
-      id: string;
-      title: string;
-      type: string;
-      status: string;
-      updatedAt: string | null;
-      reportUrl: string | null;
-      progress: TestProgress | null;
-    }
+    { parentNodeId: string; childKind?: string; shardIndex?: number }
   >();
   for (const node of Array.isArray(definition.nodes) ? definition.nodes : []) {
     nodes.set(node.id, {
@@ -82,6 +84,19 @@ export function projectExecution(
     else if (event.type === 'workflow_completed' && status === 'running')
       status = 'completed';
     if (!event.nodeId) continue;
+    if (typeof payload.parentNodeId === 'string' && payload.parentNodeId) {
+      const position = runtimePositions.get(event.nodeId);
+      runtimePositions.set(event.nodeId, {
+        ...position,
+        parentNodeId: payload.parentNodeId,
+        ...(typeof payload.childKind === 'string'
+          ? { childKind: payload.childKind }
+          : {}),
+        ...(Number.isInteger(payload.shardIndex) && payload.shardIndex > 0
+          ? { shardIndex: payload.shardIndex }
+          : {}),
+      });
+    }
     const node = nodes.get(event.nodeId) ?? {
       id: event.nodeId,
       title: event.nodeId,
@@ -119,6 +134,46 @@ export function projectExecution(
       node.reportUrl = url;
     nodes.set(node.id, node);
   }
+  // Keep definition order, with runtime children beside their owning test
+  // regardless of when parallel runners first publish events.
+  const children = new Map<string, string[]>();
+  for (const [id, position] of runtimePositions) {
+    if (!nodes.has(position.parentNodeId) || position.parentNodeId === id)
+      continue;
+    const siblings = children.get(position.parentNodeId) ?? [];
+    siblings.push(id);
+    children.set(position.parentNodeId, siblings);
+  }
+  const kindOrder: Record<string, number> = {
+    discovery: 0,
+    shard: 1,
+    aggregate: 2,
+  };
+  for (const siblings of children.values()) {
+    siblings.sort((left, right) => {
+      const a = runtimePositions.get(left)!;
+      const b = runtimePositions.get(right)!;
+      return (
+        (kindOrder[a.childKind ?? ''] ?? 3) -
+          (kindOrder[b.childKind ?? ''] ?? 3) ||
+        (a.shardIndex ?? 0) - (b.shardIndex ?? 0)
+      );
+    });
+  }
+  const orderedNodes: DashboardNode[] = [];
+  const visited = new Set<string>();
+  const appendNode = (id: string) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    orderedNodes.push(nodes.get(id)!);
+    for (const child of children.get(id) ?? []) appendNode(child);
+  };
+  for (const id of nodes.keys()) {
+    const parentId = runtimePositions.get(id)?.parentNodeId;
+    if (!parentId || !nodes.has(parentId)) appendNode(id);
+  }
+  // Retain orphaned or cyclic runtime records rather than hiding their status.
+  for (const id of nodes.keys()) appendNode(id);
   // Receipt time also counts logs and other events, not just node transitions.
   // Silence is not a failure: keep the recorded outcome and flag uncertainty.
   const lastActivityAt = execution.events.reduce(
@@ -143,7 +198,7 @@ export function projectExecution(
     cloudProvider: execution.cloudProvider,
     startedAt: execution.startedAt.toISOString(),
     completedAt: execution.completedAt?.toISOString() ?? null,
-    nodes: [...nodes.values()],
+    nodes: orderedNodes,
   };
 }
 
