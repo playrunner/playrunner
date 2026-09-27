@@ -1,3 +1,9 @@
+import crypto from 'node:crypto';
+import {
+  normalizeTotpCredentials,
+  normalizeTotpSettings,
+  type TotpLogin,
+} from '../../../runners/shared/totp-profile';
 import { Prisma } from '../generated/prisma/client.cts';
 import { prisma } from '../lib/prisma';
 import {
@@ -9,6 +15,7 @@ export const AUTHENTICATION_STATE_MAX_BYTES = 5 * 1024 * 1024;
 export const AUTHENTICATION_METHOD = 'local_agent';
 
 export type AuthenticationProfileStatus =
+  | 'configured'
   | 'authenticated'
   | 'authenticating'
   | 'expired'
@@ -43,6 +50,9 @@ type AuthenticationProfileRecord = {
   applicationLabel: string | null;
   authenticatedAt: Date | null;
   authenticationMethod: string;
+  totpSettings?: unknown;
+  encryptedLogin?: string | null;
+  loginEncryptionVersion?: number | null;
   createdAt: Date;
   encryptedState: string | null;
   encryptionVersion: number | null;
@@ -176,7 +186,14 @@ export function serializeAuthenticationProfile(
     authenticatedAt: profile.authenticatedAt,
     authenticationMethod: profile.authenticationMethod,
     createdAt: profile.createdAt,
-    credentialStatus: { configured: Boolean(profile.encryptedState) },
+    credentialStatus: {
+      configured: Boolean(
+        profile.authenticationMethod === 'totp'
+          ? profile.encryptedLogin
+          : profile.encryptedState,
+      ),
+    },
+    totpSettings: profile.totpSettings ?? null,
     environmentId: profile.environmentId,
     expiresAt: profile.expiresAt,
     id: profile.id,
@@ -227,6 +244,73 @@ export async function listAuthenticationProfiles(ownerUserId: string) {
   return profiles.map(serializeAuthenticationProfile);
 }
 
+function loginIdentity(ownerUserId: string, profileId: string) {
+  return [ownerUserId, 'authentication_profile', profileId, 'totp_login'];
+}
+
+function loginUpdate(
+  ownerUserId: string,
+  id: string,
+  body: Record<string, unknown>,
+  current?: AuthenticationProfileRecord,
+) {
+  const method =
+    body.authenticationMethod ??
+    current?.authenticationMethod ??
+    AUTHENTICATION_METHOD;
+  if (method !== AUTHENTICATION_METHOD && method !== 'totp')
+    throw httpError('Invalid authentication method.', 400, 'invalid_profile');
+  if (method === AUTHENTICATION_METHOD)
+    return current?.authenticationMethod === 'totp'
+      ? {
+          authenticationMethod: method,
+          encryptedLogin: null,
+          loginEncryptionVersion: null,
+          totpSettings: Prisma.DbNull,
+          encryptedState: null,
+          encryptionVersion: null,
+          status: 'unauthenticated',
+        }
+      : {};
+  try {
+    const settings = normalizeTotpSettings(
+      body.totpSettings ?? current?.totpSettings,
+    );
+    const hasNewCredentials = body.totpCredentials !== undefined;
+    if (!hasNewCredentials && !current?.encryptedLogin)
+      throw new Error('Missing credentials');
+    const encrypted = hasNewCredentials
+      ? encryptSecretPayload(
+          normalizeTotpCredentials(body.totpCredentials),
+          loginIdentity(ownerUserId, id),
+        )
+      : null;
+    return {
+      authenticationMethod: 'totp',
+      totpSettings: settings,
+      ...(encrypted
+        ? {
+            encryptedLogin: encrypted.encryptedValue,
+            loginEncryptionVersion: encrypted.encryptionVersion,
+          }
+        : {}),
+      encryptedState: null,
+      encryptionVersion: null,
+      expiresAt: null,
+      authenticatedAt: null,
+      ...(hasNewCredentials || !current?.revokedAt
+        ? { status: 'configured', revokedAt: null }
+        : {}),
+    };
+  } catch {
+    throw httpError(
+      'Provide valid TOTP settings and all three credentials when configuring or replacing credentials.',
+      400,
+      'invalid_totp_profile',
+    );
+  }
+}
+
 export async function createAuthenticationProfile(
   ownerUserId: string,
   input: unknown,
@@ -246,9 +330,13 @@ export async function createAuthenticationProfile(
   );
   const successCondition = normalizeSuccessCondition(body.successCondition);
   await requireOwnedEnvironment(ownerUserId, environmentId);
+  const id = crypto.randomUUID();
+  const login = loginUpdate(ownerUserId, id, body);
   try {
     const profile = await prisma.authenticationProfile.create({
       data: {
+        id,
+        ...login,
         applicationLabel: optionalTrimmedString(
           body.applicationLabel,
           'Application label',
@@ -311,6 +399,7 @@ export async function updateAuthenticationProfile(
           value: current.successConditionValue,
         }
       : normalizeSuccessCondition(body.successCondition);
+  const login = loginUpdate(ownerUserId, id, body, current);
   const identityChanged =
     environmentId !== current.environmentId ||
     (body.startUrl !== undefined &&
@@ -349,9 +438,12 @@ export async function updateAuthenticationProfile(
           : { startUrl: normalizeAuthenticationStartUrl(body.startUrl) }),
         successConditionType: successCondition.type,
         successConditionValue: successCondition.value,
-        ...(identityChanged && current.encryptedState
+        ...(identityChanged &&
+        current.encryptedState &&
+        current.authenticationMethod !== 'totp'
           ? { status: 'needs_reauth' }
           : {}),
+        ...login,
       },
     });
     await recordAuthenticationProfileAudit({
@@ -431,6 +523,12 @@ export async function storeAuthenticationState(args: {
     args.actorId,
     args.profileId,
   );
+  if (profile.authenticationMethod === 'totp')
+    throw httpError(
+      'TOTP profiles cannot accept captured sessions.',
+      409,
+      'invalid_authentication_method',
+    );
   assertStorageState(args.state);
   const encrypted = encryptSecretPayload(
     args.state,
@@ -465,6 +563,36 @@ export async function resolveAuthenticationState(
     ownerUserId,
     profileId,
   );
+  if (profile.authenticationMethod === 'totp') {
+    if (
+      profile.revokedAt ||
+      profile.status !== 'configured' ||
+      !profile.encryptedLogin ||
+      !profile.loginEncryptionVersion
+    )
+      throw httpError(
+        'TOTP Authentication Profile is not configured or is revoked.',
+        409,
+        'authentication_profile_unavailable',
+      );
+    const state: TotpLogin = {
+      kind: 'totp_login',
+      startUrl: profile.startUrl,
+      successCondition: {
+        type: profile.successConditionType as AuthenticationSuccessConditionType,
+        value: profile.successConditionValue,
+      },
+      settings: normalizeTotpSettings(profile.totpSettings),
+      credentials: normalizeTotpCredentials(
+        decryptSecretPayload(
+          profile.encryptedLogin,
+          profile.loginEncryptionVersion,
+          loginIdentity(ownerUserId, profileId),
+        ),
+      ),
+    };
+    return { profile, state };
+  }
   const effectiveStatus = statusFor(profile);
   if (
     effectiveStatus !== 'authenticated' ||
@@ -539,6 +667,8 @@ export async function revokeAuthenticationProfile(
     data: {
       encryptedState: null,
       encryptionVersion: null,
+      encryptedLogin: null,
+      loginEncryptionVersion: null,
       expiresAt: null,
       revokedAt: new Date(),
       status: 'revoked',

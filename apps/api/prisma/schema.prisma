@@ -269,6 +269,9 @@ model AuthenticationProfile {
   successConditionType  String
   successConditionValue String
   authenticationMethod  String      @default("local_agent")
+  totpSettings          Json?
+  encryptedLogin        String?
+  loginEncryptionVersion Int?
   status                String      @default("unauthenticated")
   encryptedState        String?
   encryptionVersion     Int?

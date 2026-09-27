@@ -188,6 +188,13 @@ class LocalAuthenticationAgent {
       );
     }
     const profile = await requireOwnedAuthenticationProfile(actorId, profileId);
+    if (profile.authenticationMethod === 'totp')
+      throw Object.assign(
+        new Error(
+          'TOTP profiles sign in automatically inside workflow runners.',
+        ),
+        { statusCode: 409 },
+      );
     const active = [...this.sessions.values()].find(
       (session) =>
         session.actorId === actorId &&

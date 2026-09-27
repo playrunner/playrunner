@@ -489,7 +489,9 @@ test.describe('navigation', () => {
                         key={profile.id}
                         value={profile.id}
                         disabled={
-                          profile.status !== 'authenticated' ||
+                          !['authenticated', 'configured'].includes(
+                            profile.status,
+                          ) ||
                           selectedProfiles.some(
                             (entry, position) =>
                               position !== index &&
@@ -499,7 +501,9 @@ test.describe('navigation', () => {
                       >
                         {profile.name}
                         {profile.roleLabel ? ` — ${profile.roleLabel}` : ''}
-                        {profile.status !== 'authenticated'
+                        {!['authenticated', 'configured'].includes(
+                          profile.status,
+                        )
                           ? ` (${profile.status.replaceAll('_', ' ')})`
                           : ''}
                       </option>

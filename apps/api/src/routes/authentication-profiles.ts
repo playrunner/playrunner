@@ -207,6 +207,12 @@ authenticationProfilesRouter.post(
     requireCompanionUpload(req);
     const actorId = userId(req);
     const resolved = await resolveAuthenticationState(actorId, req.params.id);
+    if (resolved.profile.authenticationMethod === 'totp') {
+      res
+        .status(409)
+        .json({ error: 'TOTP profiles sign in inside a workflow runner.' });
+      return;
+    }
     await recordAuthenticationProfileAudit({
       action: 'test_state_delivered',
       actorId,

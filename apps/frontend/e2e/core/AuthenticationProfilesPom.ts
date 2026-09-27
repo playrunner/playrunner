@@ -46,6 +46,38 @@ export class AuthenticationProfilesPom {
       .getByLabel('Success URL', { exact: true })
       .fill(data.successUrl);
   }
+  async configureTotp(
+    credentials: { username: string; password: string; secret: string },
+    origin: string,
+  ) {
+    await this.dialog
+      .getByRole('button', { name: 'Username, password + TOTP', exact: true })
+      .click();
+    await this.dialog.getByLabel('Username', { exact: true }).click();
+    await this.dialog
+      .getByLabel('Username', { exact: true })
+      .fill(credentials.username);
+    await this.dialog.getByLabel('Password', { exact: true }).click();
+    await this.dialog
+      .getByLabel('Password', { exact: true })
+      .fill(credentials.password);
+    await this.dialog.getByLabel('TOTP setup secret').click();
+    await this.dialog.getByLabel('TOTP setup secret').fill(credentials.secret);
+    await this.dialog
+      .getByLabel('Allowed sign-in origins (comma separated)')
+      .fill(origin);
+    await this.dialog
+      .getByText('Sign-in form and authenticator settings', { exact: true })
+      .click();
+    for (const [label, value] of Object.entries({
+      'Username field selector': '#user',
+      'Password field selector': '#pass',
+      'Sign-in button selector': '#login',
+      'Authenticator code field selector': '#code',
+      'Verify code button selector': '#verify',
+    }))
+      await this.dialog.getByLabel(label, { exact: true }).fill(value);
+  }
   async save() {
     await this.dialog.getByRole('button', { name: 'Save profile' }).click();
     await expect(this.dialog).toBeHidden();

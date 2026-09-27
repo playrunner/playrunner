@@ -1,3 +1,4 @@
+import { materializeAuthenticationState } from './totp-login';
 import { createInterface } from 'node:readline';
 import { readTestProgress } from '../../shared/test-progress';
 import { writeTestPlanReport } from './test-plan-report';
@@ -1140,7 +1141,7 @@ async function run() {
   const authentication = authenticationState
     ? prepareAuthenticationState({
         runtime: prepared.testLanguage === 'python' ? 'python' : 'typescript',
-        state: authenticationState,
+        state: await materializeAuthenticationState(authenticationState),
         workingDir: prepared.workingDir,
       })
     : undefined;

@@ -1,3 +1,7 @@
+import {
+  IntegrationConnectionInput,
+  IntegrationConnectionAutofillGuard,
+} from '@playrunner/integration-sdk';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
@@ -18,6 +22,7 @@ import { DbAPI } from '../lib/db';
 
 type Environment = { id: string; name: string };
 type ProfileStatus =
+  | 'configured'
   | 'authenticated'
   | 'authenticating'
   | 'expired'
@@ -27,7 +32,8 @@ type ProfileStatus =
 type AuthenticationProfile = {
   applicationLabel: string | null;
   authenticatedAt: string | null;
-  authenticationMethod: 'local_agent';
+  authenticationMethod: 'local_agent' | 'totp';
+  totpSettings?: typeof defaultTotpSettings | null;
   credentialStatus: { configured: boolean };
   environmentId: string;
   expiresAt: string | null;
@@ -56,7 +62,21 @@ type AuthenticationSession = {
     | 'timed_out';
 };
 
+const defaultTotpSettings = {
+  allowedOrigins: [] as string[],
+  usernameSelector: '',
+  usernameSubmitSelector: '',
+  passwordSelector: '',
+  submitSelector: '',
+  totpSelector: '',
+  totpSubmitSelector: '',
+  digits: 6,
+  period: 30,
+  algorithm: 'sha1',
+};
+
 const statusLabels: Record<ProfileStatus, string> = {
+  configured: 'TOTP configured',
   authenticated: 'Authenticated',
   authenticating: 'Authenticating',
   expired: 'Expired',
@@ -418,25 +438,37 @@ export default function AuthenticationProfiles() {
                 ) : null}
 
                 <div className="mt-5 flex flex-wrap gap-2 border-t border-subtle pt-4">
-                  <Button
-                    size="sm"
-                    disabled={!capabilityAvailable || Boolean(active)}
-                    onClick={() => void startSession(profile, 'authenticate')}
-                  >
-                    {profile.credentialStatus.configured
-                      ? 'Re-authenticate'
-                      : 'Authenticate'}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    disabled={
-                      !profile.credentialStatus.configured || Boolean(active)
-                    }
-                    onClick={() => void startSession(profile, 'test')}
-                  >
-                    Test session
-                  </Button>
+                  {profile.authenticationMethod === 'totp' ? (
+                    <p className="w-full text-sm text-muted">
+                      Signs in automatically when a workflow uses this profile.
+                      Credentials are not shown after saving.
+                    </p>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        disabled={!capabilityAvailable || Boolean(active)}
+                        onClick={() =>
+                          void startSession(profile, 'authenticate')
+                        }
+                      >
+                        {profile.credentialStatus.configured
+                          ? 'Re-authenticate'
+                          : 'Authenticate'}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={
+                          !profile.credentialStatus.configured ||
+                          Boolean(active)
+                        }
+                        onClick={() => void startSession(profile, 'test')}
+                      >
+                        Test session
+                      </Button>
+                    </>
+                  )}
                   <Button
                     variant="tertiary"
                     size="sm"
@@ -533,11 +565,21 @@ function ProfileEditor({
     successConditionType: 'url_prefix',
     successConditionValue: '',
   });
+  const [method, setMethod] = useState<'local_agent' | 'totp'>('local_agent');
+  const [totpSettings, setTotpSettings] = useState(defaultTotpSettings);
+  const [credentials, setCredentials] = useState({
+    username: '',
+    password: '',
+    secret: '',
+  });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    setMethod(profile?.authenticationMethod || 'local_agent');
+    setTotpSettings({ ...defaultTotpSettings, ...profile?.totpSettings });
+    setCredentials({ username: '', password: '', secret: '' });
     setError('');
     setForm({
       applicationLabel: profile?.applicationLabel || '',
@@ -555,6 +597,15 @@ function ProfileEditor({
     setError('');
     try {
       const payload = {
+        authenticationMethod: method,
+        ...(method === 'totp'
+          ? {
+              totpSettings,
+              ...(Object.values(credentials).some(Boolean)
+                ? { totpCredentials: credentials }
+                : {}),
+            }
+          : {}),
         applicationLabel: form.applicationLabel,
         environmentId: form.environmentId,
         name: form.name,
@@ -570,6 +621,7 @@ function ProfileEditor({
       } else {
         await DbAPI.createAuthenticationProfile(payload);
       }
+      setCredentials({ username: '', password: '', secret: '' });
       await onSaved();
     } catch (saveError) {
       setError(
@@ -591,7 +643,11 @@ function ProfileEditor({
           ? 'Edit Authentication Profile'
           : 'Create Authentication Profile'
       }
-      subtitle="Browser state is captured only after you authenticate manually."
+      subtitle={
+        method === 'totp'
+          ? 'Sign in with an authenticator code before each workflow run.'
+          : 'Browser state is captured only after you authenticate manually.'
+      }
       icon={<KeyRound className="h-4 w-4" />}
       footer={
         <>
@@ -614,6 +670,173 @@ function ProfileEditor({
       }
     >
       <div className="space-y-4">
+        <IntegrationConnectionAutofillGuard connectionId="authentication-profile" />
+        <div
+          role="group"
+          aria-label="Sign-in method"
+          className="flex gap-2 border-b border-subtle pb-2"
+        >
+          {(
+            [
+              ['local_agent', 'Saved browser session'],
+              ['totp', 'Username, password + TOTP'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={method === value}
+              onClick={() => setMethod(value)}
+              className={`rounded-md px-3 py-2 text-sm ${method === value ? 'bg-[var(--accent)] text-[var(--accent-foreground)]' : 'text-muted hover:text-[var(--foreground)]'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {method === 'totp' && (
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setForm({
+                  ...form,
+                  startUrl: 'https://sitest.insightbroking.com.au/',
+                });
+                setTotpSettings({
+                  ...defaultTotpSettings,
+                  allowedOrigins: [
+                    'https://sitest.insightbroking.com.au',
+                    'https://idp.steadfastapps.io',
+                  ],
+                  usernameSelector: '#signInName',
+                  passwordSelector: '#password',
+                  submitSelector: '#continueProxy',
+                  totpSelector: '#code-input input',
+                  totpSubmitSelector: '#continueProxy',
+                });
+              }}
+            >
+              Use Steadfast SIT form
+            </Button>
+
+            <p className="text-sm text-muted">
+              Enter the account's enrolled authenticator setup key, not a
+              one-time code. On edit, leave all three credential fields blank to
+              keep them, or replace all three.
+            </p>
+            {(
+              [
+                ['username', 'Username'],
+                ['password', 'Password'],
+                ['secret', 'TOTP setup secret'],
+              ] as const
+            ).map(([key, label], index) => (
+              <Field key={key} label={label}>
+                <IntegrationConnectionInput
+                  connectionId="authentication-profile"
+                  fieldSlot={`field-${index}`}
+                  mode="secret"
+                  value={credentials[key]}
+                  onChange={(event) =>
+                    setCredentials({
+                      ...credentials,
+                      [key]: event.target.value,
+                    })
+                  }
+                />
+              </Field>
+            ))}
+            <Field label="Allowed sign-in origins (comma separated)">
+              <Input
+                value={totpSettings.allowedOrigins.join(', ')}
+                onChange={(event) =>
+                  setTotpSettings({
+                    ...totpSettings,
+                    allowedOrigins: event.target.value
+                      .split(',')
+                      .map((value) => value.trim()),
+                  })
+                }
+                placeholder="https://app.example.com, https://login.example.com"
+              />
+            </Field>
+            <details>
+              <summary className="cursor-pointer text-sm font-medium">
+                Sign-in form and authenticator settings
+              </summary>
+              <div className="mt-3 space-y-3">
+                {(
+                  [
+                    ['usernameSelector', 'Username field selector'],
+                    [
+                      'usernameSubmitSelector',
+                      'Username Next button selector (optional)',
+                    ],
+                    ['passwordSelector', 'Password field selector'],
+                    ['submitSelector', 'Sign-in button selector'],
+                    ['totpSelector', 'Authenticator code field selector'],
+                    ['totpSubmitSelector', 'Verify code button selector'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={label}>
+                    <Input
+                      value={totpSettings[key]}
+                      onChange={(event) =>
+                        setTotpSettings({
+                          ...totpSettings,
+                          [key]: event.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+                <Field label="Code digits">
+                  <Select
+                    value={totpSettings.digits}
+                    onChange={(event) =>
+                      setTotpSettings({
+                        ...totpSettings,
+                        digits: Number(event.target.value),
+                      })
+                    }
+                  >
+                    <option value={6}>6</option>
+                    <option value={8}>8</option>
+                  </Select>
+                </Field>
+                <Field label="Code period (seconds)">
+                  <Input
+                    type="number"
+                    min={15}
+                    max={120}
+                    value={totpSettings.period}
+                    onChange={(event) =>
+                      setTotpSettings({
+                        ...totpSettings,
+                        period: Number(event.target.value),
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Authenticator algorithm">
+                  <Select
+                    value={totpSettings.algorithm}
+                    onChange={(event) =>
+                      setTotpSettings({
+                        ...totpSettings,
+                        algorithm: event.target.value,
+                      })
+                    }
+                  >
+                    <option value="sha1">SHA-1</option>
+                    <option value="sha256">SHA-256</option>
+                    <option value="sha512">SHA-512</option>
+                  </Select>
+                </Field>
+              </div>
+            </details>
+          </>
+        )}
         {error ? (
           <p role="alert" className="text-sm text-red-500">
             {error}
