@@ -79,6 +79,6 @@
   "limitations": [
     "Hosted checks used the billing-disabled reviewer account. Billing-enabled account and allowance boundaries passed local tests; new hosted billing-enabled scenarios were not exercised.",
     "GitHub authorization and native companion credential capture were excluded from the supplied setup-only review cases.",
-    "OpenAI submission, approval and public publication have not occurred."
+    "OpenAI submission is confirmed. Review approval and public publication have not occurred."
   ]
 }

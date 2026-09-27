@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-09-27T04:50:51.203015+00:00",
+  "checkedAt": "2026-09-27T04:55:42.727446+00:00",
   "draftUrl": "https://platform.openai.com/plugins/edit/asdk_app_6aa4c16111fc819193738d69a4b471b6/asdk_app_v_6aa4c16390188191b92c37813a3887fb",
   "businessIdentity": "Concept AI PTY LTD",
   "project": "Playrunner",
@@ -16,8 +16,8 @@
   "skillUpload": {
     "filename": "playrunner-skill-0.1.1.zip",
     "sha256": "e560f1436e6b2bcc199b930934487699e41615e29d0a17b57be245de7a5c6265",
-    "status": "scanning-fresh-upload",
-    "note": "Three scan attempts returned the generic message: An error occurred while scanning. Rescan to try again. Verified ZIP integrity and unchanged SHA-256, replaced the failed draft upload with the same bundle, and observed Scanning. No policy finding or file-specific defect was shown. Portal says scans may take up to two hours."
+    "status": "passed",
+    "note": "After generic processing errors on earlier scans, the fresh upload of the same verified bundle passed."
   },
   "mcpScan": {
     "status": "completed",
@@ -27,9 +27,14 @@
   "domainVerification": "verified",
   "productionRelease": "release-verification.json",
   "pending": [
-    "Resolve or complete the OpenAI skill scan.",
-    "Confirm publisher declarations and legal agreement acceptance.",
-    "Submit for review; publish only after OpenAI approval."
+    "Await OpenAI review decision.",
+    "Publish after OpenAI approval."
   ],
-  "snapshotNote": "This is the observed draft state at checkedAt, not evidence of submission, approval or public publication. Credentials are intentionally omitted."
+  "snapshotNote": "Observed submitted review version. Not evidence of approval or public publication. Credentials are intentionally omitted.",
+  "publisherDeclarations": "All six declarations confirmed by the user and included in the submitted version.",
+  "submission": {
+    "status": "in-review",
+    "confirmation": "Playrunner submitted for review",
+    "notification": "We’ll notify you when a decision is made."
+  }
 }
