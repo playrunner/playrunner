@@ -43,6 +43,27 @@ Click any node while it's running (or after) to open the **log panel** and see t
 
 ---
 
+### Follow progress in Live executions
+
+Open **Live executions** from the sidebar to follow active workflows and recent
+runs. Each workflow node starts collapsed. Use its expand arrow to reveal child
+processes such as discovery, numbered shards, and report aggregation. Collapse
+the node again to hide those details.
+
+The parent row keeps its combined test progress visible while collapsed:
+completed and total tests, percentage, remaining tests, and passed, failed,
+skipped, and running counts. Shard counts are added together; discovery and
+aggregation do not count the same tests again. For example, shards reporting
+53 of 236 and 47 of 226 tests produce 100 of 462 completed tests on the parent.
+
+A running node without test counts shows an activity bar until progress is
+available. Expanded child rows retain their own status, progress, runner
+resources when available, and report links. Your expand/collapse choices stay
+in place during live updates and reconnections; reloading the page resets them.
+During a connection interruption, running progress is marked **Last reported**.
+
+---
+
 ## Step 4 — Inspect the result
 
 Once the run finishes:

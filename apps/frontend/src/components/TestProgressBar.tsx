@@ -5,12 +5,34 @@ export function TestProgressBar({
   status,
   type,
   stale,
+  showActivity = false,
 }: {
   progress?: TestProgress | null;
   status: string;
   type: string;
   stale: boolean;
+  showActivity?: boolean;
 }) {
+  if (!progress && showActivity && status === 'running')
+    return (
+      <div className="space-y-1 max-w-xl">
+        <p className="text-xs text-muted">
+          {type === 'playwright'
+            ? 'Waiting for test discovery…'
+            : 'In progress…'}
+          {stale ? ' · Last reported' : ''}
+        </p>
+        <div
+          role="progressbar"
+          aria-label="Node in progress"
+          className="h-2 overflow-hidden rounded-full bg-surface-hover"
+        >
+          <div
+            className={`h-full w-1/3 rounded-full bg-[var(--accent)] ${stale ? '' : 'animate-pulse motion-reduce:animate-none'}`}
+          />
+        </div>
+      </div>
+    );
   if (!progress)
     return type === 'playwright' && status === 'running' ? (
       <p className="text-xs text-muted">Waiting for test discovery…</p>

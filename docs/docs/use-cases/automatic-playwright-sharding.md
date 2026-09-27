@@ -143,6 +143,14 @@ plan**: your configured maximum, the suite size, or runner capacity.
 If you asked for eight and got three, that field tells you whether to raise the
 maximum, restructure the suite, or add capacity.
 
+### Follow shard progress
+
+In **Live executions**, expand the Playwright node to see discovery, numbered
+shards, and aggregation underneath it. The parent row displays combined shard
+progress even while collapsed, so you can track the suite without keeping all
+child processes open. See [Run Your First Test](../tutorials/04-run-your-first-test.md#follow-progress-in-live-executions)
+for the progress counts and reconnect behavior.
+
 ## Execution and merging
 
 Every shard runner launches concurrently with Playwright's native argument and

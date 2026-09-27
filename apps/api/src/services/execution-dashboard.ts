@@ -33,6 +33,7 @@ type DashboardNode = {
   updatedAt: string | null;
   reportUrl: string | null;
   progress: TestProgress | null;
+  parentNodeId: string | null;
 };
 const record = (value: unknown): Record<string, any> =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -68,6 +69,7 @@ export function projectExecution(
       updatedAt: null,
       reportUrl: null,
       progress: null,
+      parentNodeId: null,
     });
   }
   let status = execution.status;
@@ -105,6 +107,7 @@ export function projectExecution(
       updatedAt: null,
       reportUrl: null,
       progress: null,
+      parentNodeId: null,
     };
     if (event.type === 'test_progress') {
       const progress = readTestProgress(payload.progress);
@@ -162,11 +165,51 @@ export function projectExecution(
   }
   const orderedNodes: DashboardNode[] = [];
   const visited = new Set<string>();
-  const appendNode = (id: string) => {
+  const appendNode = (id: string, parentNodeId: string | null = null) => {
     if (visited.has(id)) return;
     visited.add(id);
-    orderedNodes.push(nodes.get(id)!);
-    for (const child of children.get(id) ?? []) appendNode(child);
+    const node = nodes.get(id)!;
+    node.parentNodeId = parentNodeId;
+    orderedNodes.push(node);
+    for (const child of children.get(id) ?? []) appendNode(child, id);
+    const descendants = (children.get(id) ?? [])
+      .map((child) => nodes.get(child)!)
+      .filter((child) => child.parentNodeId === id);
+    if (
+      !terminal.has(node.status) &&
+      descendants.some((child) => child.status === 'running')
+    )
+      node.status = 'running';
+    // Discovery and aggregation may repeat the suite totals. Count each test
+    // branch once, using its rolled-up progress rather than every descendant.
+    const progress = descendants
+      .filter(
+        (child) =>
+          !['discovery', 'aggregate'].includes(
+            runtimePositions.get(child.id)?.childKind ?? '',
+          ),
+      )
+      .flatMap((child) => (child.progress ? [child.progress] : []));
+    if (progress.length) {
+      node.progress = progress.reduce(
+        (sum, child) => ({
+          total: sum.total + child.total,
+          completed: sum.completed + child.completed,
+          passed: sum.passed + child.passed,
+          failed: sum.failed + child.failed,
+          skipped: sum.skipped + child.skipped,
+          running: sum.running + child.running,
+        }),
+        {
+          total: 0,
+          completed: 0,
+          passed: 0,
+          failed: 0,
+          skipped: 0,
+          running: 0,
+        },
+      );
+    }
   };
   for (const id of nodes.keys()) {
     const parentId = runtimePositions.get(id)?.parentNodeId;

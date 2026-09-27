@@ -226,3 +226,130 @@ test('retains unparented, orphaned and cyclic runtime nodes exactly once', () =>
     ['plain', 'orphan', 'a', 'b', 'self'],
   );
 });
+
+test('rolls up shard counts once and preserves valid parent relationships', () => {
+  const progress = (total: number, completed: number) => ({
+    total,
+    completed,
+    passed: completed,
+    failed: 0,
+    skipped: 0,
+    running: 1,
+  });
+  const result = projectExecution({
+    id: 'run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [
+      event(
+        1,
+        'execution_definition',
+        {
+          nodes: [
+            { id: 'parent', title: 'Fixture cases', type: 'playwright' },
+            { id: 'other', title: 'Other suite', type: 'playwright' },
+          ],
+        },
+        null,
+      ),
+      event(2, 'test_progress', { progress: progress(462, 0) }, 'parent'),
+      event(
+        3,
+        'node_state',
+        { state: 'running', parentNodeId: 'parent', childKind: 'shard' },
+        'one',
+      ),
+      event(4, 'test_progress', { progress: progress(236, 53) }, 'one'),
+      event(
+        5,
+        'node_state',
+        { state: 'running', parentNodeId: 'parent', childKind: 'shard' },
+        'two',
+      ),
+      event(6, 'test_progress', { progress: progress(226, 47) }, 'two'),
+      event(
+        7,
+        'test_progress',
+        {
+          parentNodeId: 'parent',
+          childKind: 'discovery',
+          progress: progress(462, 0),
+        },
+        'discovery',
+      ),
+      event(
+        8,
+        'test_progress',
+        {
+          parentNodeId: 'parent',
+          childKind: 'aggregate',
+          progress: progress(462, 0),
+        },
+        'aggregate',
+      ),
+      event(9, 'test_progress', { progress: progress(10, 2) }, 'other'),
+    ],
+  });
+  const parent = result.nodes.find((node) => node.id === 'parent')!;
+  assert.equal(parent.parentNodeId, null);
+  assert.equal(parent.status, 'running');
+  assert.deepEqual(parent.progress, {
+    total: 462,
+    completed: 100,
+    passed: 100,
+    failed: 0,
+    skipped: 0,
+    running: 2,
+  });
+  assert.equal(
+    result.nodes.find((node) => node.id === 'one')?.parentNodeId,
+    'parent',
+  );
+  assert.deepEqual(
+    result.nodes.find((node) => node.id === 'other')?.progress,
+    progress(10, 2),
+  );
+});
+
+test('breaks parent cycles and rolls nested progress up without double counting', () => {
+  const progress = {
+    total: 4,
+    completed: 3,
+    passed: 1,
+    failed: 1,
+    skipped: 1,
+    running: 1,
+  };
+  const result = projectExecution({
+    id: 'run',
+    workflowId: null,
+    status: 'running',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: null,
+    events: [
+      event(1, 'node_state', { parentNodeId: 'b' }, 'a'),
+      event(2, 'node_state', { parentNodeId: 'a' }, 'b'),
+      event(3, 'test_progress', { parentNodeId: 'b', progress }, 'c'),
+      event(4, 'node_state', { parentNodeId: 'missing' }, 'orphan'),
+      event(5, 'node_state', { parentNodeId: 'self' }, 'self'),
+    ],
+  });
+  assert.deepEqual(
+    result.nodes.map((node) => [node.id, node.parentNodeId]),
+    [
+      ['orphan', null],
+      ['a', null],
+      ['b', 'a'],
+      ['c', 'b'],
+      ['self', null],
+    ],
+  );
+  for (const node of result.nodes.filter((node) =>
+    ['a', 'b', 'c'].includes(node.id),
+  ))
+    assert.deepEqual(node.progress, progress);
+});
