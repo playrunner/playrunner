@@ -1,12 +1,19 @@
 {
-  "defaultTag": "v1.62.1-jammy",
+  "defaultTag": "v1.63.0-jammy",
   "versions": [
+    {
+      "tag": "v1.63.0-jammy",
+      "label": "v1.63.0",
+      "npmVersion": "1.63.0",
+      "pythonVersion": "1.63.0",
+      "publishAsLatest": true
+    },
     {
       "tag": "v1.62.1-jammy",
       "label": "v1.62.1",
       "npmVersion": "1.62.1",
       "pythonVersion": "1.62.0",
-      "publishAsLatest": true
+      "publishAsLatest": false
     },
     {
       "tag": "v1.61.0-jammy",
