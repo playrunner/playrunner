@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-09-27T04:29:22.024344+00:00",
+  "upstreamCommit": "d04c345ae1ed240693e5d3de48a42b7230912fca",
+  "cloudSourceCommit": "abb7be62ff43cbb0389e1f276ee5010014da2aa5",
+  "deploymentMethod": "Direct Google Cloud Build, Cloud Run and Firebase Hosting deployment. Git remote branches were not updated.",
+  "builds": {
+    "apiAndCloudApi": "d32e2abe-1d5e-4836-b87b-e716a81ac6dd",
+    "orchestrator": "4918ac44-a30a-4e83-b0b3-aabe70ec7456",
+    "typescriptAndPythonRunners": "e6409da2-e805-47d1-992b-231c472a857f"
+  },
+  "buildStatus": "SUCCESS",
+  "migration": {
+    "execution": "playrunner-migrate-rn222",
+    "status": "Completed"
+  },
+  "services": {
+    "playrunner-api": "playrunner-api-00056-4qm",
+    "playrunner-auth-gateway": "playrunner-auth-gateway-00044-5jh",
+    "playrunner-orchestrator": "playrunner-orchestrator-00056-vpq"
+  },
+  "serviceTraffic": "100 percent to each listed latest revision",
+  "orchestratorMinimumInstances": {
+    "service": 0,
+    "revision": 0
+  },
+  "frontend": {
+    "asset": "/assets/index-C_t5pm7j.js",
+    "sha256": "3ed9a2cd9633498423bfa4e11a8fca06123a2161101f743531734ece32c9441e",
+    "liveMatchesLocalBuild": true
+  },
+  "runnerTags": {
+    "typescript": {
+      "v1.62.1-jammy": "sha256:42a4a6374ab36284a7c92c87a292232b2ccf33245d8d2d14e151f049d3681e62",
+      "v1.61.0-jammy": "sha256:9482043b503315b934bdb52adb62f905cd21f70f2c8593dae7999d89cfe4d897"
+    },
+    "python": {
+      "v1.62.1-jammy": "sha256:79b88625688c271ab1570632a142e29f4b227af9af858e1986f8ae1e5426f494",
+      "v1.61.0-jammy": "sha256:d04783b61dc1378daa34a7fdfb9ee3aec81cc2c548ea649da323a6802509aea3"
+    },
+    "latest": "Matches v1.62.1-jammy for both languages"
+  },
+  "localVerification": {
+    "pluginTests": 9,
+    "apiTests": 144,
+    "apiTestEnvironment": "NODE_OPTIONS=--preserve-symlinks, matching production linked-package resolution",
+    "orchestratorTests": 100,
+    "playwrightRunnerTests": 33,
+    "cloudApiTests": 117,
+    "cloudCheck": "npm run check passed",
+    "builds": [
+      "Cloud frontend",
+      "Cloud API",
+      "orchestrator",
+      "Playwright runner"
+    ],
+    "hostedDiscoveryAndUnauthorizedChallenge": "passed",
+    "publishedCli": "playrunner@0.2.5 matches source and exports resolve"
+  },
+  "reviewerCases": {
+    "projectCreated": "3d52e2e1-ec3a-4b13-92b7-9fe45b20d36e",
+    "environmentCreated": "3560d8bf-4130-4643-aae0-b06166b4f68e",
+    "workflowAuthored": "c90370b6-bfb4-4f73-9f08-1c08a1fe5e7f",
+    "profileInspected": "cmtxvs8fd00002cs6wzxhsnov",
+    "profileStatus": "unauthenticated; no companion paired",
+    "githubHandoff": "https://playrunner.cloud/connect/codex/integrations",
+    "accountResponse": "setupKind and setupUrl are null for the already-onboarded reviewer"
+  },
+  "liveSmoke": {
+    "workflowId": "97378887-bc5b-4209-9026-85e650fb8988",
+    "executionId": "c4b54a88-8367-4cec-8946-40b736e38f79",
+    "status": "completed",
+    "passed": 1,
+    "failed": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "reportErrors": 0,
+    "reportUrl": "https://playrunner.cloud/outputs/c4b54a88-8367-4cec-8946-40b736e38f79/tests/playwright-report/index.html"
+  },
+  "limitations": [
+    "Hosted checks used the billing-disabled reviewer account. Billing-enabled account and allowance boundaries passed local tests; new hosted billing-enabled scenarios were not exercised.",
+    "GitHub authorization and native companion credential capture were excluded from the supplied setup-only review cases.",
+    "OpenAI submission, approval and public publication have not occurred."
+  ]
+}

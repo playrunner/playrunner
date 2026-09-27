@@ -1,12 +1,12 @@
 {
-  "checkedAt": "2026-09-12T02:41:41.715Z",
+  "checkedAt": "2026-09-27T04:12:55.886Z",
   "package": "playrunner",
   "version": "0.2.5",
   "registry": "https://registry.npmjs.org",
   "distTags": {
     "latest": "0.2.5"
   },
-  "sourceCommit": "1dd39054af816b18795b814a51eb14e4a52b45d2",
+  "sourceCommit": "d04c345ae1ed240693e5d3de48a42b7230912fca",
   "publishedIntegrity": "sha512-aZxq0B8nX0N+0vRdtNzt/s868kZhkOdXuhX98mLAnvs2hMDwVtN5kJ7G4aPPKE+YCygKRaz8Kn7fYhNB4Ynjtw==",
   "identicalToFreshLocalBuild": true,
   "installedVersionAndExportsVerified": true,

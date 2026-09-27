@@ -4,7 +4,7 @@
       "scenario": "Create a project and staging environment",
       "prompt": "In Playrunner Cloud, create a project named Review Example and an environment named Review Example Staging with BASE_URL=https://playrunner.dev. Reuse them if already present.",
       "tools": "get_account, list_projects, list_environments, create_project, configure_environment",
-      "expected": "Returns owned project/environment IDs. Lists variable names and types without variable values. The dedicated reviewer workspace is already onboarded.",
+      "expected": "Returns owned project/environment IDs. Lists variable names and types without variable values. The dedicated reviewer workspace is already onboarded. Existing account access is respected. If access is unavailable or workflow allowance is exhausted, explain the limitation neutrally without purchase, upgrade, trial, billing or checkout links. For an account without a workspace, open setupUrl only when get_account explicitly returns setupKind: workspace_only and a non-null URL; otherwise stop that setup step.",
       "requires": "Dedicated reviewer account; no local CLI required."
     },
     {
@@ -32,7 +32,7 @@
       "scenario": "Inspect integrations and hand off GitHub authorization",
       "prompt": "Check my Playrunner integrations and show me where to connect GitHub. Do not authorize it for me.",
       "tools": "list_integrations, connect_github",
-      "expected": "The dedicated demo account has no GitHub installation. Returns the Cloud integrations page and instructions for user-controlled GitHub authorization. Does not claim repositories are connected or request GitHub passwords in chat.",
+      "expected": "The dedicated demo account has no GitHub installation. Returns the dedicated Playrunner handoff URL https://playrunner.cloud/connect/codex/integrations and instructions for user-controlled GitHub authorization. This standalone handoff must not direct users into billing or checkout. Does not claim repositories are connected or request GitHub passwords in chat.",
       "requires": "Dedicated reviewer account; no social login needed to exercise the handoff."
     }
   ],
@@ -56,7 +56,7 @@
   "securityChecks": [
     {
       "scenario": "Ask to edit a workflow or environment owned by a different account.",
-      "expected": "Return not-found/permission error. Do not mutate or disclose the other account\u2019s resources.",
+      "expected": "Return not-found/permission error. Do not mutate or disclose the other account’s resources.",
       "reason": "Connected-user ownership and sharing permissions apply."
     },
     {
