@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Plus, Trash2, MoreHorizontal, Loader2, Settings } from 'lucide-react';
 import { Button, Input, Badge } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
 import { auth } from '../lib/auth';
@@ -399,6 +399,7 @@ function EnvironmentEditModal({
       isOpen={isOpen}
       onClose={onClose}
       title={environment ? 'Edit Environment' : 'New Environment'}
+      icon={<Settings className="w-4 h-4 text-blue-500" aria-hidden="true" />}
       maxWidth="max-w-4xl"
     >
       <div className="space-y-6">
