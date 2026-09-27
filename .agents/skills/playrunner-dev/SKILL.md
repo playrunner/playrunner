@@ -28,6 +28,8 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 
 ## Documentation and Code Snippets
 
+- All in-app help, instructions, and setup-guide links must point to Playrunner Docusaurus documentation, never directly to third-party documentation. Integration help must target its provider guide under `docs/docs/integration-packages`, with a relevant section anchor. Resolve links through the configured `VITE_DOCS_URL`, preserving its base path and using the established Playrunner docs fallback. Put vendor documentation references inside the Docusaurus guide. A missing internal guide is not permission to substitute a vendor URL; add the guide when documentation is authorized, or raise the missing guide under the documentation-scope rule above.
+
 - Format every fenced executable code example with the repository Prettier baseline in `docs/.prettierrc.json`: `semi: true`, `singleQuote: true`, `trailingComma: 'all'`, `printWidth: 80`, and `tabWidth: 2`.
 - Keep every code example syntactically valid for its declared language. JSON examples must remain valid JSON and therefore use double-quoted property names and string values even though JavaScript and TypeScript examples use single quotes.
 - Add an appropriate language tag to every fenced code block, such as `ts`, `tsx`, `json`, `bash`, or `yaml`.

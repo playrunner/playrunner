@@ -16,7 +16,9 @@ export default definePlayrunnerE2EContribution({
         await pom.open();
         await expect(pom.connectButton).toBeDisabled();
         await expect(
-          pom.dialog.getByRole('link', { name: 'Open Microsoft setup guide' }),
+          pom.dialog.getByRole('link', {
+            name: 'Open Microsoft Teams setup guide',
+          }),
         ).toHaveAttribute('target', '_blank');
         await expect(
           pom.dialog.getByLabel('Client secret', { exact: true }),

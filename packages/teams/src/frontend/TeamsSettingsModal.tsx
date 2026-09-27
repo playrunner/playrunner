@@ -10,6 +10,26 @@ import { BookOpen, ExternalLink } from 'lucide-react';
 import { teamsIconUrl } from './icon';
 import { createTeamsAuthorization, isTeamsCallback } from './oauth';
 
+const DEFAULT_DOCS_URL = 'https://playrunner.dev';
+const TEAMS_SETUP_DOCS_URL = getDocsUrl(
+  'docs/integration-packages/teams#setup',
+);
+
+type DocsImportMeta = ImportMeta & {
+  env?: {
+    VITE_DOCS_URL?: string;
+  };
+};
+
+function getDocsUrl(path: string) {
+  const baseUrl = (
+    (import.meta as DocsImportMeta).env?.VITE_DOCS_URL || DEFAULT_DOCS_URL
+  )
+    .trim()
+    .replace(/\/+$/, '');
+  return `${baseUrl}/${path.replace(/^\/+/, '')}`;
+}
+
 export function TeamsSettingsModal({
   isOpen,
   onClose,
@@ -229,12 +249,12 @@ export function TeamsSettingsModal({
                 account; tenant policy may require administrator consent.
               </p>
               <a
-                href="https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app"
+                href={TEAMS_SETUP_DOCS_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--foreground)] underline underline-offset-4 hover:text-muted"
               >
-                Open Microsoft setup guide
+                Open Microsoft Teams setup guide
                 <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
               </a>
             </div>

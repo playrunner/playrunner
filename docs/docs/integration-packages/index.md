@@ -117,6 +117,10 @@ page describes its available user setup and package surfaces.
   />
 </IntegrationDirectory>
 
+[Microsoft Teams](./teams.md) sends channel messages using a connected work or
+school account. Its `@playrunner/teams` package is currently available from
+`packages/teams` in this repository.
+
 ## Build-time selection and runtime configuration
 
 The install commands above are for the operator or build pipeline assembling a

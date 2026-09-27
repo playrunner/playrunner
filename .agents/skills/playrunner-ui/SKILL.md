@@ -20,6 +20,8 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 
 ## Rules
 
+- All in-app help and setup-guide links must open the relevant Playrunner Docusaurus page, never third-party documentation directly. For integration setup, use its provider guide and section anchor, honoring `VITE_DOCS_URL` and its base path. Keep vendor references inside that guide; do not use an external fallback when an internal guide is missing.
+
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.
 - Use the shared `FilePicker` for single-file selection in the frontend. It supplies the secondary upload-icon button, hidden native input, and muted hint; keep validation and selected-file state in the caller. Follow the [file picker reference](references/design-system.md#file-pickers) for labels, limits, and package-owned UI. Do not show an unstyled native file input.
 - Render copy actions for commands, URLs, IDs, secrets, and other code-like values as icon-only buttons using the canonical `IntegrationCopyableCode`/GCP pattern: a Lucide `Copy` icon, a temporary green `Check` icon after success, and an accessible `aria-label` plus `title`. Do not render visible `Copy` or `Copied` text inside copyable value fields.

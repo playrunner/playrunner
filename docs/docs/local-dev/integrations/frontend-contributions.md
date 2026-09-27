@@ -138,6 +138,24 @@ so credential fields follow the shared browser-autofill behavior. Keep
 provider-specific setup, settings, and node configuration components in the
 provider package.
 
+## Help and setup-guide links
+
+All in-app help and setup-guide links must lead to Playrunner's Docusaurus
+documentation. Never link a settings dialog directly to a vendor's documentation.
+Create the provider guide under `docs/docs/integration-packages` when documentation
+is in scope, and put any external reference links inside that guide. A missing
+guide does not justify linking the app to vendor documentation instead.
+
+Use the configured `VITE_DOCS_URL` with the established Playrunner docs fallback,
+preserving a deployment's base path. Append the provider route and section anchor,
+for example `docs/integration-packages/teams#setup`; do not replace the configured
+base path with an origin-relative URL. Verify that the destination and anchor
+exist in the documentation build.
+
+Keep the canonical connection-dialog callout: `BookOpen` in the inset icon
+container, title and supporting copy, then the guide link with `ExternalLink`.
+Open the guide with `target="_blank"` and `rel="noopener noreferrer"`.
+
 ## How the host composes the frontend
 
 Before frontend development, typechecking, or building, the frontend's package
