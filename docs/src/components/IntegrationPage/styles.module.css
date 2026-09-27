@@ -117,7 +117,8 @@
   color: #ffffff;
 }
 
-.slackIcon {
+.slackIcon,
+.teamsIcon {
   background: #ffffff;
 }
 
@@ -153,7 +154,8 @@
   color: #ffffff;
 }
 
-:global([data-theme='dark']) .slackIcon {
+:global([data-theme='dark']) .slackIcon,
+:global([data-theme='dark']) .teamsIcon {
   background: #111827;
 }
 
@@ -260,11 +262,13 @@
 }
 
 .fact {
+  min-width: 0;
   display: grid;
   gap: 0.2rem;
 }
 
 .fact strong {
+  overflow-wrap: anywhere;
   color: var(--ifm-heading-color);
   font-size: 0.98rem;
 }

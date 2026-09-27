@@ -1,15 +1,71 @@
 ---
-sidebar_position: 5
+sidebar_position: 5.5
 sidebar_label: Microsoft Teams
 title: Microsoft Teams Integration
 description: Connect a work or school Teams account and send channel messages from Playrunner workflows.
+hide_title: true
 ---
 
-# Microsoft Teams Integration
+import {
+IntegrationCard,
+IntegrationGrid,
+IntegrationHero,
+} from '@site/src/components/IntegrationPage';
 
-Use the Microsoft Teams action node to send a plain-text message to a team
-channel. Messages support Playrunner workflow and environment variables and
-are sent on behalf of the connected Microsoft account.
+<IntegrationHero
+name="Microsoft Teams"
+packageName="@playrunner/teams"
+description="Send templated channel notifications from Playrunner workflows using a connected work or school account."
+icon="teams"
+installCommand="Local source: packages/teams"
+sourceUrl="https://github.com/playrunner/playrunner/tree/main/packages/teams"
+badges={['Action node', 'OAuth', 'Channel messages']}
+facts={[
+{ label: 'Node type', value: 'Action' },
+{ label: 'Auth path', value: 'users/{uid}/integrations/teams' },
+{ label: 'Backend mount', value: '/api/microsoft-teams' },
+]}
+/>
+
+<IntegrationGrid>
+  <IntegrationCard eyebrow="Frontend" title="Reference package UI">
+    Exports `teamsIntegration`, `TeamsConfigPanel`, and `TeamsSettingsModal` for
+    the canvas node, settings flow, and node configuration panel.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Backend" title="OAuth and channel routes">
+    Exports `teamsRouter`, mounted at `/api/microsoft-teams`, for OAuth token
+    exchange, token refresh, and team and channel discovery.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Orchestrator" title="Package-owned execution">
+    Exports `teamsOrchestratorContribution` with the channel-message executor
+    used by local and GCP workflow runs.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="SDK usage" title="Host services only">
+    Teams uses SDK UI helpers and reads Playrunner host services through
+    `useIntegrationHost`, keeping package code decoupled from app internals.
+  </IntegrationCard>
+
+  <IntegrationCard eyebrow="Assets" title="Package-owned icon">
+    The Teams SVG lives inside the package and is resolved by the frontend
+    entrypoint.
+  </IntegrationCard>
+</IntegrationGrid>
+
+:::important[Build-time installation only]
+
+Teams is currently available as local source in `packages/teams`; it has not
+been published to npm. The frontend, API, and orchestrator consume it through
+direct `file:` dependencies. Each app discovers the package's declared surfaces
+at build time. A running workflow never downloads or installs the package.
+
+Connecting an account and configuring a Teams node use code already bundled
+into Playrunner. Adding or upgrading the package requires rebuilding and
+redeploying the affected apps and orchestrator image.
+
+:::
 
 ## Setup
 
@@ -101,7 +157,36 @@ refreshes access tokens when needed for resource discovery or workflow credentia
 preparation. Use **Change Credentials** to reconnect after rotating a secret,
 or **Disconnect** to remove the saved Playrunner connection.
 
-## Configure a workflow node
+## Exports
+
+```ts
+import teamsIntegration, {
+  TeamsConfigPanel,
+  TeamsSettingsModal,
+} from '@playrunner/teams';
+import teamsApiContribution, { teamsRouter } from '@playrunner/teams/api';
+import teamsOrchestratorContribution from '@playrunner/teams/orchestrator';
+```
+
+The default exports are the build-composition contract. The same contribution
+objects are also available as named exports.
+
+## Frontend
+
+The frontend contribution registers the `teams` action node, connection dialog,
+and configuration panel. It uses the package-owned SVG and shared SDK host
+services. No provider-specific edit to the host registry is needed.
+
+## API
+
+The API contribution mounts `teamsRouter` at `/api/microsoft-teams` and registers
+`refreshTeamsCredentials` for workflow credential preparation.
+
+The API provides `POST /oauth-token`, `GET /teams`, and
+`GET /teams/:teamId/channels` beneath its mount path. It deliberately avoids
+`/api/teams`, which belongs to Playrunner's own team-management API.
+
+## Action node configuration
 
 1. Open your workflow in the canvas and add **Microsoft Teams** from the node
    picker.
@@ -128,6 +213,17 @@ sends a new channel message; it does not send direct chats, threaded replies,
 attachments, or adaptive cards. Successful execution returns a `messageId` in
 the node output.
 
+## Orchestrator
+
+The `teamsOrchestratorContribution` registers the default executor for `teams`
+workflow nodes. The executor posts a text message to Microsoft Graph's
+`/v1.0/teams/{teamId}/channels/{channelId}/messages` endpoint. It respects workflow
+cancellation, limits a request to 30 seconds, and reports sanitized errors
+without including tokens or raw provider response bodies.
+
+See [integration development](../local-dev/integrations/index.md) for the shared
+package contracts and host responsibilities.
+
 ## Troubleshooting
 
 | Symptom                                   | What to check                                                                                                                                        |
@@ -148,29 +244,7 @@ The provider references describe which resources are returned by
 [joined teams](https://learn.microsoft.com/en-us/graph/api/user-list-joinedteams?view=graph-rest-1.0)
 and [channel discovery](https://learn.microsoft.com/en-us/graph/api/channel-list?view=graph-rest-1.0).
 
-## Package reference
+## Assets
 
-`@playrunner/teams` lives at `packages/teams`. It currently uses local `file:`
-dependencies in consuming apps; an npm release is a separate publication step.
-The package declares frontend, API, and orchestrator contributions. Include it
-as a direct production dependency in each consuming app and rebuild those apps
-when the package changes. Workflows use the bundled code; they do not install
-packages at runtime.
-
-| Surface      | Entrypoint                       | Responsibility                                                                  |
-| ------------ | -------------------------------- | ------------------------------------------------------------------------------- |
-| Frontend     | `@playrunner/teams`              | `teams` action node, connection dialog, and team/channel/message configuration. |
-| API          | `@playrunner/teams/api`          | OAuth exchange, token refresh, and discovery under `/api/microsoft-teams`.      |
-| Orchestrator | `@playrunner/teams/orchestrator` | Render templates and send the channel message through Microsoft Graph.          |
-
-The API provides `POST /oauth-token`, `GET /teams`, and
-`GET /teams/:teamId/channels` beneath its mount path. It deliberately avoids
-`/api/teams`, which belongs to Playrunner's own team-management API.
-
-The executor posts a text message to Microsoft Graph's
-`/v1.0/teams/{teamId}/channels/{channelId}/messages` endpoint. It respects workflow
-cancellation, limits a request to 30 seconds, and reports sanitized errors
-without including tokens or raw provider response bodies.
-
-See [integration development](../local-dev/integrations/index.md) for the shared
-package contracts and host responsibilities.
+The Teams logo is exported from `@playrunner/teams/assets/teams.svg` and resolved
+by the frontend entrypoint. The documentation reuses the same package-owned SVG.

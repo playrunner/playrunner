@@ -108,6 +108,15 @@ page describes its available user setup and package surfaces.
     installCommand="npm install @playrunner/slack"
   />
   <IntegrationDirectoryItem
+    name="Microsoft Teams"
+    packageName="@playrunner/teams"
+    description="Send workflow notifications to Microsoft Teams channels."
+    icon="teams"
+    href="/docs/integration-packages/teams"
+    installCommand="Local source: packages/teams"
+    sourceUrl="https://github.com/playrunner/playrunner/tree/main/packages/teams"
+  />
+  <IntegrationDirectoryItem
     name="Webhooks"
     packageName="@playrunner/webhooks"
     description="Receive inbound workflow triggers and send outbound HTTPS requests."
@@ -116,10 +125,6 @@ page describes its available user setup and package surfaces.
     installCommand="npm install @playrunner/webhooks"
   />
 </IntegrationDirectory>
-
-[Microsoft Teams](./teams.md) sends channel messages using a connected work or
-school account. Its `@playrunner/teams` package is currently available from
-`packages/teams` in this repository.
 
 ## Build-time selection and runtime configuration
 

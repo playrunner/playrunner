@@ -20,6 +20,8 @@ Follow the existing Playrunner UI system instead of inventing a page-specific vi
 
 ## Rules
 
+- Integration reference pages must follow the existing Slack/Jira Docusaurus format: `hide_title: true`, the shared `IntegrationHero` with package-owned icon, package action, badges and facts, then `IntegrationGrid`/`IntegrationCard` capability summaries and the relevant setup, exports, frontend, API, configuration and orchestrator sections. Add integrations to the overview with `IntegrationDirectoryItem`, never a standalone text link. Reuse `docs/src/components/IntegrationPage` and its styles; do not replace this layout with plain Markdown or bespoke page styling. For unpublished packages, use the shared source-link variant and state local availability without linking to a nonexistent npm release. Verify the rendered page against an existing integration reference, not only the docs build.
+
 - All in-app help and setup-guide links must open the relevant Playrunner Docusaurus page, never third-party documentation directly. For integration setup, use its provider guide and section anchor, honoring `VITE_DOCS_URL` and its base path. Keep vendor references inside that guide; do not use an external fallback when an internal guide is missing.
 
 - Use `Button`, `Input`, `Select`, `Textarea`, and `Badge` from `apps/frontend/src/components/ui` when those controls fit the need.

@@ -8,6 +8,7 @@ import OpenAILogo from '../../../../packages/openai/assets/openai.svg';
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import { ResendIcon } from '../../../../packages/resend/src/frontend/ResendIcon';
 import SlackLogo from '../../../../packages/slack/assets/slack.svg';
+import TeamsLogo from '../../../../packages/teams/assets/teams.svg';
 import styles from './styles.module.css';
 
 type IconKind =
@@ -22,6 +23,7 @@ type IconKind =
   | 'resend'
   | 'schedule'
   | 'slack'
+  | 'teams'
   | 'webhooks';
 
 type Fact = {
@@ -55,6 +57,8 @@ function renderIntegrationIcon(icon: IconKind) {
       return <ResendIcon />;
     case 'slack':
       return <SlackLogo aria-hidden="true" />;
+    case 'teams':
+      return <TeamsLogo aria-hidden="true" />;
     case 'webhooks':
       return (
         <svg
@@ -117,6 +121,7 @@ export function IntegrationHero({
   icon,
   installCommand,
   npmUrl,
+  sourceUrl,
   badges = [],
   facts = [],
 }: {
@@ -125,7 +130,8 @@ export function IntegrationHero({
   description: string;
   icon: IconKind;
   installCommand: string;
-  npmUrl: string;
+  npmUrl?: string;
+  sourceUrl?: string;
   badges?: string[];
   facts?: Fact[];
 }) {
@@ -135,7 +141,7 @@ export function IntegrationHero({
         <IntegrationIcon icon={icon} />
         <div className={styles.heroCopy}>
           <p className={styles.packageName}>
-            <a href={npmUrl}>{packageName}</a>
+            <a href={sourceUrl ?? npmUrl}>{packageName}</a>
           </p>
           <h1>{name} Integration</h1>
           <p>{description}</p>
@@ -143,8 +149,8 @@ export function IntegrationHero({
       </div>
 
       <div className={styles.heroActions}>
-        <a className={styles.primaryAction} href={npmUrl}>
-          View on npm
+        <a className={styles.primaryAction} href={sourceUrl ?? npmUrl}>
+          {sourceUrl ? 'View source' : 'View on npm'}
         </a>
         <code className={styles.installCommand}>{installCommand}</code>
         {badges.length > 0 ? (
@@ -197,6 +203,7 @@ export function IntegrationDirectoryItem({
   icon,
   href,
   installCommand,
+  sourceUrl,
 }: {
   name: string;
   packageName: string;
@@ -204,13 +211,14 @@ export function IntegrationDirectoryItem({
   icon: IconKind;
   href: string;
   installCommand: string;
+  sourceUrl?: string;
 }) {
   const npmUrl = `https://www.npmjs.com/package/${packageName}`;
 
   return (
     <article className={styles.directoryItem}>
       <IntegrationIcon icon={icon} />
-      <a className={styles.directoryPackageName} href={npmUrl}>
+      <a className={styles.directoryPackageName} href={sourceUrl ?? npmUrl}>
         {packageName}
       </a>
       <h2>
