@@ -74,7 +74,22 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
+      command: 'node --import tsx ../../packages/teams/src/e2e/fake-server.ts',
+      url: 'http://127.0.0.1:4014/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
       command: 'npm run dev:e2e --prefix ../api',
+      env:
+        (process.env.PLAYRUNNER_E2E_MODE ?? 'mock') === 'mock'
+          ? {
+              PLAYRUNNER_TEAMS_AUTH_BASE_URL: 'http://127.0.0.1:4014',
+              PLAYRUNNER_TEAMS_GRAPH_BASE_URL: 'http://127.0.0.1:4014',
+            }
+          : {},
       url: 'http://127.0.0.1:3999/health',
       reuseExistingServer: false,
       timeout: 120_000,

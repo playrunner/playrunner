@@ -45,6 +45,7 @@
     "@playrunner/resend": "0.1.2",
     "@playrunner/schedule": "0.1.4",
     "@playrunner/slack": "0.1.3",
+    "@playrunner/teams": "file:../../packages/teams",
     "@playrunner/validator": "file:../../packages/validator",
     "@playrunner/webhooks": "file:../../packages/webhooks",
     "clsx": "^2.1.1",

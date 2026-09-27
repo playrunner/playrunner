@@ -33,6 +33,7 @@
     "@playrunner/openai": "0.1.4",
     "@playrunner/resend": "0.1.2",
     "@playrunner/slack": "0.1.3",
+    "@playrunner/teams": "file:../../../packages/teams",
     "@playrunner/webhooks": "file:../../../packages/webhooks",
     "axios": "^1.18.0",
     "express": "^5.2.1",
