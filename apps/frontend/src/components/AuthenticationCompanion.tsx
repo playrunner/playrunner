@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { IntegrationCopyableCode } from '@playrunner/integration-sdk';
 import {
   Info,
   Laptop,
@@ -130,17 +131,15 @@ export function AuthenticationCompanionPanel() {
 
       <div className="mt-4 flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3 text-muted shadow-inner">
         <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-        <p className="min-w-0 break-words text-xs leading-relaxed">
-          On your computer run{' '}
-          <span className="font-mono text-[var(--foreground)]">
-            {`npx playrunner@0.2.6 login --url ${window.location.origin}`}
-          </span>
-          , then{' '}
-          <span className="font-mono text-[var(--foreground)]">
-            npx playrunner@0.2.6 auth connect
-          </span>
-          .
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs leading-relaxed">
+            Run this command in a terminal on your computer.
+          </p>
+          <IntegrationCopyableCode
+            value={`npx playrunner@0.2.6 login --url ${window.location.origin} && npx playrunner@0.2.6 auth connect`}
+            label="Copy device connection command"
+          />
+        </div>
       </div>
 
       {error ? (
