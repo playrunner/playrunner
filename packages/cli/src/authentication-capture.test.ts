@@ -110,6 +110,7 @@ test('storage capture retries after Chrome finishes restoring its session', asyn
   } as unknown as import('playwright').Page;
   let attempts = 0;
   const context = {
+    pages: () => [],
     storageState: async () => {
       calls.push('storage');
       attempts += 1;
@@ -151,6 +152,7 @@ test('storage capture settles before its browser context is closed', async () =>
   } as unknown as import('playwright').Page;
   const expected = { cookies: [], origins: [] };
   const context = {
+    pages: () => [],
     close: async () => {
       calls.push('close');
     },
@@ -174,5 +176,57 @@ test('storage capture settles before its browser context is closed', async () =>
     'storage-start',
     'storage-finish',
     'close',
+  ]);
+});
+
+test('restored origins are registered without reloading signed-in tabs', async () => {
+  const calls: string[] = [];
+  const page = {
+    evaluate: async () => 'complete',
+    waitForLoadState: async () => undefined,
+    frames: () => [
+      { url: () => 'https://app.example.test/home' },
+      { url: () => 'https://app.example.test/frame' },
+      { url: () => 'https://login.example.test/session' },
+      { url: () => 'about:blank' },
+      { url: () => 'invalid-url' },
+    ],
+  } as unknown as import('playwright').Page;
+  const tracker = {
+    route: async (
+      pattern: string,
+      handler: (route: unknown) => Promise<void>,
+    ) => {
+      assert.equal(pattern, '**/*');
+      await handler({
+        fulfill: async (response: { status: number }) => {
+          assert.equal(response.status, 200);
+          calls.push('intercept');
+        },
+      });
+    },
+    goto: async (url: string) => {
+      calls.push(url);
+    },
+    close: async () => {
+      calls.push('close-tracker');
+    },
+  };
+  const context = {
+    pages: () => [page],
+    newPage: async () => tracker,
+    storageState: async (options: { indexedDB: boolean }) => {
+      assert.equal(options.indexedDB, true);
+      calls.push('capture');
+      return { cookies: [], origins: [] };
+    },
+  } as unknown as import('playwright').BrowserContext;
+  await captureRestoredBrowserStorage(context, page);
+  assert.deepEqual(calls, [
+    'intercept',
+    'https://app.example.test',
+    'https://login.example.test',
+    'close-tracker',
+    'capture',
   ]);
 });

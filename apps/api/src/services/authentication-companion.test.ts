@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   authenticationDeviceSignatureMessage,
   companionAppUrl,
+  supportedCliVersion,
   usesAuthenticationCompanion,
   validateAuthenticationStorageState,
   verifyAuthenticationDeviceSignature,
@@ -78,4 +79,11 @@ test('device signatures bind the method, complete path, body and nonce', () => {
     validateAuthenticationStorageState({ cookies: [{}], origins: [] }),
     false,
   );
+});
+
+test('requires the CLI release that captures restored browser origins', () => {
+  assert.equal(supportedCliVersion('0.2.4'), false);
+  assert.equal(supportedCliVersion('0.2.5'), false);
+  assert.equal(supportedCliVersion('0.2.6'), true);
+  assert.equal(supportedCliVersion('0.3.0'), true);
 });

@@ -319,12 +319,54 @@ async function waitForRestoredPage(page: import('playwright').Page) {
   await page.evaluate(() => document.readyState).catch(() => undefined);
 }
 
+async function registerRestoredOrigins(
+  context: import('playwright').BrowserContext,
+) {
+  const origins = new Set<string>();
+  for (const page of context.pages()) {
+    for (const frame of page.frames()) {
+      try {
+        const url = new URL(frame.url());
+        if (url.protocol === 'http:' || url.protocol === 'https:') {
+          origins.add(url.origin);
+        }
+      } catch {
+        // Blank and browser-internal frames have no web storage to capture.
+      }
+    }
+  }
+  if (!origins.size) return;
+
+  // Restored tabs can predate Playwright's navigation listener, leaving its
+  // storageState origin list empty. Register their origins without reloading
+  // the signed-in application or making requests to it.
+  const tracker = await context.newPage();
+  try {
+    await tracker.route('**/*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: '<!doctype html><title>Authentication capture</title>',
+      }),
+    );
+    for (const origin of origins) {
+      await tracker.goto(origin, {
+        waitUntil: 'domcontentloaded',
+        timeout: 15_000,
+      });
+    }
+  } finally {
+    await tracker.close().catch(() => undefined);
+  }
+}
+
 export async function captureRestoredBrowserStorage(
   context: import('playwright').BrowserContext,
   page: import('playwright').Page,
 ) {
   await waitForRestoredPage(page);
   try {
+    await registerRestoredOrigins(context);
     return await context.storageState({ indexedDB: true });
   } catch (error) {
     if (!isChromeRestoreTargetError(error)) throw error;
@@ -334,6 +376,7 @@ export async function captureRestoredBrowserStorage(
     // restored page and then Chrome rejects its fallback temporary tab.
     await page.waitForTimeout(500);
     await waitForRestoredPage(page);
+    await registerRestoredOrigins(context);
     return context.storageState({ indexedDB: true });
   }
 }

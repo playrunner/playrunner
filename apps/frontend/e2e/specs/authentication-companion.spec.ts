@@ -26,7 +26,7 @@ test('pairs a local device, captures state and rejects replay and revoked sessio
         publicKey: keys.publicKey.export({ type: 'spki', format: 'pem' }),
         deviceName: `Laptop ${suffix}`,
         platform: 'test',
-        cliVersion: '0.2.4',
+        cliVersion: '0.2.6',
         capabilities: ['authentication_profile_capture_v1'],
       },
     },
@@ -143,7 +143,7 @@ test('pairs a local device, captures state and rejects replay and revoked sessio
     device.deviceId,
   );
   await expect(
-    page.getByText(`npx playrunner@0.2.4 login --url ${base}`, { exact: true }),
+    page.getByText(`npx playrunner@0.2.6 login --url ${base}`, { exact: true }),
   ).toBeVisible();
   const environmentId = `companion-env-${suffix}`;
   expect(

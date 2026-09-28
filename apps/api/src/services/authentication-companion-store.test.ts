@@ -56,7 +56,7 @@ test(
           public_key: 'test-key',
           credential_hash: 'test-hash',
           platform: 'test',
-          cli_version: '0.2.4',
+          cli_version: '0.2.6',
           capabilities: ['authentication_profile_capture_v1'],
           last_seen_at: new Date(),
         },
@@ -190,7 +190,7 @@ test(
       );
       await store.createAuthenticationDeviceCode({
         capabilities: [],
-        cliVersion: '0.2.4',
+        cliVersion: '0.2.6',
         deviceCodeHash: 'expired-code',
         deviceName: 'Expired',
         expiresAt: new Date(0),

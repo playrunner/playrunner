@@ -133,11 +133,11 @@ export function AuthenticationCompanionPanel() {
         <p className="min-w-0 break-words text-xs leading-relaxed">
           On your computer run{' '}
           <span className="font-mono text-[var(--foreground)]">
-            {`npx playrunner@0.2.4 login --url ${window.location.origin}`}
+            {`npx playrunner@0.2.6 login --url ${window.location.origin}`}
           </span>
           , then{' '}
           <span className="font-mono text-[var(--foreground)]">
-            npx playrunner@0.2.4 auth connect
+            npx playrunner@0.2.6 auth connect
           </span>
           .
         </p>

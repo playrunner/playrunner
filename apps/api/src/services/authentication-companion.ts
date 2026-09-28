@@ -39,7 +39,7 @@ const SESSION_STATUSES = new Set([
   'completed',
   'failed',
 ]);
-const MINIMUM_CLI_VERSION = [0, 2, 0] as const;
+const MINIMUM_CLI_VERSION = [0, 2, 6] as const;
 
 function hash(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
