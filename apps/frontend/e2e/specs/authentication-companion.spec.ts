@@ -143,7 +143,10 @@ test('pairs a local device, captures state and rejects replay and revoked sessio
     device.deviceId,
   );
   await expect(
-    page.getByText(`npx playrunner@0.2.6 login --url ${base}`, { exact: true }),
+    page.getByText(
+      `npx playrunner@0.2.6 login --url ${base} && npx playrunner@0.2.6 auth connect`,
+      { exact: true },
+    ),
   ).toBeVisible();
   const environmentId = `companion-env-${suffix}`;
   expect(
