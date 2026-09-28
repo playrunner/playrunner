@@ -56,7 +56,8 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': {
           target: apiProxyTarget,
-          changeOrigin: true,
+          // Preserve the browser-facing address for companion pairing and capture mode.
+          changeOrigin: false,
         },
         '/outputs': {
           target: apiProxyTarget,

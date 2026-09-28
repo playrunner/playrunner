@@ -1,3 +1,7 @@
+import {
+  authenticationCompanion,
+  usesAuthenticationCompanion,
+} from '../services/authentication-companion';
 import { Router, type Request, type Response } from 'express';
 import { localAuthenticationAgent } from '../services/authentication-agent';
 import {
@@ -66,13 +70,25 @@ function route(handler: (req: Request, res: Response) => Promise<void> | void) {
   };
 }
 
-authenticationProfilesRouter.get('/capability', (_req, res) => {
+authenticationProfilesRouter.get('/capability', (req, res) => {
+  if (usesAuthenticationCompanion(req)) {
+    res.json({
+      available: true,
+      capability: 'outbound_authentication_companion_v1',
+      method: 'companion',
+    });
+    return;
+  }
   res.json(localAuthenticationAgent.availability());
 });
 
 authenticationProfilesRouter.get(
   '/sessions/:sessionId',
   route(async (req, res) => {
+    if (req.params.sessionId.startsWith('companion.')) {
+      await authenticationCompanion.sessionStatus(req, res);
+      return;
+    }
     if (req.params.sessionId.startsWith('hosted-test.')) {
       res.json({
         session: await getHostedAuthenticationTest({
@@ -103,6 +119,10 @@ authenticationProfilesRouter.post(
 authenticationProfilesRouter.post(
   '/sessions/:sessionId/cancel',
   route(async (req, res) => {
+    if (req.params.sessionId.startsWith('companion.')) {
+      await authenticationCompanion.cancelSession(req, res);
+      return;
+    }
     res.json({
       session: await localAuthenticationAgent.cancel(
         userId(req),
@@ -154,6 +174,10 @@ authenticationProfilesRouter.delete(
 authenticationProfilesRouter.post(
   '/:id/authenticate',
   route(async (req, res) => {
+    if (usesAuthenticationCompanion(req) || req.body?.deviceId) {
+      await authenticationCompanion.createSession(req, res);
+      return;
+    }
     res.status(202).json({
       session: await localAuthenticationAgent.start(
         userId(req),
@@ -167,6 +191,12 @@ authenticationProfilesRouter.post(
 authenticationProfilesRouter.post(
   '/:id/test',
   route(async (req, res) => {
+    if (usesAuthenticationCompanion(req)) {
+      res.status(409).json({
+        error: 'Run a workflow to test the stored session on this server.',
+      });
+      return;
+    }
     res.status(202).json({
       session: await localAuthenticationAgent.start(
         userId(req),

@@ -167,7 +167,17 @@ export const DbAPI = {
     const action = mode === 'authenticate' ? 'authenticate' : 'test';
     const payload = await apiRequest<{ session: any }>(
       `/api/authentication-profiles/${encodeURIComponent(id)}/${action}`,
-      { method: 'POST' },
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          deviceId:
+            (await DbAPI.getAuthenticationCapability()).method === 'companion'
+              ? window.localStorage.getItem(
+                  'playrunner.authenticationCompanionDevice',
+                ) || undefined
+              : undefined,
+        }),
+      },
     );
     return payload.session;
   },

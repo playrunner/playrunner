@@ -1,3 +1,4 @@
+import { AuthenticationCompanionPanel } from '../components/AuthenticationCompanion';
 import {
   IntegrationConnectionInput,
   IntegrationConnectionAutofillGuard,
@@ -99,6 +100,7 @@ export default function AuthenticationProfiles() {
   const navigate = useNavigate();
   const [profiles, setProfiles] = useState<AuthenticationProfile[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
+  const [companionCapture, setCompanionCapture] = useState(false);
   const [capabilityAvailable, setCapabilityAvailable] = useState(false);
   const [sessions, setSessions] = useState<
     Record<string, AuthenticationSession>
@@ -122,6 +124,7 @@ export default function AuthenticationProfiles() {
       setProfiles(nextProfiles);
       setEnvironments(nextEnvironments);
       setCapabilityAvailable(capability.available);
+      setCompanionCapture(capability.method === 'companion');
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -250,7 +253,7 @@ export default function AuthenticationProfiles() {
   };
 
   return (
-    <main className="max-w-7xl mx-auto p-8 w-full space-y-8">
+    <main className="max-w-7xl mx-auto p-4 sm:p-8 w-full min-w-0 space-y-8">
       <header className="flex flex-col gap-4 border-b border-subtle pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-[var(--foreground)]">
@@ -272,6 +275,8 @@ export default function AuthenticationProfiles() {
           <Plus className="h-4 w-4" /> Create profile
         </Button>
       </header>
+
+      {companionCapture ? <AuthenticationCompanionPanel /> : null}
 
       {!capabilityAvailable && !loading ? (
         <div className="flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3 text-muted shadow-inner">
@@ -349,11 +354,11 @@ export default function AuthenticationProfiles() {
                 className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-medium text-[var(--foreground)]">
+                  <div className="min-w-0">
+                    <h2 className="break-words text-xl font-medium text-[var(--foreground)]">
                       {profile.name}
                     </h2>
-                    <p className="mt-1 text-sm text-muted">
+                    <p className="mt-1 break-all text-sm text-muted">
                       {profile.applicationLabel || profile.startUrl}
                     </p>
                   </div>
@@ -401,16 +406,18 @@ export default function AuthenticationProfiles() {
                     )}
                     <div className="min-w-0 text-xs leading-relaxed text-muted">
                       <p>
-                        {session.status === 'capturing'
-                          ? 'Verifying and securely capturing the authenticated session…'
-                          : active
-                            ? session.mode === 'authenticate'
-                              ? 'Complete sign-in in native Chrome. Leave it open, then return here.'
-                              : 'Testing the stored session in a visible browser.'
-                            : session.error ||
-                              (session.mode === 'test'
-                                ? 'Session test completed.'
-                                : 'Authentication completed.')}
+                        {companionCapture && active
+                          ? 'Complete sign-in in Chrome on your paired device, then press Enter in its terminal to save the session.'
+                          : session.status === 'capturing'
+                            ? 'Verifying and securely capturing the authenticated session…'
+                            : active
+                              ? session.mode === 'authenticate'
+                                ? 'Complete sign-in in native Chrome. Leave it open, then return here.'
+                                : 'Testing the stored session in a visible browser.'
+                              : session.error ||
+                                (session.mode === 'test'
+                                  ? 'Session test completed.'
+                                  : 'Authentication completed.')}
                       </p>
                       {active ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -455,17 +462,19 @@ export default function AuthenticationProfiles() {
                           ? 'Re-authenticate'
                           : 'Authenticate'}
                       </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={
-                          !profile.credentialStatus.configured ||
-                          Boolean(active)
-                        }
-                        onClick={() => void startSession(profile, 'test')}
-                      >
-                        Test session
-                      </Button>
+                      {!companionCapture ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={
+                            !profile.credentialStatus.configured ||
+                            Boolean(active)
+                          }
+                          onClick={() => void startSession(profile, 'test')}
+                        >
+                          Test session
+                        </Button>
+                      ) : null}
                     </>
                   )}
                   <Button

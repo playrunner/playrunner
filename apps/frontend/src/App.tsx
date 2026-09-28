@@ -22,6 +22,7 @@ import SettingsPassword from './pages/SettingsPassword';
 import DesignSystem from './pages/DesignSystem';
 import Environments from './pages/Environments';
 import AuthenticationProfiles from './pages/AuthenticationProfiles';
+import DeviceApproval from './pages/DeviceApproval';
 import Integrations from './pages/Integrations';
 import Insights from './pages/Insights';
 import Executions from './pages/Executions';
@@ -88,6 +89,7 @@ function AppShell() {
         <Route element={<RequireAuth />}>
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route element={<PageLayout />}>
+            <Route path="/connect/device" element={<DeviceApproval />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/workflow" element={<Editor />} />

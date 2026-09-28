@@ -513,16 +513,24 @@ export function knownStorageStateExpiry(
   return expiries.length ? new Date(Math.min(...expiries)) : null;
 }
 
-export async function storeAuthenticationState(args: {
-  actorId: string;
-  profileId: string;
-  sessionId: string;
-  state: unknown;
-}) {
-  const profile = await requireOwnedAuthenticationProfile(
-    args.actorId,
-    args.profileId,
-  );
+export async function storeAuthenticationState(
+  args: {
+    actorId: string;
+    profileId: string;
+    sessionId: string;
+    state: unknown;
+  },
+  database: Prisma.TransactionClient = prisma,
+) {
+  const profile = await database.authenticationProfile.findFirst({
+    where: { id: args.profileId, ownerUserId: args.actorId },
+  });
+  if (!profile)
+    throw httpError(
+      'Authentication Profile not found.',
+      404,
+      'authentication_profile_not_found',
+    );
   if (profile.authenticationMethod === 'totp')
     throw httpError(
       'TOTP profiles cannot accept captured sessions.',
@@ -534,7 +542,7 @@ export async function storeAuthenticationState(args: {
     args.state,
     stateIdentity(profile.ownerUserId, profile.id),
   );
-  const updated = await prisma.authenticationProfile.update({
+  const updated = await database.authenticationProfile.update({
     where: { id: profile.id },
     data: {
       authenticatedAt: new Date(),
@@ -545,12 +553,14 @@ export async function storeAuthenticationState(args: {
       status: 'authenticated',
     },
   });
-  await recordAuthenticationProfileAudit({
-    action: profile.encryptedState ? 'reauthenticated' : 'authenticated',
-    actorId: args.actorId,
-    outcome: 'success',
-    profileId: profile.id,
-    sessionId: args.sessionId,
+  await database.authenticationProfileAudit.create({
+    data: {
+      action: profile.encryptedState ? 'reauthenticated' : 'authenticated',
+      actorId: args.actorId,
+      outcome: 'success',
+      profileId: profile.id,
+      sessionId: args.sessionId,
+    },
   });
   return serializeAuthenticationProfile(updated);
 }

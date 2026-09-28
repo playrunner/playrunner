@@ -1,3 +1,4 @@
+import { authenticationCompanionRouter } from './services/authentication-companion';
 import { createMachineManagementRouter } from './routes/machine-management';
 import express from 'express';
 import cors from 'cors';
@@ -60,6 +61,7 @@ app.use('/api/test-suites', testSuitesRouter);
 app.use('/api/outputs', outputsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/scheduler', schedulerRouter);
+app.use('/api/auth-companion', authenticationCompanionRouter);
 app.use('/api', requireAuth);
 app.use('/api', (req, _res, next) => {
   const userId = req.authUser!.providerUserId;

@@ -280,6 +280,7 @@ model AuthenticationProfile {
   revokedAt             DateTime?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
+  companionSessions     AuthenticationSession[]
   environment           Environment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
 
   @@unique([ownerUserId, name])
@@ -434,4 +435,70 @@ model TestSuiteUpload {
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+
+model AuthenticationDeviceCode {
+  device_code_hash String @id
+  user_code String @unique
+  public_key String
+  device_name String
+  platform String
+  cli_version String
+  capabilities Json @default("[]")
+  expires_at DateTime
+  approved_by_user_id String?
+  approved_device_id String?
+  approved_at DateTime?
+  consumed_at DateTime?
+  created_at DateTime @default(now())
+}
+
+model AuthenticationDevice {
+  id String @id
+  owner_user_id String
+  display_name String
+  public_key String
+  credential_hash String
+  platform String
+  cli_version String
+  capabilities Json @default("[]")
+  last_seen_at DateTime?
+  revoked_at DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  nonces AuthenticationDeviceNonce[]
+  sessions AuthenticationSession[]
+  @@index([owner_user_id, updated_at])
+}
+
+model AuthenticationDeviceNonce {
+  device_id String
+  nonce String
+  expires_at DateTime
+  device AuthenticationDevice @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  @@id([device_id, nonce])
+  @@index([expires_at])
+}
+
+model AuthenticationSession {
+  id String @id
+  sequence BigInt @unique @default(autoincrement())
+  owner_user_id String
+  profile_id String
+  device_id String
+  status String
+  mode String @default("authenticate")
+  nonce String
+  upload_token_hash String
+  expires_at DateTime
+  acknowledged_at DateTime?
+  completed_at DateTime?
+  safe_error_code String?
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  device AuthenticationDevice @relation(fields: [device_id], references: [id], onDelete: Cascade)
+  profile AuthenticationProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  @@index([device_id, sequence])
+  @@index([owner_user_id, created_at])
 }
