@@ -79,7 +79,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google-cloud/run": "^3.2.1",
+    "@google-cloud/run": "^4.0.0",
     "@google-cloud/storage": "^7.19.0",
     "express": "^5.2.1",
     "google-auth-library": "^11.0.2"
