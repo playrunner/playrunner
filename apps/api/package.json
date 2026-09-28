@@ -30,7 +30,7 @@
   "license": "SEE LICENSE IN ../../LICENSE",
   "type": "commonjs",
   "dependencies": {
-    "@google-cloud/run": "^3.3.0",
+    "@google-cloud/run": "^4.0.0",
     "@google-cloud/storage": "^7.19.0",
     "@playrunner/environment": "0.1.5",
     "@playrunner/gcp": "0.1.5",
