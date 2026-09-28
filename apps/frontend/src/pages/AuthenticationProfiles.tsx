@@ -257,8 +257,7 @@ export default function AuthenticationProfiles() {
             Authentication Profiles
           </h1>
           <p className="mt-2 text-sm text-muted leading-relaxed">
-            Reuse authenticated browser sessions without storing
-            identity-provider passwords.
+            Reuse saved browser sessions or sign in with an authenticator code.
           </p>
         </div>
         <Button
@@ -695,30 +694,6 @@ function ProfileEditor({
         </div>
         {method === 'totp' && (
           <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setForm({
-                  ...form,
-                  startUrl: 'https://sitest.insightbroking.com.au/',
-                });
-                setTotpSettings({
-                  ...defaultTotpSettings,
-                  allowedOrigins: [
-                    'https://sitest.insightbroking.com.au',
-                    'https://idp.steadfastapps.io',
-                  ],
-                  usernameSelector: '#signInName',
-                  passwordSelector: '#password',
-                  submitSelector: '#continueProxy',
-                  totpSelector: '#code-input input',
-                  totpSubmitSelector: '#continueProxy',
-                });
-              }}
-            >
-              Use Steadfast SIT form
-            </Button>
-
             <p className="text-sm text-muted">
               Enter the account's enrolled authenticator setup key, not a
               one-time code. On edit, leave all three credential fields blank to

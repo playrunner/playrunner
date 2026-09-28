@@ -45,15 +45,15 @@ test('TOTP profile is opt-in, credentials stay write-only, and existing capture 
   await profiles.dialog
     .getByRole('button', { name: 'Username, password + TOTP', exact: true })
     .click();
-  await profiles.dialog
-    .getByRole('button', { name: 'Use Steadfast SIT form', exact: true })
-    .click();
   await expect(
     profiles.dialog.getByLabel('Start URL', { exact: true }),
-  ).toHaveValue('https://sitest.insightbroking.com.au/');
-  await profiles.dialog
-    .getByLabel('Start URL', { exact: true })
-    .fill('http://127.0.0.1:4013/login');
+  ).toHaveValue('http://127.0.0.1:4013/login');
+  await expect(
+    profiles.dialog.getByLabel('Allowed sign-in origins (comma separated)'),
+  ).toHaveValue('');
+  await expect(
+    profiles.dialog.getByRole('button', { name: /^Use .* form$/ }),
+  ).toHaveCount(0);
   await profiles.configureTotp(credentials, 'http://127.0.0.1:4013');
   await profiles.save();
   await expect(profiles.card(`TOTP ${suffix}`)).toContainText(

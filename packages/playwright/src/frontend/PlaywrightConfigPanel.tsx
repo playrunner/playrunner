@@ -514,7 +514,7 @@ test.describe('navigation', () => {
                     placeholder={
                       index === 0
                         ? 'E2E_REGRESSION_STORAGE_STATE (optional)'
-                        : 'E2E_STEADFAST_STORAGE_STATE'
+                        : 'E2E_SECONDARY_STORAGE_STATE'
                     }
                     value={selection.environmentVariable || ''}
                     onChange={(event) =>
