@@ -37,7 +37,7 @@ On the normal startup path it also runs:
 ```bash
 cd apps/api
 npm run prisma:generate
-npx prisma db push --skip-generate
+npx prisma db push
 ```
 
 ### How the local database config flows
@@ -68,6 +68,16 @@ The local schema currently includes:
 - `Secret`
 
 The schema lives in `apps/api/prisma/schema.prisma`, and the shared Prisma client is exported from `apps/api/src/lib/prisma.ts`.
+
+---
+
+## Workflow descriptions
+
+`Workflow.description` is nullable text. The Project Dashboard's **Edit workflow** dialog saves it alongside the workflow name, and workflow store reads return it as `description`.
+
+`POST /api/store/workflows` accepts an optional description. `PUT /api/store/workflows/:id` changes it only when the field is supplied; omitting it preserves the current description, including during editor graph saves. The dashboard sends `null` when a user clears the description, restoring the default card text.
+
+For an existing local checkout, restart with `./start-local.sh` after updating the code so Prisma generates the client and applies the schema before the API starts. The corresponding migration is `apps/api/prisma/migrations/20260930000000_workflow_description/migration.sql`.
 
 ---
 

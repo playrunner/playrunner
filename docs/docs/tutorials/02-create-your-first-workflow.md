@@ -14,7 +14,9 @@ In this tutorial you'll build a simple two-node workflow in the Playrunner visua
 
 ## Step 1 — Open the Editor
 
-Navigate to the URL printed by `./start-local.sh` and click **Editor** in the sidebar. With defaults, that is `http://127.0.0.1:3100`. The canvas opens with an empty workflow.
+Navigate to the URL printed by `./start-local.sh`. With defaults, that is `http://127.0.0.1:3100`. Open **Projects** and select a project, or use **New Project** to create one. On the Project Dashboard, open a workflow card to edit it, or choose **New Workflow**.
+
+New workflows use the project's configured starting nodes. If Environment and Playwright nodes are already present, use those nodes in the following steps instead of adding duplicates.
 
 ---
 
@@ -37,7 +39,7 @@ Navigate to the URL printed by `./start-local.sh` and click **Editor** in the si
 
 ## Step 4 — Connect the nodes
 
-Click the **output port** on the right edge of the Environment node and drag a connection line to the **input port** on the left edge of the Playwright node.
+If the starting nodes are already connected, keep their existing connection. Otherwise, click the **output port** on the right edge of the Environment node and drag a connection line to the **input port** on the left edge of the Playwright node.
 
 The workflow now reads: _"Use these environment variables → run Playwright tests"_.
 
@@ -57,7 +59,22 @@ Click the Playwright node to open its panel:
 
 ## Step 6 — Save the workflow
 
-Click **Save** in the top toolbar. Your workflow is persisted to PostgreSQL through the Prisma-backed API and will be available next time you open the editor.
+Click **Save workflow** in the top toolbar. Your workflow is persisted to PostgreSQL through the Prisma-backed API and will be available next time you open the editor.
+
+---
+
+## Step 7 — Name and describe the workflow
+
+Return to the project's dashboard through **Projects** in the sidebar.
+
+1. Open the workflow card's **More options** menu (**⋯**).
+2. Choose **Edit workflow**.
+3. Update **Workflow name** and **Description (optional)**. Descriptions can span multiple lines; use them to explain what the workflow checks or when to run it.
+4. Choose **Save changes**.
+
+The card shows the saved description immediately, and it remains after reloading. Editing these details preserves the workflow's nodes, connections, and execution settings.
+
+Clear the description and save to restore the default card text. **Cancel** discards unsaved edits. If saving fails, the dialog shows an error and keeps your draft so you can retry.
 
 ---
 
