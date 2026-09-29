@@ -15,7 +15,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', 'src/services/authentication-renewal/*.mjs'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

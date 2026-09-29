@@ -1,3 +1,4 @@
+import { AuthenticationRenewal } from '../components/AuthenticationRenewal';
 import { AuthenticationCompanionPanel } from '../components/AuthenticationCompanion';
 import {
   IntegrationConnectionInput,
@@ -386,6 +387,14 @@ export default function AuthenticationProfiles() {
                   </dd>
                 </dl>
 
+                {profile.authenticationMethod !== 'totp' &&
+                  profile.authenticatedAt &&
+                  profile.status !== 'revoked' && (
+                    <AuthenticationRenewal
+                      profileId={profile.id}
+                      onChecked={() => void load()}
+                    />
+                  )}
                 {session ? (
                   <div className="mt-4 flex items-start gap-3 rounded-lg border border-subtle bg-[var(--surface-hover)] p-3">
                     {active ? (

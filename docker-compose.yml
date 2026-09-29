@@ -1,4 +1,21 @@
 services:
+  session-renewal:
+    profiles: [session-renewal]
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.session-renewal
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    shm_size: 256mb
+    mem_limit: 2g
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-playrunner}
+      PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION: ${PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEY_VERSION:-1}
+      PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS: ${PLAYRUNNER_CREDENTIAL_ENCRYPTION_KEYS:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+
   postgres:
     image: postgres:16-alpine
     ports:
@@ -10,7 +27,11 @@ services:
     volumes:
       - playrunner-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-playrunner}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-playrunner}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 20

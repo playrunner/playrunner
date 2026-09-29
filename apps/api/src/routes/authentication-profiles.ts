@@ -16,6 +16,11 @@ import {
 } from '../services/authentication-profiles';
 import crypto from 'node:crypto';
 import {
+  authenticationRenewalStore,
+  requireSessionRenewal,
+  sessionRenewalAvailable,
+} from '../services/authentication-renewal';
+import {
   getHostedAuthenticationTest,
   startHostedAuthenticationTest,
 } from '../services/hosted-authentication-test';
@@ -156,6 +161,46 @@ authenticationProfilesRouter.put(
         userId(req),
         req.params.id,
         req.body,
+      ),
+    });
+  }),
+);
+
+authenticationProfilesRouter.get(
+  '/:id/renewal',
+  route(async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      renewal: {
+        ...(await authenticationRenewalStore().get(userId(req), req.params.id)),
+        available: sessionRenewalAvailable(),
+      },
+    });
+  }),
+);
+
+authenticationProfilesRouter.put(
+  '/:id/renewal',
+  route(async (req, res) => {
+    requireSessionRenewal();
+    res.json({
+      renewal: await authenticationRenewalStore().save(
+        userId(req),
+        req.params.id,
+        req.body,
+      ),
+    });
+  }),
+);
+
+authenticationProfilesRouter.post(
+  '/:id/renewal/check',
+  route(async (req, res) => {
+    requireSessionRenewal();
+    res.status(202).json({
+      renewal: await authenticationRenewalStore().request(
+        userId(req),
+        req.params.id,
       ),
     });
   }),

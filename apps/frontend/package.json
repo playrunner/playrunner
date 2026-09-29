@@ -26,7 +26,8 @@
     "typecheck": "tsc --noEmit",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:session-renewal": "node --import tsx --test tests/authentication-renewal.test.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

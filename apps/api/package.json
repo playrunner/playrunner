@@ -23,7 +23,9 @@
     "dev:e2e:slack-fake": "tsx src/e2e/slack-fake.ts",
     "dev:e2e:auth-demo": "tsx src/e2e/auth-demo.ts",
     "start": "npm run build:integrations && NODE_OPTIONS=--preserve-symlinks tsx --watch --env-file=.env src/index.ts",
-    "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts"
+    "start:cloud": "NODE_OPTIONS=--preserve-symlinks tsx src/index.ts",
+    "start:session-renewal": "node --import tsx src/services/authentication-renewal/worker.mjs",
+    "test:session-renewal": "node --import tsx --test src/services/authentication-renewal/*.test.mjs"
   },
   "keywords": [],
   "author": "Concept AI PTY LTD",

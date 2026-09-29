@@ -281,6 +281,7 @@ model AuthenticationProfile {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   companionSessions     AuthenticationSession[]
+  renewal               AuthenticationRenewal?
   environment           Environment @relation(fields: [environmentId], references: [id], onDelete: Restrict)
 
   @@unique([ownerUserId, name])
@@ -501,4 +502,19 @@ model AuthenticationSession {
   profile AuthenticationProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
   @@index([device_id, sequence])
   @@index([owner_user_id, created_at])
+}
+
+model AuthenticationRenewal {
+  profile_id String @id
+  enabled Boolean @default(false)
+  interval_minutes Int @default(60)
+  requested Boolean @default(false)
+  next_check_at DateTime? @db.Timestamptz(6)
+  lease_id String?
+  lease_until DateTime? @db.Timestamptz(6)
+  last_checked_at DateTime? @db.Timestamptz(6)
+  last_result String?
+  cookie_expiry_hint DateTime? @db.Timestamptz(6)
+  profile AuthenticationProfile @relation(fields: [profile_id], references: [id], onDelete: Cascade)
+  @@index([next_check_at], map: "AuthenticationRenewal_due_idx")
 }

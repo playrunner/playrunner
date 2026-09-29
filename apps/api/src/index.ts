@@ -31,6 +31,7 @@ import { tunnelService } from './services/tunnel';
 import { authenticationProfilesRouter } from './routes/authentication-profiles';
 import { localAuthenticationAgent } from './services/authentication-agent';
 import { recoverInterruptedAuthenticationProfiles } from './services/authentication-profiles';
+import { stopAuthenticationRenewalConnections } from './services/authentication-renewal';
 
 const app = express();
 app.use(cors());
@@ -94,6 +95,7 @@ async function start() {
     tunnelService.stop();
     await localAuthenticationAgent.stopAll();
     server.close();
+    await stopAuthenticationRenewalConnections();
   };
   process.once('SIGINT', () => void shutdown());
   process.once('SIGTERM', () => void shutdown());

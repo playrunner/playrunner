@@ -1,0 +1,14 @@
+FROM node:24-bookworm-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tini && rm -rf /var/lib/apt/lists/*
+COPY apps/api/package*.json ./apps/api/
+COPY packages ./packages
+COPY infra ./infra
+WORKDIR /app/apps/api
+RUN npm ci --ignore-scripts && npx playwright install --with-deps chromium
+COPY apps/api/src/services/credential-crypto.ts ./src/services/credential-crypto.ts
+COPY apps/api/src/services/authentication-renewal ./src/services/authentication-renewal
+RUN rm -f src/services/authentication-renewal/*.test.mjs
+ENV NODE_ENV=production
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "--import", "tsx", "src/services/authentication-renewal/worker.mjs"]
