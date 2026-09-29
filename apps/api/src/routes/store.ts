@@ -144,6 +144,7 @@ function serializeWorkflow(
     userId: string;
     projectId: string | null;
     title: string | null;
+    description: string | null;
     testPlan?: Prisma.JsonValue | null;
     nodes: Prisma.JsonValue | null;
     connections: Prisma.JsonValue | null;
@@ -163,6 +164,7 @@ function serializeWorkflow(
     userId: workflow.userId,
     projectId: workflow.projectId,
     title: workflow.title,
+    description: workflow.description,
     testPlan: workflow.testPlan ?? null,
     nodes: workflow.nodes,
     connections: workflow.connections,
@@ -374,6 +376,7 @@ storeRouter.post(
         userId,
         projectId: toNullableString(req.body?.projectId) ?? null,
         title: toNullableString(req.body?.title) ?? null,
+        description: toNullableString(req.body?.description) ?? null,
         testPlan,
         nodes,
         connections,
@@ -415,6 +418,7 @@ storeRouter.put(
 
     const projectId = toNullableString(req.body?.projectId);
     const title = toNullableString(req.body?.title);
+    const description = toNullableString(req.body?.description);
     const cloudProvider = toNullableString(req.body?.cloudProvider);
     const concurrency = toOptionalNumber(req.body?.concurrency);
     const testPlan = parsePlan(req.body?.testPlan);
@@ -435,6 +439,7 @@ storeRouter.put(
           userId,
           projectId: projectId ?? null,
           title: title ?? null,
+          description: description ?? null,
           testPlan,
           nodes,
           connections,
@@ -464,6 +469,9 @@ storeRouter.put(
     }
     if (title !== undefined) {
       data.title = title;
+    }
+    if (description !== undefined) {
+      data.description = description;
     }
     if (cloudProvider !== undefined) {
       data.cloudProvider = cloudProvider;

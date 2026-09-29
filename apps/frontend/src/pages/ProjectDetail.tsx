@@ -12,7 +12,7 @@ import {
   Monitor,
   Pencil,
 } from 'lucide-react';
-import { Button, Badge, Input } from '../components/ui';
+import { Button, Badge, Input, Textarea } from '../components/ui';
 import { Modal } from '../components/ui/Modal';
 import { ProjectSettingsModal } from '../components/ProjectSettingsModal';
 import { NODE_TYPES } from '../components/NodeSelectorModal';
@@ -63,9 +63,11 @@ export default function ProjectDetail() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [workflowToRename, setWorkflowToRename] = useState<any>(null);
+  const [workflowToEdit, setWorkflowToEdit] = useState<any>(null);
   const [workflowTitle, setWorkflowTitle] = useState('');
-  const [isRenamingWorkflow, setIsRenamingWorkflow] = useState(false);
+  const [workflowDescription, setWorkflowDescription] = useState('');
+  const [workflowSaveError, setWorkflowSaveError] = useState('');
+  const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
 
   const { setHeaderLeft } = useHeader();
   const handleSaveTitle = useCallback(async () => {
@@ -97,34 +99,40 @@ export default function ProjectDetail() {
     setEditedTitle(settings.title);
   };
 
-  const handleRenameWorkflow = async () => {
+  const handleSaveWorkflow = async () => {
     if (
       !auth.currentUser ||
-      !workflowToRename ||
+      !workflowToEdit ||
       !workflowTitle.trim() ||
-      isRenamingWorkflow
+      isSavingWorkflow
     ) {
       return;
     }
 
-    setIsRenamingWorkflow(true);
+    setIsSavingWorkflow(true);
+    setWorkflowSaveError('');
     try {
+      const description = workflowDescription.trim() || null;
       const title = workflowTitle.trim();
-      await DbAPI.saveWorkflow(auth.currentUser.uid, workflowToRename.id, {
+      await DbAPI.saveWorkflow(auth.currentUser.uid, workflowToEdit.id, {
         title,
+        description,
       });
       setWorkflows((previous) =>
         previous.map((workflow) =>
-          workflow.id === workflowToRename.id
-            ? { ...workflow, title }
+          workflow.id === workflowToEdit.id
+            ? { ...workflow, title, description }
             : workflow,
         ),
       );
-      setWorkflowToRename(null);
+      setWorkflowToEdit(null);
     } catch (error) {
-      console.error('Failed to rename workflow:', error);
+      console.error('Failed to update workflow:', error);
+      setWorkflowSaveError(
+        'Could not save workflow details. Please try again.',
+      );
     } finally {
-      setIsRenamingWorkflow(false);
+      setIsSavingWorkflow(false);
     }
   };
 
@@ -332,7 +340,7 @@ export default function ProjectDetail() {
               key={wf.id}
               data-testid="workflow-card"
               onClick={() => navigate(`/workflow/${wf.id}`)}
-              className="group bg-surface border border-subtle rounded-xl p-6 cursor-pointer hover:border-strong transition-colors shadow-sm hover:shadow-md col-span-1"
+              className="group flex min-w-0 flex-col bg-surface border border-subtle rounded-xl p-6 cursor-pointer hover:border-strong transition-colors shadow-sm hover:shadow-md col-span-1"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -371,18 +379,20 @@ export default function ProjectDetail() {
                             setOpenMenuId(null);
                           }}
                         />
-                        <div className="absolute right-0 mt-1 w-36 bg-surface border border-subtle rounded-lg shadow-lg z-20 py-1 overflow-hidden">
+                        <div className="absolute right-0 mt-1 w-44 bg-surface border border-subtle rounded-lg shadow-lg z-20 py-1 overflow-hidden">
                           <button
                             onClick={(event) => {
                               event.stopPropagation();
                               setOpenMenuId(null);
-                              setWorkflowToRename(wf);
+                              setWorkflowToEdit(wf);
                               setWorkflowTitle(wf.title || 'Untitled Workflow');
+                              setWorkflowDescription(wf.description || '');
+                              setWorkflowSaveError('');
                             }}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted hover:text-[var(--foreground)] hover:bg-surface-hover transition-colors text-left"
                           >
                             <Pencil className="w-4 h-4" />
-                            Rename
+                            Edit workflow
                           </button>
                           <button
                             onClick={(e) => handleDeleteWorkflow(e, wf.id)}
@@ -397,8 +407,9 @@ export default function ProjectDetail() {
                   </div>
                 </div>
               </div>
-              <p className="text-sm text-muted mb-6">
-                Design and configure your automated CI/CD and testing pipelines.
+              <p className="text-sm text-muted mb-6 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                {wf.description?.trim() ||
+                  'Design and configure your automated CI/CD and testing pipelines.'}
               </p>
               <div className="flex items-center justify-between border-t border-subtle pt-4 mt-auto">
                 <div className="flex gap-2">
@@ -443,46 +454,72 @@ export default function ProjectDetail() {
         onSave={handleSaveProjectSettings}
       />
       <Modal
-        isOpen={Boolean(workflowToRename)}
-        onClose={() => setWorkflowToRename(null)}
-        title="Rename workflow"
-        subtitle="Choose a clear name for this workflow."
+        isOpen={Boolean(workflowToEdit)}
+        onClose={() => {
+          if (!isSavingWorkflow) setWorkflowToEdit(null);
+        }}
+        title="Edit workflow"
+        subtitle="Update the name and description for this workflow."
         icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
         footer={
           <>
             <Button
               variant="secondary"
-              onClick={() => setWorkflowToRename(null)}
-              disabled={isRenamingWorkflow}
+              onClick={() => setWorkflowToEdit(null)}
+              disabled={isSavingWorkflow}
             >
               Cancel
             </Button>
             <Button
               variant="primary"
-              onClick={handleRenameWorkflow}
-              disabled={!workflowTitle.trim() || isRenamingWorkflow}
+              onClick={handleSaveWorkflow}
+              disabled={!workflowTitle.trim() || isSavingWorkflow}
             >
-              {isRenamingWorkflow ? 'Saving…' : 'Rename workflow'}
+              {isSavingWorkflow ? 'Saving…' : 'Save changes'}
             </Button>
           </>
         }
       >
-        <div className="space-y-2">
-          <label
-            htmlFor="workflow-title"
-            className="block text-sm font-medium text-[var(--foreground)]"
-          >
-            Workflow name
-          </label>
-          <Input
-            id="workflow-title"
-            autoFocus
-            value={workflowTitle}
-            onChange={(event) => setWorkflowTitle(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void handleRenameWorkflow();
-            }}
-          />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="workflow-title"
+              className="block text-sm font-medium text-[var(--foreground)]"
+            >
+              Workflow name
+            </label>
+            <Input
+              id="workflow-title"
+              autoFocus
+              disabled={isSavingWorkflow}
+              value={workflowTitle}
+              onChange={(event) => setWorkflowTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void handleSaveWorkflow();
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="workflow-description"
+              className="block text-sm font-medium text-[var(--foreground)]"
+            >
+              Description (optional)
+            </label>
+            <Textarea
+              id="workflow-description"
+              rows={4}
+              placeholder="Describe what this workflow does..."
+              value={workflowDescription}
+              disabled={isSavingWorkflow}
+              onChange={(event) => setWorkflowDescription(event.target.value)}
+            />
+          </div>
+          {workflowSaveError && (
+            <p role="alert" className="text-sm text-red-400">
+              {workflowSaveError}
+            </p>
+          )}
         </div>
       </Modal>
     </>

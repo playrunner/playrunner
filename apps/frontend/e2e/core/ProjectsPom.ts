@@ -86,17 +86,26 @@ export class ProjectsPom {
       this.page.getByRole('heading', { name, level: 1, exact: true }),
     ).toBeVisible();
   }
-  async renameWorkflow(oldName: string, name: string) {
+  get editWorkflowDialog() {
+    return this.page.getByRole('dialog', {
+      name: 'Edit workflow',
+      exact: true,
+    });
+  }
+  async editWorkflow(oldName: string) {
     await this.workflow(oldName)
       .getByRole('button', { name: 'More options' })
       .click();
     await this.page
-      .getByRole('button', { name: 'Rename', exact: true })
+      .getByRole('button', { name: 'Edit workflow', exact: true })
       .click();
-    const dialog = this.page.getByRole('dialog', { name: 'Rename workflow' });
+  }
+  async renameWorkflow(oldName: string, name: string) {
+    await this.editWorkflow(oldName);
+    const dialog = this.editWorkflowDialog;
     await dialog.getByRole('textbox', { name: 'Workflow name' }).fill(name);
     await dialog
-      .getByRole('button', { name: 'Rename workflow', exact: true })
+      .getByRole('button', { name: 'Save changes', exact: true })
       .click();
     await expect(dialog).toBeHidden();
   }

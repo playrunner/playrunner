@@ -1,4 +1,5 @@
 import { expect, test } from '../fixtures';
+import { authenticatedApi } from '../support/authenticatedApi';
 
 test.describe('Project and workflow management @workspace @projects', () => {
   test('validates and cancels project creation without saving', async ({
@@ -106,3 +107,139 @@ test.describe('Project and workflow management @workspace @projects', () => {
     ).toHaveValue('environment');
   });
 });
+
+for (const viewport of [
+  { name: 'desktop', width: 1440, height: 1000 },
+  { name: 'mobile', width: 390, height: 844 },
+]) {
+  test(`edits, persists and clears workflow descriptions on ${viewport.name} @projects`, async ({
+    page,
+    context,
+    projects,
+    data,
+  }) => {
+    const closeMobileNavigation = async () => {
+      if (viewport.name === 'mobile') {
+        await page.getByTitle('Collapse Sidebar', { exact: true }).click();
+      }
+    };
+    await page.setViewportSize(viewport);
+    await projects.goto();
+    await closeMobileNavigation();
+    await projects.create(data.project);
+    const projectId = new URL(page.url()).pathname.split('/').pop();
+    const listing = await authenticatedApi(
+      page,
+      `/api/store/workflows?projectId=${projectId}`,
+    );
+    expect(listing.status).toBe(200);
+    const original = listing.payload.workflows[0];
+    const other = await authenticatedApi(page, '/api/store/workflows', {
+      method: 'POST',
+      body: {
+        projectId,
+        title: 'Other workflow',
+        description: 'Keep this description',
+        nodes: [],
+        connections: [],
+      },
+    });
+    expect(other.status).toBe(201);
+    expect(other.payload.workflow.description).toBe('Keep this description');
+    await page.reload();
+    await closeMobileNavigation();
+
+    await projects.editWorkflow(data.project);
+    const dialog = projects.editWorkflowDialog;
+    const description = dialog.getByRole('textbox', {
+      name: 'Description (optional)',
+    });
+    const save = dialog.getByRole('button', {
+      name: 'Save changes',
+      exact: true,
+    });
+    await expect(description).toHaveValue('');
+    await description.fill('Discard this draft');
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await projects.editWorkflow(data.project);
+    await expect(description).toHaveValue('');
+
+    const savedDescription =
+      'Checks synced records against the source.\nReports missing records and field differences.';
+    await description.fill(savedDescription);
+    await context.setOffline(true);
+    try {
+      await save.click();
+      await expect(dialog.getByRole('alert')).toContainText(
+        'Could not save workflow details',
+      );
+      await expect(description).toHaveValue(savedDescription);
+    } finally {
+      await context.setOffline(false);
+    }
+    await page.screenshot({
+      animations: 'disabled',
+      path: `test-results/workflow-description-${viewport.name}-dialog.png`,
+    });
+    await save.click();
+    await expect(dialog).toBeHidden();
+    await expect(projects.workflow(data.project)).toContainText(
+      savedDescription,
+    );
+    await page.reload();
+    await closeMobileNavigation();
+    await expect(projects.workflow(data.project)).toContainText(
+      savedDescription,
+    );
+    await expect(projects.workflow('Other workflow')).toContainText(
+      'Keep this description',
+    );
+    const persisted = await authenticatedApi(
+      page,
+      `/api/store/workflows/${original.id}`,
+    );
+    expect(persisted.payload.workflow).toMatchObject({
+      title: original.title,
+      description: savedDescription,
+      nodes: original.nodes,
+      connections: original.connections,
+      cloudProvider: original.cloudProvider,
+      concurrency: original.concurrency,
+    });
+    await page.screenshot({
+      animations: 'disabled',
+      path: `test-results/workflow-description-${viewport.name}-cards.png`,
+    });
+
+    // Existing editor saves omit description; they must preserve it.
+    const renamed = await authenticatedApi(
+      page,
+      `/api/store/workflows/${original.id}`,
+      {
+        method: 'PUT',
+        body: { title: data.workflow },
+      },
+    );
+    expect(renamed.status).toBe(200);
+    expect(renamed.payload.workflow.description).toBe(savedDescription);
+    await page.reload();
+    await closeMobileNavigation();
+    await projects.editWorkflow(data.workflow);
+    await expect(description).toHaveValue(savedDescription);
+    await description.fill('   ');
+    await save.click();
+    await expect(dialog).toBeHidden();
+    await page.reload();
+    await closeMobileNavigation();
+    await expect(projects.workflow(data.workflow)).toContainText(
+      'Design and configure your automated CI/CD and testing pipelines.',
+    );
+    const cleared = await authenticatedApi(
+      page,
+      `/api/store/workflows/${original.id}`,
+    );
+    expect(cleared.payload.workflow.description).toBeNull();
+    await projects.editWorkflow(data.workflow);
+    await expect(description).toHaveValue('');
+  });
+}
