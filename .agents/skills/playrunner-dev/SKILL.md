@@ -19,6 +19,26 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 - Do not duplicate local-runner and cloud-runner protocol code. When local and GCP share behaviour such as Pub/Sub event transport, runner control/status signalling, node state transitions, or output-event publication, implement the shared protocol once and vary only the environment/configuration needed by each runtime.
 - Do not send runner messages through API event callbacks. Logs, node state, runner control/status, and output events must go through the runner's messaging transport: local development defaults to the Pub/Sub emulator, GCP uses GCP Pub/Sub, and future AWS/Azure runners should use their provider-native messaging.
 
+## Playrunner change ownership and OzeIT publishing
+
+- For every Playrunner change request, work in the Playrunner project folder,
+  `/Users/anthonybarry/repos/pr/playrunner`, and commit the changes to the
+  `playrunner/playrunner` repository. This applies even when the request originates
+  in a Bunker or deployment chat.
+- Publish OzeIT changes through `OzeIT-Dev/playrunner-deploy` at
+  `/Users/anthonybarry/repos/ozeai/playrunner-deploy`. Once the upstream commit is
+  pushed within the authorized release scope, pull it into that repository with
+  `scripts/sync-upstream.sh`, review and verify the imported revision, and publish
+  from the deployment repository.
+- Never hand-edit `playrunner-deploy` or its `vendor/playrunner` subtree to
+  implement a Playrunner change. Changes enter that repository through the
+  supported upstream sync; the resulting import commit is part of publishing.
+- Do not publish OzeIT Playrunner changes from the Bunker repository or
+  `playrunner-cloud`. Verify the deployed revision and live behavior at
+  `https://playrunner.easytest.lat` before reporting the change as published.
+- This routing rule does not itself authorize a push or deployment; retain the
+  explicit deployment-approval requirements above.
+
 ## Issue Tracking
 
 - For work about this repository, interpret an unqualified request to create an issue, feature request, task, or backlog item as a request for a GitHub issue in the repository identified by the local `origin` remote. For this checkout, that is `playrunner/playrunner`.
