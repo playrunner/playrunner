@@ -46,11 +46,23 @@ Click any node while it's running (or after) to open the **log panel** and see t
 ### Follow progress in Live executions
 
 Open **Live executions** from the sidebar to follow active workflows and recent
-runs. Each workflow node starts collapsed. Use its expand arrow to reveal child
-processes such as discovery, numbered shards, and report aggregation. Collapse
-the node again to hide those details.
+runs. Each execution card starts expanded. Use the arrow beside its title to
+collapse that card independently of other runs.
 
-The parent row keeps its combined test progress visible while collapsed:
+A collapsed card shows the workflow title, project when available, runner
+provider, elapsed time, start time, and overall status. Each workflow node has
+an icon with a status indicator that continues updating while the card is
+collapsed. Hover over an icon to read the node's name and status; these labels
+are also available to screen readers.
+
+Expand the card again to see node progress, runner resources when available,
+the execution ID, and workflow or report links. Inside an expanded card, each
+workflow node initially hides its child processes. Use the node's own arrow to
+reveal discovery, numbered shards, and report aggregation, or collapse the node
+again to hide those details.
+
+The parent row keeps its combined test progress visible while its child
+processes are hidden and the execution card is expanded:
 completed and total tests, percentage, remaining tests, and passed, failed,
 skipped, and running counts. Shard counts are added together; discovery and
 aggregation do not count the same tests again. For example, shards reporting
@@ -58,9 +70,15 @@ aggregation do not count the same tests again. For example, shards reporting
 
 A running node without test counts shows an activity bar until progress is
 available. Expanded child rows retain their own status, progress, runner
-resources when available, and report links. Your expand/collapse choices stay
-in place during live updates and reconnections; reloading the page resets them.
+resources when available, and report links. Card and child-process
+expand/collapse choices stay in place during live updates and reconnections,
+including when a run completes. Expanding a card restores its child-process
+choices; reloading the page resets both levels.
+
 During a connection interruption, running progress is marked **Last reported**.
+Collapsed cards replace running indicators with a warning icon labelled
+**Last reported running**. Runs with no recent activity show **Status
+unconfirmed**; expand the card for the last-update details.
 
 ---
 

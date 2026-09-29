@@ -145,10 +145,11 @@ maximum, restructure the suite, or add capacity.
 
 ### Follow shard progress
 
-In **Live executions**, expand the Playwright node to see discovery, numbered
-shards, and aggregation underneath it. The parent row displays combined shard
-progress even while collapsed, so you can track the suite without keeping all
-child processes open. See [Run Your First Test](../tutorials/04-run-your-first-test.md#follow-progress-in-live-executions)
+In **Live executions**, expand the execution card, then expand the Playwright
+node to see discovery, numbered shards, and aggregation underneath it. The
+parent row displays combined shard progress while its child processes are
+hidden. Collapse the whole card to show a compact run summary with workflow
+node icons and live status indicators. See [Run Your First Test](../tutorials/04-run-your-first-test.md#follow-progress-in-live-executions)
 for the progress counts and reconnect behavior.
 
 ## Execution and merging
