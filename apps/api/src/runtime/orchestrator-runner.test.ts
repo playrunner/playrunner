@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import crypto from 'node:crypto';
 import { ORCHESTRATOR_PORT } from '../config';
 import {
   createLocalOrchestratorDockerArgs,
@@ -7,9 +8,29 @@ import {
   isExpectedLocalOrchestrator,
   isExpectedLocalOrchestratorRunning,
   LOCAL_ORCHESTRATOR_AUTH_HEADER,
+  resolveLocalOrchestratorAuthToken,
 } from './orchestrator-runner';
 
 const originalFetch = globalThis.fetch;
+
+test('retains a configured handshake across process initializations and rejects weak values without revealing them', () => {
+  const configured = crypto.randomBytes(32).toString('base64url');
+  assert.equal(resolveLocalOrchestratorAuthToken(configured), configured);
+  assert.equal(
+    resolveLocalOrchestratorAuthToken(configured),
+    resolveLocalOrchestratorAuthToken(configured),
+  );
+  assert.notEqual(
+    resolveLocalOrchestratorAuthToken(),
+    resolveLocalOrchestratorAuthToken(),
+  );
+  const invalid = crypto.randomBytes(8).toString('base64url');
+  assert.throws(
+    () => resolveLocalOrchestratorAuthToken(invalid),
+    (error: Error) => !error.message.includes(invalid),
+  );
+  assert.throws(() => resolveLocalOrchestratorAuthToken(''));
+});
 
 test('binds the privileged local orchestrator to loopback with a secret-free argv', () => {
   const args = createLocalOrchestratorDockerArgs();

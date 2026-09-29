@@ -15,7 +15,20 @@ const LOCAL_ORCHESTRATOR_CONTAINER_NAME =
   process.env.ORCHESTRATOR_CONTAINER_NAME || 'playrunner-orchestrator-local';
 export const LOCAL_ORCHESTRATOR_AUTH_HEADER = 'x-playrunner-orchestrator-token';
 const LOCAL_ORCHESTRATOR_AUTH_ENV = 'PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN';
-const localOrchestratorAuthToken = crypto.randomBytes(32).toString('base64url');
+export function resolveLocalOrchestratorAuthToken(configured?: string): string {
+  if (configured === undefined)
+    return crypto.randomBytes(32).toString('base64url');
+  const token = configured.trim();
+  if (!/^[A-Za-z0-9_-]{43,}$/.test(token)) {
+    throw new Error(
+      'PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN must contain at least 43 base64url characters.',
+    );
+  }
+  return token;
+}
+const localOrchestratorAuthToken = resolveLocalOrchestratorAuthToken(
+  process.env[LOCAL_ORCHESTRATOR_AUTH_ENV],
+);
 const WORKFLOW_EVENTS_TOPIC =
   process.env.GCP_PUBSUB_WORKFLOW_EVENTS_TOPIC || 'playrunner-workflow-events';
 
