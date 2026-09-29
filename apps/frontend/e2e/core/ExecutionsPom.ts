@@ -22,6 +22,14 @@ export class ExecutionsPom {
     });
   }
 
+  async toggleExecution(id: string, expanded: boolean) {
+    const toggle = this.execution(id).getByRole('button', {
+      name: /^(Expand|Collapse) execution /,
+    });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-expanded', String(expanded));
+  }
+
   async toggle(id: string, title: string, expanded: boolean) {
     await this.node(id, title)
       .getByRole('button', {

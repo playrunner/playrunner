@@ -9,7 +9,19 @@ import {
 } from '../components/RunnerResources';
 import type { RunnerResourceSnapshot } from '../../../runners/shared/runner-resources';
 import { Link } from 'react-router-dom';
-import { Activity, AlertCircle, ChevronRight, FileText } from 'lucide-react';
+import {
+  Activity,
+  AlertCircle,
+  Ban,
+  CheckCircle2,
+  ChevronRight,
+  CircleDashed,
+  Clock,
+  FileText,
+  LoaderCircle,
+  SkipForward,
+  XCircle,
+} from 'lucide-react';
 import { Badge, Button, Select } from '../components/ui';
 import { auth } from '../lib/auth';
 import { openAuthenticatedOutput } from '../lib/output-links';
@@ -44,6 +56,9 @@ const variant = (status: string) =>
       : 'outline';
 
 export default function Executions() {
+  const [collapsedExecutions, setCollapsedExecutions] = useState<Set<string>>(
+    new Set(),
+  );
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [executions, setExecutions] = useState<Execution[]>([]);
   const [resources, setResources] = useState<RunnerResourceSnapshot | null>(
@@ -230,6 +245,8 @@ export default function Executions() {
     };
   }, [recentPage, pageSize]);
   const renderExecution = (execution: Execution) => {
+    const collapsed = collapsedExecutions.has(execution.id);
+    const detailsId = `execution-${execution.id}-details`;
     const childrenByParent = new Map<string, Execution['nodes']>();
     const nodeIds = new Set(execution.nodes.map((node) => node.id));
     for (const node of execution.nodes) {
@@ -238,6 +255,9 @@ export default function Executions() {
       siblings.push(node);
       childrenByParent.set(node.parentNodeId, siblings);
     }
+    const rootNodes = execution.nodes.filter(
+      (node) => !node.parentNodeId || !nodeIds.has(node.parentNodeId),
+    );
     const renderNode = (node: Execution['nodes'][number]): ReactNode => {
       const children = childrenByParent.get(node.id) ?? [];
       const key = JSON.stringify([execution.id, node.id]);
@@ -337,39 +357,108 @@ export default function Executions() {
         aria-label={`Execution ${execution.id}`}
         className="bg-surface border border-subtle rounded-xl shadow-sm p-5 space-y-4"
       >
-        <div className="flex flex-wrap justify-between gap-3">
-          <div>
-            <h2 className="text-xl font-medium">{execution.title}</h2>
-            <p className="text-sm text-muted">
-              {execution.projectTitle && `${execution.projectTitle} · `}
-              {execution.cloudProvider} ·{' '}
-              {Math.max(
-                0,
-                Math.floor(
-                  ((execution.completedAt
-                    ? Date.parse(execution.completedAt)
-                    : execution.activityStale
-                      ? Date.parse(execution.lastActivityAt)
-                      : now) -
-                    Date.parse(execution.startedAt)) /
-                    1000,
-                ),
-              )}
-              {execution.activityStale ? 's until last update' : 's'} ·{' '}
-              {new Date(execution.startedAt).toLocaleString()}
-            </p>
-            <p className="font-mono text-xs text-muted mt-1">{execution.id}</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge
-              variant={
-                execution.activityStale ? 'outline' : variant(execution.status)
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 basis-full sm:basis-auto items-start gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              aria-label={`${collapsed ? 'Expand' : 'Collapse'} execution ${execution.title}`}
+              aria-expanded={!collapsed}
+              aria-controls={detailsId}
+              onClick={() =>
+                setCollapsedExecutions((current) => {
+                  const next = new Set(current);
+                  if (next.has(execution.id)) next.delete(execution.id);
+                  else next.add(execution.id);
+                  return next;
+                })
               }
             >
-              {execution.activityStale
-                ? 'Status unconfirmed'
-                : execution.status}
-            </Badge>
+              <ChevronRight
+                aria-hidden="true"
+                className={`h-4 w-4 transition-transform ${collapsed ? '' : 'rotate-90'}`}
+              />
+            </Button>
+            <div className="min-w-0 break-words">
+              <h2 className="text-xl font-medium">{execution.title}</h2>
+              <p className="text-sm text-muted">
+                {execution.projectTitle && `${execution.projectTitle} · `}
+                {execution.cloudProvider} ·{' '}
+                {Math.max(
+                  0,
+                  Math.floor(
+                    ((execution.completedAt
+                      ? Date.parse(execution.completedAt)
+                      : execution.activityStale
+                        ? Date.parse(execution.lastActivityAt)
+                        : now) -
+                      Date.parse(execution.startedAt)) /
+                      1000,
+                  ),
+                )}
+                {execution.activityStale ? 's until last update' : 's'} ·{' '}
+                {new Date(execution.startedAt).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <Badge
+            variant={
+              execution.activityStale ? 'outline' : variant(execution.status)
+            }
+          >
+            {execution.activityStale ? 'Status unconfirmed' : execution.status}
+          </Badge>
+        </div>
+        {collapsed && rootNodes.length > 0 && (
+          <ul aria-label="Node status summary" className="flex flex-wrap gap-3">
+            {rootNodes.map((node) => {
+              const stale =
+                node.status === 'running' &&
+                (execution.activityStale || connection !== 'Live');
+              const status = stale ? 'Last reported running' : node.status;
+              const StatusIcon = stale
+                ? AlertCircle
+                : node.status === 'running'
+                  ? LoaderCircle
+                  : ['succeeded', 'completed'].includes(node.status)
+                    ? CheckCircle2
+                    : node.status === 'failed'
+                      ? XCircle
+                      : node.status === 'cancelled'
+                        ? Ban
+                        : node.status === 'skipped'
+                          ? SkipForward
+                          : ['pending', 'queued'].includes(node.status)
+                            ? Clock
+                            : CircleDashed;
+              return (
+                <li
+                  key={node.id}
+                  aria-label={`${node.title}: ${status}`}
+                  title={`${node.title}: ${status}`}
+                  tabIndex={0}
+                  className="relative flex h-11 w-11 items-center justify-center rounded-lg border border-subtle bg-background focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--border-strong)]"
+                >
+                  <NodeTypeIcon type={node.type} />
+                  <StatusIcon
+                    aria-hidden="true"
+                    className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background ${stale ? 'text-muted' : node.status === 'failed' ? 'text-red-500' : ['succeeded', 'completed'].includes(node.status) ? 'text-emerald-500' : node.status === 'running' ? 'text-[var(--accent)] motion-safe:animate-spin' : 'text-muted'}`}
+                  />
+                  <span className="sr-only">{`${node.title}: ${status}`}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {!execution.nodes.length && (
+          <p className="text-sm text-muted">Waiting for node events.</p>
+        )}
+        <div id={detailsId} hidden={collapsed} className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="font-mono text-xs text-muted break-all">
+              {execution.id}
+            </p>
             {execution.testPlanReportUrl && (
               <Link
                 className="text-sm underline"
@@ -387,25 +476,16 @@ export default function Executions() {
               </Link>
             )}
           </div>
+          {execution.activityStale && (
+            <p className="flex items-start gap-2 text-sm text-muted">
+              <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+              No recent updates—status unconfirmed. No events received since{' '}
+              {new Date(execution.lastActivityAt).toLocaleString()}. Last
+              reported as running; the current status is unconfirmed.
+            </p>
+          )}
+          <ul className="space-y-2">{rootNodes.map(renderNode)}</ul>
         </div>
-        {execution.activityStale && (
-          <p className="flex items-start gap-2 text-sm text-muted">
-            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-            No recent updates—status unconfirmed. No events received since{' '}
-            {new Date(execution.lastActivityAt).toLocaleString()}. Last reported
-            as running; the current status is unconfirmed.
-          </p>
-        )}
-        {!execution.nodes.length && (
-          <p className="text-sm text-muted">Waiting for node events.</p>
-        )}
-        <ul className="space-y-2">
-          {execution.nodes
-            .filter(
-              (node) => !node.parentNodeId || !nodeIds.has(node.parentNodeId),
-            )
-            .map(renderNode)}
-        </ul>
       </section>
     );
   };
