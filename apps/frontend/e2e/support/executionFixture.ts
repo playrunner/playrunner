@@ -47,6 +47,33 @@ export async function executionFixture(userId: string) {
     );
     await pool.end();
   };
+  const quiet = async () => {
+    await pool.query(
+      'UPDATE playrunner_e2e."WorkflowExecution" SET "startedAt" = NOW() - INTERVAL \'10 minutes\' WHERE id = $1',
+      [id],
+    );
+    await pool.query(
+      'UPDATE playrunner_e2e."WorkflowEvent" SET "createdAt" = NOW() - INTERVAL \'6 minutes\', "occurredAt" = NOW() - INTERVAL \'6 minutes\' WHERE "executionId" = $1',
+      [id],
+    );
+  };
+  const complete = async () => {
+    for (const nodeId of [
+      'setup',
+      'shard-one',
+      'shard-two',
+      'aggregate',
+      'fixtures',
+    ])
+      await event(nodeId, 'node_completed', {});
+    await progress('shard-one', 236, 236);
+    await progress('shard-two', 226, 226);
+    await event(null, 'workflow_completed', {});
+    await pool.query(
+      'UPDATE playrunner_e2e."WorkflowExecution" SET status = \'completed\', "completedAt" = NOW() WHERE id = $1',
+      [id],
+    );
+  };
   try {
     await pool.query(
       'INSERT INTO playrunner_e2e."WorkflowExecution" (id, "userId", "cloudProvider", "ingestTokenHash", "updatedAt") VALUES ($1, $2, $3, $4, NOW())',
@@ -85,7 +112,7 @@ export async function executionFixture(userId: string) {
     }
     await progress('shard-one', 236, 53);
     await progress('shard-two', 226, 47);
-    return { id, progress, dispose };
+    return { id, progress, quiet, complete, dispose };
   } catch (error) {
     await dispose();
     throw error;

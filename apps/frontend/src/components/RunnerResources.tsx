@@ -1,4 +1,5 @@
-import { Cpu, MemoryStick, Server, Info } from 'lucide-react';
+import React from 'react';
+import { Cpu, MemoryStick, Server, Info, AlertCircle } from 'lucide-react';
 import type {
   RunnerResource,
   RunnerResourceSnapshot,
@@ -6,6 +7,58 @@ import type {
 
 const gib = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(2)} GiB`;
 const cores = (value: number) => value.toFixed(1);
+export function HostLoad({
+  snapshot,
+  live,
+  now,
+}: {
+  snapshot: RunnerResourceSnapshot | null;
+  live: boolean;
+  now: number;
+}): React.ReactNode {
+  const host = snapshot?.host;
+  const fresh =
+    live && snapshot && now - Date.parse(snapshot.sampledAt) < 15000;
+  if (!host || !fresh)
+    return (
+      <p className="flex items-start gap-2 text-sm text-muted">
+        <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
+        Server host load unavailable. Runner usage does not measure overall host
+        load.
+      </p>
+    );
+  const elevated = host.loadAverage[0] > host.cpus;
+  return (
+    <section
+      aria-label="Server host health"
+      className="rounded-xl border border-subtle bg-surface p-4 space-y-2"
+    >
+      <p className="flex items-center gap-2 text-sm font-medium">
+        {elevated ? (
+          <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        ) : (
+          <Server className="h-4 w-4" aria-hidden="true" />
+        )}
+        {elevated ? 'Elevated server host load' : 'Server host load'}
+      </p>
+      <p className="text-sm tabular-nums">
+        {host.loadAverage.map((value) => value.toFixed(2)).join(' / ')} load ·{' '}
+        {host.cpus} logical CPUs
+      </p>
+      <p className="text-xs text-muted">
+        API server host, averages over 1 / 5 / 15 minutes. Includes other
+        services on that host; Docker may run on a different host.
+      </p>
+      {elevated && (
+        <p role="status" className="text-sm text-muted">
+          Work is queuing or waiting on the host and may slow runs. This sample
+          does not identify the responsible process or establish an external
+          service failure.
+        </p>
+      )}
+    </section>
+  );
+}
 function totals(runners: RunnerResource[]) {
   return {
     cpu: runners.reduce((sum, runner) => sum + runner.cpuPercent / 100, 0),

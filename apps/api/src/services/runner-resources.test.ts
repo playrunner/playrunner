@@ -36,6 +36,22 @@ test('Docker unavailable is unknown rather than zero usage', async () => {
   assert.equal(result.available, false);
   assert.equal(result.capacity, null);
 });
+test('host load is separate from Docker capacity and survives Docker sampling failure', async () => {
+  const host = {
+    source: 'api-server' as const,
+    cpus: 8,
+    loadAverage: [65, 32, 12] as [number, number, number],
+  };
+  const result = await sampleRunnerResources(
+    async () => {
+      throw new Error('Docker stalled');
+    },
+    () => host,
+  );
+  assert.equal(result.available, false);
+  assert.equal(result.capacity, null);
+  assert.deepEqual(result.host, host);
+});
 test('empty runner inventory still reports Docker capacity', async () => {
   const result = await sampleRunnerResources(async (args) =>
     args[0] === 'ps' ? '' : '8\t8000000000',

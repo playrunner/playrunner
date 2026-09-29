@@ -10,6 +10,7 @@ export const executionsRouter = Router();
 
 // Complete, authorized snapshots make initial load and reconnection identical.
 executionsRouter.get('/live', requireAuth, async (req, res) => {
+  res.setHeader('Cache-Control', 'private, no-store');
   try {
     const executions = await listDashboardExecutions(
       req.authUser!.providerUserId,

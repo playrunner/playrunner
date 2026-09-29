@@ -27,7 +27,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:session-renewal": "node --import tsx --test tests/authentication-renewal.test.ts"
+    "test:session-renewal": "node --import tsx --test tests/authentication-renewal.test.ts",
+    "test:host-load": "tsx --tsconfig tests/tsconfig.json --test tests/host-load.test.ts"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

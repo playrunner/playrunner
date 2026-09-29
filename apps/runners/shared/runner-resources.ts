@@ -13,4 +13,9 @@ export type RunnerResourceSnapshot = {
   sampledAt: string;
   capacity: { cpus: number; memoryBytes: number } | null;
   runners: RunnerResource[];
+  host?: {
+    source: 'api-server';
+    cpus: number;
+    loadAverage: [number, number, number];
+  } | null;
 };

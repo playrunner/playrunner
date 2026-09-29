@@ -7,6 +7,33 @@ import {
 } from '../../shared/test-progress';
 import type { TestCase, TestResult, Suite } from '@playwright/test/reporter';
 
+test('quiet tests publish liveness without fabricating progress and stop after completion', (context) => {
+  context.mock.timers.enable({ apis: ['setInterval'] });
+  const snapshots: TestProgress[] = [];
+  const reporter = new ProgressReporter({
+    emit: (value) => snapshots.push(value),
+  });
+  const a = { id: 'quiet', expectedStatus: 'passed', retries: 0 } as TestCase;
+  reporter.onBegin({}, { allTests: () => [a] } as Suite);
+  reporter.onTestBegin(a);
+  const before = snapshots.length;
+  context.mock.timers.tick(6 * 60_000);
+  assert.equal(snapshots.length, before + 24);
+  assert.deepEqual(snapshots.at(-1), {
+    total: 1,
+    completed: 0,
+    running: 1,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+  });
+  reporter.onTestEnd(a, { status: 'passed', retry: 0 } as TestResult);
+  reporter.onEnd();
+  const ended = snapshots.length;
+  context.mock.timers.tick(30_000);
+  assert.equal(snapshots.length, ended);
+});
+
 test('counts final results once across retries, expected failures and skips', () => {
   const snapshots: TestProgress[] = [];
   const reporter = new ProgressReporter({

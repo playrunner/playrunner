@@ -1,8 +1,27 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import os from 'node:os';
 import type { RunnerResourceSnapshot } from '../../../runners/shared/runner-resources';
 
 const execFileAsync = promisify(execFile);
+export function sampleHostLoad(): RunnerResourceSnapshot['host'] {
+  // The API host and a remote Docker daemon can be different machines. Never
+  // label this as Docker capacity or attribute its load to a runner/provider.
+  if (os.platform() === 'win32') return null;
+  const load = os.loadavg();
+  const cpus = os.cpus().length;
+  if (
+    !cpus ||
+    load.length !== 3 ||
+    load.some((value) => !Number.isFinite(value) || value < 0)
+  )
+    return null;
+  return {
+    source: 'api-server',
+    cpus,
+    loadAverage: [load[0], load[1], load[2]],
+  };
+}
 type DockerCommand = (args: string[]) => Promise<string>;
 const docker: DockerCommand = async (args) => {
   const result = await execFileAsync('docker', args, {
@@ -30,7 +49,9 @@ function number(value: unknown): number {
 
 export async function sampleRunnerResources(
   command: DockerCommand = docker,
+  readHost: typeof sampleHostLoad = sampleHostLoad,
 ): Promise<RunnerResourceSnapshot> {
+  const host = readHost();
   try {
     const [inventory, rawCapacity] = await Promise.all([
       command([
@@ -61,6 +82,7 @@ export async function sampleRunnerResources(
         sampledAt: new Date().toISOString(),
         capacity,
         runners: [],
+        host,
       };
     const ids = containers.map((container) => container.id);
     const [rawStats, rawLimits] = await Promise.all([
@@ -104,6 +126,7 @@ export async function sampleRunnerResources(
       sampledAt: new Date().toISOString(),
       capacity,
       runners,
+      host,
     };
   } catch {
     return {
@@ -112,6 +135,7 @@ export async function sampleRunnerResources(
       sampledAt: new Date().toISOString(),
       capacity: null,
       runners: [],
+      host,
     };
   }
 }
@@ -130,9 +154,20 @@ export async function getRunnerResources(executionIds: Set<string>) {
       .finally(() => {
         pending = undefined;
       });
-    await pending;
+    // Slow Docker stats must not hold execution status updates behind them.
+    // Keep the last timestamp so the UI labels an old sample unavailable.
   }
-  return filterRunnerResources(last!, executionIds);
+  return filterRunnerResources(
+    last ?? {
+      source: 'local-docker',
+      available: false,
+      sampledAt: new Date(0).toISOString(),
+      capacity: null,
+      runners: [],
+      host: null,
+    },
+    executionIds,
+  );
 }
 
 export function filterRunnerResources(

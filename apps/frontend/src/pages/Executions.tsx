@@ -2,7 +2,11 @@ import { TestProgressBar } from '../components/TestProgressBar';
 import type { TestProgress } from '../../../runners/shared/test-progress';
 import { useEffect, useState, type ReactNode } from 'react';
 import { NodeTypeIcon } from '../components/NodeTypeIcon';
-import { RunnerResources, NodeResources } from '../components/RunnerResources';
+import {
+  RunnerResources,
+  NodeResources,
+  HostLoad,
+} from '../components/RunnerResources';
 import type { RunnerResourceSnapshot } from '../../../runners/shared/runner-resources';
 import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, ChevronRight, FileText } from 'lucide-react';
@@ -53,7 +57,42 @@ export default function Executions() {
     let stream: EventSource | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let lastMessage = Date.now();
+    let refreshing = false;
+    let snapshotVersion = 0;
+    let connectionVersion = 0;
+    const refreshSnapshot = async () => {
+      if (closed || refreshing || !navigator.onLine) return;
+      refreshing = true;
+      const version = snapshotVersion;
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        if (!token || closed) return;
+        const response = await fetch('/api/executions/live', {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) return;
+        const snapshot = await response.json();
+        // An event received during this request is newer than this snapshot.
+        if (
+          closed ||
+          version !== snapshotVersion ||
+          !Array.isArray(snapshot.executions)
+        )
+          return;
+        setExecutions(snapshot.executions);
+        setResources(snapshot.resources ?? null);
+        snapshotVersion++;
+      } catch {
+        /* The stream watchdog continues reconnecting independently. */
+      } finally {
+        refreshing = false;
+      }
+    };
     const connect = async () => {
+      const version = ++connectionVersion;
+      clearTimeout(retry);
       stream?.close();
       if (!navigator.onLine) {
         reconnect();
@@ -64,6 +103,8 @@ export default function Executions() {
         if (!token) throw new Error('Sign in to view executions.');
         const response = await fetch('/api/executions/live', {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+          signal: AbortSignal.timeout(10000),
         });
         if (!response.ok)
           throw new Error(
@@ -72,20 +113,23 @@ export default function Executions() {
               : 'Execution service unavailable. Retrying automatically.',
           );
         const snapshot = await response.json();
-        if (closed) return;
+        if (closed || version !== connectionVersion) return;
         setExecutions(snapshot.executions);
         setResources(snapshot.resources ?? null);
+        snapshotVersion++;
+        lastMessage = Date.now();
         stream = new EventSource(
           `/api/executions/live/stream?token=${encodeURIComponent(token)}`,
         );
         stream.onmessage = (event) => {
-          if (closed) return;
+          if (closed || version !== connectionVersion) return;
           try {
             const data = JSON.parse(event.data);
             if (!Array.isArray(data.executions))
               throw new Error('Invalid execution snapshot.');
             setExecutions(data.executions);
             setResources(data.resources ?? null);
+            snapshotVersion++;
             setConnection('Live');
             setError('');
             lastMessage = Date.now();
@@ -93,9 +137,11 @@ export default function Executions() {
             reconnect();
           }
         };
-        stream.onerror = reconnect;
+        stream.onerror = () => {
+          if (version === connectionVersion) reconnect();
+        };
       } catch (cause) {
-        if (closed) return;
+        if (closed || version !== connectionVersion) return;
         setError(
           cause instanceof Error
             ? cause.message
@@ -106,6 +152,7 @@ export default function Executions() {
     };
     const reconnect = () => {
       if (closed) return;
+      connectionVersion++;
       stream?.close();
       setConnection('Reconnecting');
       clearTimeout(retry);
@@ -128,14 +175,29 @@ export default function Executions() {
       clearTimeout(retry);
       void connect();
     };
+    const visible = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshSnapshot();
+        online();
+      }
+    };
+    // Reconcile even if a proxy leaves an apparently open but stale stream.
+    const snapshotTimer = setInterval(() => {
+      void refreshSnapshot();
+    }, 10000);
     window.addEventListener('offline', offline);
     window.addEventListener('online', online);
+    window.addEventListener('focus', visible);
+    document.addEventListener('visibilitychange', visible);
     void connect();
     return () => {
       window.removeEventListener('offline', offline);
       window.removeEventListener('online', online);
+      window.removeEventListener('focus', visible);
+      document.removeEventListener('visibilitychange', visible);
       closed = true;
       clearInterval(timer);
+      clearInterval(snapshotTimer);
       clearTimeout(retry);
       stream?.close();
     };
@@ -302,7 +364,7 @@ export default function Executions() {
         {execution.activityStale && (
           <p className="flex items-start gap-2 text-sm text-muted">
             <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
-            No events received since{' '}
+            No recent updates—status unconfirmed. No events received since{' '}
             {new Date(execution.lastActivityAt).toLocaleString()}. Last reported
             as running; the current status is unconfirmed.
           </p>
@@ -320,11 +382,8 @@ export default function Executions() {
       </section>
     );
   };
-  const active = executions.filter(
-    (e) => e.status === 'running' && !e.activityStale,
-  );
+  const active = executions.filter((e) => e.status === 'running');
   const recent = executions.filter((e) => e.status !== 'running');
-  const unconfirmed = executions.filter((e) => e.activityStale);
 
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-8 w-full space-y-6">
@@ -334,8 +393,8 @@ export default function Executions() {
             Live executions
           </h1>
           <p className="text-sm text-muted leading-relaxed mt-2">
-            Active workflows and the latest 30 finished runs. Older runs with no
-            recent updates are listed separately.
+            All unfinished workflows and the latest 30 finished runs. Runs stay
+            visible until a final outcome is confirmed.
           </p>
         </div>
         <Badge variant={connection === 'Live' ? 'success' : 'outline'}>
@@ -362,30 +421,18 @@ export default function Executions() {
         live={connection === 'Live'}
         now={now}
       />
+      <HostLoad snapshot={resources} live={connection === 'Live'} now={now} />
       {active.length > 0 && (
-        <div className="space-y-4">
+        <section aria-label="Active runs" className="space-y-4">
           <h2 className="text-xl font-medium">Active runs</h2>
           {active.map(renderExecution)}
-        </div>
+        </section>
       )}
       {recent.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-medium">Recent runs</h2>
           {recent.map(renderExecution)}
         </div>
-      )}
-      {unconfirmed.length > 0 && (
-        <details className="space-y-4">
-          <summary className="cursor-pointer text-sm text-muted">
-            No recent updates ({unconfirmed.length} executions)
-          </summary>
-          <p className="text-sm text-muted">
-            These executions have not sent an event for over five minutes. Their
-            last reported states are shown below; silence does not confirm that
-            a run has stopped or failed.
-          </p>
-          {unconfirmed.map(renderExecution)}
-        </details>
       )}
     </div>
   );

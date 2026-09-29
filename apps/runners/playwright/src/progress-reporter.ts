@@ -12,12 +12,17 @@ export default class ProgressReporter implements Reporter {
   private total = 0;
   private completed = new Map<string, 'passed' | 'failed' | 'skipped'>();
   private running = new Set<string>();
+  private heartbeat?: ReturnType<typeof setInterval>;
   constructor(
     private options: { emit?: (progress: TestProgress) => void } = {},
   ) {}
   onBegin(_config: unknown, suite: Suite) {
     this.total = suite.allTests().length;
     this.publish();
+    // A quiet, long test is still alive. Publish through the same runner pipe,
+    // without inventing completed tests or relying on customer console output.
+    this.heartbeat = setInterval(() => this.publish(), 15000);
+    this.heartbeat.unref();
   }
   onTestBegin(test: TestCase) {
     this.completed.delete(test.id);
@@ -34,6 +39,7 @@ export default class ProgressReporter implements Reporter {
     this.publish();
   }
   onEnd() {
+    clearInterval(this.heartbeat);
     this.publish();
   }
   private publish() {
