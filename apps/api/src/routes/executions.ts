@@ -8,17 +8,36 @@ import { state } from '../state';
 
 export const executionsRouter = Router();
 
+function recentPagination(query: Record<string, unknown>) {
+  const requestedPage = typeof query.page === 'string' ? Number(query.page) : 1;
+  const page =
+    Number.isSafeInteger(requestedPage) &&
+    requestedPage > 0 &&
+    requestedPage <= 1_000_000
+      ? requestedPage
+      : 1;
+  const requestedSize =
+    typeof query.pageSize === 'string' ? Number(query.pageSize) : 10;
+  return {
+    page,
+    pageSize: [10, 25, 50].includes(requestedSize) ? requestedSize : 10,
+  };
+}
+
 // Complete, authorized snapshots make initial load and reconnection identical.
 executionsRouter.get('/live', requireAuth, async (req, res) => {
   res.setHeader('Cache-Control', 'private, no-store');
   try {
-    const executions = await listDashboardExecutions(
+    const { page, pageSize } = recentPagination(req.query);
+    const { executions, recent } = await listDashboardExecutions(
       req.authUser!.providerUserId,
+      page,
+      pageSize,
     );
     const resources = await getRunnerResources(
       new Set(executions.map((execution) => execution.id)),
     );
-    res.json({ executions, resources });
+    res.json({ executions, resources, recent });
   } catch {
     res.status(503).json({ error: 'Execution service unavailable.' });
   }
@@ -36,14 +55,19 @@ executionsRouter.get('/live/stream', requireAuth, (req, res) => {
     polling = true;
     try {
       // Recheck team membership on every snapshot, including after access revocation.
-      const executions = await listDashboardExecutions(
+      const { page, pageSize } = recentPagination(req.query);
+      const { executions, recent } = await listDashboardExecutions(
         req.authUser!.providerUserId,
+        page,
+        pageSize,
       );
       const resources = await getRunnerResources(
         new Set(executions.map((execution) => execution.id)),
       );
       if (!closed)
-        res.write(`data: ${JSON.stringify({ executions, resources })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({ executions, resources, recent })}\n\n`,
+        );
     } catch {
       if (!closed) res.end();
     } finally {

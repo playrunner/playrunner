@@ -19,6 +19,7 @@ export async function executionFixture(userId: string) {
   url.searchParams.delete('schema');
   const pool = new Pool({ connectionString: url.toString() });
   const id = randomUUID();
+  const historyIds: string[] = [];
   const event = async (
     nodeId: string | null,
     type: string,
@@ -42,10 +43,26 @@ export async function executionFixture(userId: string) {
     });
   const dispose = async () => {
     await pool.query(
-      'DELETE FROM playrunner_e2e."WorkflowExecution" WHERE id = $1',
-      [id],
+      'DELETE FROM playrunner_e2e."WorkflowExecution" WHERE id = ANY($1::text[])',
+      [[id, ...historyIds]],
     );
     await pool.end();
+  };
+  const seedHistory = async (count: number) => {
+    const ids = Array.from({ length: count }, () => randomUUID());
+    historyIds.push(...ids);
+    await pool.query(
+      `
+      INSERT INTO playrunner_e2e."WorkflowExecution"
+        (id, "userId", "cloudProvider", "ingestTokenHash", status, "startedAt", "completedAt", "updatedAt")
+      SELECT id, $2, 'LOCAL_RUNNER', 'e2e-fixture-no-ingest-token',
+        CASE WHEN n % 3 = 0 THEN 'failed' WHEN n % 3 = 1 THEN 'completed' ELSE 'cancelled' END,
+        NOW() - n * INTERVAL '1 minute', NOW(), NOW()
+      FROM unnest($1::text[]) WITH ORDINALITY AS runs(id, n)
+    `,
+      [ids, userId],
+    );
+    return ids;
   };
   const quiet = async () => {
     await pool.query(
@@ -112,7 +129,7 @@ export async function executionFixture(userId: string) {
     }
     await progress('shard-one', 236, 53);
     await progress('shard-two', 226, 47);
-    return { id, progress, quiet, complete, dispose };
+    return { id, progress, quiet, complete, seedHistory, dispose };
   } catch (error) {
     await dispose();
     throw error;

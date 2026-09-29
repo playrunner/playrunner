@@ -245,7 +245,11 @@ export function projectExecution(
   };
 }
 
-export async function listDashboardExecutions(userId: string) {
+export async function listDashboardExecutions(
+  userId: string,
+  page = 1,
+  pageSize = 10,
+) {
   const workflows = await prisma.workflow.findMany({
     where: accessibleWorkflowWhere(userId),
     select: { id: true, title: true, project: { select: { title: true } } },
@@ -282,7 +286,7 @@ export async function listDashboardExecutions(userId: string) {
     },
   };
   // Active runs are never pushed out of the window by recent completed runs.
-  const [active, recent, activity] = await prisma.$transaction(
+  const [active, recent, activity, total] = await prisma.$transaction(
     [
       prisma.workflowExecution.findMany({
         where: { ...access, status: 'running' },
@@ -292,13 +296,17 @@ export async function listDashboardExecutions(userId: string) {
       prisma.workflowExecution.findMany({
         where: { ...access, status: { not: 'running' } },
         select,
-        orderBy: { startedAt: 'desc' },
-        take: 30,
+        orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
       prisma.workflowEvent.groupBy({
         by: ['executionId'],
         where: { execution: { ...access, status: 'running' } },
         _max: { createdAt: true },
+      }),
+      prisma.workflowExecution.count({
+        where: { ...access, status: { not: 'running' } },
       }),
     ],
     { isolationLevel: 'RepeatableRead' },
@@ -307,10 +315,13 @@ export async function listDashboardExecutions(userId: string) {
   const lastEventById = new Map(
     activity.map((event) => [event.executionId, event._max.createdAt]),
   );
-  return [...active, ...recent].map((e) =>
-    projectExecution(
-      { ...e, lastEventAt: lastEventById.get(e.id) },
-      byId.get(e.workflowId ?? ''),
+  return {
+    recent: { page, pageSize, total },
+    executions: [...active, ...recent].map((e) =>
+      projectExecution(
+        { ...e, lastEventAt: lastEventById.get(e.id) },
+        byId.get(e.workflowId ?? ''),
+      ),
     ),
-  );
+  };
 }

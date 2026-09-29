@@ -10,7 +10,7 @@ import {
 import type { RunnerResourceSnapshot } from '../../../runners/shared/runner-resources';
 import { Link } from 'react-router-dom';
 import { Activity, AlertCircle, ChevronRight, FileText } from 'lucide-react';
-import { Badge, Button } from '../components/ui';
+import { Badge, Button, Select } from '../components/ui';
 import { auth } from '../lib/auth';
 import { openAuthenticatedOutput } from '../lib/output-links';
 
@@ -52,8 +52,32 @@ export default function Executions() {
   const [connection, setConnection] = useState('Connecting');
   const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [recentPage, setRecentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [recentPagination, setRecentPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+  });
   useEffect(() => {
     let closed = false;
+    const query = new URLSearchParams({
+      page: String(recentPage),
+      pageSize: String(pageSize),
+    });
+    const applyPagination = (recent: {
+      page: number;
+      pageSize: number;
+      total: number;
+    }) => {
+      setRecentPagination(recent);
+      setRecentPage(
+        Math.min(
+          recent.page,
+          Math.max(1, Math.ceil(recent.total / recent.pageSize)),
+        ),
+      );
+    };
     let stream: EventSource | undefined;
     let retry: ReturnType<typeof setTimeout> | undefined;
     let lastMessage = Date.now();
@@ -67,7 +91,7 @@ export default function Executions() {
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token || closed) return;
-        const response = await fetch('/api/executions/live', {
+        const response = await fetch(`/api/executions/live?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
           signal: AbortSignal.timeout(10000),
@@ -82,6 +106,7 @@ export default function Executions() {
         )
           return;
         setExecutions(snapshot.executions);
+        applyPagination(snapshot.recent);
         setResources(snapshot.resources ?? null);
         snapshotVersion++;
       } catch {
@@ -101,7 +126,7 @@ export default function Executions() {
       try {
         const token = await auth.currentUser?.getIdToken();
         if (!token) throw new Error('Sign in to view executions.');
-        const response = await fetch('/api/executions/live', {
+        const response = await fetch(`/api/executions/live?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: 'no-store',
           signal: AbortSignal.timeout(10000),
@@ -115,11 +140,12 @@ export default function Executions() {
         const snapshot = await response.json();
         if (closed || version !== connectionVersion) return;
         setExecutions(snapshot.executions);
+        applyPagination(snapshot.recent);
         setResources(snapshot.resources ?? null);
         snapshotVersion++;
         lastMessage = Date.now();
         stream = new EventSource(
-          `/api/executions/live/stream?token=${encodeURIComponent(token)}`,
+          `/api/executions/live/stream?${query}&token=${encodeURIComponent(token)}`,
         );
         stream.onmessage = (event) => {
           if (closed || version !== connectionVersion) return;
@@ -128,6 +154,7 @@ export default function Executions() {
             if (!Array.isArray(data.executions))
               throw new Error('Invalid execution snapshot.');
             setExecutions(data.executions);
+            applyPagination(data.recent);
             setResources(data.resources ?? null);
             snapshotVersion++;
             setConnection('Live');
@@ -201,7 +228,7 @@ export default function Executions() {
       clearTimeout(retry);
       stream?.close();
     };
-  }, []);
+  }, [recentPage, pageSize]);
   const renderExecution = (execution: Execution) => {
     const childrenByParent = new Map<string, Execution['nodes']>();
     const nodeIds = new Set(execution.nodes.map((node) => node.id));
@@ -384,6 +411,10 @@ export default function Executions() {
   };
   const active = executions.filter((e) => e.status === 'running');
   const recent = executions.filter((e) => e.status !== 'running');
+  const recentPages = Math.max(1, Math.ceil(recentPagination.total / pageSize));
+  const changingPage =
+    recentPagination.page !== recentPage ||
+    recentPagination.pageSize !== pageSize;
 
   return (
     <div className="max-w-7xl mx-auto p-6 md:p-8 w-full space-y-6">
@@ -393,7 +424,7 @@ export default function Executions() {
             Live executions
           </h1>
           <p className="text-sm text-muted leading-relaxed mt-2">
-            All unfinished workflows and the latest 30 finished runs. Runs stay
+            All unfinished workflows and paginated recent runs. Runs stay
             visible until a final outcome is confirmed.
           </p>
         </div>
@@ -428,11 +459,61 @@ export default function Executions() {
           {active.map(renderExecution)}
         </section>
       )}
-      {recent.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-medium">Recent runs</h2>
-          {recent.map(renderExecution)}
-        </div>
+      {recentPagination.total > 0 && (
+        <section
+          aria-label="Recent runs"
+          className="space-y-4"
+          aria-busy={changingPage}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <h2 className="text-xl font-medium">Recent runs</h2>
+            <label className="flex items-center gap-2 whitespace-nowrap text-sm text-muted">
+              Runs per page
+              <Select
+                value={pageSize}
+                onChange={(event) => {
+                  setPageSize(Number(event.target.value));
+                  setRecentPage(1);
+                }}
+              >
+                {[10, 25, 50].map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+          <nav
+            aria-label="Recent runs pagination"
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
+            <p className="text-sm text-muted" aria-live="polite">
+              Page {recentPage} of {recentPages} · {recentPagination.total} runs
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                disabled={changingPage || recentPage <= 1}
+                onClick={() => setRecentPage((page) => page - 1)}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={changingPage || recentPage >= recentPages}
+                onClick={() => setRecentPage((page) => page + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </nav>
+          {changingPage ? (
+            <p className="text-sm text-muted">Loading recent runs…</p>
+          ) : (
+            recent.map(renderExecution)
+          )}
+        </section>
       )}
     </div>
   );
