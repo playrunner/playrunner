@@ -1,3 +1,4 @@
+import { ExecutionControls } from '../components/ExecutionControls';
 import { TestProgressBar } from '../components/TestProgressBar';
 import type { TestProgress } from '../../../runners/shared/test-progress';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -410,6 +411,15 @@ export default function Executions() {
             {execution.activityStale ? 'Status unconfirmed' : execution.status}
           </Badge>
         </div>
+        {execution.status === 'running' && (
+          <ExecutionControls
+            id={execution.id}
+            title={execution.title}
+            lastActivityAt={execution.lastActivityAt}
+            now={now}
+            local={execution.cloudProvider === 'LOCAL_RUNNER'}
+          />
+        )}
         {collapsed && rootNodes.length > 0 && (
           <ul aria-label="Node status summary" className="flex flex-wrap gap-3">
             {rootNodes.map((node) => {

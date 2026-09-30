@@ -1,3 +1,9 @@
+import { prisma } from '../lib/prisma';
+import { accessibleWorkflowWhere } from '../services/workflow-access';
+import {
+  inspectLocalExecution,
+  stopLocalExecution,
+} from '../services/execution-control';
 import { getWorkflowPlanReport } from '../services/workflow-test-plan';
 import { Router } from 'express';
 import { getRunnerResources } from '../services/runner-resources';
@@ -110,6 +116,92 @@ executionsRouter.get(
     }
   },
 );
+
+// Resolve authorization from durable records, including team membership. Never
+// use the browser's provider, node IDs, or an API process's in-memory run map.
+for (const action of ['check', 'stop'] as const) {
+  executionsRouter.post(
+    '/:executionId/' + action,
+    requireAuth,
+    async (req, res) => {
+      res.setHeader('Cache-Control', 'private, no-store');
+      try {
+        const userId = req.authUser!.providerUserId;
+        const execution = await prisma.workflowExecution.findFirst({
+          where: {
+            id: req.params.executionId,
+          },
+        });
+        const accessible =
+          execution &&
+          (execution.userId === userId ||
+            (execution.workflowId &&
+              (await prisma.workflow.findFirst({
+                where: {
+                  id: execution.workflowId,
+                  ...accessibleWorkflowWhere(userId),
+                },
+                select: { id: true },
+              }))));
+        if (!execution || !accessible)
+          return res
+            .status(404)
+            .json({ error: 'Workflow execution not found.' });
+        if (execution.status !== 'running')
+          return res.json({
+            state: 'finished',
+            status: execution.status,
+            checkedAt: new Date().toISOString(),
+          });
+        if (execution.cloudProvider !== 'LOCAL_RUNNER')
+          return res.status(409).json({
+            error:
+              'Live checks and stop controls are currently available for local runs only.',
+          });
+        const result =
+          action === 'stop'
+            ? await stopLocalExecution(execution.id)
+            : await inspectLocalExecution(execution.id);
+        if (action === 'stop' && result.state === 'inactive') {
+          // A stale run has no orchestrator work or containers left. Close it only
+          // on explicit stop, without overwriting a concurrently received outcome.
+          await prisma.$transaction(async (tx) => {
+            const updated = await tx.workflowExecution.updateMany({
+              where: { id: execution.id, status: 'running' },
+              data: { status: 'cancelled', completedAt: new Date() },
+            });
+            if (updated.count)
+              await tx.workflowEvent.create({
+                data: {
+                  executionId: execution.id,
+                  userId: execution.userId,
+                  workflowId: execution.workflowId,
+                  type: 'workflow_cancelled',
+                  payload: {
+                    type: 'workflow_cancelled',
+                    message: 'Stopped by user; no active local runners remain.',
+                  },
+                },
+              });
+          });
+          return res.json({
+            ...result,
+            state: 'finished',
+            status: await executionEvents.getExecutionStatus(execution.id),
+          });
+        }
+        return res.json(result);
+      } catch {
+        return res.status(503).json({
+          error:
+            action === 'stop'
+              ? 'Could not confirm the run has stopped. Check the local orchestrator and Docker, then retry. Check activity before retrying.'
+              : 'Could not check this run. Check the local orchestrator and Docker, then retry.',
+        });
+      }
+    },
+  );
+}
 
 function getStringHeader(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;

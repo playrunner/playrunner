@@ -4,7 +4,7 @@ export const TERMINAL_EVENT_MAX_PUBLISH_ATTEMPTS = 3;
 export const TERMINAL_EVENT_RETRY_BASE_DELAY_MS = 250;
 
 export type TerminalWorkflowEventPayload = Record<string, unknown> & {
-  type: 'workflow_completed' | 'workflow_failed';
+  type: 'workflow_completed' | 'workflow_failed' | 'workflow_cancelled';
 };
 
 export type TerminalWorkflowEventRetryOptions = {

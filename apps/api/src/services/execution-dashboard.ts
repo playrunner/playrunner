@@ -80,7 +80,8 @@ export function projectExecution(
   );
   for (const event of events) {
     const payload = record(event.payload);
-    if (event.type === 'workflow_failed') status = 'failed';
+    if (event.type === 'workflow_failed' && status !== 'cancelled')
+      status = 'failed';
     else if (event.type === 'workflow_cancelled' && status !== 'failed')
       status = 'cancelled';
     else if (event.type === 'workflow_completed' && status === 'running')
@@ -226,6 +227,11 @@ export function projectExecution(
       execution.lastEventAt?.getTime() ?? 0,
     ),
   );
+  if (status === 'cancelled') {
+    for (const node of orderedNodes) {
+      if (!terminal.has(node.status)) node.status = 'cancelled';
+    }
+  }
   return {
     id: execution.id,
     workflowId: execution.workflowId,

@@ -448,8 +448,9 @@ class ExecutionEventsService {
       type === 'workflow_failed' ||
       type === 'workflow_cancelled'
     ) {
-      await prisma.workflowExecution.update({
-        where: { id: execution.id },
+      await prisma.workflowExecution.updateMany({
+        // A delayed pre-stop event cannot reopen or replace a confirmed stop.
+        where: { id: execution.id, status: { not: 'cancelled' } },
         data: {
           status:
             type === 'workflow_failed'

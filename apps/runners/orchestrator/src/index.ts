@@ -1,4 +1,9 @@
 import { spawn } from 'child_process';
+import {
+  executionContainers,
+  stopExecutionContainer,
+} from '../../shared/local-execution-containers';
+import { ExecutionControl } from './runtime/execution-control';
 import crypto from 'crypto';
 import express from 'express';
 import { withRunnerProtocolSignature } from '../../shared/runner-protocol';
@@ -965,7 +970,52 @@ function createWorkflowEventPublisher(
   };
 }
 
+const activeWorkflowProviders = new Map<string, string>();
+export const executionControl = new ExecutionControl();
+
+export async function stopWorkflow(executionId: string) {
+  // Close the scheduling gate before touching any child processes.
+  executionControl.stop(executionId);
+  for (const active of packageExecutorRuntime.diagnostics().activeExecutions) {
+    if (active.executionId === executionId)
+      packageExecutorRuntime.cancel(active);
+  }
+  const cancellation = await cancelPreparedRunnerMatches(
+    [...activePreparedRunners.values()].filter(
+      (active) => active.executionId === executionId,
+    ),
+  );
+  if (cancellation.failureResponse)
+    throw new Error(cancellation.failureResponse.error);
+  for (const active of activeProcesses.values()) {
+    if (active.executionId === executionId) active.process.kill('SIGTERM');
+  }
+  // Verify the physical local runners too: a stopped Docker CLI alone does
+  // not prove the container exited. Cloud runners use their provider cancel.
+  const local = activeWorkflowProviders.get(executionId) === 'LOCAL_RUNNER';
+  if (local) {
+    const containers = await executionContainers(executionId);
+    await Promise.allSettled(containers.map(stopExecutionContainer));
+    if ((await executionContainers(executionId)).length)
+      throw new Error('Runner containers are still active.');
+  }
+  executionControl.confirmStopped(executionId);
+  return executionControl.status(executionId);
+}
+
 export async function executeWorkflow(reqBody: any) {
+  const id = getString(reqBody.testId);
+  return executionControl.run(id, async (signal) => {
+    activeWorkflowProviders.set(id, reqBody.cloudProvider || 'LOCAL_RUNNER');
+    try {
+      return await executeControlledWorkflow(reqBody, signal);
+    } finally {
+      activeWorkflowProviders.delete(id);
+    }
+  });
+}
+
+async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
   const workflowHistory = await loadWorkflowDiagnosticHistory(reqBody);
   const workflowContext = createWorkflowTemplateContext(
     reqBody,
@@ -1014,6 +1064,38 @@ export async function executeWorkflow(reqBody: any) {
     string,
     Promise<PreparedPlaywrightRunner>
   > = {};
+
+  const cleanupPreparedRunners = async () => {
+    await Promise.allSettled(
+      Object.entries(preparedPlaywrightRunners).map(
+        async ([nodeId, runnerPromise]) => {
+          try {
+            const runner = await runnerPromise;
+            await runner.cleanup?.();
+          } finally {
+            activePreparedRunners.delete(
+              activeExecutionKey(reqBody.testId, nodeId),
+            );
+            delete preparedPlaywrightRunners[nodeId];
+          }
+        },
+      ),
+    );
+  };
+  const finalizeCancellation = async () => {
+    await executionControl.waitForStop(getString(reqBody.testId));
+    // Preparation may have been in flight when stop took its inventory.
+    // Wait for it to finish cancelling before publishing a terminal outcome.
+    await cleanupPreparedRunners();
+    if (
+      (reqBody.cloudProvider || 'LOCAL_RUNNER') === 'LOCAL_RUNNER' &&
+      (await executionContainers(getString(reqBody.testId))).length
+    ) {
+      throw new Error(
+        'Runner containers are still active. Retry stopping this run.',
+      );
+    }
+  };
 
   try {
     const { nodes, connections, settings, testId, bucketName } = reqBody;
@@ -1434,6 +1516,7 @@ export async function executeWorkflow(reqBody: any) {
       };
 
       const executeAgentRequirementTools = async (containerNode: any) => {
+        signal.throwIfAborted();
         const tools = attachmentConnections
           .filter(
             (connection: any) =>
@@ -1458,6 +1541,7 @@ export async function executeWorkflow(reqBody: any) {
             parentNodeId: containerNode.id,
           });
           try {
+            signal.throwIfAborted();
             const result = await packageExecutorRuntime.execute({
               executionId: testId,
               workflowId: workflowContext.definition.id,
@@ -1522,6 +1606,7 @@ export async function executeWorkflow(reqBody: any) {
         );
 
         for (const node of prewarmPlaywrightNodes) {
+          signal.throwIfAborted();
           const { request } = createPlaywrightExecutionRequest(node);
           void publishNodeState(node.id, 'pending');
           void publishLog(
@@ -1531,7 +1616,12 @@ export async function executeWorkflow(reqBody: any) {
           const prewarmActiveKey = activeExecutionKey(testId, node.id);
           const preparedPromise = orchestratorRuntime.playwrightExecution
             .prepare(request)
-            .then((runner) => {
+            .then(async (runner) => {
+              if (signal.aborted) {
+                await runner.cancel?.();
+                await runner.cleanup?.();
+                signal.throwIfAborted();
+              }
               activePreparedRunners.set(prewarmActiveKey, {
                 cancel: async () => {
                   await (
@@ -1562,6 +1652,7 @@ export async function executeWorkflow(reqBody: any) {
         request: PlaywrightExecutionRequest,
         preparedRunner?: PreparedPlaywrightRunner,
       ) => {
+        signal.throwIfAborted();
         const runner =
           preparedRunner ||
           (await orchestratorRuntime.playwrightExecution.prepare(request));
@@ -1585,14 +1676,17 @@ export async function executeWorkflow(reqBody: any) {
           runtimeNodeId,
         });
         try {
+          if (signal.aborted) await runner.cancel?.();
+          signal.throwIfAborted();
           await runner.waitUntilReady();
-          if (cancellationRequested) {
+          if (cancellationRequested || signal.aborted) {
             throw new Error('Playwright runner was cancelled.');
           }
           await request.publishLog(
             `Prepared Playwright Runner for ${logicalNodeId} is ready. Sending start signal.`,
             'info',
           );
+          signal.throwIfAborted();
           await runner.start();
           await request.publishLog(
             `Playwright Runner for ${logicalNodeId} acknowledged start signal.`,
@@ -1850,7 +1944,7 @@ export async function executeWorkflow(reqBody: any) {
       // for `concurrent` edges), so sibling branches that share a parent all
       // fire at the same moment and run in parallel.
       const runNode = (nodeId: string) => {
-        if (nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
+        if (signal.aborted || nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
           return;
         }
         void processNode(nodeId).catch(console.error);
@@ -1868,7 +1962,7 @@ export async function executeWorkflow(reqBody: any) {
       };
 
       const processNode = async (nodeId: string) => {
-        if (nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
+        if (signal.aborted || nodeHasRun[nodeId] || nodeIsRunning[nodeId]) {
           return;
         }
 
@@ -1963,6 +2057,7 @@ export async function executeWorkflow(reqBody: any) {
             }
             let preparedRunner;
             try {
+              signal.throwIfAborted();
               preparedRunner =
                 await orchestratorRuntime.agentExecution.prepare(request);
             } catch (error) {
@@ -1988,12 +2083,14 @@ export async function executeWorkflow(reqBody: any) {
               runtimeNodeId: node.id,
             });
             try {
+              if (signal.aborted) await preparedRunner.cancel?.();
+              signal.throwIfAborted();
               await preparedRunner.waitUntilReady();
-              if (cancellationRequested) {
+              if (cancellationRequested || signal.aborted) {
                 throw new Error('AI Container runner was cancelled.');
               }
               await publishNodeState(node.id, 'running');
-              if (cancellationRequested) {
+              if (cancellationRequested || signal.aborted) {
                 throw new Error('AI Container runner was cancelled.');
               }
               await preparedRunner.start();
@@ -2124,6 +2221,7 @@ export async function executeWorkflow(reqBody: any) {
               'info',
               { nodeId: node.id },
             );
+            signal.throwIfAborted();
             const result = await packageExecutorRuntime.execute({
               executionId: testId,
               workflowId: workflowContext.definition.id,
@@ -2161,7 +2259,15 @@ export async function executeWorkflow(reqBody: any) {
           });
         } finally {
           try {
-            await publishNodeState(node.id, finalState);
+            if (signal.aborted) {
+              await publishEvent({
+                nodeId: node.id,
+                type: 'node_cancelled',
+                timestamp: new Date().toISOString(),
+              });
+            } else {
+              await publishNodeState(node.id, finalState);
+            }
             if (finalState === 'error') {
               workflowFailed = true;
               markWorkflowRunFailed(workflowContext, node);
@@ -2234,46 +2340,46 @@ export async function executeWorkflow(reqBody: any) {
       }
     }
 
-    finishWorkflowRun(workflowContext, workflowFailed ? 'failed' : 'completed');
+    if (signal.aborted) await finalizeCancellation();
+    finishWorkflowRun(
+      workflowContext,
+      signal.aborted ? 'cancelled' : workflowFailed ? 'failed' : 'completed',
+    );
     terminalEventAttempted = true;
     await publishTerminalEvent({
       level: workflowFailed ? 'error' : 'info',
-      message: workflowFailed
-        ? 'Workflow execution failed.'
-        : 'Workflow execution completed.',
+      message: signal.aborted
+        ? 'Workflow stopped by user.'
+        : workflowFailed
+          ? 'Workflow execution failed.'
+          : 'Workflow execution completed.',
       timestamp: new Date().toISOString(),
-      type: workflowFailed ? 'workflow_failed' : 'workflow_completed',
+      type: signal.aborted
+        ? 'workflow_cancelled'
+        : workflowFailed
+          ? 'workflow_failed'
+          : 'workflow_completed',
       workflow: workflowContext,
     });
   } catch (err: any) {
     if (!terminalEventAttempted) {
+      if (signal.aborted) await finalizeCancellation();
       markWorkflowRunFailed(workflowContext);
+      if (signal.aborted) finishWorkflowRun(workflowContext, 'cancelled');
       terminalEventAttempted = true;
       await publishTerminalEvent({
         level: 'error',
-        message: `Workflow execution failed: ${err?.message || 'Unknown error'}`,
+        message: signal.aborted
+          ? 'Workflow stopped by user.'
+          : `Workflow execution failed: ${err?.message || 'Unknown error'}`,
         timestamp: new Date().toISOString(),
-        type: 'workflow_failed',
+        type: signal.aborted ? 'workflow_cancelled' : 'workflow_failed',
         workflow: workflowContext,
       });
     }
     throw err;
   } finally {
-    await Promise.allSettled(
-      Object.entries(preparedPlaywrightRunners).map(
-        async ([nodeId, runnerPromise]) => {
-          try {
-            const runner = await runnerPromise;
-            await runner.cleanup?.();
-          } finally {
-            activePreparedRunners.delete(
-              activeExecutionKey(reqBody.testId, nodeId),
-            );
-            delete preparedPlaywrightRunners[nodeId];
-          }
-        },
-      ),
-    );
+    await cleanupPreparedRunners();
   }
 }
 
@@ -2316,6 +2422,28 @@ app.get('/runtime', requireOrchestratorAuth, (req, res) => {
       'playrunner-workflow-events',
   });
 });
+
+app.get('/executions/:executionId', requireOrchestratorAuth, (req, res) => {
+  res.json({
+    status: executionControl.status(getString(req.params.executionId)),
+  });
+});
+
+app.post(
+  '/executions/:executionId/stop',
+  requireOrchestratorAuth,
+  async (req, res) => {
+    try {
+      res.json({
+        status: await stopWorkflow(getString(req.params.executionId)),
+      });
+    } catch {
+      res.status(502).json({
+        error: 'Could not stop all runners. Retry stopping this run.',
+      });
+    }
+  },
+);
 
 app.post('/stop', requireOrchestratorAuth, async (req, res) => {
   const nodeId = getString(req.body?.nodeId);

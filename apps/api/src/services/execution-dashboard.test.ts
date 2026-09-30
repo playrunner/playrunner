@@ -353,3 +353,26 @@ test('breaks parent cycles and rolls nested progress up without double counting'
   ))
     assert.deepEqual(node.progress, progress);
 });
+
+test('confirmed cancellation remains terminal despite delayed pre-stop failure events', () => {
+  const execution = projectExecution({
+    id: 'cancelled',
+    workflowId: null,
+    status: 'cancelled',
+    cloudProvider: 'LOCAL_RUNNER',
+    startedAt: time,
+    completedAt: time,
+    events: [
+      event(
+        1,
+        'execution_definition',
+        { nodes: [{ id: 'waiting', title: 'Waiting', type: 'code' }] },
+        null,
+      ),
+      event(2, 'node_state', { state: 'running' }),
+      event(3, 'workflow_failed', {}, null),
+    ],
+  });
+  assert.equal(execution.status, 'cancelled');
+  assert.ok(execution.nodes.every((node) => node.status === 'cancelled'));
+});
