@@ -46,8 +46,8 @@ Click any node while it's running (or after) to open the **log panel** and see t
 ### Follow progress in Live executions
 
 Open **Live executions** from the sidebar to follow active workflows and recent
-runs. Each execution card starts expanded. Use the arrow beside its title to
-collapse that card independently of other runs.
+runs. Each execution card starts collapsed. Use the arrow beside its title to
+expand or collapse that card independently of other runs.
 
 A collapsed card shows the workflow title, project when available, runner
 provider, elapsed time, start time, and overall status. Each workflow node has

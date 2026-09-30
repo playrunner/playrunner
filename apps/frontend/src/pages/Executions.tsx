@@ -56,7 +56,7 @@ const variant = (status: string) =>
       : 'outline';
 
 export default function Executions() {
-  const [collapsedExecutions, setCollapsedExecutions] = useState<Set<string>>(
+  const [expandedExecutions, setExpandedExecutions] = useState<Set<string>>(
     new Set(),
   );
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
@@ -245,7 +245,7 @@ export default function Executions() {
     };
   }, [recentPage, pageSize]);
   const renderExecution = (execution: Execution) => {
-    const collapsed = collapsedExecutions.has(execution.id);
+    const collapsed = !expandedExecutions.has(execution.id);
     const detailsId = `execution-${execution.id}-details`;
     const childrenByParent = new Map<string, Execution['nodes']>();
     const nodeIds = new Set(execution.nodes.map((node) => node.id));
@@ -367,7 +367,7 @@ export default function Executions() {
               aria-expanded={!collapsed}
               aria-controls={detailsId}
               onClick={() =>
-                setCollapsedExecutions((current) => {
+                setExpandedExecutions((current) => {
                   const next = new Set(current);
                   if (next.has(execution.id)) next.delete(execution.id);
                   else next.add(execution.id);

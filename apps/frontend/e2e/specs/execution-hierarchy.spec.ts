@@ -16,6 +16,14 @@ test('collapsed nodes retain live shard progress and expand into child processes
   try {
     const [otherId] = await fixture.seedHistory(1);
     await dashboard.open();
+    const run = dashboard.execution(fixture.id);
+    const summary = run.getByRole('list', { name: 'Node status summary' });
+    await expect(summary).toBeVisible();
+    await expect(run.getByText(fixture.id, { exact: true })).toBeHidden();
+    await expect(
+      run.getByRole('button', { name: /^Expand execution / }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    await dashboard.toggleExecution(fixture.id, true);
     const parent = dashboard.node(fixture.id, '462 database fixture cases');
     const children = parent.getByRole('list', {
       name: '462 database fixture cases child processes',
@@ -44,11 +52,9 @@ test('collapsed nodes retain live shard progress and expand into child processes
     await dashboard.toggleExecution(fixture.id, false);
     await expect(
       dashboard.execution(otherId).getByRole('button', {
-        name: /^Collapse execution /,
+        name: /^Expand execution /,
       }),
-    ).toHaveAttribute('aria-expanded', 'true');
-    const run = dashboard.execution(fixture.id);
-    const summary = run.getByRole('list', { name: 'Node status summary' });
+    ).toHaveAttribute('aria-expanded', 'false');
     await expect(summary.getByRole('listitem')).toHaveCount(2);
     await expect(
       summary.getByRole('listitem', {
@@ -122,6 +128,9 @@ test('collapsed nodes retain live shard progress and expand into child processes
     await dashboard.toggleExecution(fixture.id, true);
     await expect(children).toBeVisible();
     await expect(parent).toContainText('462 / 462 tests completed');
+    await page.reload();
+    await expect(summary).toBeVisible();
+    await expect(parent).toBeHidden();
   } finally {
     await fixture.dispose();
     await context.setOffline(false).catch(() => {});

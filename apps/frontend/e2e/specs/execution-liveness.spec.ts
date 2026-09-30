@@ -26,6 +26,7 @@ test('quiet runs remain visible and completed outcomes recover without a page re
         .getByRole('region', { name: 'Active runs', exact: true })
         .getByRole('region', { name: `Execution ${fixture.id}`, exact: true }),
     ).toBeVisible();
+    await run.getByRole('button', { name: /^Expand execution / }).click();
     await expect(run).toContainText('No recent updates—status unconfirmed');
     await page.screenshot({
       path: 'test-results/execution-liveness-desktop.png',
@@ -53,6 +54,10 @@ test('quiet runs remain visible and completed outcomes recover without a page re
     );
     await page.reload();
     await expect(run).toBeVisible();
+    await page
+      .getByRole('button', { name: 'Collapse Sidebar', exact: true })
+      .click();
+    await run.getByRole('button', { name: /^Expand execution / }).click();
     await fixture.complete();
     await expect(run).toContainText('462 / 462 tests completed', {
       timeout: 30000,
