@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/codex-plugin",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "type": "module",
@@ -23,7 +23,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run test && npm run format:check",
-    "verify:hosted": "node scripts/verify-hosted.mjs"
+    "verify:hosted": "node scripts/verify-hosted.mjs",
+    "configure:server": "node scripts/connect.mjs"
   },
   "devDependencies": {
     "prettier": "3.8.4"

@@ -79,48 +79,11 @@ export function parseConnectionArgs(args) {
 
 export const connectionHelp = `Options:
   --server URL       Playrunner origin or MCP endpoint (HTTPS; loopback HTTP allowed)
-  --name NAME        Connection name; allows several servers side by side
+  --name NAME        Server profile name; supports several servers in one plugin
   --auth token|oauth Default: token for self-hosted, OAuth for playrunner.cloud
-  --token-env NAME   Environment variable containing the token; never pass its value
-Without --server, the existing Playrunner Cloud plugin is packaged/installed.
-Self-hosted installs register a named HTTP MCP connection and a matching skill plugin.
-Supply the token securely in the environment of the Codex process before connecting.`;
-
-export function mcpAddArgs(connection) {
-  return [
-    'mcp',
-    'add',
-    connection.name,
-    '--url',
-    connection.url,
-    ...(connection.tokenEnv
-      ? ['--bearer-token-env-var', connection.tokenEnv]
-      : []),
-  ];
-}
-
-// Inspect only transport metadata. Never return or print configured headers/tokens.
-export function existingConnection(listing, connection) {
-  if (!Array.isArray(listing))
-    throw new Error('Codex did not return a valid MCP connection list.');
-  const matches = listing.filter((entry) => entry.name === connection.name);
-  if (!matches.length) return false;
-  const entry = matches[0];
-  if (entry.enabled === false)
-    throw new Error(
-      'That MCP connection is disabled. Enable it in Codex settings before using this plugin; no settings were changed.',
-    );
-  if (
-    matches.length !== 1 ||
-    entry.transport?.type !== 'streamable_http' ||
-    entry.transport.url !== connection.url ||
-    (entry.transport.bearer_token_env_var || null) !==
-      (connection.tokenEnv || null) ||
-    Object.keys(entry.transport.http_headers || {}).length ||
-    Object.keys(entry.transport.env_http_headers || {}).length
-  )
-    throw new Error(
-      'That MCP connection name already has different settings. Choose another --name; no connection was changed.',
-    );
-  return true;
-}
+  --token-env NAME   Optional inherited token variable name; never pass its value
+Install once without --server; use scripts/connect.mjs --server URL --name NAME
+(or npm run plugin:server -- --server URL --name NAME from the repository).
+Server profiles reload at runtime; use list_servers and select_server in the chat.
+Self-hosted profiles require token auth; Cloud keeps its native OAuth connection.
+A private server-bound credential file can be updated without restarting Codex.`;

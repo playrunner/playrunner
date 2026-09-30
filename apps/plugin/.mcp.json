@@ -3,6 +3,12 @@
     "playrunner": {
       "type": "http",
       "url": "https://playrunner.cloud/mcp"
+    },
+    "playrunner_servers": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./scripts/runtime-server.mjs"],
+      "cwd": "./"
     }
   }
 }

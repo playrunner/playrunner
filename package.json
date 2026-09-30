@@ -16,6 +16,7 @@
     "test:e2e": "npm run e2e --prefix apps/frontend --",
     "test:e2e:mock": "npm run start:e2e:services && npm run build:e2e:orchestrator && PLAYRUNNER_E2E_MODE=mock npm run e2e --prefix apps/frontend --",
     "test:e2e:live": "npm run start:e2e:services && npm run build:e2e:orchestrator && PLAYRUNNER_E2E_MODE=live npm run e2e --prefix apps/frontend --",
-    "test:integration-composition": "node --test infra/scripts/generate-integration-composition.test.mjs"
+    "test:integration-composition": "node --test infra/scripts/generate-integration-composition.test.mjs",
+    "plugin:server": "npm run configure:server --prefix apps/plugin --"
   }
 }

@@ -1,8 +1,8 @@
 import { realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { existingConnection, mcpAddArgs } from './connection.mjs';
+import { connectionHelp, parseConnectionArgs } from './connection.mjs';
+import { configureServer } from './server-registry.mjs';
 
 export function runCodex(args) {
   const result = spawnSync('codex', args, { encoding: 'utf8' });
@@ -15,33 +15,29 @@ export function runCodex(args) {
   return result.stdout;
 }
 
-export function connectServer(connection, run = runCodex) {
-  const exists = existingConnection(
-    JSON.parse(run(['mcp', 'list', '--json'])),
-    connection,
-  );
-  if (!exists) run(mcpAddArgs(connection));
-  return { created: !exists };
-}
-
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
-  const connection = JSON.parse(
-    await readFile(
-      new URL('../skills/playrunner/connection.json', import.meta.url),
-      'utf8',
-    ),
-  );
-  connectServer(connection);
-  console.log(`Configured ${connection.name} at ${connection.url}.`);
-  if (connection.tokenEnv)
-    console.log(
-      `Supply ${connection.tokenEnv} securely in the Codex process environment, then start a new task. No token was read or stored by this command.`,
-    );
-  else
-    console.log(
-      `Use Codex's OAuth login for ${connection.name}, then start a new task.`,
-    );
+  try {
+    const options = parseConnectionArgs(process.argv.slice(2));
+    if (options.help) console.log(connectionHelp);
+    else {
+      const result = await configureServer(options.connection);
+      console.log(`Configured ${result.profile.id} at ${result.profile.url}.`);
+      console.log(`Private credential file: ${result.credentialFile}`);
+      console.log(
+        'The user supplies JSON containing url (the exact endpoint) and token, with owner-only permissions (0600). Never enter the token in chat.',
+      );
+      console.log(
+        `Alternatively inherit ${result.profile.tokenEnv} when starting Codex. No token was read or stored by this command.`,
+      );
+      console.log(
+        'Call list_servers in the existing chat; no plugin reinstall is needed.',
+      );
+    }
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

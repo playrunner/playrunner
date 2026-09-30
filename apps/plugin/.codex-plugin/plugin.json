@@ -1,6 +1,6 @@
 {
   "name": "playrunner",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "author": {
     "name": "Concept AI PTY LTD"
@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Playrunner",
     "shortDescription": "Build and run test workflows",
-    "longDescription": "Connect Codex to Playrunner Cloud or your own Playrunner server. Inspect workflows and execution results, author workflows, and run tests using the capabilities exposed by the selected server. Cloud uses OAuth; self-hosted connections use a securely configured API-token environment reference, or OAuth when supported. Named server connections can be installed side by side. Browser authentication, environments and GitHub setup depend on the connected server capabilities. Test completion is reported separately from passing test evidence.",
+    "longDescription": "Connect Codex to Playrunner Cloud or your own Playrunner servers. Select configured servers during a chat without reinstalling the plugin. Cloud uses native OAuth; self-hosted servers use separate API tokens. Discover server capabilities, inspect workflows and execution results, author workflows and run tests. Browser authentication, environments and GitHub setup depend on server capabilities. Test completion is reported separately from passing test evidence.",
     "developerName": "Concept AI PTY LTD",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],

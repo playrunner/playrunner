@@ -19,11 +19,12 @@ export const releaseFiles = [
   'assets/logo.png',
   'skills/playrunner/SKILL.md',
   'skills/playrunner/runtime.json',
-  'skills/playrunner/connection.json',
   'skills/playrunner/scripts/playrunner.mjs',
   'scripts/playrunner.mjs',
   'scripts/connection.mjs',
   'scripts/connect.mjs',
+  'scripts/server-registry.mjs',
+  'scripts/runtime-server.mjs',
 ];
 
 export function command(name, args, options = {}) {
@@ -38,6 +39,10 @@ export async function packagePlugin(
   output = join(pluginRoot, 'dist'),
   { connection = null } = {},
 ) {
+  if (connection)
+    throw new Error(
+      'Packages support all configured servers. Use scripts/connect.mjs --server URL --name NAME to configure one at runtime.',
+    );
   const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
   const manifest = await readJson(join(pluginRoot, 'plugin.json'));
   const compatibility = await readJson(
@@ -91,7 +96,7 @@ export async function packagePlugin(
     assert.ok(prompt.length <= 128 && !/[\r\n]/.test(prompt));
   }
 
-  const name = connection?.name || 'playrunner';
+  const name = 'playrunner';
   const folderName = `${name}-plugin-${manifest.version}`;
   const marketplaceRoot = join(resolve(output), folderName);
   const destination = join(marketplaceRoot, 'plugins', name);
@@ -102,46 +107,6 @@ export async function packagePlugin(
     await mkdir(dirname(target), { recursive: true });
     await copyFile(join(pluginRoot, file), target);
   }
-  if (connection) {
-    // Named connections are registered by Codex's supported MCP CLI. Keep the
-    // plugin skill-only so a self-hosted install never connects to Cloud too.
-    // No token is read here or written into a generated artifact.
-    const portable = { ...manifest, name };
-    const legacy = {
-      ...compatibility,
-      name,
-      interface: {
-        ...compatibility.interface,
-        displayName: `Playrunner: ${name.slice('playrunner-'.length)}`.slice(
-          0,
-          30,
-        ),
-        longDescription:
-          'Manage workflows on the configured Playrunner server.',
-      },
-    };
-    delete legacy.mcpServers;
-    await writeFile(
-      join(destination, 'plugin.json'),
-      JSON.stringify(portable, null, 2) + '\n',
-    );
-    await writeFile(
-      join(destination, '.codex-plugin/plugin.json'),
-      JSON.stringify(legacy, null, 2) + '\n',
-    );
-    await rm(join(destination, '.mcp.json'));
-    await rm(join(destination, 'mcp.json'));
-    await writeFile(
-      join(destination, 'skills/playrunner/connection.json'),
-      JSON.stringify(connection, null, 2) + '\n',
-    );
-    const skillPath = join(destination, 'skills/playrunner/SKILL.md');
-    const skill = await readFile(skillPath, 'utf8');
-    await writeFile(
-      skillPath,
-      skill.replace('name: playrunner\n', `name: ${name}\n`),
-    );
-  }
   const catalogPath = join(marketplaceRoot, '.agents/plugins/marketplace.json');
   await mkdir(dirname(catalogPath), { recursive: true });
   await writeFile(
@@ -149,12 +114,12 @@ export async function packagePlugin(
     JSON.stringify(
       {
         name,
-        interface: { displayName: connection ? name : 'Playrunner' },
+        interface: { displayName: 'Playrunner' },
         plugins: [
           {
             name,
             source: { source: 'local', path: `./plugins/${name}` },
-            policy: { installation: 'AVAILABLE', authentication: 'ON_INSTALL' },
+            policy: { installation: 'AVAILABLE', authentication: 'ON_USE' },
             category: 'Developer Tools',
           },
         ],
@@ -165,8 +130,6 @@ export async function packagePlugin(
   );
   const archive = join(resolve(output), `${folderName}.tar.gz`);
   command('tar', ['-czf', archive, '-C', resolve(output), folderName]);
-  if (connection)
-    return { archive, marketplaceRoot, destination, name, connection };
   // The portal accepts one plugin at the ZIP root, without a marketplace wrapper.
   const submissionZip = join(
     resolve(output),
@@ -195,7 +158,6 @@ export async function packagePlugin(
       skillZip,
       'SKILL.md',
       'runtime.json',
-      'connection.json',
       'scripts/playrunner.mjs',
     ],
     { cwd: join(destination, 'skills/playrunner') },

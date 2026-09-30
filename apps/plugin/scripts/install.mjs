@@ -2,13 +2,10 @@ import { realpathSync } from 'node:fs';
 import { readFile, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  connectionHelp,
-  parseConnectionArgs,
-  mcpAddArgs,
-  existingConnection,
-} from './connection.mjs';
+import { connectionHelp, parseConnectionArgs } from './connection.mjs';
 import { packagePlugin, pluginRoot } from './package.mjs';
+
+import { configureServer, registryPath } from './server-registry.mjs';
 
 import { runCodex } from './connect.mjs';
 
@@ -59,11 +56,9 @@ export async function installPlugin({
   build = packagePlugin,
   run = runCodex,
   connection = null,
+  file = registryPath(),
 } = {}) {
-  const name = connection?.name || 'playrunner';
-  const alreadyConnected = connection
-    ? existingConnection(JSON.parse(run(['mcp', 'list', '--json'])), connection)
-    : false;
+  const name = 'playrunner';
   const listing = JSON.parse(run(['plugin', 'marketplace', 'list', '--json']));
   if (!Array.isArray(listing.marketplaces))
     throw new Error('Codex did not return a valid marketplace list.');
@@ -78,7 +73,7 @@ export async function installPlugin({
       'The playrunner marketplace is not a generated release from this checkout. Its source was left unchanged.',
     );
   }
-  const { marketplaceRoot } = await build(undefined, { connection });
+  const { marketplaceRoot } = await build();
   if (current && current.root !== marketplaceRoot) {
     // Remove only the configured source, never the installed plugin or its
     // connection. Codex rejects adding the same marketplace name at a new path.
@@ -104,13 +99,8 @@ export async function installPlugin({
   } else if (!current) {
     run(['plugin', 'marketplace', 'add', marketplaceRoot]);
   }
-  if (connection && !alreadyConnected) run(mcpAddArgs(connection));
-  try {
-    run(['plugin', 'add', `${name}@${name}`]);
-  } catch (error) {
-    if (connection && !alreadyConnected) run(['mcp', 'remove', name]);
-    throw error;
-  }
+  run(['plugin', 'add', `${name}@${name}`]);
+  if (connection) await configureServer(connection, file);
   return { marketplaceRoot, name, connection };
 }
 
