@@ -1,8 +1,8 @@
 {
   "name": "@playrunner/codex-plugin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
-  "description": "Codex plugin for Playrunner Cloud workflows with an optional local authentication companion.",
+  "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "type": "module",
   "author": "Concept AI PTY LTD",
   "license": "SEE LICENSE IN LICENSE",

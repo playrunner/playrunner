@@ -1,7 +1,7 @@
 {
   "name": "playrunner",
-  "version": "0.1.1",
-  "description": "Build and run Playrunner Cloud testing workflows from Codex.",
+  "version": "0.1.2",
+  "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "author": {
     "name": "Concept AI PTY LTD"
   },
@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Playrunner",
     "shortDescription": "Build and run test workflows",
-    "longDescription": "Create Playrunner Cloud projects, environments, Authentication Profiles and Playwright workflows from Codex. Connect GitHub, run saved workflows and investigate execution results.\n\nConnect a Playrunner Cloud account to get started. Account setup and usage limits apply. Codex guides browser authorization when GitHub access or a test sign-in is needed.\n\nBrowser sign-ins for Authentication Profiles require a local computer with Node.js 20+ and npm. With command approval, the included skill downloads the pinned Playrunner CLI into npm\u2019s cache and pairs the authentication companion. Other Cloud workflow operations use the hosted MCP server without a local CLI. Passwords and MFA codes are entered directly in the browser.\n\nRunning tests may consume workflow-run allowance. Workflow completion is reported separately from test evidence. The plugin does not upload uncommitted application changes automatically.",
+    "longDescription": "Connect Codex to Playrunner Cloud or your own Playrunner server. Inspect workflows and execution results, author workflows, and run tests using the capabilities exposed by the selected server. Cloud uses OAuth; self-hosted connections use a securely configured API-token environment reference, or OAuth when supported. Named server connections can be installed side by side. Browser authentication, environments and GitHub setup depend on the connected server capabilities. Test completion is reported separately from passing test evidence.",
     "developerName": "Concept AI PTY LTD",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
@@ -20,7 +20,7 @@
     "composerIcon": "./assets/logo.png",
     "logo": "./assets/logo.png",
     "defaultPrompt": [
-      "Set up a Playrunner Cloud workflow for my staging checkout tests.",
+      "Connect to my Playrunner server and list its workflows.",
       "Connect GitHub and configure an Authentication Profile for my tests.",
       "Run my Playrunner workflow and explain any failures."
     ],

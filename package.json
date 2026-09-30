@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "./start-local.sh",
     "dev:setup": "./start-local.sh --setup",
-    "plugin:package": "npm run package --prefix apps/plugin",
-    "plugin:install": "npm run install:codex --prefix apps/plugin",
+    "plugin:package": "npm run package --prefix apps/plugin --",
+    "plugin:install": "npm run install:codex --prefix apps/plugin --",
     "plugin:check": "npm run check --prefix apps/plugin",
     "build": "npm run build --prefix apps/frontend && npm run build --prefix apps/runners/orchestrator",
     "build:e2e:orchestrator": "ORCHESTRATOR_IMAGE_TAG=playrunner-orchestrator-e2e ORCHESTRATOR_CONTAINER_NAME=playrunner-orchestrator-e2e ./infra/scripts/rebuild-orchestrator.sh",

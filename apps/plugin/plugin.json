@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "playrunner",
-  "version": "0.1.1",
-  "description": "Build and run Playrunner Cloud testing workflows from Codex.",
+  "version": "0.1.2",
+  "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "author": {
     "name": "Concept AI PTY LTD"
   },

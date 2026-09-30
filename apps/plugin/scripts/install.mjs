@@ -1,27 +1,23 @@
-import { spawnSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { readFile, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import {
+  connectionHelp,
+  parseConnectionArgs,
+  mcpAddArgs,
+  existingConnection,
+} from './connection.mjs';
 import { packagePlugin, pluginRoot } from './package.mjs';
 
-function runCodex(args) {
-  const result = spawnSync('codex', args, { encoding: 'utf8' });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(
-      result.stderr.trim() ||
-        `codex failed (${result.status ?? result.signal}).`,
-    );
-  }
-  return result.stdout;
-}
+import { runCodex } from './connect.mjs';
 
-async function isGeneratedMarketplace(marketplace, sourceRoot) {
+async function isGeneratedMarketplace(marketplace, sourceRoot, name) {
   const source = marketplace.marketplaceSource;
   if (source?.sourceType !== 'local' || typeof source.source !== 'string')
     return false;
   const root = resolve(source.source);
-  const version = /^playrunner-plugin-(\d+\.\d+\.\d+)$/.exec(
+  const version = new RegExp(`^${name}-plugin-(\\d+\\.\\d+\\.\\d+)$`).exec(
     basename(root),
   )?.[1];
   if (
@@ -42,15 +38,15 @@ async function isGeneratedMarketplace(marketplace, sourceRoot) {
       await readFile(join(root, '.agents/plugins/marketplace.json'), 'utf8'),
     );
     const manifest = JSON.parse(
-      await readFile(join(root, 'plugins/playrunner/plugin.json'), 'utf8'),
+      await readFile(join(root, 'plugins', name, 'plugin.json'), 'utf8'),
     );
     return (
-      catalog.name === 'playrunner' &&
+      catalog.name === name &&
       catalog.plugins?.length === 1 &&
-      catalog.plugins[0].name === 'playrunner' &&
+      catalog.plugins[0].name === name &&
       catalog.plugins[0].source?.source === 'local' &&
-      catalog.plugins[0].source?.path === './plugins/playrunner' &&
-      manifest.name === 'playrunner' &&
+      catalog.plugins[0].source?.path === `./plugins/${name}` &&
+      manifest.name === name &&
       manifest.version === version
     );
   } catch {
@@ -62,28 +58,31 @@ export async function installPlugin({
   sourceRoot = pluginRoot,
   build = packagePlugin,
   run = runCodex,
+  connection = null,
 } = {}) {
-  const { marketplaceRoot } = await build();
+  const name = connection?.name || 'playrunner';
+  const alreadyConnected = connection
+    ? existingConnection(JSON.parse(run(['mcp', 'list', '--json'])), connection)
+    : false;
   const listing = JSON.parse(run(['plugin', 'marketplace', 'list', '--json']));
   if (!Array.isArray(listing.marketplaces))
     throw new Error('Codex did not return a valid marketplace list.');
-  const matches = listing.marketplaces.filter(
-    (entry) => entry.name === 'playrunner',
-  );
+  const matches = listing.marketplaces.filter((entry) => entry.name === name);
   if (matches.length > 1)
     throw new Error(
       'Multiple Playrunner marketplaces were returned; no source was changed.',
     );
   const current = matches[0];
-  if (current && !(await isGeneratedMarketplace(current, sourceRoot))) {
+  if (current && !(await isGeneratedMarketplace(current, sourceRoot, name))) {
     throw new Error(
       'The playrunner marketplace is not a generated release from this checkout. Its source was left unchanged.',
     );
   }
+  const { marketplaceRoot } = await build(undefined, { connection });
   if (current && current.root !== marketplaceRoot) {
     // Remove only the configured source, never the installed plugin or its
     // connection. Codex rejects adding the same marketplace name at a new path.
-    run(['plugin', 'marketplace', 'remove', 'playrunner']);
+    run(['plugin', 'marketplace', 'remove', name]);
     try {
       run(['plugin', 'marketplace', 'add', marketplaceRoot]);
     } catch (error) {
@@ -105,16 +104,27 @@ export async function installPlugin({
   } else if (!current) {
     run(['plugin', 'marketplace', 'add', marketplaceRoot]);
   }
-  run(['plugin', 'add', 'playrunner@playrunner']);
-  return { marketplaceRoot };
+  if (connection && !alreadyConnected) run(mcpAddArgs(connection));
+  try {
+    run(['plugin', 'add', `${name}@${name}`]);
+  } catch (error) {
+    if (connection && !alreadyConnected) run(['mcp', 'remove', name]);
+    throw error;
+  }
+  return { marketplaceRoot, name, connection };
 }
 
 if (
   process.argv[1] &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href
 ) {
-  await installPlugin();
+  const options = parseConnectionArgs(process.argv.slice(2));
+  if (options.help) {
+    console.log(connectionHelp);
+    process.exit(0);
+  }
+  const result = await installPlugin(options);
   console.log(
-    'Playrunner installed. Start a new Codex task and select the Playrunner skill.',
+    `${result.name} installed. Start a new Codex task and select its Playrunner skill.`,
   );
 }
