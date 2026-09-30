@@ -52,8 +52,6 @@ before adding a package contribution or changing the harness contract.
 - Keep live-provider tests optional, tagged `@live`, secret-gated, and outside
   the normal pull-request gate.
 - Do not add package ids or imports to handwritten shared registries.
-- Do not update product documentation until the user has tested and accepted
-  the implementation.
 
 ## Required Package Shape
 

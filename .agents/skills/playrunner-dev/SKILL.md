@@ -11,33 +11,11 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 
 ## Rules
 
-- When making a change to code, do not update the docs as part of that change. Wait until the user explicitly asks for the docs to be updated.
-- When you finish the current code block of work, ask the user whether they have tested the change and are happy with it, and offer to update the docs once they confirm.
 - Do not deploy, push container images, run Terraform apply, delete/recreate cloud resources, consume Pub/Sub messages, or otherwise mutate live cloud state unless the user has explicitly asked for that exact action or has confirmed a direct deployment/mutation prompt. Local builds, lint, typecheck, and read-only cloud inspection are acceptable.
 - For cloud runtime fixes, stop after implementing and locally verifying the code. Tell the user the exact deploy command separately and ask whether they want it run.
 - For GCP workflow, Cloud Run, orchestrator, or Playwright runner fixes, close out with the operational handoff the user needs to test the change: tell them to restart the local API so package/API runtime changes are loaded, tell them to try the workflow again in the editor, and state whether pushed runner images are needed. If pushed images are needed, give the exact command without running it unless the user confirms: `./infra/gcp/scripts/push-runners.sh --target orchestrator --yes` for orchestrator-only changes, `./infra/gcp/scripts/push-runners.sh --target playwright --yes` for Playwright runner image changes, or `./infra/gcp/scripts/push-runners.sh --target both --yes` when both images changed.
 - Do not duplicate local-runner and cloud-runner protocol code. When local and GCP share behaviour such as Pub/Sub event transport, runner control/status signalling, node state transitions, or output-event publication, implement the shared protocol once and vary only the environment/configuration needed by each runtime.
 - Do not send runner messages through API event callbacks. Logs, node state, runner control/status, and output events must go through the runner's messaging transport: local development defaults to the Pub/Sub emulator, GCP uses GCP Pub/Sub, and future AWS/Azure runners should use their provider-native messaging.
-
-## Playrunner change ownership and OzeIT publishing
-
-- For every Playrunner change request, work in the Playrunner project folder,
-  `/Users/anthonybarry/repos/pr/playrunner`, and commit the changes to the
-  `playrunner/playrunner` repository. This applies even when the request originates
-  in a Bunker or deployment chat.
-- Publish OzeIT changes through `OzeIT-Dev/playrunner-deploy` at
-  `/Users/anthonybarry/repos/ozeai/playrunner-deploy`. Once the upstream commit is
-  pushed within the authorized release scope, pull it into that repository with
-  `scripts/sync-upstream.sh`, review and verify the imported revision, and publish
-  from the deployment repository.
-- Never hand-edit `playrunner-deploy` or its `vendor/playrunner` subtree to
-  implement a Playrunner change. Changes enter that repository through the
-  supported upstream sync; the resulting import commit is part of publishing.
-- Do not publish OzeIT Playrunner changes from the Bunker repository or
-  `playrunner-cloud`. Verify the deployed revision and live behavior at
-  `https://playrunner.easytest.lat` before reporting the change as published.
-- This routing rule does not itself authorize a push or deployment; retain the
-  explicit deployment-approval requirements above.
 
 ## Issue Tracking
 
@@ -50,7 +28,7 @@ Rules that govern day-to-day code changes in the Playrunner repo, separate from 
 
 - Integration reference pages must follow the existing Slack/Jira Docusaurus format: `hide_title: true`, the shared `IntegrationHero` with package-owned icon, package action, badges and facts, then `IntegrationGrid`/`IntegrationCard` capability summaries and the relevant setup, exports, frontend, API, configuration and orchestrator sections. Add integrations to the overview with `IntegrationDirectoryItem`, never a standalone text link. Reuse `docs/src/components/IntegrationPage` and its styles; do not replace this layout with plain Markdown or bespoke page styling. For unpublished packages, use the shared source-link variant and state local availability without linking to a nonexistent npm release. Verify the rendered page against an existing integration reference, not only the docs build.
 
-- All in-app help, instructions, and setup-guide links must point to Playrunner Docusaurus documentation, never directly to third-party documentation. Integration help must target its provider guide under `docs/docs/integration-packages`, with a relevant section anchor. Resolve links through the configured `VITE_DOCS_URL`, preserving its base path and using the established Playrunner docs fallback. Put vendor documentation references inside the Docusaurus guide. A missing internal guide is not permission to substitute a vendor URL; add the guide when documentation is authorized, or raise the missing guide under the documentation-scope rule above.
+- All in-app help, instructions, and setup-guide links must point to Playrunner Docusaurus documentation, never directly to third-party documentation. Integration help must target its provider guide under `docs/docs/integration-packages`, with a relevant section anchor. Resolve links through the configured `VITE_DOCS_URL`, preserving its base path and using the established Playrunner docs fallback. Put vendor documentation references inside the Docusaurus guide. A missing internal guide is not permission to substitute a vendor URL; add the guide when documentation is authorized, or identify the missing guide in the handoff.
 
 - Format every fenced executable code example with the repository Prettier baseline in `docs/.prettierrc.json`: `semi: true`, `singleQuote: true`, `trailingComma: 'all'`, `printWidth: 80`, and `tabWidth: 2`.
 - Keep every code example syntactically valid for its declared language. JSON examples must remain valid JSON and therefore use double-quoted property names and string values even though JavaScript and TypeScript examples use single quotes.
@@ -84,7 +62,7 @@ When building or extending packages under `packages/*`, follow the package shape
 - `install-local.sh` discovers package directories dynamically from `playrunner.integration` metadata. Do not add new integration package names to a handwritten install list or update `start-local.sh` merely to register a provider; change those scripts only when their generic install/start behaviour itself must change.
 - Prefer package-owned SVG/logo assets for integrations that need brand media. Follow the implemented asset export pattern instead of depending only on duplicated app public assets.
 - Choose the icon implementation by brand behavior. Fixed-color or multicolor logos such as Jira, Slack, and Playwright use the package-owned SVG URL as the integration `icon` and render as a normal image. Monochrome logos that must adapt to the active theme, such as GitHub and OpenAI, use a package-owned React SVG component with `fill="currentColor"` as the integration `icon`; reuse that component in settings UI and keep any raw asset URL as a separate export. Do not implement theme-adaptive package icons with CSS `mask-image`.
-- If docs are explicitly in scope, update the provider reference under `docs/docs/integration-packages` and the package-authoring guidance under `docs/docs/local-dev/integrations` as applicable. Otherwise, leave docs unchanged and mention them as a follow-up per the repo docs rule above.
+- If docs are explicitly in scope, update the provider reference under `docs/docs/integration-packages` and the package-authoring guidance under `docs/docs/local-dev/integrations` as applicable. Otherwise, leave docs unchanged and identify them in the handoff.
 - Verify package work with the narrowest relevant bundle: package `typecheck`, package `lint`, targeted `format:check` or Prettier on touched files, frontend typecheck/build when generated composition or UI changes, API import/runtime checks when API routes or `api-runtime` exports change, orchestrator typecheck/build when orchestrator contributions change, and `git diff --check`.
 
 ## Publishing Packages
