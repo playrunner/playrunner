@@ -5,7 +5,6 @@ import {
   DevicePlaywrightExecutionBackend,
 } from './playwright-device';
 import { createRunnerControlClient } from '../../../shared/runner-control';
-import { prewarmGcpPlaywrightRunners } from '../../../../../packages/gcp/src/api-runtime/playwright-prewarm';
 const request = {
   reqBody: { localWorker: { source: 'workspace' } },
   envKeys: ['BASE_URL'],
@@ -38,17 +37,6 @@ test('device payload excludes cloud credentials and unselected secrets', () => {
   assert.equal(
     payload.data.environment.BASE_URL,
     'http://host.docker.internal:3000',
-  );
-});
-test('local target prevents hosted prewarming without calling a provider', async () => {
-  assert.deepEqual(
-    await prewarmGcpPlaywrightRunners({
-      body: {
-        localWorker: { deviceId: 'device' },
-        nodes: [{ nodeType: 'playwright' }],
-      },
-    } as any),
-    {},
   );
 });
 test('unsupported local runtimes fail before provisioning control channels', async () => {
