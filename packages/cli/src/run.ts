@@ -1,3 +1,4 @@
+import { runWorkerCommand } from './worker.js';
 import { runWorkflowCreateCli } from './workflow-create.js';
 import { runCompanionCommand } from './companion.js';
 
@@ -49,6 +50,8 @@ function usage() {
 Commands:
   workflow create      Create or update a workflow from a JSON definition
   login                Pair this device with Playrunner Cloud
+  worker prepare       Build the local test runner image (requires Docker)
+  worker connect       Connect this computer for Cloud-coordinated tests
   auth connect         Receive Authentication Profile capture requests
   auth install         Advanced: install the persistent companion service
   auth status          Inspect this device's pairing status
@@ -395,17 +398,20 @@ export async function runCli(
   const now = dependencies.now ?? Date.now;
   const waitFor = dependencies.wait ?? defaultWait;
 
-  if (args[0] === 'login' || args[0] === 'auth') {
+  if (args[0] === 'login' || args[0] === 'auth' || args[0] === 'worker') {
     const signal = dependencies.signal ?? new AbortController().signal;
     try {
       return (
-        (await runCompanionCommand(args, {
-          env,
-          fetch: fetchImpl,
-          signal,
-          stderr: outputError,
-          stdout: output,
-        })) ?? 2
+        (await (args[0] === 'worker' ? runWorkerCommand : runCompanionCommand)(
+          args,
+          {
+            env,
+            fetch: fetchImpl,
+            signal,
+            stderr: outputError,
+            stdout: output,
+          },
+        )) ?? 2
       );
     } catch (error) {
       if (signal.aborted) return 130;

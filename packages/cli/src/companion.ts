@@ -13,7 +13,7 @@ import { VERSION } from './version.js';
 const DEFAULT_URL = 'https://playrunner.cloud';
 const POLL_TIMEOUT_MS = 25_000;
 
-type DeviceCredentials = {
+export type DeviceCredentials = {
   credentialStore?: 'macos-keychain';
   deviceId: string;
   privateKey: string;
@@ -22,7 +22,7 @@ type DeviceCredentials = {
   url: string;
 };
 
-type CompanionDependencies = {
+export type CompanionDependencies = {
   env: NodeJS.ProcessEnv;
   fetch: typeof globalThis.fetch;
   signal: AbortSignal;
@@ -86,7 +86,7 @@ async function writeCredentials(
   await fs.chmod(target, 0o600).catch(() => undefined);
 }
 
-async function readCredentials(env: NodeJS.ProcessEnv) {
+export async function readCredentials(env: NodeJS.ProcessEnv) {
   try {
     const stored = JSON.parse(
       await fs.readFile(credentialPath(env), 'utf8'),
@@ -218,7 +218,7 @@ function requestSignature(args: {
     .toString('base64');
 }
 
-async function companionRequest(
+export async function companionRequest(
   credentials: DeviceCredentials,
   pathname: string,
   init: RequestInit,

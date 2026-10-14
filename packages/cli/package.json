@@ -1,6 +1,6 @@
 {
   "name": "playrunner",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Run saved Playrunner workflows from CI/CD.",
   "keywords": [
     "playrunner",
@@ -49,7 +49,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && prettier --write dist",
+    "build": "tsc -p tsconfig.build.json && node scripts/package-runner.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

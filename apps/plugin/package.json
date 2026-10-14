@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/codex-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "type": "module",
@@ -10,7 +10,7 @@
     "node": ">=20"
   },
   "config": {
-    "playrunnerVersion": "0.2.5"
+    "playrunnerVersion": "0.3.0"
   },
   "scripts": {
     "package": "node scripts/package.mjs",

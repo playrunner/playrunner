@@ -1,3 +1,5 @@
+import { fetchArtifactWithRetry } from './artifact-upload';
+import { prepareLocalWorkspace } from './local-workspace';
 import { materializeAuthenticationState } from './totp-login';
 import { createInterface } from 'node:readline';
 import { readTestProgress } from '../../shared/test-progress';
@@ -646,7 +648,7 @@ async function uploadOutputs(
       );
       if (bucketName) uploadUrl.searchParams.set('bucketName', bucketName);
 
-      const response = await fetch(uploadUrl, {
+      const response = await fetchArtifactWithRetry(uploadUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/gzip',
@@ -698,6 +700,16 @@ async function prepareWorkingDirectory(
     );
     fs.rmSync(workingDir, { force: true, recursive: true });
     fs.mkdirSync(workingDir, { recursive: true });
+    return { testLanguage: 'typescript', workingDir };
+  }
+
+  if (payload?.data?.action === 'workspace') {
+    const workingDir = prepareLocalWorkspace(
+      '/playrunner-workspace',
+      '/app/local-workspace',
+      payload.data.folder,
+    );
+    await installTypescriptDependencies(workingDir);
     return { testLanguage: 'typescript', workingDir };
   }
 
@@ -1021,6 +1033,17 @@ async function run() {
           ? { shardTotal: runnerEventContext.shardTotal }
           : {}),
       },
+    });
+  }
+
+  if (runnerControl?.relay) {
+    await publishEvent({
+      type: 'log',
+      level: 'info',
+      message: 'Running on a paired local computer.',
+      executionTarget: 'local',
+      playwrightVersion: payload.data.playwrightVersion,
+      localSource: payload.data.localSource || null,
     });
   }
 

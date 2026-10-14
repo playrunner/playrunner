@@ -1596,6 +1596,7 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
       );
       const prewarmPlaywrightNodes = playwrightNodes.filter(
         (node: any) =>
+          !reqBody.localWorker &&
           resolvePlaywrightShardingMode(getRecord(node.config)) === 'off',
       );
 
@@ -2408,6 +2409,7 @@ app.get('/runtime', requireOrchestratorAuth, (req, res) => {
 
   res.status(200).json({
     activePackageExecutorCount: executorDiagnostics.activeExecutions.length,
+    localWorkerProtocolVersion: 1,
     eventTransport: 'pubsub',
     localAuth: process.env.PLAYRUNNER_ORCHESTRATOR_AUTH_TOKEN?.trim()
       ? 'required'

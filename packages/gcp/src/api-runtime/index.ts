@@ -1,4 +1,7 @@
 import { GcpOutputProxyBackend } from './gcp-output-proxy';
+// Cloud adapters check this before accepting device execution. Older versions
+// would prewarm hosted browser jobs even when a local worker was requested.
+export const LOCAL_WORKER_PROTOCOL_VERSION = 1;
 import { GcpOutputSyncBackend } from './gcp-output-sync';
 import { GcpCloudSchedulerProvisioner } from './gcp-scheduler';
 import { GcpWorkflowExecutionBackend } from './gcp-workflow-execution';

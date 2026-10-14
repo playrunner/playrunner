@@ -26,7 +26,7 @@ test('archive installs independently of the checkout and excludes development fi
   await mkdir(extracted);
   const tar = spawnSync('tar', ['-xzf', archive, '-C', extracted]);
   assert.equal(tar.status, 0, tar.stderr.toString());
-  const root = join(extracted, 'playrunner-plugin-0.2.0');
+  const root = join(extracted, 'playrunner-plugin-0.3.0');
   const catalog = JSON.parse(
     await readFile(join(root, '.agents/plugins/marketplace.json'), 'utf8'),
   );
@@ -81,7 +81,7 @@ test('archive installs independently of the checkout and excludes development fi
     const result = JSON.parse(run.stdout);
     assert.deepEqual(result.args, [
       '--yes',
-      '--package=playrunner@0.2.5',
+      '--package=playrunner@0.3.0',
       '--',
       'playrunner',
       ...args,

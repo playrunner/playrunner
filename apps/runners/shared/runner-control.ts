@@ -6,6 +6,7 @@ import {
 } from './runner-protocol';
 
 export type RunnerControlConfig = {
+  relay?: { url: string; token: string };
   controlSubscriptionName: string;
   projectId: string;
   protocolToken: string;
@@ -139,10 +140,11 @@ export function createRunnerControlClient(options: {
   const fetcher = options.fetcher || fetch;
   const now = options.now || Date.now;
   const wait = options.sleep || sleep;
-  const apiBaseUrl = (options.apiBaseUrl || getPubSubApiBaseUrl()).replace(
-    /\/+$/,
-    '',
-  );
+  const apiBaseUrl = (
+    options.config.relay?.url ||
+    options.apiBaseUrl ||
+    getPubSubApiBaseUrl()
+  ).replace(/\/+$/, '');
   const diagnosticLogs = options.diagnosticLogs || [];
   const logPrefix = options.logPrefix || '[Runner]';
   const runnerName = options.runnerName || 'runner';
@@ -158,6 +160,7 @@ export function createRunnerControlClient(options: {
   ): Promise<T> => {
     if (
       !options.gcpAccessToken &&
+      !options.config.relay &&
       !options.apiBaseUrl &&
       !isUsingPubSubEmulator()
     ) {
@@ -171,6 +174,9 @@ export function createRunnerControlClient(options: {
           ...init,
           headers: {
             'Content-Type': 'application/json',
+            ...(options.config.relay
+              ? { Authorization: `Bearer ${options.config.relay.token}` }
+              : {}),
             ...(options.gcpAccessToken && isGoogleApi
               ? { Authorization: `Bearer ${options.gcpAccessToken}` }
               : {}),

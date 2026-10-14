@@ -13,12 +13,15 @@ import { LocalAgentExecutionBackend } from './agent-local';
 import { GcpAgentExecutionBackend } from './agent-gcp';
 import { GcpPlaywrightExecutionBackend } from './playwright-gcp';
 import { LocalPlaywrightExecutionBackend } from './playwright-local';
+import { DevicePlaywrightExecutionBackend } from './playwright-device';
 
 class PlaywrightExecutionRegistry {
   constructor(private readonly backends: PlaywrightExecutionBackend[]) {}
 
   private getBackend(request: PlaywrightExecutionRequest) {
-    const cloudProvider = request.reqBody.cloudProvider || 'LOCAL_RUNNER';
+    const cloudProvider = request.reqBody.localWorker
+      ? 'PAIRED_DEVICE'
+      : request.reqBody.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>
       candidate.supports(cloudProvider),
     );
@@ -95,6 +98,7 @@ export function createDefaultAgentExecutionRegistry(): AgentExecutionRegistry {
 const agentExecution = createDefaultAgentExecutionRegistry();
 
 const playwrightExecution = new PlaywrightExecutionRegistry([
+  new DevicePlaywrightExecutionBackend(),
   new LocalPlaywrightExecutionBackend(),
   new GcpPlaywrightExecutionBackend(),
 ]);

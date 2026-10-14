@@ -156,7 +156,7 @@ path. Keep the working directory at the user's project.
    through the user's existing package manager or browser installer with normal
    approval. Do not execute a downloaded shell script or bypass approvals.
 2. Run `node ABSOLUTE_LAUNCHER_PATH auth status`. The launcher uses the pinned
-   `playrunner@0.2.5` npm package. Its initial download uses npm's cache; no global
+   `playrunner@0.3.0` npm package. Its initial download uses npm's cache; no global
    npm installation is needed. Explain the download before starting it.
 3. If unpaired, run `node ABSOLUTE_LAUNCHER_PATH login --url https://playrunner.cloud`.
    Retain the running process. It prints a pairing code and opens the browser.
@@ -177,6 +177,47 @@ Keep the process handle for the companion started by this task. It can remain
 running for further captures while the task is active. Stop only that process
 when no longer needed; do not revoke or disconnect an existing paired device
 unless the user asks. A later task can restart the companion without pairing again.
+
+## Local test execution with Cloud reporting
+
+Use this path only when the user requests their own computer for test compute.
+Cloud continues to coordinate the workflow and store results. Do not substitute
+hosted execution if this device is unavailable. This requires the local plugin
+execution environment and the worker-capable CLI pinned by runtime.json.
+
+1. Call `list_local_workers`. Select the requested online device explicitly; do
+   not infer that the authentication companion is also a test worker.
+2. If this computer needs connecting, check Docker is installed and running.
+   Never automatically install Docker Desktop. Check Node.js and pairing as in
+   the authentication companion section. Pairing alone does not enable testing.
+3. Explain that `worker prepare` builds a local browser image and may download
+   dependencies, then run it through the included absolute launcher path.
+4. Run `worker connect --url https://playrunner.cloud` as a retained process.
+   For tests from the user's local checkout, add `--workspace` with that exact
+   project directory. This grants test execution on this device and read-only
+   access to the selected checkout; do not mount a home directory or drive root.
+   The worker copies the checkout into its container and includes uncommitted
+   files. It uses one step at a time, with default limits of 2 CPU and 4 GiB.
+5. Call `list_local_workers` again and verify the device is online, the workflow's
+   Playwright version matches, and its requested resources fit. The initial
+   worker supports TypeScript steps with sharding disabled. AI Container steps
+   and Python tests are rejected for local runs.
+6. Use `host.docker.internal` instead of `localhost` in the local test Environment
+   when the application runs on the host computer. Preserve the application port.
+   Do not expose the development server publicly.
+7. Call `run_workflow` with `executionTarget: local`, the verified `deviceId`, a
+   fresh `requestKey`, and `source: workspace` for the checkout or `source: workflow`
+   for the saved inline/repository/uploaded tests. A workspace run executes local
+   tests instead of the saved inline script. Reuse the same key after an ambiguous
+   response, never start another run just to retry an upload.
+8. Inspect Cloud status, events and test reports normally. Local runs do not
+   consume hosted-run allowance; Cloud coordination and artifact storage remain.
+   Use `cancel_local_step` with the actual execution and node IDs to stop a step.
+   A lost connection stops the local container; it is never automatically rerun.
+
+Keep the worker process handle. Stop only the process started for this task when
+finished, unless the user asks to keep it connected. Do not install a background
+worker service or publish CLI/plugin updates as part of running tests.
 
 ## Run and investigate
 

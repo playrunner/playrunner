@@ -997,6 +997,8 @@ export async function prewarmGcpPlaywrightRunners(args: {
   testId: string;
   workflowId?: string;
 }): Promise<Record<string, PrewarmedGcpPlaywrightRunner>> {
+  // A paired device owns browser compute; never allocate hosted runners as a fallback.
+  if (args.body.localWorker) return {};
   const nodes = Array.isArray(args.body.nodes) ? args.body.nodes : [];
   const playwrightNodes = nodes.filter(
     (node: Record<string, any>) =>

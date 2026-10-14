@@ -67,7 +67,7 @@ test('remote MCP skill works independently of its enclosing plugin', async (t) =
   const runtime = JSON.parse(
     await readFile(join(dir, 'skill/runtime.json'), 'utf8'),
   );
-  assert.equal(runtime.config.playrunnerVersion, '0.2.5');
+  assert.equal(runtime.config.playrunnerVersion, '0.3.0');
   const skill = await readFile(join(dir, 'skill/SKILL.md'), 'utf8');
   assert.match(skill, /`scripts\/playrunner.mjs`/);
   const run = spawnSync(
