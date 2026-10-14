@@ -1,13 +1,13 @@
 {
-  "checkedAt": "2026-09-27T04:12:55.886Z",
+  "checkedAt": "2026-10-14T18:48:18.021Z",
   "package": "playrunner",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "registry": "https://registry.npmjs.org",
   "distTags": {
-    "latest": "0.2.5"
+    "latest": "0.3.0"
   },
-  "sourceCommit": "d04c345ae1ed240693e5d3de48a42b7230912fca",
-  "publishedIntegrity": "sha512-aZxq0B8nX0N+0vRdtNzt/s868kZhkOdXuhX98mLAnvs2hMDwVtN5kJ7G4aPPKE+YCygKRaz8Kn7fYhNB4Ynjtw==",
+  "sourceCommit": "40b8755a40045ba9d66c2f65327ada3e4cb4062f",
+  "publishedIntegrity": "sha512-39VdvYIVhwtM0Estz9ZRyW5PwijWfWrNDBmgqjSryFQSCs13p+ZU6tDsZ055srQe3TBd8KekGxgarFNNILKI/A==",
   "identicalToFreshLocalBuild": true,
   "installedVersionAndExportsVerified": true,
   "files": [
@@ -23,13 +23,13 @@
     },
     {
       "path": "dist/authentication-capture.d.ts",
-      "bytes": 3018,
-      "sha256": "b34fa70705b9c714529c62a52e4cf50d7379c8e0e2523218853631387a26bb10"
+      "bytes": 3218,
+      "sha256": "6260c0c59087ce66a234ef869f4e71e6991dd6346f2271698b12e8ef9eb2e665"
     },
     {
       "path": "dist/authentication-capture.js",
-      "bytes": 10253,
-      "sha256": "9333f42fe667231c6238f0caea291b423b6f77224d912daa06d4bd5b2b5048c5"
+      "bytes": 12410,
+      "sha256": "f9c4f67e63c77c1cd6da38dd4b5f8e3b6f5ee7e1af2e61fd9873d3805a0353b1"
     },
     {
       "path": "dist/cli.d.ts",
@@ -38,28 +38,28 @@
     },
     {
       "path": "dist/cli.js",
-      "bytes": 329,
-      "sha256": "038de07d2216d55825f4998e186ff5413b7b489dea605338e4c564f272f9beeb"
+      "bytes": 333,
+      "sha256": "1329de281fa0c1b458935f82a520fdeba8b1a91a9338c0ff893ef800645a5660"
     },
     {
       "path": "dist/companion.d.ts",
-      "bytes": 436,
-      "sha256": "5f8c9cfc86926c85efb1ad4996f4e5fc69182e91b4977de8bac2b58186aff7f2"
+      "bytes": 899,
+      "sha256": "d372e3b8cfc99b9cb072ee4347c93360170e8f32921c2843772a87f5a28e9895"
     },
     {
       "path": "dist/companion.js",
-      "bytes": 17296,
-      "sha256": "876f31ebd482b07117964e7e7b7d0aef03b098714a9f81195ee845f0ae34f2ea"
+      "bytes": 18337,
+      "sha256": "bb6c9874d4b85759157faf0855316e51e796a0baf9aa85ce04d334a9e2f58746"
     },
     {
       "path": "dist/index.d.ts",
-      "bytes": 528,
-      "sha256": "786232cdbef93a918544c9070110cd1f875501cfb9f9f0dac3c9a23717829d7c"
+      "bytes": 510,
+      "sha256": "768fbaad62fffa7a9a28d9eaae15ef670d4809d1336935db52627eeba5962b69"
     },
     {
       "path": "dist/index.js",
-      "bytes": 362,
-      "sha256": "827b82a78edf32c4e557ea9ec0706cd27ecdc7610e560b23e12dc45155601e59"
+      "bytes": 348,
+      "sha256": "1d0801646bee00d9457008b0d4d7d78a537edfab02c3d943d4d677bb0cb10c24"
     },
     {
       "path": "dist/local-env.d.ts",
@@ -73,28 +73,228 @@
     },
     {
       "path": "dist/run.d.ts",
-      "bytes": 454,
-      "sha256": "014edc3d1c6987368cab08b1551b2d5dfaf91f26af71efc20fe2e5dfd2f89f94"
+      "bytes": 463,
+      "sha256": "fc71c84ab08115ae060d3a10ba7f8588b6691099c2f140fb068135d5fbbb450d"
     },
     {
       "path": "dist/run.js",
-      "bytes": 18436,
-      "sha256": "c2421ab4b538080993526c01076b14b7754927c38a3f82ad9a36f28560ec4583"
+      "bytes": 20216,
+      "sha256": "f59ca97d070651fb491158ccabf6e2c7acf4d42ad93d7b52b9fc2b09ea50f269"
+    },
+    {
+      "path": "dist/runner/playwright/.prettierignore",
+      "bytes": 51,
+      "sha256": "da5c63f221a248ff78038be62f44dd8804584b81d9b00b191e5fc32dac215f59"
+    },
+    {
+      "path": "dist/runner/playwright/.prettierrc.json",
+      "bytes": 105,
+      "sha256": "1f7bb28b97481a3b4a4560d7a798ae3e58e37b4c5755502c0a5d95b2bea6ef6a"
+    },
+    {
+      "path": "dist/runner/playwright/Dockerfile.python",
+      "bytes": 1304,
+      "sha256": "4c1d37a62039d9d1f7a206d08bbcb71283c1ae582c90f83644ef461f8b7a6149"
+    },
+    {
+      "path": "dist/runner/playwright/Dockerfile.typescript",
+      "bytes": 1017,
+      "sha256": "f239a5154169bf8dd53ff062011397fadd8e9f362e1bf61de3f612e41dae0bab"
+    },
+    {
+      "path": "dist/runner/playwright/eslint.config.mjs",
+      "bytes": 970,
+      "sha256": "0d00ecf4bfddaba27fbc4eb63c5144d7a612702abca61d2c7735c6433496bea1"
+    },
+    {
+      "path": "dist/runner/playwright/package-lock.json",
+      "bytes": 113469,
+      "sha256": "fe997062ba6feaaae4d467fdc265f375706ac5f89dcce442f3bc34ef433fd7a5"
+    },
+    {
+      "path": "dist/runner/playwright/package.json",
+      "bytes": 1288,
+      "sha256": "3f666aab21284727674a0234883f0b13ba04b4429ed0c1d34a7d4144fa3ddf33"
+    },
+    {
+      "path": "dist/runner/playwright/src/artifact-upload.ts",
+      "bytes": 689,
+      "sha256": "d78e7d0f38e84d22abf6b8cf22ee811604c477cfe91e602c89ae35a625018652"
+    },
+    {
+      "path": "dist/runner/playwright/src/authentication-state.ts",
+      "bytes": 7267,
+      "sha256": "f0248bd5e2f13a82f40dfdc0bbc690fe62a82a768c6f8451fe38b89ef1080147"
+    },
+    {
+      "path": "dist/runner/playwright/src/index.ts",
+      "bytes": 39155,
+      "sha256": "a05eb17b21d3a936ccac899076245a4c59326e9c81954a0e05cf08e37d2ef26a"
+    },
+    {
+      "path": "dist/runner/playwright/src/local-workspace.ts",
+      "bytes": 1337,
+      "sha256": "5f09578ba18b531b69e297b6666d50c474e4944ebeb740b2821565509137668e"
+    },
+    {
+      "path": "dist/runner/playwright/src/payload.ts",
+      "bytes": 2463,
+      "sha256": "4d8941bdfa2c642837311688fc673e124a667335acc98b09c4c5ede5c8f8bbe5"
+    },
+    {
+      "path": "dist/runner/playwright/src/process-exit.ts",
+      "bytes": 727,
+      "sha256": "9e01574eb95f3a4cd9accd7310bc5ce29793377ebdc506a5fb5d0cdf5f4eb9b9"
+    },
+    {
+      "path": "dist/runner/playwright/src/progress-reporter.ts",
+      "bytes": 2104,
+      "sha256": "ae146ef9fc297ec5a95a4165e04ac5b4861310e2eeadfe9bed896cca6ad1c17a"
+    },
+    {
+      "path": "dist/runner/playwright/src/report-data.ts",
+      "bytes": 12159,
+      "sha256": "ce26dc7e4452818376f96fd97dbf40f7eb459361680d958a9c1a0a8fa7105f28"
+    },
+    {
+      "path": "dist/runner/playwright/src/repository.ts",
+      "bytes": 1846,
+      "sha256": "5cdb604c56d71cf57a80eba7eb46b4dec8c4262f11aa4fa288492136f9b37594"
+    },
+    {
+      "path": "dist/runner/playwright/src/sharding.ts",
+      "bytes": 5611,
+      "sha256": "b9a1a227cd1003576e4b3e1ee419f12f185618d3b260c09a0787790dd8f6b963"
+    },
+    {
+      "path": "dist/runner/playwright/src/test_example.py",
+      "bytes": 915,
+      "sha256": "3f746c8f09c8538140d38bf324fbd4f29c9eb472f054a341fbfeb4fa78448f6e"
+    },
+    {
+      "path": "dist/runner/playwright/src/test-plan-report.ts",
+      "bytes": 3612,
+      "sha256": "4656a62a556727f0440f74e6f35e36258299f66614293e3c00eeb1f8f3d59dd6"
+    },
+    {
+      "path": "dist/runner/playwright/src/totp-login.ts",
+      "bytes": 4328,
+      "sha256": "104e94778cf8d3487ee08cdd9f8a289e573ee207ce910b4a149817cc1bb92d5e"
+    },
+    {
+      "path": "dist/runner/playwright/src/uploaded-suite.ts",
+      "bytes": 4249,
+      "sha256": "a4ad03dccf074a4412aabc68f29a45227a0475f86c0fd3933727ad80074d875e"
+    },
+    {
+      "path": "dist/runner/playwright/tsconfig.json",
+      "bytes": 415,
+      "sha256": "9c1e821c29165a3979f8afabf6c98c00af6e65e0b7066678e85e2ea9afe32028"
+    },
+    {
+      "path": "dist/runner/shared/agent-bootstrap.ts",
+      "bytes": 619,
+      "sha256": "05c61d8103be589497c3ee730142f3b0e655c29f48fd845dc5cfd52e75ceb8bc"
+    },
+    {
+      "path": "dist/runner/shared/authentication-envelope.ts",
+      "bytes": 4043,
+      "sha256": "5bf0e38a5c1bfd242e0fc80a6e73367e794afeefa00ddc31d91a8e18ef4ca218"
+    },
+    {
+      "path": "dist/runner/shared/authentication-profiles.ts",
+      "bytes": 2292,
+      "sha256": "7f3cb9406adbd0864f8034dd6f490aa35030d43007137b680c43c7e4bfefa216"
+    },
+    {
+      "path": "dist/runner/shared/execution-environment.ts",
+      "bytes": 2493,
+      "sha256": "7123bc8753a9f24f23ac88360cdcc689166d5f6146e92fc3985f060a7cd57320"
+    },
+    {
+      "path": "dist/runner/shared/local-execution-containers.ts",
+      "bytes": 1089,
+      "sha256": "f627ff42bc13ba42e11651c812df4d91a72d1df235be0189bb72c1eb88cad8df"
+    },
+    {
+      "path": "dist/runner/shared/orchestrator-bootstrap.ts",
+      "bytes": 287,
+      "sha256": "e975abede1d3119acf9bada237dd8abbf9d22ff9980ee8f00fc45740a73b7f10"
+    },
+    {
+      "path": "dist/runner/shared/runner-control.ts",
+      "bytes": 16601,
+      "sha256": "e6168adeb7a4e0792cb204290fd9b53a56693a27cc5c91b5032e215ee37978a5"
+    },
+    {
+      "path": "dist/runner/shared/runner-protocol.ts",
+      "bytes": 3142,
+      "sha256": "6409e62548f201c84b6737820a738cb346bed69b2af910cd4a961b404cd69298"
+    },
+    {
+      "path": "dist/runner/shared/runner-resources.ts",
+      "bytes": 484,
+      "sha256": "318ad01486f25702c7e77c88689936b5c23755e20bba03bd33c41c8a3b372afc"
+    },
+    {
+      "path": "dist/runner/shared/test-plan.ts",
+      "bytes": 7216,
+      "sha256": "bd97834c5a72f9a2742955488616ce15d40984c04a3a55d13bbe04a9e936459f"
+    },
+    {
+      "path": "dist/runner/shared/test-progress.ts",
+      "bytes": 922,
+      "sha256": "f9d132158c21c3adb4b1e5938356df8007665eb0d94b522fc73f6c8b0f1a9b5e"
+    },
+    {
+      "path": "dist/runner/shared/totp-profile.ts",
+      "bytes": 3382,
+      "sha256": "f8e8a0a3c175ed46bf9f4082fb7893054303cd87ebae1453087fa3752205fb72"
+    },
+    {
+      "path": "dist/runner/shared/workflow-geometry.ts",
+      "bytes": 1588,
+      "sha256": "10ff13ec9b81a8535bbf0a37e672226d933d744ea51c0804102a7909c04b6d92"
+    },
+    {
+      "path": "dist/runner/versions.json",
+      "bytes": 544,
+      "sha256": "7a7b6165e2cc646808b5df80971113e3e49209da05f370caf88d7b0fa17df0d0"
+    },
+    {
+      "path": "dist/version.d.ts",
+      "bytes": 38,
+      "sha256": "e80689d9cf55c30ee8caec09b9e5c3c9a2bd9d6635d9ad0e7875b785e06fd6f9"
+    },
+    {
+      "path": "dist/version.js",
+      "bytes": 150,
+      "sha256": "96bf96d334317fde2e57b3673f96971012305c839c5cd218cc8a08077f5865c9"
+    },
+    {
+      "path": "dist/worker.d.ts",
+      "bytes": 567,
+      "sha256": "1870e4b85b01128728d5421642f68084b06e0b5512fdc9f1b987c4ce302a4a87"
+    },
+    {
+      "path": "dist/worker.js",
+      "bytes": 11282,
+      "sha256": "86ca3406fae27ac2ced2ee529db4dd724d12030b5092d6e5d664df8dce3753b3"
     },
     {
       "path": "dist/workflow-create.d.ts",
-      "bytes": 367,
-      "sha256": "dc022a8935d0b22d4242c55108f36f12ab9a57ded565cf033433e3d58054f4a3"
+      "bytes": 370,
+      "sha256": "0b5c15a99575f6e742b7298a0f715649db4a424242f37ce2c152026316bc5cac"
     },
     {
       "path": "dist/workflow-create.js",
-      "bytes": 4710,
-      "sha256": "da61479be7e69d9ffd49cf403a6efcf597416cf1e2d7f3d56d66e7f3e6abda1f"
+      "bytes": 5167,
+      "sha256": "951f5b0a839f06301bb4802cdc4ae85bbaf48c47a5ab0bca4e44cf1d72b422f1"
     },
     {
       "path": "package.json",
-      "bytes": 1765,
-      "sha256": "edee57544a419516af7b193118d426a741de489c3d642d90a62ed44c1d3d8c13"
+      "bytes": 1775,
+      "sha256": "e4a99e9f714e68ca955ac3f0dfe0ee700ace21e8db86b6f2b3b9bf5e87b51806"
     }
   ]
 }
