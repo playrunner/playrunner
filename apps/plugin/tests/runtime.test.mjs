@@ -313,7 +313,7 @@ test('extracted generic plugin configures profiles and starts its stdio router i
   );
   const installed = join(
     unpacked,
-    'playrunner-plugin-0.3.1/plugins/playrunner',
+    'playrunner-plugin-0.3.2/plugins/playrunner',
   );
   const setup = spawnSync(
     process.execPath,

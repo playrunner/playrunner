@@ -10,7 +10,9 @@
     "test": "node --import tsx --test src/**/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "build:editor": "npm run build:workflow-editor --prefix ../frontend",
+    "pretest": "npm run build:editor"
   },
   "dependencies": {
     "express": "^5.2.1"

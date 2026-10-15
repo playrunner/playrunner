@@ -1,3 +1,13 @@
+import { workflowNodeAppearance } from '../components/workflow/nodeAppearance';
+import {
+  WorkflowNodeIcon,
+  EnvironmentNodeShape,
+} from '../components/workflow/WorkflowNodeVisual';
+import {
+  getPortCoordinates,
+  getAttachmentPortCoordinates,
+  renderCurve,
+} from '../components/workflow/geometry';
 import { migrateNodePlans } from '../lib/workflow-test-plan';
 import {
   AI_CONTAINER_WIDTH,
@@ -2584,48 +2594,6 @@ export default function Editor() {
     setTimeout(handleFitView, 50);
   };
 
-  const getPortCoordinates = (
-    node: NodeData,
-    port: PortPosition,
-    offset: number = 0,
-  ) => {
-    const dimensions = getNodeDimensions(node);
-    switch (port) {
-      case 'top':
-        return { x: node.x + dimensions.width / 2, y: node.y - offset };
-      case 'right':
-        return {
-          x: node.x + dimensions.width + offset,
-          y: node.y + dimensions.height / 2,
-        };
-      case 'bottom':
-        return {
-          x: node.x + dimensions.width / 2,
-          y: node.y + dimensions.height + offset,
-        };
-      case 'left':
-        return { x: node.x - offset, y: node.y + dimensions.height / 2 };
-    }
-  };
-
-  const getAttachmentPortCoordinates = (
-    node: NodeData,
-    attachmentKind: AttachmentKind,
-    offset = 0,
-  ) => {
-    const dimensions = getNodeDimensions(node);
-    const ratio =
-      attachmentKind === 'agent'
-        ? 0.18
-        : attachmentKind === 'memory'
-          ? 0.5
-          : 0.82;
-    return {
-      x: node.x + dimensions.width * ratio,
-      y: node.y + dimensions.height + offset,
-    };
-  };
-
   const getOppositePort = (port: PortPosition): PortPosition => {
     switch (port) {
       case 'top':
@@ -2637,135 +2605,6 @@ export default function Editor() {
       case 'right':
         return 'left';
     }
-  };
-
-  // Helper context to render curves
-  const renderCurve = (
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    sourcePort: PortPosition,
-    targetPort: PortPosition,
-    style: 'step' | 'bezier',
-  ) => {
-    if (style === 'step') {
-      const offset = 32;
-      const getOffsetPt = (x: number, y: number, port: PortPosition) => {
-        switch (port) {
-          case 'top':
-            return { x, y: y - offset };
-          case 'bottom':
-            return { x, y: y + offset };
-          case 'left':
-            return { x: x - offset, y };
-          case 'right':
-            return { x: x + offset, y };
-        }
-      };
-
-      const p0 = { x: x1, y: y1 };
-      const p4 = { x: x2, y: y2 };
-      const p1 = getOffsetPt(x1, y1, sourcePort);
-      const p3 = getOffsetPt(x2, y2, targetPort);
-
-      const isHorizontal = (port: PortPosition) =>
-        port === 'left' || port === 'right';
-      const isVertical = (port: PortPosition) =>
-        port === 'top' || port === 'bottom';
-
-      let points = [p0];
-
-      if (isHorizontal(sourcePort) && isHorizontal(targetPort)) {
-        if (sourcePort === targetPort) {
-          const outerX =
-            sourcePort === 'left' ? Math.min(p1.x, p3.x) : Math.max(p1.x, p3.x);
-          points.push({ x: outerX, y: p1.y });
-          points.push({ x: outerX, y: p3.y });
-        } else {
-          const midX = (p1.x + p3.x) / 2;
-          points.push(p1);
-          points.push({ x: midX, y: p1.y });
-          points.push({ x: midX, y: p3.y });
-          points.push(p3);
-        }
-      } else if (isVertical(sourcePort) && isVertical(targetPort)) {
-        const midY = (p1.y + p3.y) / 2;
-        points.push(p1);
-        points.push({ x: p1.x, y: midY });
-        points.push({ x: p3.x, y: midY });
-        points.push(p3);
-      } else if (isHorizontal(sourcePort) && isVertical(targetPort)) {
-        // Just one corner to connect horizontal out to vertical in
-        points.push(p1);
-        points.push({ x: p4.x, y: p1.y });
-      } else if (isVertical(sourcePort) && isHorizontal(targetPort)) {
-        // Just one corner to connect vertical out to horizontal in
-        points.push(p1);
-        points.push({ x: p1.x, y: p4.y });
-      }
-      points.push(p4);
-
-      // Clean up duplicate points
-      points = points.filter((p, i, arr) => {
-        if (i === 0) return true;
-        const prev = arr[i - 1];
-        return Math.abs(p.x - prev.x) > 1 || Math.abs(p.y - prev.y) > 1;
-      });
-
-      // Build path with rounded corners
-      let path = `M ${points[0].x} ${points[0].y}`;
-      const radius = 16;
-
-      for (let i = 1; i < points.length - 1; i++) {
-        const prev = points[i - 1];
-        const curr = points[i];
-        const next = points[i + 1];
-
-        const dPrev = Math.hypot(curr.x - prev.x, curr.y - prev.y);
-        const dNext = Math.hypot(next.x - curr.x, next.y - curr.y);
-
-        const r = Math.min(radius, dPrev / 2, dNext / 2);
-
-        if (r < 1) {
-          path += ` L ${curr.x} ${curr.y}`;
-          continue;
-        }
-
-        const startX = curr.x - (r * (curr.x - prev.x)) / dPrev;
-        const startY = curr.y - (r * (curr.y - prev.y)) / dPrev;
-
-        const endX = curr.x + (r * (next.x - curr.x)) / dNext;
-        const endY = curr.y + (r * (next.y - curr.y)) / dNext;
-
-        path += ` L ${startX} ${startY}`;
-        path += ` Q ${curr.x} ${curr.y} ${endX} ${endY}`;
-      }
-
-      const last = points[points.length - 1];
-      path += ` L ${last.x} ${last.y}`;
-
-      return path;
-    }
-
-    const getControlPoint = (x: number, y: number, port: PortPosition) => {
-      const offset = 80;
-      switch (port) {
-        case 'top':
-          return { x, y: y - offset };
-        case 'bottom':
-          return { x, y: y + offset };
-        case 'left':
-          return { x: x - offset, y };
-        case 'right':
-          return { x: x + offset, y };
-      }
-    };
-
-    const cp1 = getControlPoint(x1, y1, sourcePort);
-    const cp2 = getControlPoint(x2, y2, targetPort);
-
-    return `M ${x1} ${y1} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${x2} ${y2}`;
   };
 
   const getCurveMidpoint = (
@@ -2802,51 +2641,6 @@ export default function Editor() {
       x: (x1 + 3 * cp1.x + 3 * cp2.x + x2) / 8,
       y: (y1 + 3 * cp1.y + 3 * cp2.y + y2) / 8,
     };
-  };
-
-  const renderNodeIcon = (nodeTypeId: string) => {
-    const nodeType = ALL_NODE_TYPES.find((n) => n.id === nodeTypeId);
-    if (nodeType) {
-      if (nodeType.iconSrc) {
-        if (nodeType.iconRenderMode === 'mask') {
-          return (
-            <div
-              className="w-16 h-16 bg-current pointer-events-none"
-              style={{
-                WebkitMaskImage: `url(${nodeType.iconSrc})`,
-                WebkitMaskSize: 'contain',
-                WebkitMaskRepeat: 'no-repeat',
-                WebkitMaskPosition: 'center',
-                maskImage: `url(${nodeType.iconSrc})`,
-                maskSize: 'contain',
-                maskRepeat: 'no-repeat',
-                maskPosition: 'center',
-              }}
-            />
-          );
-        }
-        return (
-          <img
-            src={nodeType.iconSrc}
-            alt={nodeTypeId}
-            className="w-16 h-16 object-contain pointer-events-none"
-          />
-        );
-      }
-      if (nodeType.fallbackIcon) {
-        const Icon = nodeType.fallbackIcon;
-        return (
-          <Icon
-            className={cn('w-16 h-16 pointer-events-none', nodeType.color)}
-          />
-        );
-      }
-    }
-    return (
-      <span className="text-sm font-mono opacity-50 uppercase pointer-events-none">
-        {nodeTypeId.substring(0, 2)}
-      </span>
-    );
   };
 
   const getConnectionTargetDisabledReason = (node: AppNodeType) => {
@@ -3674,25 +3468,14 @@ export default function Editor() {
                   data-node-status={status}
                   className={cn(
                     'group guard-node absolute flex flex-col justify-center cursor-move select-none transition-shadow transition-colors',
-                    isEnvironmentNode
-                      ? 'isolate bg-transparent'
-                      : 'bg-[var(--node-bg)] shadow-lg',
-                    isAIContainer ? 'p-0' : 'p-4',
-                    isScheduleNode
-                      ? 'rounded-t-full rounded-b-lg'
-                      : isAttachmentNode
-                        ? 'rounded-full'
-                        : !isEnvironmentNode && 'rounded-xl',
-                    !isEnvironmentNode &&
-                      (status === 'running' ? 'border-transparent' : 'border'),
-                    !isEnvironmentNode &&
-                      status !== 'running' &&
-                      isSelected &&
-                      'border-[var(--border-strong)] ring-[4px] ring-[var(--border-strong)] shadow-xl',
-                    !isEnvironmentNode &&
-                      status !== 'running' &&
-                      !isSelected &&
-                      'border-[var(--node-border)]',
+                    workflowNodeAppearance({
+                      isEnvironmentNode,
+                      isScheduleNode,
+                      isAttachmentNode,
+                      isAIContainer,
+                      status,
+                      isSelected,
+                    }),
                   )}
                   style={{
                     left: node.x,
@@ -3704,29 +3487,10 @@ export default function Editor() {
                   onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
                 >
                   {isEnvironmentNode && (
-                    <div
-                      data-testid="canvas-environment-node-shape"
-                      className={cn(
-                        'environment-node-hexagon pointer-events-none absolute inset-0 z-[-1] overflow-hidden drop-shadow-lg',
-                        status === 'running'
-                          ? 'bg-transparent'
-                          : isSelected
-                            ? 'bg-[var(--border-strong)]'
-                            : 'bg-[var(--node-border)]',
-                      )}
-                    >
-                      {status === 'running' && (
-                        <div className="absolute left-1/2 top-1/2 aspect-square w-[300%] -translate-x-1/2 -translate-y-1/2 animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_0deg,#3b82f6,#22d3ee,#3b82f6)]" />
-                      )}
-                      <div
-                        className={cn(
-                          'environment-node-hexagon absolute inset-0 origin-center bg-[var(--node-bg)]',
-                          status !== 'running' && isSelected
-                            ? 'scale-[0.932342]'
-                            : 'scale-[0.986468]',
-                        )}
-                      />
-                    </div>
+                    <EnvironmentNodeShape
+                      status={status}
+                      isSelected={isSelected}
+                    />
                   )}
 
                   {status === 'running' && !isEnvironmentNode && (
@@ -3951,7 +3715,7 @@ export default function Editor() {
                       <div className="flex min-h-0 flex-1 items-center gap-4 px-8 pb-12">
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-[var(--node-border)] bg-[var(--surface-hover)]">
                           <div className="scale-75">
-                            {renderNodeIcon(node.nodeType)}
+                            <WorkflowNodeIcon nodeTypeId={node.nodeType} />
                           </div>
                         </div>
                         <div className="min-w-0 text-left">
@@ -4037,7 +3801,7 @@ export default function Editor() {
                       )}
                     >
                       <div className="w-16 h-16 rounded-lg flex items-center justify-center shrink-0">
-                        {renderNodeIcon(node.nodeType)}
+                        <WorkflowNodeIcon nodeTypeId={node.nodeType} />
                       </div>
                     </div>
                   )}

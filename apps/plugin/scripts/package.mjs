@@ -107,8 +107,14 @@ export async function packagePlugin(
     await mkdir(dirname(target), { recursive: true });
     await copyFile(join(pluginRoot, file), target);
   }
+  command('npm', [
+    'run',
+    'build:workflow-editor',
+    '--prefix',
+    join(pluginRoot, '../frontend'),
+  ]);
   await copyFile(
-    join(pluginRoot, '../mcp/src/workflow-editor.html'),
+    join(pluginRoot, '../mcp/dist/workflow-editor.html'),
     join(destination, 'scripts/workflow-editor.html'),
   );
   const catalogPath = join(marketplaceRoot, '.agents/plugins/marketplace.json');

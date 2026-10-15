@@ -23,7 +23,7 @@ function editorHtml() {
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
     return readFileSync(
-      new URL('../../mcp/src/workflow-editor.html', import.meta.url),
+      new URL('../../mcp/dist/workflow-editor.html', import.meta.url),
       'utf8',
     );
   }

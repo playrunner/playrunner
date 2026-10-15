@@ -32,6 +32,12 @@ test("editor resource discovery and reads preserve HTTP authentication and rejec
     "text/html;profile=mcp-app",
   );
   assert.match(resource.result.contents[0].text, /ui\/initialize/);
+  assert.match(resource.result.contents[0].text, /renderWorkflowCanvas/);
+  assert.match(resource.result.contents[0].text, /data:image\/svg/);
+  assert.doesNotMatch(
+    resource.result.contents[0].text,
+    /WORKFLOW_CANVAS_(SCRIPT|STYLES)/,
+  );
   assert.equal(
     (await (await rpc("resources/read", { uri: "file:///etc/passwd" })).json())
       .error.code,

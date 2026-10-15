@@ -12,7 +12,10 @@ export function readWorkflowEditorResource() {
     contents: [
       {
         ...workflowEditorResource,
-        text: readFileSync(join(__dirname, "workflow-editor.html"), "utf8"),
+        text: readFileSync(
+          join(__dirname, "../dist/workflow-editor.html"),
+          "utf8",
+        ),
         _meta: {
           ui: {
             prefersBorder: true,

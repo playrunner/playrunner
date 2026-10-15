@@ -34,7 +34,16 @@ test('management HTTP routes enforce scope, ownership and safe deletion', async 
             config: { token: 'must-not-leak' },
           },
         ],
-        connections: [],
+        connections: [
+          {
+            id: 'attachment',
+            sourceId: 'n',
+            targetId: 'agent',
+            role: 'attachment',
+            attachmentPort: 'tool',
+            config: { token: 'must-not-leak' },
+          },
+        ],
       },
     ],
   ]);
@@ -152,6 +161,7 @@ test('management HTTP routes enforce scope, ownership and safe deletion', async 
   );
   const graph = await (await request('/workflows/w/editor', 'GET')).json();
   assert.equal(graph.workflow.nodes[0].id, 'n');
+  assert.equal(graph.workflow.connections[0].attachmentPort, 'tool');
   assert.equal('config' in graph.workflow.nodes[0], false);
   assert.equal(JSON.stringify(graph).includes('must-not-leak'), false);
   assert.equal((await request('/projects?limit=0', 'GET')).status, 400);

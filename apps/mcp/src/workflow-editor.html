@@ -4,22 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Playrunner workflow editor</title>
+    <!-- WORKFLOW_CANVAS_STYLES -->
     <style>
-      :root {
-        color-scheme: light dark;
-        --background: #fff;
-        --foreground: #09090b;
-        --surface: #f4f4f5;
-        --border: #e4e4e7;
-        --muted: #71717a;
-      }
-      :root[data-theme="dark"] {
-        --background: #09090b;
-        --foreground: #fafafa;
-        --surface: #121212;
-        --border: #27272a;
-        --muted: #a1a1aa;
-      }
       * {
         box-sizing: border-box;
       }
@@ -57,7 +43,8 @@
         color: var(--muted);
         font-size: 12px;
       }
-      button {
+      header button,
+      footer button {
         border: 1px solid var(--border);
         border-radius: 8px;
         padding: 8px 12px;
@@ -66,8 +53,10 @@
         cursor: pointer;
         font: inherit;
       }
-      button:hover,
-      button:focus-visible {
+      header button:hover,
+      header button:focus-visible,
+      footer button:hover,
+      footer button:focus-visible {
         outline: 2px solid var(--muted);
         outline-offset: 2px;
       }
@@ -76,65 +65,19 @@
         cursor: default;
       }
       #canvas {
-        height: 400px;
-        overflow: auto;
-        background: radial-gradient(var(--border) 1px, transparent 1px) 0 0 /
-          20px 20px;
+        height: 440px;
+        min-height: 320px;
       }
-      #graph {
-        position: relative;
-        min-width: 100%;
-        min-height: 100%;
+      .preview-node:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 4px;
       }
-      svg {
-        position: absolute;
-        inset: 0;
-        overflow: visible;
-        pointer-events: none;
+      .preview-node p {
+        margin: 0;
       }
-      path {
-        fill: none;
-        stroke: var(--muted);
-        stroke-width: 2;
-      }
-      .node {
-        position: absolute;
-        width: 190px;
-        min-height: 72px;
-        text-align: left;
-        background: var(--background);
-        border-radius: 12px;
-        box-shadow: 0 1px 3px #0001;
-      }
-      .node strong,
-      .node small {
-        display: block;
-        overflow-wrap: anywhere;
-      }
-      .node small {
-        color: var(--muted);
-        margin-top: 6px;
-        font-size: 11px;
-      }
-      .node[aria-pressed="true"] {
-        outline: 2px solid var(--foreground);
-      }
-      .node.added {
-        animation: appear 0.5s ease-out;
-      }
-      @keyframes appear {
-        from {
-          opacity: 0.25;
-          transform: translateY(8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .node.added {
-          animation: none;
+      @media (min-height: 700px) {
+        :root[data-display-mode="fullscreen"] #canvas {
+          height: calc(100vh - 155px);
         }
       }
       #selection {
@@ -164,27 +107,26 @@
       <button id="fit" type="button">Fit graph</button>
       <button id="expand" type="button" hidden>Expand</button>
     </header>
-    <main id="canvas" aria-label="Workflow canvas"><div id="graph"></div></main>
+    <main id="canvas" aria-label="Saved workflow preview"></main>
     <div id="selection" aria-live="polite"></div>
     <footer>
       <span id="status" role="status">Connecting to Playrunner…</span
       ><button id="refresh" type="button" disabled>Refresh</button
       ><button id="pause" type="button" disabled>Pause updates</button>
     </footer>
-    <script>
+    <!-- WORKFLOW_CANVAS_SCRIPT -->
+    <script type="module">
       const byId = (id) => document.getElementById(id);
       const pending = new Map();
       let sequence = 0,
         snapshot,
-        selectedId,
         ready = false,
         paused = false,
         disposed = false,
         busy = false,
         timer,
         failures = 0,
-        fingerprint = "",
-        scale = 1;
+        fingerprint = "";
       const notify = (method, params = {}) =>
         window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
       function request(method, params) {
@@ -202,104 +144,32 @@
         });
       }
       function theme(context) {
-        document.documentElement.dataset.theme =
-          context?.theme === "dark" ? "dark" : "light";
-        byId("expand").hidden =
-          !context?.availableDisplayModes?.includes("fullscreen");
-      }
-      function layout(workflow) {
-        const nodes = workflow.nodes || [];
-        const minX = Math.min(0, ...nodes.map((n) => Number(n.x) || 0));
-        const minY = Math.min(0, ...nodes.map((n) => Number(n.y) || 0));
-        return nodes.map((n) => ({
-          ...n,
-          x: (Number(n.x) || 0) - minX + 32,
-          y: (Number(n.y) || 0) - minY + 32,
-        }));
+        if (context?.theme)
+          document.documentElement.classList.toggle(
+            "dark",
+            context.theme === "dark",
+          );
+        if (context?.displayMode)
+          document.documentElement.dataset.displayMode = context.displayMode;
+        if (context?.availableDisplayModes)
+          byId("expand").hidden =
+            !context.availableDisplayModes.includes("fullscreen");
       }
       function render(workflow, fit = false) {
-        const previous = new Set(
-          snapshot?.workflow.nodes.map((n) => n.id) || [],
-        );
-        const nodes = layout(workflow);
-        const width = Math.max(400, ...nodes.map((n) => n.x + 222));
-        const height = Math.max(300, ...nodes.map((n) => n.y + 120));
-        if (fit)
-          scale = Math.min(
-            1,
-            Math.max(0.15, byId("canvas").clientWidth / width),
-            400 / height,
-          );
-        const graph = byId("graph");
-        graph.replaceChildren();
-        graph.style.width = `${width * scale}px`;
-        graph.style.height = `${height * scale}px`;
-        const layer = document.createElement("div");
-        layer.style.cssText = `position:absolute;transform-origin:0 0;transform:scale(${scale});width:${width}px;height:${height}px`;
-        const svg = document.createElementNS(
-          "http://www.w3.org/2000/svg",
-          "svg",
-        );
-        svg.setAttribute("width", String(width));
-        svg.setAttribute("height", String(height));
-        const indexed = new Map(nodes.map((n) => [n.id, n]));
-        for (const edge of workflow.connections || []) {
-          const source = indexed.get(edge.sourceId),
-            target = indexed.get(edge.targetId);
-          if (!source || !target) continue;
-          const path = document.createElementNS(svg.namespaceURI, "path");
-          const x1 = source.x + 190,
-            y1 = source.y + 36,
-            x2 = target.x,
-            y2 = target.y + 36;
-          path.setAttribute(
-            "d",
-            `M ${x1} ${y1} C ${x1 + 60} ${y1}, ${x2 - 60} ${y2}, ${x2} ${y2}`,
-          );
-          if (edge.role === "attachment")
-            path.setAttribute("stroke-dasharray", "5 4");
-          svg.append(path);
-        }
-        layer.append(svg);
-        for (const node of nodes) {
-          const button = document.createElement("button");
-          button.className = `node${previous.has(node.id) ? "" : " added"}`;
-          button.style.left = `${node.x}px`;
-          button.style.top = `${node.y}px`;
-          button.setAttribute("aria-pressed", String(selectedId === node.id));
-          const label = document.createElement("strong");
-          label.textContent = node.label;
-          const type = document.createElement("small");
-          type.textContent = node.nodeType;
-          button.append(label, type);
-          button.onclick = () => {
-            selectedId = node.id;
-            graph
-              .querySelectorAll(".node")
-              .forEach((el) =>
-                el.setAttribute("aria-pressed", String(el === button)),
-              );
-            byId("selection").textContent =
-              `${node.label} · ${node.nodeType} · ${node.id}`;
-            request("ui/update-model-context", {
-              content: [
-                {
-                  type: "text",
-                  text: `Selected workflow ${workflow.id}, node ${node.id}.`,
-                },
-              ],
-            }).catch(() => {});
-          };
-          layer.append(button);
-        }
-        if (!indexed.has(selectedId)) {
-          selectedId = undefined;
-          byId("selection").textContent = "";
-        }
-        graph.append(layer);
+        window.renderWorkflowCanvas(workflow, fit, (node) => {
+          byId("selection").textContent = `${node.label} · ${node.nodeType}`;
+          request("ui/update-model-context", {
+            content: [
+              {
+                type: "text",
+                text: `Selected workflow ${workflow.id}, node ${node.id}.`,
+              },
+            ],
+          }).catch(() => {});
+        });
         byId("title").textContent = workflow.title || "Workflow editor";
         byId("summary").textContent =
-          `${nodes.length} nodes · ${(workflow.connections || []).length} connections · Saved workflow`;
+          `${workflow.nodes.length} nodes · ${workflow.connections.length} connections · Live preview`;
       }
       function accept(data) {
         if (
@@ -430,7 +300,7 @@
         clearTimeout(timer);
       });
       request("ui/initialize", {
-        appInfo: { name: "Playrunner workflow editor", version: "1.0.0" },
+        appInfo: { name: "Playrunner workflow editor", version: "1.1.0" },
         appCapabilities: {},
         protocolVersion: "2026-01-26",
       })

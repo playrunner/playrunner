@@ -106,6 +106,7 @@ export function createMachineManagementRouter(
           'targetPort',
           'type',
           'role',
+          'attachmentPort',
         ]),
       },
     });
