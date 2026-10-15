@@ -124,8 +124,8 @@ export function HuggingFaceSettingsModal({
         />
       }
       isConnected={isConnected}
-      connectedTitle="Hugging Face Connected Successfully"
-      connectedDescription="Your access token is stored with your Playrunner integration settings and is ready for workflow runs."
+      connectedTitle="Hugging Face access token saved"
+      connectedDescription="Your token is stored securely. Run a workflow to verify access to your selected model and provider."
       onChangeCredentials={() => {
         setAccessToken('');
         setIsConnected(false);

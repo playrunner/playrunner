@@ -73,6 +73,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "NODE_OPTIONS=--preserve-symlinks tsx --test src/*.test.ts src/orchestrator/*.test.ts",
+    "test:live": "NODE_OPTIONS=--preserve-symlinks tsx --test src/live/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

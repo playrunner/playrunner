@@ -11,6 +11,7 @@ import type {
   NodeExecutionResult,
   OrchestratorIntegrationContribution,
 } from '@playrunner/integration-sdk/orchestrator';
+import { generateText, HuggingFaceConfigurationError } from './text-generation';
 
 const TASK_DEFAULTS = {
   'text-generation': 'google/gemma-2-2b-it',
@@ -22,6 +23,7 @@ const TASK_DEFAULTS = {
 type HuggingFaceTask = keyof typeof TASK_DEFAULTS;
 
 interface InferenceClientLike {
+  chatCompletion: (args: unknown, options?: unknown) => Promise<unknown>;
   textGeneration: (args: unknown, options?: unknown) => Promise<unknown>;
   textClassification: (args: unknown, options?: unknown) => Promise<unknown>;
   featureExtraction: (args: unknown, options?: unknown) => Promise<unknown>;
@@ -45,7 +47,7 @@ function selectedTask(value: unknown): HuggingFaceTask {
   if (value === undefined || value === null || value === '') {
     return 'text-generation';
   }
-  if (typeof value === 'string' && value in TASK_DEFAULTS) {
+  if (typeof value === 'string' && Object.hasOwn(TASK_DEFAULTS, value)) {
     return value as HuggingFaceTask;
   }
   throw new HuggingFaceExecutionError(
@@ -92,6 +94,22 @@ function parseParameters(value: unknown): Record<string, unknown> | undefined {
       'Inference parameters must be a JSON object.',
     );
   }
+  if (
+    [
+      'accessToken',
+      'endpointUrl',
+      'model',
+      'provider',
+      'inputs',
+      'messages',
+      'stream',
+      'headers',
+    ].some((key) => Object.hasOwn(parsed, key))
+  ) {
+    throw new HuggingFaceExecutionError(
+      'Inference parameters cannot override the model, provider, input, credentials, endpoint, or response mode.',
+    );
+  }
   return parsed;
 }
 
@@ -103,7 +121,10 @@ function safeFailureMessage(error: unknown, signal: AbortSignal): string {
   if (signal.aborted) {
     return 'Hugging Face inference request was cancelled.';
   }
-  if (error instanceof HuggingFaceExecutionError) {
+  if (
+    error instanceof HuggingFaceExecutionError ||
+    error instanceof HuggingFaceConfigurationError
+  ) {
     return error.message;
   }
   if (error instanceof InferenceClientRoutingError) {
@@ -165,8 +186,11 @@ export async function executeHuggingFace(
     let data: unknown;
     switch (task) {
       case 'text-generation':
-        data = await client.textGeneration(
-          { ...request, ...(parameters ? { parameters } : {}) },
+        data = await generateText(
+          client,
+          request,
+          parameters,
+          accessToken,
           requestOptions,
         );
         break;

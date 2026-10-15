@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, test } from 'node:test';
+import { afterEach, beforeEach, describe, mock, test } from 'node:test';
 import type { NodeExecutionContext } from '@playrunner/integration-sdk/orchestrator';
 import huggingFaceOrchestratorContribution, {
   executeHuggingFace,
@@ -49,6 +49,7 @@ function fakeClient(
       return response;
     };
     return {
+      chatCompletion: (request) => run('chatCompletion', request),
       textGeneration: (request) => run('textGeneration', request),
       textClassification: (request) => run('textClassification', request),
       featureExtraction: (request) => run('featureExtraction', request),
@@ -57,6 +58,16 @@ function fakeClient(
 }
 
 describe('Hugging Face orchestrator contribution', () => {
+  beforeEach(() => {
+    mock.method(globalThis, 'fetch', async () =>
+      Response.json({
+        inferenceProviderMapping: {
+          'featherless-ai': { status: 'live', task: 'text-generation' },
+        },
+      }),
+    );
+  });
+  afterEach(() => mock.restoreAll());
   test('registers as the default Hugging Face executor', () => {
     assert.equal(huggingFaceOrchestratorContribution.id, 'huggingface');
     assert.equal(
@@ -81,7 +92,7 @@ describe('Hugging Face orchestrator contribution', () => {
         method: 'textGeneration',
         request: {
           model: 'google/gemma-2-2b-it',
-          provider: 'auto',
+          provider: 'featherless-ai',
           inputs: 'Summarize {"failed":true}.',
           parameters: { max_new_tokens: 128 },
         },
@@ -165,6 +176,7 @@ describe('Hugging Face orchestrator contribution', () => {
 
   test('does not expose tokens or provider errors', async () => {
     const failingClient: HuggingFaceClientFactory = () => ({
+      chatCompletion: async () => ({}),
       textGeneration: async () => {
         throw new Error('Token hf_test_secret was rejected');
       },

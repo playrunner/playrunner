@@ -26,7 +26,7 @@ export class HuggingFaceE2EPom {
       name: 'Save access token',
     });
     this.connectedHeading = this.dialog.getByRole('heading', {
-      name: 'Hugging Face Connected Successfully',
+      name: 'Hugging Face access token saved',
     });
     this.disconnectButton = this.dialog.getByRole('button', {
       name: 'Disconnect',
