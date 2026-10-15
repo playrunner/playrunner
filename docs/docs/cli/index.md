@@ -2,7 +2,7 @@
 sidebar_position: 1
 sidebar_label: Overview
 title: Playrunner CLI
-description: Run and define workflows from a terminal, or connect a local browser to Playrunner Cloud Authentication Profiles.
+description: Run and define workflows, connect your own compute to Playrunner Cloud, or capture browser sessions for Authentication Profiles.
 keywords:
   [
     'playrunner cli',
@@ -17,7 +17,8 @@ keywords:
 Use the Playrunner CLI to run saved workflows or create and update workflows
 from declarative JSON files. It also pairs a computer with Playrunner Cloud so
 Authentication Profiles can capture a signed-in browser session in native
-Chrome. The CLI works in an interactive terminal and in CI/CD systems that
+Chrome, or runs Playwright tests on your own compute while Cloud keeps the
+reports. The CLI works in an interactive terminal and in CI/CD systems that
 provide Node.js and network access to Playrunner.
 
 ## Choose a task
@@ -29,6 +30,9 @@ provide Node.js and network access to Playrunner.
 | Create or update a workflow from JSON              | [Create a workflow](./create-workflow.md)                             |
 | Capture a Cloud Authentication Profile with Chrome | [Connect the authentication companion](./authentication-companion.md) |
 
+Use [Run Cloud tests on your own machine](./local-workers.md) to connect a
+laptop, server or VM and select it from the editor’s **Your machines** menu.
+
 ## Command overview
 
 | Command                                  | Purpose                                                        | Authentication          |
@@ -39,13 +43,16 @@ provide Node.js and network access to Playrunner.
 | `playrunner auth connect`                | Connect in the foreground and accept browser capture requests  | Paired device           |
 | `playrunner auth status`                 | Show whether this computer is paired, online, or revoked       | Paired device           |
 | `playrunner auth disconnect`             | Revoke this computer, stop its service, and remove credentials | Paired device           |
+| `playrunner worker prepare`              | Build the local Docker test runner image                       | None                    |
+| `playrunner worker connect --url URL`    | Supply this machine’s compute for Cloud-coordinated tests      | Paired device           |
 
-Run the top-level help or authentication help for the commands available in
-your installed version:
+Run the top-level help, worker help or authentication help for the commands
+available in your installed version:
 
 ```bash
 playrunner --help
 playrunner auth --help
+playrunner worker --help
 ```
 
 ## Install or run the CLI
@@ -56,7 +63,7 @@ For workflow commands and CI/CD, you can run the CLI without installing it
 globally:
 
 ```bash
-npx --yes playrunner@0.2.5 --help
+npx --yes playrunner@0.3.0 --help
 ```
 
 Pinning the version in automation makes CLI upgrades deliberate.
@@ -106,8 +113,8 @@ capture, revocation, security, and troubleshooting guide. The CLI also has an
 optional advanced background-service mode; it is not part of the required
 login-and-connect flow.
 
-The CLI is not involved after capture. Hosted Runner workflows restore the
-encrypted profile through an execution-bound handoff even when the paired
-computer is offline. Playrunner Cloud does not provide a separate session-test
+The authentication companion is not involved after capture. Workflows using
+the **Playrunner Cloud** runner restore the encrypted profile through an
+execution-bound handoff even when the paired computer is offline. Playrunner Cloud does not provide a separate session-test
 action; run the workflow to verify the stored state through the same path used
 by a real execution.

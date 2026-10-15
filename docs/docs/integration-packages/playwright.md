@@ -76,7 +76,7 @@ surfaces, so no shared registry edit is required.
 ## Authentication Profiles
 
 The **Authentication Profile** setting restores a manually captured, encrypted
-browser session for a Local or Playrunner Cloud Hosted Runner execution. The
+browser session for a Local or Playrunner Cloud runner execution. The
 profile must be
 **Authenticated**, and the saved Environment assigned to that profile must be
 selected on an Environment node connected to the Playwright node. Playrunner
@@ -84,7 +84,7 @@ Cloud users capture the state through a paired computer running the
 [CLI authentication companion](../cli/authentication-companion.md).
 
 Authentication Profiles support owner-initiated Local runner and Playrunner
-Cloud Hosted Runner executions. They remain unavailable to shared workflow
+Playrunner Cloud runner executions. They remain unavailable to shared workflow
 runs. See
 [Reuse Browser Sessions with Authentication Profiles](../tutorials/06-authentication-profiles.md)
 for profile creation, success conditions, session testing, lifecycle actions,

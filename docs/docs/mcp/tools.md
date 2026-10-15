@@ -55,18 +55,20 @@ to capture a session. Pairing a device alone does not make a profile ready.
 
 ## Execution and results
 
-| Tool             | Required inputs            | Optional inputs             | Purpose                                                  |
-| ---------------- | -------------------------- | --------------------------- | -------------------------------------------------------- |
-| `run_workflow`   | `workflowId`, `requestKey` | None                        | Start the saved Cloud workflow.                          |
-| `list_runs`      | `workflowId`               | `limit` (1–100, default 20) | List your recent executions of a workflow, newest first. |
-| `get_run_status` | `executionId`              | `after`                     | Read execution status and up to 100 events.              |
+| Tool                 | Required inputs            | Optional inputs                         | Purpose                                                               |
+| -------------------- | -------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
+| `run_workflow`       | `workflowId`, `requestKey` | `executionTarget`, `deviceId`, `source` | Start the saved workflow on Playrunner servers or a selected machine. |
+| `list_runs`          | `workflowId`               | `limit` (1–100, default 20)             | List your recent executions of a workflow, newest first.              |
+| `get_run_status`     | `executionId`              | `after`                                 | Read execution status and up to 100 events.                           |
+| `list_local_workers` | None                       | None                                    | List machines, online status, versions and resource limits.           |
+| `cancel_local_step`  | `executionId`, `nodeId`    | None                                    | Cancel an assigned local test step.                                   |
 
-A typical run uses this sequence:
+A typical run on Playrunner servers uses this sequence:
 
 1. Call `list_workflows` and select the intended workflow's actual ID.
 2. Call `run_workflow` with a new UUID as `requestKey` for this intended run.
-3. Keep the returned execution ID and poll `get_run_status`, leaving a few
-   seconds between requests.
+3. Keep the returned execution ID (`testId` in the start response) and pass it
+   as `executionId` to `get_run_status`, leaving a few seconds between requests.
 4. When `hasMore` is true, pass the returned `nextCursor` as `after` to read
    the next page of events.
 5. Report the final workflow status and actual test evidence. Include test
@@ -84,5 +86,47 @@ workflow ID and generate a fresh UUID for each intended execution:
 
 Reuse that `requestKey` only when retrying an ambiguous response for the same
 run. After receiving an execution ID, inspect that execution instead of
-starting another. Each intended run consumes Cloud workflow-run allowance.
-Stopping a local wait does not cancel the Cloud workflow.
+starting another. Hosted runs are subject to any enabled Cloud workflow-run
+allowance; local execution does not consume hosted-run allowance. This is
+separate from the future execution-time billing notice in the editor.
+Stopping a client’s wait does not cancel the workflow.
+
+## Run on a connected machine
+
+Follow [the worker setup guide](../cli/local-workers.md) on the laptop, server
+or VM that will execute tests. Pairing alone or running `auth connect` does not
+start a test worker.
+
+1. Call `list_local_workers` and choose the intended worker with `online: true`.
+2. Read the saved workflow and confirm that you own it, its runner is
+   `PLAYRUNNER_CLOUD`, and its TypeScript Playwright steps fit the worker's
+   version and resource limits. Disable sharding and omit AI Container steps.
+3. Call `run_workflow` with `executionTarget: "local"`, the selected `deviceId`
+   and a fresh `requestKey`. Choose `source: "workspace"` only if the worker
+   has a connected workspace; otherwise use `source: "workflow"`.
+4. Poll `get_run_status` using the returned execution ID as for a hosted run.
+   Reports and results remain in Cloud.
+
+Example tool arguments (replace both IDs and generate a fresh request key):
+
+```json
+{
+  "workflowId": "YOUR_WORKFLOW_ID",
+  "requestKey": "46a96d77-a4df-4588-a950-e83b02a58e1a",
+  "executionTarget": "local",
+  "deviceId": "SELECTED_DEVICE_ID",
+  "source": "workspace"
+}
+```
+
+The default execution target is hosted. Supply `deviceId` and `source` only
+with `executionTarget: "local"`. The plugin does not inherit the machine picked
+in a browser editor, and MCP runs use the saved graph rather than unsaved
+editor changes. `source` defaults to `workflow` when omitted for a local run.
+
+An offline worker causes the request to fail; it never falls back to Playrunner
+servers. If a request outcome is uncertain, inspect run history or retry with
+the same request key instead of creating another intended execution. To stop
+an assigned local step, call `cancel_local_step` with its execution ID and
+node ID. These execution and cancellation tools require `playrunner:run`;
+listing workers requires `playrunner:read`.

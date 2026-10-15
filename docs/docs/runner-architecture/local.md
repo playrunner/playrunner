@@ -11,6 +11,11 @@ The local runner implements the [shared runner architecture](./) with
 Docker services on the developer machine. This page describes only the local
 deployment and operational differences.
 
+For **Your machines** in Playrunner Cloud, use the
+[connected-machine guide](../cli/local-workers.md). That mode runs only the
+Playwright compute on your machine and keeps orchestration and reporting in
+Cloud; it does not require this full local deployment.
+
 ## Local Deployment
 
 ```mermaid

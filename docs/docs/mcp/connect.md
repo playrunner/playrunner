@@ -72,6 +72,15 @@ Playrunner Cloud's environment settings. MCP environment configuration accepts
 non-secret variables and preserves existing secret variables; profile tools
 return readiness metadata without exposing cookies or browser storage.
 
+## Run tests on your own compute
+
+Connect a worker on your laptop, server or VM using
+[Run Cloud tests on your own machine](../cli/local-workers.md). Then ask your
+assistant to list local workers and run the saved workflow on the machine you
+choose. Cloud keeps the execution history, logs and reports. The
+[local execution tool sequence](./tools.md#run-on-a-connected-machine) requires
+an explicit device choice and never falls back to hosted compute.
+
 ## Troubleshooting
 
 | Symptom                                           | What to check                                                                            |

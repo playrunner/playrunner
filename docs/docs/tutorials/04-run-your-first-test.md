@@ -20,12 +20,19 @@ Open the Playrunner editor and select the workflow you created in the previous t
 
 ## Step 2 — Trigger a manual run
 
+Check the runner menu before starting. In a local installation, select
+**Local Runner**. In Playrunner Cloud, select **Playrunner Cloud** for
+Playrunner's servers, or choose an online computer under **Your machines**.
+Use **Connect a machine** and the [machine setup guide](../cli/local-workers.md)
+to supply your own compute while keeping reports in Cloud. The machine can be
+a laptop, server or VM and does not have to be the computer showing the editor.
+
 Click the **▶ Run** button in the editor toolbar. Playrunner will:
 
 1. Start the **Orchestrator** (if not already running)
 2. Clone your GitHub repository into an isolated Docker container
 3. Execute your Playwright tests inside that container
-4. Stream logs back to the editor in real time via SSE
+4. Deliver live logs to the editor (SSE locally, event polling in Cloud)
 
 ---
 

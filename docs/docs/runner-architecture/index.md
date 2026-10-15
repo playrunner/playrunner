@@ -11,7 +11,17 @@ Every Playrunner runner uses the same execution model. A provider implementation
 chooses where the Orchestrator and Playwright runners run, which messaging
 service carries runner messages, and where test outputs are stored.
 
-The provider pages document those deployment choices:
+In the Cloud editor, **Playrunner Cloud** runs tests on Playrunner's servers.
+**Your machines** sends Playwright work to an explicitly selected laptop,
+server or VM running the CLI worker. Cloud retains orchestration, reporting
+and output storage in both cases. The Cloud menu's execution-time billing
+notice is informational; this release does not enable billing.
+
+See [Run Cloud tests on your own machine](../cli/local-workers.md) for pairing,
+workspace access, resource limits and the editor's **Connect a machine** flow.
+This differs from the local installation described below.
+
+The provider pages document self-hosted deployment choices:
 
 - [Local](./local) uses Docker, the Pub/Sub emulator, and API-hosted outputs.
 - [GCP](./gcp/) uses Cloud Run, GCP Pub/Sub, and Cloud Storage.
@@ -56,7 +66,9 @@ graph TD
 ## Shared Execution Lifecycle
 
 1. The editor sends `POST /api/workflows/start` with the selected runner
-   provider.
+   provider. In Cloud, a manual run on a connected machine first passes through
+   `/api/cloud/local-workers/run` to validate workflow ownership, the selected
+   online worker and its capabilities before starting orchestration.
 2. The API creates the execution, configures its event subscription, ensures the
    provider's Orchestrator is available, and invokes `/execute`.
 3. The Orchestrator scans the workflow for Playwright nodes and begins preparing
@@ -90,6 +102,19 @@ stored as user-facing execution events.
 
 Provider implementations must preserve the shared event and runner-control
 contracts. They vary infrastructure and configuration, not workflow semantics.
+
+## Cloud execution on a connected machine
+
+The Cloud orchestrator assigns Playwright work to the selected paired worker.
+The CLI starts an isolated Docker container on that machine. Runner messages
+use a job-scoped relay to Cloud Pub/Sub, and reports and artifacts are uploaded
+to Cloud storage. The Cloud editor reads persisted execution events through
+its polling adapter rather than a direct connection to the worker.
+
+This mode supports TypeScript Playwright, one step at a time, without sharding
+or AI Container steps. If the worker becomes unavailable, the run fails; it
+never falls back to hosted compute. The machine choice is scoped to manual
+editor runs or explicitly targeted MCP requests, not scheduled runs.
 
 ## Concurrency and Isolation
 

@@ -13,7 +13,7 @@ keywords:
 
 Authentication Profiles let a Playwright node begin with a real signed-in
 browser session. You sign in manually in a visible browser, Playrunner captures
-the resulting browser state, and Local or Cloud Hosted Runner executions
+the resulting browser state, and Local or Playrunner Cloud runner executions
 restore that state without storing your identity-provider password.
 
 With local Playrunner, the API opens the browser directly. With Playrunner
@@ -39,7 +39,7 @@ You need:
 - For local Playrunner, a running API with interactive authentication enabled
   and Chrome available on the API host.
 - To use the captured profile in a workflow, an owner-initiated workflow using
-  the Local runner or Playrunner Cloud **Hosted Runner**.
+  the Local runner or the **Playrunner Cloud** runner.
 
 Authentication Profiles belong to their owner. A shared workflow run cannot
 use the workflow owner's saved browser session.
@@ -124,9 +124,9 @@ start URL, and verifies the same success condition used during capture.
 
 Playrunner Cloud does not provide a separate **Test session** action. Attach
 the authenticated profile to a Playwright node and run the workflow on the
-**Hosted Runner**. This exercises the same stored state and secure delivery
-path used by a real Cloud workflow. The paired computer and CLI do not need to
-remain online after capture.
+**Playrunner Cloud** runner. This exercises the same stored state and secure
+delivery path used by a real Cloud workflow. The paired computer and CLI do
+not need to remain online after capture when using Playrunner’s servers.
 
 ## Step 6 — Attach the profile to a supported Playwright node
 
@@ -136,8 +136,8 @@ remain online after capture.
 3. Connect the Environment node to the **Playwright** node.
 4. Open the Playwright node configuration.
 5. Under **Authentication Profile**, select the authenticated profile.
-6. Select the Local runner or, in Playrunner Cloud, **Hosted Runner**. Save the
-   workflow and run it.
+6. Select **Local Runner** in a local installation or **Playrunner Cloud** in
+   the Cloud editor. Save the workflow and run it.
 
 Playrunner rejects the run if the matching Environment is not linked, the
 profile is not authenticated, the profile belongs to another user, or the

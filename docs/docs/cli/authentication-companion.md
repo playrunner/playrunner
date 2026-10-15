@@ -19,6 +19,11 @@ the captured browser state back to the Authentication Profile you selected.
 The companion receives only Authentication Profile capture requests. It does
 not accept inbound network connections or receive your Playrunner API token.
 
+To execute tests on a connected machine, use the separate
+[local worker setup](./local-workers.md). `auth connect` handles browser
+capture; `worker connect` supplies test compute. Both use device pairing, but
+one process does not replace the other.
+
 ## Requirements
 
 You need:
@@ -151,15 +156,17 @@ requests. Run `playrunner login` again if you later want to pair it again.
 
 ## After capture
 
-The CLI is needed only to capture or refresh an Authentication Profile. After
+The authentication companion is needed only to capture or refresh an Authentication Profile. After
 the profile becomes **Authenticated**, you may stop `playrunner auth connect`
-and turn off the paired computer.
+and turn off the paired computer if it is not also running tests. If the same
+machine supplies test compute, keep its separate `worker connect` process
+and Docker running.
 
-Hosted Runner workflows receive the stored state through a sealed,
-execution-bound handoff; they do not contact the companion or open a browser
+Workflows using the Playrunner Cloud runner receive the stored state through
+a sealed, execution-bound handoff; they do not contact the companion or open a browser
 on your computer. Playrunner Cloud does not provide a separate session-test
 action. Attach the profile to a Playwright node and run the workflow to verify
-it through the real Hosted Runner execution path.
+it through the real Playrunner Cloud runner execution path.
 
 ## Security and captured data
 
