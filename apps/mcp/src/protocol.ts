@@ -1,3 +1,4 @@
+import { WORKFLOW_EDITOR_URI } from "./workflow-editor";
 /**
  * Stateless Streamable HTTP MCP protocol layer.
  *
@@ -6,9 +7,8 @@
  * static token per server expect.
  *
  * The protocol is implemented directly rather than via
- * `@modelcontextprotocol/sdk` because a stateless tools-only server needs
- * `initialize`, `tools/list` and `tools/call` and nothing else, while the SDK
- * would add express, hono, jose and ajv to a publicly reachable endpoint.
+ * `@modelcontextprotocol/sdk` to keep the stateless HTTP transport small. It exposes tools and the
+ * versioned workflow editor resource without retaining user sessions.
  */
 
 /**
@@ -58,6 +58,36 @@ const limitProperty = {
 } as const;
 
 export const MCP_TOOLS = [
+  ...["open_workflow_editor", "get_workflow_editor"].map((name) => ({
+    name,
+    title:
+      name === "open_workflow_editor"
+        ? "Open workflow editor"
+        : "Refresh workflow editor",
+    description:
+      name === "open_workflow_editor"
+        ? "Show a live workflow canvas in the chat. Call immediately after the first save, then save incremental graph changes so the user can watch nodes appear."
+        : "Read the latest saved graph for the open editor. Does not modify or run the workflow. Requires workflow:write management access.",
+    inputSchema: {
+      type: "object",
+      properties: { workflowId: { type: "string", minLength: 1 } },
+      required: ["workflowId"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+    _meta:
+      name === "open_workflow_editor"
+        ? {
+            ui: { resourceUri: WORKFLOW_EDITOR_URI },
+            "openai/outputTemplate": WORKFLOW_EDITOR_URI,
+          }
+        : { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
+  })),
   {
     name: "list_projects",
     title: "List projects",
@@ -73,7 +103,7 @@ export const MCP_TOOLS = [
     name: "save_workflow",
     title: "Save a workflow",
     description:
-      "Create or update a workflow using a machine API definition with project and workflow keys, nodes, connections, cloudProvider, optional concurrency and testPlan. Requires unrestricted workflow:write. Keep secrets in environment references.",
+      "After the first save call open_workflow_editor, then save incremental node additions to show progress. Create or update a workflow using a machine API definition with project and workflow keys, nodes, connections, cloudProvider, optional concurrency and testPlan. Requires unrestricted workflow:write. Keep secrets in environment references.",
     inputSchema: {
       type: "object",
       properties: {
@@ -305,7 +335,10 @@ export function negotiateProtocolVersion(requested: unknown): string {
 export function initializeResult(params: Record<string, unknown>) {
   return {
     protocolVersion: negotiateProtocolVersion(params.protocolVersion),
-    capabilities: { tools: { listChanged: false } },
+    capabilities: {
+      tools: { listChanged: false },
+      resources: { listChanged: false },
+    },
     serverInfo: MCP_SERVER_INFO,
     instructions:
       "Call list_workflows to discover runnable workflows, then run_workflow to start one. run_workflow returns immediately with an execution id; poll get_run_status for the outcome.",
@@ -339,9 +372,7 @@ export function parseWorkflowId(
   return { workflowId: workflowId.trim() };
 }
 
-export function parseRunWorkflowArguments(
-  args: Record<string, unknown>,
-):
+export function parseRunWorkflowArguments(args: Record<string, unknown>):
   | { error: string }
   | {
       workflowId: string;

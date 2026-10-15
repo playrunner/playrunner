@@ -107,6 +107,10 @@ export async function packagePlugin(
     await mkdir(dirname(target), { recursive: true });
     await copyFile(join(pluginRoot, file), target);
   }
+  await copyFile(
+    join(pluginRoot, '../mcp/src/workflow-editor.html'),
+    join(destination, 'scripts/workflow-editor.html'),
+  );
   const catalogPath = join(marketplaceRoot, '.agents/plugins/marketplace.json');
   await mkdir(dirname(catalogPath), { recursive: true });
   await writeFile(
@@ -138,7 +142,10 @@ export async function packagePlugin(
   await rm(submissionZip, { force: true });
   // Public remote-MCP submissions register their endpoint in the portal. Upload
   // only the portable skill bundle, without a local MCP server declaration.
-  const submissionFiles = releaseFiles.filter(
+  const submissionFiles = [
+    ...releaseFiles,
+    'scripts/workflow-editor.html',
+  ].filter(
     (file) =>
       !['mcp.json', '.mcp.json', '.codex-plugin/plugin.json'].includes(file),
   );

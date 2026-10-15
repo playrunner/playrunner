@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { realpathSync } from 'node:fs';
+import { realpathSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { createInterface } from 'node:readline';
 import {
@@ -9,6 +9,25 @@ import {
   cloudServer,
 } from './server-registry.mjs';
 
+const editorResource = {
+  uri: 'ui://playrunner/workflow-editor-v1.html',
+  name: 'Playrunner workflow editor',
+  mimeType: 'text/html;profile=mcp-app',
+};
+function editorHtml() {
+  try {
+    return readFileSync(
+      new URL('./workflow-editor.html', import.meta.url),
+      'utf8',
+    );
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    return readFileSync(
+      new URL('../../mcp/src/workflow-editor.html', import.meta.url),
+      'utf8',
+    );
+  }
+}
 const version = '2025-06-18';
 const maximumBytes = 4 * 1024 * 1024;
 const serverId = {
@@ -23,6 +42,27 @@ const readHints = {
   openWorldHint: true,
 };
 const tools = [
+  ...['open_workflow_editor', 'get_workflow_editor'].map((name) => ({
+    name,
+    description:
+      name === 'open_workflow_editor'
+        ? 'Open the live workflow canvas on an explicitly selected self-hosted server after its first save. Continue saving incremental nodes while it is visible. Requires an upstream server with get_workflow_editor.'
+        : 'Refresh the open workflow canvas on its original server without modifying or running it.',
+    annotations: readHints,
+    inputSchema: {
+      type: 'object',
+      properties: { serverId, workflowId: { type: 'string', minLength: 1 } },
+      required: ['serverId', 'workflowId'],
+      additionalProperties: false,
+    },
+    _meta:
+      name === 'open_workflow_editor'
+        ? {
+            ui: { resourceUri: editorResource.uri },
+            'openai/outputTemplate': editorResource.uri,
+          }
+        : { ui: { visibility: ['app'] }, 'openai/widgetAccessible': true },
+  })),
   {
     name: 'list_servers',
     description:
@@ -281,6 +321,26 @@ export function createRuntimeRouter({
       }
       throw new Error('Server tool pagination did not complete.');
     }
+    if (name === 'open_workflow_editor' || name === 'get_workflow_editor') {
+      if (typeof args.workflowId !== 'string' || !args.workflowId.trim())
+        throw new Error('workflowId is required.');
+      const discovery = await discover();
+      if (!discovery.tools.some((tool) => tool.name === 'get_workflow_editor'))
+        throw new Error(
+          'This server does not support the embedded workflow editor yet. Update its MCP server and API.',
+        );
+      const result = await remote(server, 'tools/call', {
+        name: 'get_workflow_editor',
+        arguments: { workflowId: args.workflowId },
+      });
+      if (result.isError) return result;
+      if (!result.structuredContent?.workflow)
+        throw new Error('Server did not return a workflow graph.');
+      return success({
+        workflow: result.structuredContent.workflow,
+        serverId: server.id,
+      });
+    }
     if (name === 'list_server_tools')
       return success({ ...(await discover()), serverId: server.id });
     if (name === 'call_server_tool') {
@@ -329,13 +389,32 @@ export function createRuntimeRouter({
         )
           ? message.params.protocolVersion
           : version,
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, resources: {} },
         serverInfo: { name: 'playrunner-servers', version: '0.2.0' },
         instructions:
           'List configured servers. Every routed call must name its serverId. Cloud uses the separate native playrunner OAuth tools.',
       };
     else if (message.method === 'ping') result = {};
-    else if (message.method === 'tools/list') result = { tools };
+    else if (message.method === 'resources/list')
+      result = { resources: [editorResource] };
+    else if (message.method === 'resources/read') {
+      if (message.params?.uri !== editorResource.uri)
+        return error(-32002, 'Resource not found.');
+      result = {
+        contents: [
+          {
+            ...editorResource,
+            text: editorHtml(),
+            _meta: {
+              ui: {
+                prefersBorder: true,
+                csp: { connectDomains: [], resourceDomains: [] },
+              },
+            },
+          },
+        ],
+      };
+    } else if (message.method === 'tools/list') result = { tools };
     else if (message.method === 'tools/call') {
       try {
         result = await invoke(message.params?.name, message.params?.arguments);

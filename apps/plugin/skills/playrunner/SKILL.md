@@ -113,6 +113,22 @@ setup described above are allowed; do not infer access from a successful sign-in
 
 ## Build the workflow
 
+For a new workflow, save the first meaningful node or small connected group,
+then immediately call `open_workflow_editor` with the returned workflow ID.
+For self-hosted connections use the router's `open_workflow_editor` with the
+explicit `serverId`; first verify that the selected server advertises
+`get_workflow_editor`. The embedded canvas follows saved changes through
+read-only refresh calls. Add the remaining nodes and connections in meaningful
+incremental saves, preserving the same workflow ID (or stable definition keys).
+Do not recreate the workflow or reopen the canvas on every save. Never run an
+incomplete graph just to show progress. The canvas shows actual saved state;
+do not claim unsaved planning or animation is a completed save.
+
+For an existing workflow, read it before editing, open its canvas, and preserve
+unrelated settings throughout incremental saves. If the host or server lacks
+MCP Apps support, continue using normal tools and report that the embedded view
+is unavailable. Do not substitute a different server or fabricate an editor URL.
+
 Use `get_authoring_guide` before authoring. Use `create_project`,
 `configure_environment`, `save_authentication_profile`, and `save_workflow` as
 needed for the requested workflow. Read an existing workflow before editing it

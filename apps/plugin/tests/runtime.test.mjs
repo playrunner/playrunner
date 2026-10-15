@@ -313,7 +313,7 @@ test('extracted generic plugin configures profiles and starts its stdio router i
   );
   const installed = join(
     unpacked,
-    'playrunner-plugin-0.3.0/plugins/playrunner',
+    'playrunner-plugin-0.3.1/plugins/playrunner',
   );
   const setup = spawnSync(
     process.execPath,
@@ -370,7 +370,7 @@ test('extracted generic plugin configures profiles and starts its stdio router i
       .split('\n')
       .map((line) => JSON.parse(line));
     assert.equal(responses.length, 3);
-    assert.equal(responses[1].result.tools.length, 4);
+    assert.equal(responses[1].result.tools.length, 6);
     assert.equal(
       responses[2].result.structuredContent.servers[1].id,
       'playrunner-team',
@@ -399,4 +399,73 @@ test('installer uses one plugin for configured servers without creating named MC
     ['plugin', 'add', 'playrunner@playrunner'],
   ]);
   assert.equal((await readServers(f.file))[0].id, 'playrunner-team');
+});
+
+test('editor uses the explicit server, preserves access errors and serves its packaged resource', async (t) => {
+  const f = await fixture(t);
+  await configureServer(
+    connectionOptions({
+      server: 'http://127.0.0.1:4999',
+      name: 'editor',
+      tokenEnv: 'EDITOR_KEY',
+    }),
+    f.file,
+  );
+  const profile = (await readServers(f.file))[0];
+  let denied = false;
+  const route = createRuntimeRouter({
+    file: f.file,
+    env: { EDITOR_KEY: 'fixture-key' },
+    fetchImpl: async (url, init) => {
+      assert.equal(url, profile.url);
+      assert.equal(init.headers.authorization, 'Bearer fixture-key');
+      const rpc = JSON.parse(init.body);
+      if (!rpc.id) return new Response(null, { status: 202 });
+      let result;
+      if (rpc.method === 'initialize')
+        result = { protocolVersion: '2025-06-18' };
+      else if (rpc.method === 'tools/list')
+        result = { tools: [{ name: 'get_workflow_editor' }] };
+      else {
+        assert.equal(rpc.params.name, 'get_workflow_editor');
+        assert.equal(rpc.params.arguments.workflowId, 'w');
+        result = denied
+          ? { isError: true, content: [{ type: 'text', text: 'Denied' }] }
+          : {
+              structuredContent: {
+                workflow: { id: 'w', nodes: [], connections: [] },
+              },
+            };
+      }
+      return Response.json({ jsonrpc: '2.0', id: rpc.id, result });
+    },
+  });
+  const rpc = (method, params) =>
+    route({ jsonrpc: '2.0', id: 1, method, params });
+  for (const name of ['open_workflow_editor', 'get_workflow_editor']) {
+    const response = await rpc('tools/call', {
+      name,
+      arguments: { serverId: profile.id, workflowId: 'w' },
+    });
+    assert.equal(response.result.structuredContent.serverId, profile.id);
+    assert.equal(response.result.structuredContent.workflow.id, 'w');
+  }
+  denied = true;
+  assert.equal(
+    (
+      await rpc('tools/call', {
+        name: 'get_workflow_editor',
+        arguments: { serverId: profile.id, workflowId: 'w' },
+      })
+    ).result.isError,
+    true,
+  );
+  const resource = await rpc('resources/read', {
+    uri: 'ui://playrunner/workflow-editor-v1.html',
+  });
+  assert.match(resource.result.contents[0].text, /ui\/initialize/);
+  assert.equal(
+    (await rpc('resources/read', { uri: 'file:///etc/passwd' })).error.code,
+    -32002,
+  );
 });

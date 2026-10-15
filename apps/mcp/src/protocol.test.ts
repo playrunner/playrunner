@@ -69,7 +69,10 @@ test("an unsupported protocol version falls back to the version we speak", () =>
 test("initialize advertises tools and no session-dependent capability", () => {
   const result = initializeResult({ protocolVersion: "2025-06-18" });
   assert.equal(result.protocolVersion, "2025-06-18");
-  assert.deepEqual(result.capabilities, { tools: { listChanged: false } });
+  assert.deepEqual(result.capabilities, {
+    tools: { listChanged: false },
+    resources: { listChanged: false },
+  });
   assert.equal(result.serverInfo.name, "playrunner");
 });
 
@@ -88,6 +91,8 @@ test("tools cover discovery, execution, event inspection and management", () => 
   assert.deepEqual(
     MCP_TOOLS.map((tool) => tool.name),
     [
+      "open_workflow_editor",
+      "get_workflow_editor",
       "list_projects",
       "save_workflow",
       "delete_project",

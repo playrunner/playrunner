@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Playrunner workflow editor</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #fff;
+        --foreground: #09090b;
+        --surface: #f4f4f5;
+        --border: #e4e4e7;
+        --muted: #71717a;
+      }
+      :root[data-theme="dark"] {
+        --background: #09090b;
+        --foreground: #fafafa;
+        --surface: #121212;
+        --border: #27272a;
+        --muted: #a1a1aa;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      header,
+      footer {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 16px;
+      }
+      header {
+        border-bottom: 1px solid var(--border);
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .heading {
+        flex: 1;
+        min-width: 180px;
+      }
+      p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      button {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: var(--foreground);
+        background: var(--surface);
+        cursor: pointer;
+        font: inherit;
+      }
+      button:hover,
+      button:focus-visible {
+        outline: 2px solid var(--muted);
+        outline-offset: 2px;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #canvas {
+        height: 400px;
+        overflow: auto;
+        background: radial-gradient(var(--border) 1px, transparent 1px) 0 0 /
+          20px 20px;
+      }
+      #graph {
+        position: relative;
+        min-width: 100%;
+        min-height: 100%;
+      }
+      svg {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+        pointer-events: none;
+      }
+      path {
+        fill: none;
+        stroke: var(--muted);
+        stroke-width: 2;
+      }
+      .node {
+        position: absolute;
+        width: 190px;
+        min-height: 72px;
+        text-align: left;
+        background: var(--background);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px #0001;
+      }
+      .node strong,
+      .node small {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+      .node small {
+        color: var(--muted);
+        margin-top: 6px;
+        font-size: 11px;
+      }
+      .node[aria-pressed="true"] {
+        outline: 2px solid var(--foreground);
+      }
+      .node.added {
+        animation: appear 0.5s ease-out;
+      }
+      @keyframes appear {
+        from {
+          opacity: 0.25;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .node.added {
+          animation: none;
+        }
+      }
+      #selection {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        overflow-wrap: anywhere;
+      }
+      #selection:empty {
+        display: none;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+      }
+      #status {
+        flex: 1;
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="heading">
+        <h1 id="title">Workflow editor</h1>
+        <p id="summary">Waiting for the saved workflow…</p>
+      </div>
+      <button id="fit" type="button">Fit graph</button>
+      <button id="expand" type="button" hidden>Expand</button>
+    </header>
+    <main id="canvas" aria-label="Workflow canvas"><div id="graph"></div></main>
+    <div id="selection" aria-live="polite"></div>
+    <footer>
+      <span id="status" role="status">Connecting to Playrunner…</span
+      ><button id="refresh" type="button" disabled>Refresh</button
+      ><button id="pause" type="button" disabled>Pause updates</button>
+    </footer>
+    <script>
+      const byId = (id) => document.getElementById(id);
+      const pending = new Map();
+      let sequence = 0,
+        snapshot,
+        selectedId,
+        ready = false,
+        paused = false,
+        disposed = false,
+        busy = false,
+        timer,
+        failures = 0,
+        fingerprint = "",
+        scale = 1;
+      const notify = (method, params = {}) =>
+        window.parent.postMessage({ jsonrpc: "2.0", method, params }, "*");
+      function request(method, params) {
+        const id = ++sequence;
+        return new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            pending.delete(id);
+            reject(new Error("The host did not respond."));
+          }, 15000);
+          pending.set(id, { resolve, reject, timeout });
+          window.parent.postMessage(
+            { jsonrpc: "2.0", id, method, params },
+            "*",
+          );
+        });
+      }
+      function theme(context) {
+        document.documentElement.dataset.theme =
+          context?.theme === "dark" ? "dark" : "light";
+        byId("expand").hidden =
+          !context?.availableDisplayModes?.includes("fullscreen");
+      }
+      function layout(workflow) {
+        const nodes = workflow.nodes || [];
+        const minX = Math.min(0, ...nodes.map((n) => Number(n.x) || 0));
+        const minY = Math.min(0, ...nodes.map((n) => Number(n.y) || 0));
+        return nodes.map((n) => ({
+          ...n,
+          x: (Number(n.x) || 0) - minX + 32,
+          y: (Number(n.y) || 0) - minY + 32,
+        }));
+      }
+      function render(workflow, fit = false) {
+        const previous = new Set(
+          snapshot?.workflow.nodes.map((n) => n.id) || [],
+        );
+        const nodes = layout(workflow);
+        const width = Math.max(400, ...nodes.map((n) => n.x + 222));
+        const height = Math.max(300, ...nodes.map((n) => n.y + 120));
+        if (fit)
+          scale = Math.min(
+            1,
+            Math.max(0.15, byId("canvas").clientWidth / width),
+            400 / height,
+          );
+        const graph = byId("graph");
+        graph.replaceChildren();
+        graph.style.width = `${width * scale}px`;
+        graph.style.height = `${height * scale}px`;
+        const layer = document.createElement("div");
+        layer.style.cssText = `position:absolute;transform-origin:0 0;transform:scale(${scale});width:${width}px;height:${height}px`;
+        const svg = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "svg",
+        );
+        svg.setAttribute("width", String(width));
+        svg.setAttribute("height", String(height));
+        const indexed = new Map(nodes.map((n) => [n.id, n]));
+        for (const edge of workflow.connections || []) {
+          const source = indexed.get(edge.sourceId),
+            target = indexed.get(edge.targetId);
+          if (!source || !target) continue;
+          const path = document.createElementNS(svg.namespaceURI, "path");
+          const x1 = source.x + 190,
+            y1 = source.y + 36,
+            x2 = target.x,
+            y2 = target.y + 36;
+          path.setAttribute(
+            "d",
+            `M ${x1} ${y1} C ${x1 + 60} ${y1}, ${x2 - 60} ${y2}, ${x2} ${y2}`,
+          );
+          if (edge.role === "attachment")
+            path.setAttribute("stroke-dasharray", "5 4");
+          svg.append(path);
+        }
+        layer.append(svg);
+        for (const node of nodes) {
+          const button = document.createElement("button");
+          button.className = `node${previous.has(node.id) ? "" : " added"}`;
+          button.style.left = `${node.x}px`;
+          button.style.top = `${node.y}px`;
+          button.setAttribute("aria-pressed", String(selectedId === node.id));
+          const label = document.createElement("strong");
+          label.textContent = node.label;
+          const type = document.createElement("small");
+          type.textContent = node.nodeType;
+          button.append(label, type);
+          button.onclick = () => {
+            selectedId = node.id;
+            graph
+              .querySelectorAll(".node")
+              .forEach((el) =>
+                el.setAttribute("aria-pressed", String(el === button)),
+              );
+            byId("selection").textContent =
+              `${node.label} · ${node.nodeType} · ${node.id}`;
+            request("ui/update-model-context", {
+              content: [
+                {
+                  type: "text",
+                  text: `Selected workflow ${workflow.id}, node ${node.id}.`,
+                },
+              ],
+            }).catch(() => {});
+          };
+          layer.append(button);
+        }
+        if (!indexed.has(selectedId)) {
+          selectedId = undefined;
+          byId("selection").textContent = "";
+        }
+        graph.append(layer);
+        byId("title").textContent = workflow.title || "Workflow editor";
+        byId("summary").textContent =
+          `${nodes.length} nodes · ${(workflow.connections || []).length} connections · Saved workflow`;
+      }
+      function accept(data) {
+        if (
+          !data?.workflow?.id ||
+          !Array.isArray(data.workflow.nodes) ||
+          !Array.isArray(data.workflow.connections)
+        )
+          throw new Error("The server did not return a workflow graph.");
+        if (
+          snapshot &&
+          (data.workflow.id !== snapshot.workflow.id ||
+            data.serverId !== snapshot.serverId)
+        )
+          return;
+        const next = JSON.stringify(data.workflow);
+        if (next !== fingerprint) {
+          render(data.workflow, !snapshot);
+          fingerprint = next;
+        }
+        snapshot = data;
+        failures = 0;
+        byId("refresh").disabled = !ready;
+        byId("pause").disabled = !ready;
+        byId("status").textContent = paused
+          ? "Updates paused"
+          : "Following saved changes";
+      }
+      function schedule() {
+        clearTimeout(timer);
+        if (ready && snapshot && !paused && !disposed)
+          timer = setTimeout(() => refresh(), 1500);
+      }
+      async function refresh() {
+        if (!ready || !snapshot || busy || disposed) return;
+        if (document.hidden) {
+          schedule();
+          return;
+        }
+        busy = true;
+        try {
+          const result = await request("tools/call", {
+            name: "get_workflow_editor",
+            arguments: {
+              workflowId: snapshot.workflow.id,
+              ...(snapshot.serverId ? { serverId: snapshot.serverId } : {}),
+            },
+          });
+          if (result?.isError)
+            throw new Error("Refresh failed. Check access, then retry.");
+          accept(result.structuredContent);
+        } catch (error) {
+          failures++;
+          byId("status").textContent =
+            `${error.message} Showing the last saved snapshot.`;
+          if (failures >= 3) {
+            paused = true;
+            byId("pause").textContent = "Resume updates";
+          }
+        } finally {
+          busy = false;
+          schedule();
+        }
+      }
+      byId("fit").onclick = () => {
+        if (snapshot) render(snapshot.workflow, true);
+      };
+      byId("refresh").onclick = () => refresh();
+      byId("pause").onclick = () => {
+        paused = !paused;
+        failures = 0;
+        byId("pause").textContent = paused ? "Resume updates" : "Pause updates";
+        byId("status").textContent = paused
+          ? "Updates paused"
+          : "Following saved changes";
+        schedule();
+      };
+      byId("expand").onclick = () =>
+        request("ui/request-display-mode", { mode: "fullscreen" }).catch(() => {
+          byId("status").textContent =
+            "Expanded view is unavailable in this host.";
+        });
+      window.addEventListener("message", (event) => {
+        if (event.source !== window.parent || event.data?.jsonrpc !== "2.0")
+          return;
+        const message = event.data;
+        if (pending.has(message.id)) {
+          const item = pending.get(message.id);
+          pending.delete(message.id);
+          clearTimeout(item.timeout);
+          if (message.error)
+            item.reject(
+              new Error(message.error.message || "Host request failed."),
+            );
+          else item.resolve(message.result);
+          return;
+        }
+        if (message.method === "ui/notifications/tool-result") {
+          try {
+            if (message.params?.isError)
+              throw new Error("Unable to open this workflow.");
+            accept(message.params?.structuredContent);
+            schedule();
+          } catch (error) {
+            byId("status").textContent = error.message;
+          }
+        }
+        if (message.method === "ui/notifications/host-context-changed")
+          theme(message.params);
+        if (message.method === "ui/resource-teardown") {
+          disposed = true;
+          resize.disconnect();
+          clearTimeout(timer);
+          window.parent.postMessage(
+            { jsonrpc: "2.0", id: message.id, result: {} },
+            "*",
+          );
+        }
+      });
+      const resize = new ResizeObserver(() => {
+        if (ready && !disposed)
+          notify("ui/notifications/size-changed", {
+            height: document.body.scrollHeight,
+          });
+      });
+      resize.observe(document.body);
+      window.addEventListener("pagehide", () => {
+        disposed = true;
+        clearTimeout(timer);
+      });
+      request("ui/initialize", {
+        appInfo: { name: "Playrunner workflow editor", version: "1.0.0" },
+        appCapabilities: {},
+        protocolVersion: "2026-01-26",
+      })
+        .then((result) => {
+          ready = true;
+          theme(result.hostContext);
+          notify("ui/notifications/initialized");
+          notify("ui/notifications/size-changed", {
+            height: document.body.scrollHeight,
+          });
+          byId("refresh").disabled = !snapshot;
+          byId("pause").disabled = !snapshot;
+          schedule();
+        })
+        .catch(() => {
+          byId("status").textContent =
+            "Live updates require an MCP Apps host. The saved workflow remains available through the tools.";
+        });
+    </script>
+  </body>
+</html>

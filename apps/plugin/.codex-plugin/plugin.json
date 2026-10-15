@@ -1,6 +1,6 @@
 {
   "name": "playrunner",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "author": {
     "name": "Concept AI PTY LTD"

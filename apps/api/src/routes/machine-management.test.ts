@@ -18,7 +18,25 @@ test('management HTTP routes enforce scope, ownership and safe deletion', async 
   const owner = 'management-test-owner';
   const projects = new Map([['p', { id: 'p', userId: owner, title: 'Test' }]]);
   const workflows = new Map([
-    ['w', { id: 'w', userId: owner, projectId: 'p' }],
+    [
+      'w',
+      {
+        id: 'w',
+        userId: owner,
+        projectId: 'p',
+        nodes: [
+          {
+            id: 'n',
+            label: 'Tests',
+            nodeType: 'playwright',
+            x: 0,
+            y: 0,
+            config: { token: 'must-not-leak' },
+          },
+        ],
+        connections: [],
+      },
+    ],
   ]);
   let active = false;
   let providerFailure = false;
@@ -122,6 +140,20 @@ test('management HTTP routes enforce scope, ownership and safe deletion', async 
     (await request('/workflows/w', 'DELETE', 'other-owner')).status,
     404,
   );
+  for (const key of ['execute-only', 'restricted'])
+    assert.equal(
+      (await request('/workflows/w/editor', 'GET', key)).status,
+      403,
+    );
+  assert.equal((await request('/workflows/w/editor', 'GET', '')).status, 401);
+  assert.equal(
+    (await request('/workflows/w/editor', 'GET', 'other-owner')).status,
+    404,
+  );
+  const graph = await (await request('/workflows/w/editor', 'GET')).json();
+  assert.equal(graph.workflow.nodes[0].id, 'n');
+  assert.equal('config' in graph.workflow.nodes[0], false);
+  assert.equal(JSON.stringify(graph).includes('must-not-leak'), false);
   assert.equal((await request('/projects?limit=0', 'GET')).status, 400);
   assert.deepEqual(
     (await (await request('/projects', 'GET', 'other-owner')).json()).projects,

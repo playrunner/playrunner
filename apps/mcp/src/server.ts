@@ -1,3 +1,7 @@
+import {
+  workflowEditorResource,
+  readWorkflowEditorResource,
+} from "./workflow-editor";
 import express, { type Request, type Response } from "express";
 import {
   callMachineApi,
@@ -42,6 +46,20 @@ export async function callTool(
       ? (params.arguments as Record<string, unknown>)
       : {};
 
+  if (name === "open_workflow_editor" || name === "get_workflow_editor") {
+    const parsed = parseWorkflowId(args);
+    if ("error" in parsed) return toolFailure(parsed.error);
+    return interpretListResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "GET",
+          path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/editor`,
+        }),
+      ),
+      { notFound: "Workflow not found or inaccessible." },
+    );
+  }
   if (name === "list_projects") {
     const limit = parseLimit(args.limit);
     if ("error" in limit) return toolFailure(limit.error);
@@ -220,6 +238,18 @@ export async function handleMcpPost(req: Request, res: Response) {
     }
     if (method === "ping") {
       res.json(jsonRpcResult(id, {}));
+      return;
+    }
+    if (method === "resources/list") {
+      res.json(jsonRpcResult(id, { resources: [workflowEditorResource] }));
+      return;
+    }
+    if (method === "resources/read") {
+      res.json(
+        params.uri === workflowEditorResource.uri
+          ? jsonRpcResult(id, readWorkflowEditorResource())
+          : jsonRpcFailure(id, -32002, "Resource not found."),
+      );
       return;
     }
     if (method === "tools/list") {

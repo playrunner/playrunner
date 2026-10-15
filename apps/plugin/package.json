@@ -1,6 +1,6 @@
 {
   "name": "@playrunner/codex-plugin",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Build and run testing workflows on Playrunner Cloud or a configured self-hosted server.",
   "type": "module",

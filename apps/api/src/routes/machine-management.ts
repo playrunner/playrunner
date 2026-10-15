@@ -58,6 +58,59 @@ export function createMachineManagementRouter(
     });
   });
 
+  router.get('/workflows/:workflowId/editor', async (req, res) => {
+    const workflow = await db.workflow.findFirst({
+      where: { id: req.params.workflowId, userId: req.apiToken!.userId },
+      select: {
+        id: true,
+        title: true,
+        nodes: true,
+        connections: true,
+        updatedAt: true,
+      },
+    });
+    if (!workflow) {
+      res.status(404).json({ error: 'Workflow not found.' });
+      return;
+    }
+    // Only graph presentation metadata crosses the app bridge, never node configuration.
+    const fields = (value: unknown, keys: string[]) =>
+      Array.isArray(value)
+        ? value
+            .filter((item) => item && typeof item === 'object')
+            .map((item) =>
+              Object.fromEntries(
+                keys
+                  .filter((key) => key in item)
+                  .map((key) => [key, item[key]]),
+              ),
+            )
+        : [];
+    res.json({
+      workflow: {
+        ...workflow,
+        nodes: fields(workflow.nodes, [
+          'id',
+          'label',
+          'nodeType',
+          'x',
+          'y',
+          'width',
+          'height',
+        ]),
+        connections: fields(workflow.connections, [
+          'id',
+          'sourceId',
+          'targetId',
+          'sourcePort',
+          'targetPort',
+          'type',
+          'role',
+        ]),
+      },
+    });
+  });
+
   router.delete('/projects/:projectId', async (req, res) => {
     const result = await db.$transaction(
       async (tx) => {
