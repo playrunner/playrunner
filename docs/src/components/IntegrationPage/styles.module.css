@@ -94,7 +94,7 @@
 }
 
 .javascriptIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #f7df1e;
 }
 
@@ -103,17 +103,17 @@
 }
 
 .environmentIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #3b82f6;
 }
 
 .scheduleIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
 .webhooksIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
@@ -123,40 +123,40 @@
 }
 
 :global([data-theme='dark']) .githubIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
 :global([data-theme='dark']) .openaiIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
 :global([data-theme='dark']) .resendIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
 :global([data-theme='dark']) .gcpIcon {
-  background: #111827;
+  background: var(--brand-surface);
 }
 
 :global([data-theme='dark']) .huggingfaceIcon {
-  background: #111827;
+  background: var(--brand-surface);
 }
 
 :global([data-theme='dark']) .jiraIcon {
-  background: #111827;
+  background: var(--brand-surface);
 }
 
 :global([data-theme='dark']) .playwrightIcon {
-  background: #111827;
+  background: var(--brand-surface);
   color: #ffffff;
 }
 
 :global([data-theme='dark']) .slackIcon,
 :global([data-theme='dark']) .microsoft-teamsIcon {
-  background: #111827;
+  background: var(--brand-surface);
 }
 
 .environmentIcon svg,

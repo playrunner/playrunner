@@ -1,12 +1,12 @@
-/* The marketing surface has its own palette; documentation keeps its theme. */
+/* Marketing uses the shared brand palette in either reading mode. */
 .landing {
-  --home-bg: #100e19;
-  --home-surface: #1a1725;
-  --home-border: #36313f;
-  --home-text: #f6f3f0;
-  --home-muted: #b6b0c3;
-  --home-accent: #ff967e;
-  --home-green: #9edab7;
+  --home-bg: var(--brand-plum);
+  --home-surface: var(--brand-surface);
+  --home-border: var(--brand-border);
+  --home-text: var(--brand-text);
+  --home-muted: var(--brand-muted);
+  --home-accent: var(--brand-coral);
+  --home-green: var(--brand-mint);
   background: var(--home-bg);
   color: var(--home-text);
   font-family:
@@ -18,7 +18,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Route-scoped chrome keeps the reading experience on docs pages unchanged. */
+/* The homepage keeps its floating navigation layout. */
 :global(body):has(.landing) {
   background: #100e19;
 }

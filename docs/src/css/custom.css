@@ -1,53 +1,158 @@
-/**
- * Playrunner — Docusaurus custom theme
- * Colours tuned to the product mark and docs readability.
- */
-
+/** Shared homepage and documentation palette. */
 :root {
-  --ifm-color-primary: #0f766e;
-  --ifm-color-primary-dark: #0d695f;
-  --ifm-color-primary-darker: #0b5b53;
-  --ifm-color-primary-darkest: #084841;
-  --ifm-color-primary-light: #13867c;
-  --ifm-color-primary-lighter: #1aa193;
-  --ifm-color-primary-lightest: #6ed4c8;
+  --brand-plum: #100e19;
+  --brand-surface: #1a1725;
+  --brand-border: #36313f;
+  --brand-text: #f6f3f0;
+  --brand-muted: #b6b0c3;
+  --brand-coral: #ff967e;
+  --brand-mint: #9edab7;
+  --ifm-color-primary: #a83c28;
+  --ifm-color-primary-dark: #963522;
+  --ifm-color-primary-darker: #87301f;
+  --ifm-color-primary-darkest: #6c2619;
+  --ifm-color-primary-light: #b9442d;
+  --ifm-color-primary-lighter: #c64b33;
+  --ifm-color-primary-lightest: #d65c43;
+  --ifm-background-color: #fcf9f7;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-font-color-base: #352b3c;
+  --ifm-heading-color: #211a2b;
+  --ifm-color-content-secondary: #6c6074;
+  --ifm-color-emphasis-200: #e9dfe3;
+  --ifm-color-emphasis-300: #d8cbd3;
+  --ifm-color-emphasis-600: #6c6074;
+  --ifm-color-emphasis-700: #574b60;
+  --ifm-menu-color: #574b60;
+  --ifm-menu-color-background-hover: #f3ecef;
+  --ifm-menu-color-background-active: #f9e4dc;
+  --ifm-navbar-background-color: #fcf9f7;
+  --ifm-navbar-link-color: #574b60;
+  --ifm-card-background-color: #ffffff;
+  --ifm-code-background: #f2e9ee;
+  --ifm-code-color: #87301f;
   --ifm-code-font-size: 94%;
-  --docusaurus-highlighted-code-line-bg: rgba(15, 118, 110, 0.08);
-  --integration-border: rgba(17, 24, 39, 0.1);
-  --integration-chip: rgba(255, 255, 255, 0.72);
-  --integration-hero-start: rgba(15, 118, 110, 0.14);
-  --integration-icon-border: rgba(255, 255, 255, 0.42);
-  --integration-muted: #667085;
-  --integration-primary-action-bg: #0f766e;
-  --integration-primary-action-bg-hover: #0d695f;
+  --ifm-global-radius: 0.65rem;
+  --ifm-table-border-color: #e9dfe3;
+  --ifm-table-stripe-background: #f7f1f4;
+  --ifm-table-head-background: #f2e9ee;
+  --ifm-toc-border-color: #e9dfe3;
+  --ifm-hr-background-color: #e9dfe3;
+  --docusaurus-highlighted-code-line-bg: #a83c2812;
+  --integration-border: var(--ifm-color-emphasis-200);
+  --integration-chip: #ffffffb8;
+  --integration-hero-start: #ff967e29;
+  --integration-icon-border: var(--ifm-color-emphasis-300);
+  --integration-muted: var(--ifm-color-content-secondary);
+  --integration-primary-action-bg: var(--ifm-color-primary);
+  --integration-primary-action-bg-hover: var(--ifm-color-primary-dark);
   --integration-primary-action-fg: #ffffff;
-  --integration-shadow: rgba(15, 23, 42, 0.08);
-  --integration-surface: #ffffff;
-  --integration-surface-strong: #f6f8fb;
-  --integration-text: #3f4754;
+  --integration-shadow: #211a2b0d;
+  --integration-surface: var(--ifm-card-background-color);
+  --integration-surface-strong: var(--ifm-background-color);
+  --integration-text: var(--ifm-font-color-base);
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #5eead4;
-  --ifm-color-primary-dark: #2dd4bf;
-  --ifm-color-primary-darker: #22c7b3;
-  --ifm-color-primary-darkest: #19ad9b;
-  --ifm-color-primary-light: #7ef0de;
-  --ifm-color-primary-lighter: #98f5e7;
-  --ifm-color-primary-lightest: #c7fbf4;
-  --docusaurus-highlighted-code-line-bg: rgba(94, 234, 212, 0.12);
-  --integration-border: rgba(255, 255, 255, 0.12);
-  --integration-chip: rgba(255, 255, 255, 0.06);
-  --integration-hero-start: rgba(94, 234, 212, 0.12);
-  --integration-icon-border: rgba(255, 255, 255, 0.18);
-  --integration-muted: #aab4c3;
-  --integration-primary-action-bg: #5eead4;
-  --integration-primary-action-bg-hover: #7ef0de;
-  --integration-primary-action-fg: #052e2b;
-  --integration-shadow: rgba(0, 0, 0, 0.22);
-  --integration-surface: #161b22;
-  --integration-surface-strong: #10141b;
-  --integration-text: #d0d7e2;
+  --ifm-color-primary: var(--brand-coral);
+  --ifm-color-primary-dark: #f5846b;
+  --ifm-color-primary-darker: #f07b61;
+  --ifm-color-primary-darkest: #e66a50;
+  --ifm-color-primary-light: #ffa892;
+  --ifm-color-primary-lighter: #ffb5a2;
+  --ifm-color-primary-lightest: #ffd0c3;
+  --ifm-background-color: var(--brand-plum);
+  --ifm-background-surface-color: var(--brand-surface);
+  --ifm-font-color-base: #d1cbd9;
+  --ifm-heading-color: var(--brand-text);
+  --ifm-color-content: var(--brand-text);
+  --ifm-color-content-secondary: var(--brand-muted);
+  --ifm-color-emphasis-100: #211c2c;
+  --ifm-color-emphasis-200: var(--brand-border);
+  --ifm-color-emphasis-300: #4c4257;
+  --ifm-color-emphasis-600: var(--brand-muted);
+  --ifm-color-emphasis-700: #d1cbd9;
+  --ifm-menu-color: #c4bdcf;
+  --ifm-menu-color-background-hover: #211c2c;
+  --ifm-menu-color-background-active: #32232d;
+  --ifm-navbar-background-color: #17141f;
+  --ifm-navbar-link-color: #d1cbd9;
+  --ifm-card-background-color: var(--brand-surface);
+  --ifm-code-background: #292130;
+  --ifm-code-color: #ffc2b2;
+  --ifm-table-border-color: var(--brand-border);
+  --ifm-table-stripe-background: #1a172580;
+  --ifm-table-head-background: var(--brand-surface);
+  --ifm-toc-border-color: var(--brand-border);
+  --ifm-hr-background-color: var(--brand-border);
+  --ifm-color-success: var(--brand-mint);
+  --ifm-color-success-contrast-background: #182b25;
+  --ifm-color-success-contrast-foreground: #d8efdf;
+  --ifm-color-info: #b9a6e8;
+  --ifm-color-info-contrast-background: #241e34;
+  --ifm-color-info-contrast-foreground: #e4dcf5;
+  --ifm-color-warning: #f5c18b;
+  --ifm-color-warning-contrast-background: #33271f;
+  --ifm-color-warning-contrast-foreground: #f8dfc5;
+  --ifm-color-danger: #ff8d98;
+  --ifm-color-danger-contrast-background: #361f2b;
+  --ifm-color-danger-contrast-foreground: #ffdce1;
+  --ifm-color-secondary-contrast-background: #241e2e;
+  --ifm-color-secondary-contrast-foreground: #d1cbd9;
+  --docusaurus-highlighted-code-line-bg: #ff967e14;
+  --integration-chip: #ffffff06;
+  --integration-hero-start: #ff967e1f;
+  --integration-primary-action-bg-hover: var(--ifm-color-primary-light);
+  --integration-primary-action-fg: #211318;
+  --integration-shadow: #00000020;
+}
+
+.navbar {
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 4px 24px #100e190d;
+}
+
+.header-signin-link {
+  background: var(--ifm-color-primary);
+  color: var(--integration-primary-action-fg);
+  border-radius: 7px;
+  margin-left: 12px;
+  font-weight: 600;
+}
+
+.header-signin-link:hover {
+  background: var(--integration-primary-action-bg-hover);
+  color: var(--integration-primary-action-fg);
+}
+
+.button--primary:not(.button--outline) {
+  --ifm-button-color: var(--integration-primary-action-fg);
+}
+
+.footer--dark {
+  --ifm-footer-background-color: var(--brand-plum);
+  --ifm-footer-color: var(--brand-muted);
+  --ifm-footer-link-color: var(--brand-muted);
+  --ifm-footer-title-color: var(--brand-text);
+  --ifm-link-hover-color: var(--brand-coral);
+  border-top: 1px solid var(--brand-border);
+}
+
+.theme-doc-sidebar-container {
+  background: var(--ifm-background-surface-color);
+}
+
+.pagination-nav__link {
+  background: var(--ifm-card-background-color);
+}
+
+.markdown pre {
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 3px;
 }
 
 /* Navbar logo: preserve the SVG's authored colours in both themes */

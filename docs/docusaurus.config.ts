@@ -255,17 +255,18 @@ const config: Config = {
       {
         name: 'theme-color',
         media: '(prefers-color-scheme: light)',
-        content: '#0f766e',
+        content: '#fcf9f7',
       },
       {
         name: 'theme-color',
         media: '(prefers-color-scheme: dark)',
-        content: '#0b0f14',
+        content: '#100e19',
       },
     ],
     ...(algolia ? { algolia } : {}),
     colorMode: {
-      respectPrefersColorScheme: true,
+      defaultMode: 'dark',
+      respectPrefersColorScheme: false,
     },
     navbar: {
       title: 'Playrunner',
@@ -411,7 +412,10 @@ const config: Config = {
     },
     prism: {
       theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+      darkTheme: {
+        ...prismThemes.dracula,
+        plain: { color: '#d1cbd9', backgroundColor: '#1a1725' },
+      },
       additionalLanguages: ['bash', 'json', 'typescript', 'docker'],
     },
   } satisfies Preset.ThemeConfig,
