@@ -9,6 +9,9 @@ RUN apk add --no-cache openssl
 
 COPY . .
 
+WORKDIR /app/${BASE_PATH}/packages/cli
+RUN npm ci --include=dev && npm run build
+
 WORKDIR /app/${BASE_PATH}/apps/api
 RUN npm ci
 RUN npm run build:integrations

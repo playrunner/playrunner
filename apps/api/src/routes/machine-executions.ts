@@ -34,6 +34,13 @@ import {
 import { executeSavedWorkflow } from '../services/saved-workflow-execution';
 import { machineExecutionCiPolicyError } from '../services/execution-trust-boundary';
 import {
+  parseReleaseRequest,
+  ReleaseValidationError,
+  type ReleaseRequest,
+} from '../services/release-contract';
+import { resolveReleasePolicy } from '../services/release-policy';
+import { buildReleaseVerdict } from '../services/release-gate';
+import {
   MAX_WORKFLOW_RUN_BODY_BYTES,
   parseWorkflowRunInputs,
   WorkflowRunInputValidationError,
@@ -195,18 +202,50 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   }
 
   let ci: ReturnType<typeof parseCiChangeContext> | undefined;
+  let release: ReleaseRequest | undefined;
   let runInputs;
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const { inputs: _inputs, acceptanceCriteria: _criteria, ...ciBody } = body;
+    const {
+      inputs: _inputs,
+      acceptanceCriteria: _criteria,
+      release: releaseBody,
+      ...ciBody
+    } = body;
+    if (releaseBody !== undefined) release = parseReleaseRequest(releaseBody);
+    if (release && Object.keys(ciBody).length)
+      throw new ReleaseValidationError(
+        'Release verification cannot use legacy CI change context. Pass the candidate in release instead.',
+      );
     if (Object.keys(ciBody).length) {
       ci = parseCiChangeContext(ciBody);
     }
     runInputs = parseWorkflowRunInputs(body);
+    if (release && runInputs.acceptanceCriteria.length)
+      throw new ReleaseValidationError(
+        'Release requirements must be saved in the pinned test plan, not supplied as run acceptance criteria.',
+      );
+    if (release && Object.keys(runInputs.inputs).length)
+      throw new ReleaseValidationError(
+        'Release runs cannot override workflow inputs. Save verification settings in the pinned workflow.',
+      );
+    if (release) {
+      const candidateInputs = {
+        PLAYRUNNER_RELEASE_REPOSITORY: release.candidate.repository,
+        PLAYRUNNER_RELEASE_COMMIT_SHA: release.candidate.commitSha,
+        PLAYRUNNER_RELEASE_ARTIFACT_DIGEST: release.candidate.artifactDigest,
+        PLAYRUNNER_RELEASE_ENVIRONMENT: release.candidate.environment,
+        PLAYRUNNER_RELEASE_TARGET_URL: release.candidate.targetUrl,
+      };
+      runInputs = parseWorkflowRunInputs({
+        inputs: { ...runInputs.inputs, ...candidateInputs },
+      });
+    }
   } catch (error) {
     res.status(400).json({
       error:
-        error instanceof CiChangeContextValidationError
+        error instanceof CiChangeContextValidationError ||
+        error instanceof ReleaseValidationError
           ? error.message
           : error instanceof WorkflowRunInputValidationError
             ? error.message
@@ -216,12 +255,39 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   }
 
   const workflow = await prisma.workflow.findFirst({
-    select: { cloudProvider: true, id: true, nodes: true },
+    select: {
+      cloudProvider: true,
+      id: true,
+      nodes: true,
+      connections: true,
+      testPlan: true,
+      concurrency: true,
+    },
     where: { id: workflowId, userId: token.userId },
   });
   if (!workflow) {
     res.status(404).json({ error: 'Workflow not found.' });
     return;
+  }
+
+  if (release) {
+    try {
+      if (
+        (await resolveReleasePolicy(workflow, token.userId)).policyVersion !==
+        release.policyVersion
+      )
+        throw new ReleaseValidationError(
+          'The saved release policy does not match the pinned policyVersion.',
+        );
+    } catch (error) {
+      res.status(400).json({
+        error:
+          error instanceof ReleaseValidationError
+            ? error.message
+            : 'Invalid release policy.',
+      });
+      return;
+    }
   }
 
   if (!ci) {
@@ -239,6 +305,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
       requestHash: machineRunRequestHash(
         runInputs.inputs,
         runInputs.acceptanceCriteria,
+        release,
       ),
       start: async (executionId) => {
         const runner = await apiRuntime.runnerProvisioner.start(
@@ -252,6 +319,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
         try {
           const started = await executeSavedWorkflow({
             body: {
+              ...(release ? { release } : {}),
               ...(Object.keys(runInputs.inputs).length
                 ? { inputs: runInputs.inputs }
                 : {}),
@@ -299,6 +367,8 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
             },
           };
         } catch (error) {
+          if (error instanceof ReleaseValidationError)
+            return { status: 400, body: { error: error.message } };
           console.error('Failed to start CLI workflow execution:', error);
           return {
             status: 500,
@@ -476,6 +546,131 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     workflowId,
   });
 });
+
+machineExecutionsRouter.get('/:workflowId/release-policy', async (req, res) => {
+  const workflowId = req.params.workflowId;
+  const token = req.apiToken!;
+  if (!canAccess(req, workflowId)) {
+    res.status(404).json({ error: 'Workflow not found.' });
+    return;
+  }
+  const workflow = await prisma.workflow.findFirst({
+    where: { id: workflowId, userId: token.userId },
+    select: {
+      nodes: true,
+      connections: true,
+      testPlan: true,
+      cloudProvider: true,
+      concurrency: true,
+    },
+  });
+  if (!workflow) {
+    res.status(404).json({ error: 'Workflow not found.' });
+    return;
+  }
+  res.setHeader('Cache-Control', 'private, no-store');
+  try {
+    res.json({
+      workflowId,
+      ...(await resolveReleasePolicy(workflow, token.userId)),
+    });
+  } catch (error) {
+    res.status(400).json({
+      error:
+        error instanceof ReleaseValidationError
+          ? error.message
+          : 'Invalid release policy.',
+    });
+  }
+});
+
+machineExecutionsRouter.post(
+  '/:workflowId/executions/:executionId/release-verdict',
+  async (req, res) => {
+    const token = req.apiToken!;
+    const workflowId = req.params.workflowId;
+    if (!canAccess(req, workflowId)) {
+      res.status(404).json({ error: 'Workflow execution not found.' });
+      return;
+    }
+    let expected: ReleaseRequest;
+    try {
+      expected = parseReleaseRequest(req.body);
+    } catch (error) {
+      res.status(400).json({
+        error:
+          error instanceof ReleaseValidationError
+            ? error.message
+            : 'Invalid release request.',
+      });
+      return;
+    }
+    // Read evidence for the token owner and exact workflow in one query. Never
+    // widen a restricted machine token through interactive team membership.
+    const execution = await prisma.workflowExecution.findFirst({
+      where: { id: req.params.executionId, workflowId, userId: token.userId },
+      include: {
+        events: {
+          where: {
+            type: {
+              in: [
+                'execution_definition',
+                'node_output',
+                'node_state',
+                'node_started',
+                'node_completed',
+                'node_failed',
+                'node_cancelled',
+                'workflow_completed',
+                'workflow_failed',
+                'workflow_cancelled',
+              ],
+            },
+          },
+          orderBy: { id: 'asc' },
+        },
+      },
+    });
+    if (!execution) {
+      res.status(404).json({ error: 'Workflow execution not found.' });
+      return;
+    }
+    res.setHeader('Cache-Control', 'private, no-store');
+    const verdict = buildReleaseVerdict(execution, expected);
+    // Editing the approved workflow or a linked environment revokes its prior
+    // evidence. The protected pipeline still supplies its reviewed version.
+    let currentPolicyMatches = false;
+    try {
+      const current = await prisma.workflow.findFirst({
+        where: { id: workflowId, userId: token.userId },
+        select: {
+          nodes: true,
+          connections: true,
+          testPlan: true,
+          cloudProvider: true,
+          concurrency: true,
+        },
+      });
+      currentPolicyMatches = Boolean(
+        current &&
+        (await resolveReleasePolicy(current, token.userId)).policyVersion ===
+          expected.policyVersion,
+      );
+    } catch {
+      // Unavailable or invalid current policy must never preserve an approval.
+    }
+    if (!currentPolicyMatches) {
+      verdict.allowed = false;
+      if (verdict.status === 'PASS') verdict.status = 'BLOCKED';
+      verdict.reasons.push({
+        code: 'CURRENT_POLICY_CHANGED',
+        message:
+          'The saved release policy or its environment has changed or is unavailable. Review the policy and verify the candidate again.',
+      });
+    }
+    res.json(verdict);
+  },
+);
 
 export const MAX_MACHINE_PAGE_SIZE = 100;
 export const DEFAULT_MACHINE_PAGE_SIZE = 25;

@@ -1,3 +1,4 @@
+import { runReleaseCli } from './release.js';
 import { runWorkerCommand } from './worker.js';
 import { runWorkflowCreateCli } from './workflow-create.js';
 import { runCompanionCommand } from './companion.js';
@@ -49,6 +50,9 @@ function usage() {
 
 Commands:
   workflow create      Create or update a workflow from a JSON definition
+  release policy       Read required release checks and policy version
+  release verify       Verify a release candidate and wait for its verdict
+  release check        Recheck the verdict immediately before release
   login                Pair this device with Playrunner Cloud
   worker prepare       Build the local test runner image (requires Docker)
   worker connect       Connect this computer for Cloud-coordinated tests
@@ -391,6 +395,8 @@ export async function runCli(
   args: string[],
   dependencies: CliDependencies = {},
 ): Promise<number> {
+  if (args[0] === 'release') return runReleaseCli(args.slice(1), dependencies);
+
   const env = dependencies.env ?? process.env;
   const output = dependencies.stdout ?? ((line) => console.log(line));
   const outputError = dependencies.stderr ?? ((line) => console.error(line));

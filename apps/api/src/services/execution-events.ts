@@ -380,6 +380,10 @@ class ExecutionEventsService {
   }
 
   async appendEvent(executionId: string, event: WorkflowEventDraft) {
+    if (normalizeString(event.type) === 'execution_definition')
+      throw new Error(
+        'Execution definitions can only be created by the server.',
+      );
     const execution = await getExecutionOrThrow(executionId);
     const sourceEventId =
       normalizeString(event.eventId) ?? normalizeString(event.sourceEventId);

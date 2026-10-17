@@ -41,6 +41,7 @@ import {
   type PlaywrightShardDiscovery,
 } from './runtime/playwright-sharding';
 import { createPubSubAuthorizationHeaders } from './runtime/pubsub-runner-control';
+import { resolveReleaseSourceRevision } from './runtime/release-source';
 import {
   publishTerminalWorkflowEvent,
   type TerminalWorkflowEventPayload,
@@ -1245,6 +1246,11 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
         const envKeys = config.envVars || [];
         const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
         const runtimeNodeId = overrides.runtimeNodeId || node.id;
+        const sourceRevision = resolveReleaseSourceRevision(
+          config,
+          reqBody.release !== undefined,
+          overrides.sourceRevision,
+        );
         const payloadData = {
           data: {
             repository: config.repository,
@@ -1267,9 +1273,7 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
             ...(overrides.shardTotal
               ? { shardTotal: overrides.shardTotal }
               : {}),
-            ...(overrides.sourceRevision
-              ? { sourceRevision: overrides.sourceRevision }
-              : {}),
+            ...(sourceRevision ? { sourceRevision } : {}),
             ...(overrides.blobArtifacts
               ? { blobArtifacts: overrides.blobArtifacts }
               : {}),

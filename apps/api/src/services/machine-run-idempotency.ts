@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma';
 import type { Prisma } from '../generated/prisma/client.cts';
+import type { ReleaseRequest } from './release-contract';
 
 type RunResponse = { status: number; body: Record<string, unknown> };
 
@@ -16,6 +17,7 @@ export function parseMachineIdempotencyKey(value: string | undefined) {
 export function machineRunRequestHash(
   inputs: Record<string, string>,
   acceptanceCriteria: string[],
+  release?: ReleaseRequest,
 ) {
   return crypto
     .createHash('sha256')
@@ -25,6 +27,7 @@ export function machineRunRequestHash(
           a < b ? -1 : a > b ? 1 : 0,
         ),
         acceptanceCriteria,
+        ...(release ? { release } : {}),
       }),
     )
     .digest('hex');
@@ -69,7 +72,8 @@ export async function executeIdempotentMachineRun(
       return {
         status: 409,
         body: {
-          error: 'This idempotency key already uses different workflow inputs.',
+          error:
+            'This idempotency key already uses different workflow inputs or release context.',
         },
       };
     const execution = await database.workflowExecution.findUnique({

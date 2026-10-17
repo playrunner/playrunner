@@ -57,6 +57,56 @@ const limitProperty = {
   description: `Maximum results to return (default ${DEFAULT_PAGE_SIZE}).`,
 } as const;
 
+const releaseCandidateProperty = {
+  type: "object",
+  description:
+    "Exact release candidate expected by the protected release pipeline. Identity must be independently observed from the tested target.",
+  properties: {
+    repository: {
+      type: "string",
+      pattern:
+        "^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$",
+    },
+    commitSha: {
+      type: "string",
+      pattern: "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+    },
+    artifactDigest: { type: "string", pattern: "^sha256:[0-9a-f]{64}$" },
+    environment: {
+      type: "string",
+      pattern: "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$",
+    },
+    targetUrl: {
+      type: "string",
+      description: "HTTP(S) target URL without credentials, query or fragment.",
+    },
+  },
+  required: [
+    "repository",
+    "commitSha",
+    "artifactDigest",
+    "environment",
+    "targetUrl",
+  ],
+  additionalProperties: false,
+} as const;
+
+const releaseProperties = {
+  candidate: releaseCandidateProperty,
+  policyVersion: {
+    type: "string",
+    pattern: "^[0-9a-f]{64}$",
+    description:
+      "Expected policy hash pinned by the protected release pipeline, obtained from get_release_policy after review.",
+  },
+  maxAgeSeconds: {
+    type: "integer",
+    minimum: 1,
+    maximum: 86400,
+    description: "Maximum evidence age in seconds (default 3600).",
+  },
+} as const;
+
 export const MCP_TOOLS = [
   ...["open_workflow_editor", "get_workflow_editor"].map((name) => ({
     name,
@@ -167,7 +217,7 @@ export const MCP_TOOLS = [
     name: "run_workflow",
     title: "Run a workflow",
     description:
-      "Start a saved Playrunner workflow. Returns an execution id immediately without waiting for the run to finish. Runs consume the account quota, so do not retry a call that already returned an execution id.",
+      "Start a saved Playrunner workflow. For release verification, pass release with the exact candidate and pinned policyVersion, then call get_release_verdict. Completion alone never allows a release. Returns an execution id immediately without waiting for the run to finish. Runs consume the account quota, so do not retry a call that already returned an execution id.",
     inputSchema: {
       type: "object",
       properties: {
@@ -196,6 +246,14 @@ export const MCP_TOOLS = [
           description:
             "Optional CI context: repository {owner,name}, baseSha, headSha, baseRef, headRef, eventType and optional pullRequestNumber. Validated by the machine API.",
         },
+        release: {
+          type: "object",
+          description:
+            "Bind verification to the exact release candidate and reviewed policy. Cannot be combined with changeContext, nonempty inputs or acceptanceCriteria. Configuration and requirements must be saved in the pinned workflow.",
+          properties: releaseProperties,
+          required: ["candidate", "policyVersion"],
+          additionalProperties: false,
+        },
         idempotencyKey: {
           type: "string",
           maxLength: 200,
@@ -205,6 +263,46 @@ export const MCP_TOOLS = [
       },
       required: ["workflowId"],
       additionalProperties: false,
+    },
+  },
+  {
+    name: "get_release_policy",
+    title: "Get release policy",
+    description:
+      "Read a saved workflow's release requirements and policyVersion. The saved test plan must map RELEASE_IDENTITY to exactly one node and contain at least one other requirement. The successful identity node must emit output.releaseCandidate observed from the target, never copied from the request. Release checks support Environment, Playwright, JavaScript and Webhook nodes. Repository test sources require a full commit SHA in branch; mutable workspaces and AI generation are unsupported. The policy pins the test plan, nodes, connections, linked environment values and secret revisions. A protected release pipeline must pin the reviewed policyVersion. Playwright receives BASE_URL and RELEASE_REPOSITORY, RELEASE_COMMIT_SHA, RELEASE_ARTIFACT_DIGEST, RELEASE_ENVIRONMENT and RELEASE_TARGET_URL from the candidate.",
+    inputSchema: {
+      type: "object",
+      properties: { workflowId: { type: "string", minLength: 1 } },
+      required: ["workflowId"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "get_release_verdict",
+    title: "Get release verdict",
+    description:
+      "Evaluate execution evidence against the expected candidate and pinned policyVersion. Only status PASS with allowed true for that exact candidate and policy permits release. FAIL or BLOCKED forbids release; completed run status alone is insufficient. Call again immediately before release to check evidence freshness and policy changes. This reads evidence and does not start a run or deploy anything.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workflowId: { type: "string", minLength: 1 },
+        executionId: { type: "string", minLength: 1 },
+        ...releaseProperties,
+      },
+      required: ["workflowId", "executionId", "candidate", "policyVersion"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
     },
   },
   {
@@ -341,7 +439,7 @@ export function initializeResult(params: Record<string, unknown>) {
     },
     serverInfo: MCP_SERVER_INFO,
     instructions:
-      "Call list_workflows to discover runnable workflows, then run_workflow to start one. run_workflow returns immediately with an execution id; poll get_run_status for the outcome.",
+      "Call list_workflows to discover runnable workflows, then run_workflow to start one. run_workflow returns immediately with an execution id; poll get_run_status for the outcome. Before release, read get_release_policy and use the protected pipeline's reviewed, pinned policyVersion plus exact candidate when calling run_workflow with release. The saved test plan must map RELEASE_IDENTITY to exactly one node that emits output.releaseCandidate observed from the target, never copied from the request, and include at least one other requirement. Call get_release_verdict for that execution with the expected candidate and policyVersion immediately before release. Only PASS with allowed true for the matching candidate and policy allows release; completion alone never does. FAIL, BLOCKED, missing evidence or an unavailable verdict must block release.",
   };
 }
 
@@ -380,6 +478,7 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
       inputs: Record<string, unknown>;
       acceptanceCriteria?: string | string[];
       changeContext?: Record<string, unknown>;
+      release?: ReleaseArguments;
     } {
   const workflow = parseWorkflowId(args);
   if ("error" in workflow) return workflow;
@@ -411,6 +510,18 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
   )
     return { error: "acceptanceCriteria exceeds 4096 characters." };
   const changeContext = args.changeContext;
+  if (args.release !== undefined && changeContext !== undefined)
+    return { error: "release cannot be combined with changeContext." };
+  if (
+    args.release !== undefined &&
+    (Object.keys(inputs ?? {}).length ||
+      typeof acceptanceCriteria === "string" ||
+      (Array.isArray(acceptanceCriteria) && acceptanceCriteria.length))
+  )
+    return {
+      error:
+        "Release configuration and requirements must be saved in the pinned workflow; do not pass inputs or acceptanceCriteria.",
+    };
   if (
     changeContext !== undefined &&
     (!changeContext ||
@@ -439,7 +550,13 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
       error: "idempotencyKey must be a string of at most 200 characters.",
     };
   }
+  const release =
+    args.release === undefined
+      ? undefined
+      : parseReleaseArguments(args.release);
+  if (release && "error" in release) return release;
   return {
+    ...(release === undefined ? {} : { release }),
     ...(acceptanceCriteria === undefined ? {} : { acceptanceCriteria }),
     ...(changeContext === undefined
       ? {}
@@ -448,6 +565,119 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
     inputs: (inputs as Record<string, unknown> | undefined) ?? {},
     workflowId: workflow.workflowId,
   };
+}
+
+type ReleaseArguments = {
+  candidate: {
+    repository: string;
+    commitSha: string;
+    artifactDigest: string;
+    environment: string;
+    targetUrl: string;
+  };
+  policyVersion: string;
+  maxAgeSeconds?: number;
+};
+
+// This is a transport shape check; the machine API remains authoritative for
+// candidate validation, access control and release eligibility.
+function parseReleaseArguments(
+  value: unknown,
+): { error: string } | ReleaseArguments {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return { error: "release must be an object." };
+  const release = value as Record<string, unknown>;
+  if (
+    Object.keys(release).some(
+      (key) => !["candidate", "policyVersion", "maxAgeSeconds"].includes(key),
+    )
+  )
+    return { error: "release contains unsupported fields." };
+  const candidate = release.candidate;
+  if (
+    typeof candidate !== "object" ||
+    candidate === null ||
+    Array.isArray(candidate)
+  )
+    return { error: "release.candidate must be an object." };
+  const fields = releaseCandidateProperty.required;
+  const values = candidate as Record<string, unknown>;
+  if (
+    fields.some((key) => typeof values[key] !== "string" || !values[key]) ||
+    Object.keys(values).some(
+      (key) => !(fields as readonly string[]).includes(key),
+    )
+  )
+    return {
+      error:
+        "release.candidate requires repository, commitSha, artifactDigest, environment and targetUrl string fields only.",
+    };
+  for (const [key, pattern] of [
+    ["repository", releaseCandidateProperty.properties.repository.pattern],
+    ["commitSha", releaseCandidateProperty.properties.commitSha.pattern],
+    ["environment", releaseCandidateProperty.properties.environment.pattern],
+    [
+      "artifactDigest",
+      releaseCandidateProperty.properties.artifactDigest.pattern,
+    ],
+  ] as const) {
+    if (!new RegExp(pattern).test(values[key] as string))
+      return { error: `release.candidate.${key} is invalid.` };
+  }
+  try {
+    const target = new URL(values.targetUrl as string);
+    if (
+      !["http:", "https:"].includes(target.protocol) ||
+      target.username ||
+      target.password ||
+      target.search ||
+      target.hash
+    )
+      return {
+        error:
+          "release.candidate.targetUrl must be an HTTP(S) URL without credentials, query or fragment.",
+      };
+  } catch {
+    return { error: "release.candidate.targetUrl must be an HTTP(S) URL." };
+  }
+  if (
+    typeof release.policyVersion !== "string" ||
+    !new RegExp(releaseProperties.policyVersion.pattern).test(
+      release.policyVersion,
+    )
+  )
+    return {
+      error: "release.policyVersion must be a 64-character hexadecimal hash.",
+    };
+  if (
+    release.maxAgeSeconds !== undefined &&
+    (typeof release.maxAgeSeconds !== "number" ||
+      !Number.isInteger(release.maxAgeSeconds) ||
+      release.maxAgeSeconds < 1 ||
+      release.maxAgeSeconds > 86400)
+  )
+    return {
+      error: "release.maxAgeSeconds must be an integer between 1 and 86400.",
+    };
+  return release as ReleaseArguments;
+}
+
+export function parseGetReleaseVerdictArguments(
+  args: Record<string, unknown>,
+):
+  | { error: string }
+  | (ReleaseArguments & { workflowId: string; executionId: string }) {
+  const execution = parseGetRunStatusArguments(args);
+  if ("error" in execution) return execution;
+  const release = parseReleaseArguments({
+    candidate: args.candidate,
+    policyVersion: args.policyVersion,
+    ...(args.maxAgeSeconds === undefined
+      ? {}
+      : { maxAgeSeconds: args.maxAgeSeconds }),
+  });
+  if ("error" in release) return release;
+  return { ...release, ...execution };
 }
 
 export function parseGetRunStatusArguments(

@@ -8,6 +8,7 @@ export function sanitizeInteractiveExecutionBody(
         key !== 'agentMemoryByNodeId' &&
         key !== 'authenticationStatesByNodeId' &&
         key !== 'authenticationProfileNodeIds' &&
+        key !== 'release' &&
         key !== 'ci',
     ),
   );

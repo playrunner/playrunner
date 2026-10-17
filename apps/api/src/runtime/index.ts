@@ -41,6 +41,7 @@ import {
 } from '../services/environment-secrets';
 import { hydrateLinkedWorkflowEnvironments } from '../services/workflow-environments';
 import { prepareExecutionAuthentication } from '../services/prepare-execution-authentication';
+import { prepareReleaseExecution } from '../services/release-runtime';
 
 const HOST_NODE_TYPES = new Set([
   'agent-container',
@@ -183,10 +184,20 @@ class WorkflowExecutionRegistry {
       throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
     }
     let definition;
-    try {
-      definition = captureExecutionDefinition(request.body);
-    } catch (error) {
-      throw Object.assign(error as Error, { statusCode: 400 });
+    const isRelease = request.body.release !== undefined;
+    if (isRelease) {
+      const prepared = await prepareReleaseExecution(
+        request.body,
+        resourceOwnerUserId,
+      );
+      definition = prepared.definition;
+      request.body = prepared.body;
+    } else {
+      try {
+        definition = captureExecutionDefinition(request.body);
+      } catch (error) {
+        throw Object.assign(error as Error, { statusCode: 400 });
+      }
     }
     for (const node of definition.nodes) {
       if (!node.suiteId) continue;
@@ -200,14 +211,16 @@ class WorkflowExecutionRegistry {
           { statusCode: 404 },
         );
     }
-    request.body.nodes = await hydrateLinkedWorkflowEnvironments(
-      request.body.nodes,
-      resourceOwnerUserId,
-    );
+    if (!isRelease) {
+      request.body.nodes = await hydrateLinkedWorkflowEnvironments(
+        request.body.nodes,
+        resourceOwnerUserId,
+      );
+    }
     // The browser is never authoritative for credentials. Rebuild the settings
     // payload from encrypted server-side connections for every execution path.
     request.body.settings = await resolveWorkflowSettings(request);
-    await resolveEnvironmentSecrets(request);
+    if (!isRelease) await resolveEnvironmentSecrets(request);
     await resolveAuthenticationProfiles(request);
     const cloudProvider = request.body.cloudProvider || 'LOCAL_RUNNER';
     const backend = this.backends.find((candidate) =>

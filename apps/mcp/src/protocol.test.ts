@@ -7,6 +7,7 @@ import {
   initializeResult,
   jsonRpcFailure,
   negotiateProtocolVersion,
+  parseGetReleaseVerdictArguments,
   parseGetRunStatusArguments,
   parseLimit,
   parseMcpRequest,
@@ -100,6 +101,8 @@ test("tools cover discovery, execution, event inspection and management", () => 
       "get_run_events",
       "list_workflows",
       "run_workflow",
+      "get_release_policy",
+      "get_release_verdict",
       "get_run_status",
       "list_runs",
     ],
@@ -136,5 +139,115 @@ test("get_run_status requires both the workflow and the execution", () => {
   assert.deepEqual(
     parseGetRunStatusArguments({ executionId: " e1 ", workflowId: " w1 " }),
     { executionId: "e1", workflowId: "w1" },
+  );
+});
+
+const release = {
+  candidate: {
+    repository: "example/app",
+    commitSha: "a".repeat(40),
+    artifactDigest: `sha256:${"b".repeat(64)}`,
+    environment: "staging",
+    targetUrl: "https://staging.example.com",
+  },
+  policyVersion: "c".repeat(64),
+  maxAgeSeconds: 600,
+};
+
+test("release tools advertise read-only evidence and an explicit release decision", () => {
+  for (const name of ["get_release_policy", "get_release_verdict"]) {
+    const tool = MCP_TOOLS.find((tool) => tool.name === name)!;
+    assert.ok("annotations" in tool);
+    assert.equal(tool.annotations?.readOnlyHint, true);
+    assert.equal(tool.annotations?.destructiveHint, false);
+  }
+  const instructions = initializeResult({}).instructions;
+  assert.match(instructions, /RELEASE_IDENTITY/);
+  assert.match(instructions, /never copied from the request/);
+  assert.match(instructions, /Only PASS with allowed true/);
+  assert.match(instructions, /completion alone never does/);
+});
+
+test("release verification preserves the exact expected candidate and policy", () => {
+  const run = parseRunWorkflowArguments({ workflowId: "w", release });
+  assert.ok(!("error" in run));
+  assert.deepEqual(run.release, release);
+  assert.deepEqual(
+    parseGetReleaseVerdictArguments({
+      workflowId: " w ",
+      executionId: " e ",
+      ...release,
+    }),
+    { workflowId: "w", executionId: "e", ...release },
+  );
+  assert.ok(
+    "error" in
+      parseRunWorkflowArguments({
+        workflowId: "w",
+        release,
+        changeContext: {},
+      }),
+  );
+});
+
+test("release tools reject incomplete or malformed identity and policy arguments", () => {
+  const invalid = [
+    null,
+    {},
+    { ...release, candidate: { ...release.candidate, commitSha: "abc123" } },
+    {
+      ...release,
+      candidate: { ...release.candidate, artifactDigest: "latest" },
+    },
+    { ...release, candidate: { ...release.candidate, repository: "example" } },
+    { ...release, candidate: { ...release.candidate, environment: "" } },
+    {
+      ...release,
+      candidate: { ...release.candidate, targetUrl: "file:///app" },
+    },
+    {
+      ...release,
+      candidate: {
+        ...release.candidate,
+        targetUrl: "https://user:pass@example.com",
+      },
+    },
+    {
+      ...release,
+      candidate: {
+        ...release.candidate,
+        targetUrl: "https://example.com?token=secret",
+      },
+    },
+    {
+      ...release,
+      candidate: {
+        ...release.candidate,
+        targetUrl: "https://example.com#fragment",
+      },
+    },
+    { ...release, candidate: { ...release.candidate, extra: "ignored?" } },
+    { ...release, policyVersion: "latest" },
+    { ...release, maxAgeSeconds: 0 },
+    { ...release, maxAgeSeconds: 86401 },
+    { ...release, maxAgeSeconds: 1.5 },
+    { ...release, extra: "ignored?" },
+  ];
+  for (const value of invalid) {
+    assert.ok(
+      "error" in parseRunWorkflowArguments({ workflowId: "w", release: value }),
+      `expected invalid release: ${JSON.stringify(value)}`,
+    );
+  }
+  assert.ok(
+    "error" in parseGetReleaseVerdictArguments({ workflowId: "w", ...release }),
+  );
+  assert.ok(
+    "error" in
+      parseGetReleaseVerdictArguments({ executionId: "e", ...release }),
+  );
+  assert.ok(
+    "error" in
+      parseGetReleaseVerdictArguments({ workflowId: "w", executionId: "e" }),
   );
 });

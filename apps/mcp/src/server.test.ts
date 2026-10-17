@@ -141,3 +141,155 @@ test("run_workflow preserves API acceptance criteria and CI context without over
   });
   assert.equal(rejected.isError, true);
 });
+
+const release = {
+  candidate: {
+    repository: "example/app",
+    commitSha: "a".repeat(40),
+    artifactDigest: `sha256:${"b".repeat(64)}`,
+    environment: "staging",
+    targetUrl: "https://staging.example.com",
+  },
+  policyVersion: "c".repeat(64),
+  maxAgeSeconds: 600,
+};
+
+test("release execution and evidence tools forward the exact candidate, policy and caller key", async (t) => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const policy = {
+    workflowId: "w /?",
+    policyVersion: release.policyVersion,
+    identityCaseId: "RELEASE_IDENTITY",
+  };
+  const verdict = {
+    schemaVersion: 1,
+    status: "BLOCKED",
+    allowed: false,
+    reasons: [
+      { code: "EXECUTION_PENDING", message: "Execution has not completed." },
+    ],
+  };
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    calls.push({ url, init });
+    return {
+      status: url.endsWith("/executions") ? 202 : 200,
+      json: async () =>
+        url.endsWith("/release-policy")
+          ? policy
+          : url.endsWith("/release-verdict")
+            ? verdict
+            : { executionId: "e /?", status: "running" },
+    };
+  });
+  const key = "Bearer scoped-release-key";
+  const run = await callTool(key, {
+    name: "run_workflow",
+    arguments: {
+      workflowId: "w /?",
+      release,
+      idempotencyKey: "release-run",
+    },
+  });
+  assert.equal(run.isError, false);
+  assert.ok(calls[0].url.endsWith("/api/v1/workflows/w%20%2F%3F/executions"));
+  assert.deepEqual(JSON.parse(calls[0].init.body as string), {
+    release,
+  });
+  assert.equal(
+    (calls[0].init.headers as Record<string, string>)["idempotency-key"],
+    "release-run",
+  );
+
+  const policyResult = await callTool(key, {
+    name: "get_release_policy",
+    arguments: { workflowId: "w /?" },
+  });
+  assert.equal(policyResult.isError, false);
+  assert.ok("structuredContent" in policyResult);
+  assert.deepEqual(policyResult.structuredContent, policy);
+  assert.equal(calls[1].init.method, "GET");
+  assert.ok(
+    calls[1].url.endsWith("/api/v1/workflows/w%20%2F%3F/release-policy"),
+  );
+
+  const verdictResult = await callTool(key, {
+    name: "get_release_verdict",
+    arguments: { workflowId: "w /?", executionId: "e /?", ...release },
+  });
+  assert.equal(
+    verdictResult.isError,
+    false,
+    "BLOCKED is a valid release decision, not a tool failure",
+  );
+  assert.ok("structuredContent" in verdictResult);
+  assert.deepEqual(verdictResult.structuredContent, verdict);
+  assert.equal(calls[2].init.method, "POST");
+  assert.ok(
+    calls[2].url.endsWith(
+      "/api/v1/workflows/w%20%2F%3F/executions/e%20%2F%3F/release-verdict",
+    ),
+  );
+  assert.deepEqual(JSON.parse(calls[2].init.body as string), release);
+  for (const call of calls)
+    assert.equal(
+      (call.init.headers as Record<string, string>).authorization,
+      key,
+    );
+});
+
+test("release tools retain machine API permission denials and reject malformed requests before a call", async (t) => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls += 1;
+    return {
+      status: 403,
+      json: async () => ({ error: "Workflow is not permitted for this key." }),
+    };
+  });
+  for (const params of [
+    { name: "get_release_policy", arguments: { workflowId: "w" } },
+    {
+      name: "get_release_verdict",
+      arguments: { workflowId: "w", executionId: "e", ...release },
+    },
+  ]) {
+    const result = await callTool("Bearer restricted", params);
+    assert.equal(result.isError, true);
+    assert.match(result.content[0].text, /HTTP 403/);
+  }
+  assert.equal(calls, 2);
+  for (const params of [
+    { name: "get_release_policy", arguments: {} },
+    {
+      name: "run_workflow",
+      arguments: { workflowId: "w", release, changeContext: {} },
+    },
+    {
+      name: "run_workflow",
+      arguments: { workflowId: "w", release, inputs: { MODE: "skip-login" } },
+    },
+    {
+      name: "run_workflow",
+      arguments: {
+        workflowId: "w",
+        release,
+        acceptanceCriteria: ["Skip login"],
+      },
+    },
+    {
+      name: "run_workflow",
+      arguments: { workflowId: "w", release: { ...release, candidate: {} } },
+    },
+    {
+      name: "get_release_verdict",
+      arguments: {
+        workflowId: "w",
+        executionId: "e",
+        ...release,
+        policyVersion: "latest",
+      },
+    },
+  ])
+    assert.equal((await callTool("Bearer restricted", params)).isError, true);
+  assert.equal(calls, 2);
+});

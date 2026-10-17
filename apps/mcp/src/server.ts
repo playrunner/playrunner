@@ -19,6 +19,7 @@ import {
   initializeResult,
   jsonRpcFailure,
   jsonRpcResult,
+  parseGetReleaseVerdictArguments,
   parseGetRunStatusArguments,
   parseLimit,
   parseMcpRequest,
@@ -166,10 +167,43 @@ export async function callTool(
           ...(parsed.acceptanceCriteria === undefined
             ? {}
             : { acceptanceCriteria: parsed.acceptanceCriteria }),
+          ...(parsed.release === undefined ? {} : { release: parsed.release }),
         },
       }),
     );
     return interpretRunWorkflowResponse(response, parsed.workflowId);
+  }
+
+  if (name === "get_release_policy") {
+    const parsed = parseWorkflowId(args);
+    if ("error" in parsed) return toolFailure(parsed.error);
+    return interpretListResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "GET",
+          path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/release-policy`,
+        }),
+      ),
+      { notFound: "Workflow not found or inaccessible." },
+    );
+  }
+
+  if (name === "get_release_verdict") {
+    const parsed = parseGetReleaseVerdictArguments(args);
+    if ("error" in parsed) return toolFailure(parsed.error);
+    const { workflowId, executionId, ...release } = parsed;
+    return interpretListResponse(
+      await callMachineApi(
+        machineRequest({
+          authorization,
+          method: "POST",
+          path: `/api/v1/workflows/${encodeURIComponent(workflowId)}/executions/${encodeURIComponent(executionId)}/release-verdict`,
+          payload: release,
+        }),
+      ),
+      { notFound: "Workflow execution not found or inaccessible." },
+    );
   }
 
   if (name === "get_run_status") {
