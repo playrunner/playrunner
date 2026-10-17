@@ -18,6 +18,7 @@ import {
   website,
 } from '@site/src/components/StructuredData';
 import CliShowcase from '@site/src/components/CliShowcase';
+import WorkflowShowcase from '@site/src/components/WorkflowShowcase';
 import styles from './index.module.css';
 
 function Arrow(): ReactNode {
@@ -546,6 +547,7 @@ export default function Home(): ReactNode {
         <AgentConnections />
         <Evidence />
         <Infrastructure />
+        <WorkflowShowcase />
         <FinalCallToAction />
       </main>
     </Layout>
