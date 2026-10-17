@@ -62,7 +62,7 @@ const twitterHandle: string | undefined = '@playrunner_';
 
 const config: Config = {
   title: 'Playrunner',
-  tagline: 'Run Playwright at scale, without building the platform around it.',
+  tagline: 'Build with AI. Ship with confidence.',
   favicon: 'img/favicon.svg',
   customFields: {
     localDocsLandingPath: process.env.DOCS_LANDING_PATH || '/',
@@ -226,7 +226,9 @@ const config: Config = {
           'playwright sharding',
           'parallel playwright tests',
           'playwright test distribution',
-          'visual workflow builder',
+          'AI agent testing',
+          'Codex Playwright testing',
+          'Claude MCP testing',
           'e2e test orchestration',
           'playwright runners',
           'test automation platform',

@@ -1,336 +1,499 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
-import HomepageFeatures from '@site/src/components/HomepageFeatures';
 import Heading from '@theme/Heading';
 import Logo from '@site/static/img/playrunner-icon.svg';
+import { OpenAIIcon } from '../../../packages/openai/src/frontend/OpenAIIcon';
+import { GithubIcon } from '../../../packages/github/src/frontend/GithubIcon';
+import PlaywrightLogo from '../../../packages/playwright/assets/playwright.svg';
+import SlackLogo from '../../../packages/slack/assets/slack.svg';
+import JiraLogo from '../../../packages/jira/assets/jira.svg';
 import {
   JsonLd,
   organization,
   softwareApplication,
   website,
 } from '@site/src/components/StructuredData';
-
+import CliShowcase from '@site/src/components/CliShowcase';
 import styles from './index.module.css';
 
-type DocsCustomFields = {
-  localDocsLandingPath?: string;
-};
+function Arrow(): ReactNode {
+  return <span aria-hidden="true">↗</span>;
+}
 
-type JourneyStep = {
-  title: string;
-  description: string;
-};
+function AgentMark({ agent }: { agent: string }): ReactNode {
+  return agent === 'Codex' ? (
+    <OpenAIIcon className={styles.agentIcon} />
+  ) : (
+    <span className={styles.claudeMark} aria-hidden="true">
+      ✳
+    </span>
+  );
+}
 
-type GettingStartedLink = {
-  title: string;
-  description: string;
-  to: string;
-};
-
-const journeySteps: JourneyStep[] = [
-  {
-    title: '1. Bring your existing tests',
-    description: 'Connect the repo. Your tests and config stay as they are.',
-  },
-  {
-    title: '2. Choose where they run',
-    description:
-      'Local Docker, managed cloud runners, or your own infrastructure.',
-  },
-  {
-    title: '3. Define the workflow',
-    description:
-      'Wire triggers, conditions, branches, and downstream systems on the canvas.',
-  },
-  {
-    title: '4. Inspect the complete run',
-    description:
-      'Follow state and logs live. Reports and artefacts stay attached to the run.',
-  },
-];
-
-const gettingStartedLinks: GettingStartedLink[] = [
-  {
-    title: 'Try Playrunner locally',
-    description: 'Run the full stack against a real Playwright project.',
-    to: '/docs/tutorials/getting-started',
-  },
-  {
-    title: 'Understand workflow execution',
-    description: 'How the API, orchestrator, and runners coordinate a run.',
-    to: '/docs/local-dev/workflow-execution',
-  },
-  {
-    title: 'Compare runner options',
-    description: 'Local, cloud, and self-hosted execution architecture.',
-    to: '/docs/runner-architecture',
-  },
-  {
-    title: 'Browse integrations',
-    description: 'Schedules, source control, messaging, and more.',
-    to: '/docs/integration-packages',
-  },
-  {
-    title: 'Contribute to the platform',
-    description: 'Extend runners, integrations, reporting, or the product.',
-    to: '/docs/contributing',
-  },
-];
-
-function HomepageHeader() {
+function RunPreview(): ReactNode {
+  const [agent, setAgent] = useState('Codex');
   return (
-    <header className={clsx('hero', styles.heroBanner)}>
-      <div className="container">
-        <Logo
-          className={styles.heroLogo}
-          role="img"
-          aria-label="Playrunner logo"
-        />
-        <p className={styles.eyebrow}>For teams already using Playwright</p>
-        <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
-          Run Playwright at scale—without building the platform around it.
-        </Heading>
-        <p className={clsx('hero__subtitle', styles.heroSubtitle)}>
-          Keep the tests and CI you already use. Playrunner brings runners,
-          environments, credentials, reports, integrations, and automatic
-          sharding into one workflow—on your infrastructure or ours—without the
-          scripts and CI matrices that normally hold it all together.
+    <figure className={styles.runPreview}>
+      <div className={styles.previewTopline}>
+        <span>
+          <span className={styles.statusDot} /> Agent → Playrunner
+        </span>
+        <span className={styles.exampleLabel}>Example workflow</span>
+      </div>
+      <div
+        className={styles.agentPicker}
+        role="group"
+        aria-label="Preview an AI assistant"
+      >
+        {['Codex', 'Claude'].map((name) => (
+          <button
+            key={name}
+            type="button"
+            aria-pressed={agent === name}
+            onClick={() => setAgent(name)}
+          >
+            <AgentMark agent={name} /> {name}
+          </button>
+        ))}
+        <span className={styles.mcpLabel}>Connected via MCP</span>
+      </div>
+      <div className={styles.conversation} aria-live="polite">
+        <p className={styles.prompt}>
+          “Run the checkout tests on staging. Show me what failed before we
+          ship.”
         </p>
-        <div className={styles.heroActions}>
-          <Link
-            className="button button--primary button--lg"
-            to="/docs/tutorials/getting-started"
-          >
-            Try Playrunner locally
-          </Link>
-          <Link
-            className="button button--secondary button--lg"
-            to="/docs/overview"
-          >
-            See how it works
-          </Link>
+        <div className={styles.agentReply}>
+          <AgentMark agent={agent} />
+          <div>
+            <strong>{agent}</strong>
+            <p>
+              I’ll run the suite with Playrunner, then inspect the results and
+              report.
+            </p>
+          </div>
         </div>
+      </div>
+      <div
+        className={styles.executionFlow}
+        aria-label="Playrunner runs the tests and returns evidence"
+      >
+        <div>
+          <span className={styles.flowIcon}>
+            <Logo />
+          </span>
+          <strong>Playrunner</strong>
+          <small>Orchestrate</small>
+        </div>
+        <span className={styles.connector} aria-hidden="true">
+          →
+        </span>
+        <div>
+          <span className={styles.flowIcon}>
+            <PlaywrightLogo />
+          </span>
+          <strong>Playwright</strong>
+          <small>Run real tests</small>
+        </div>
+        <span className={styles.connector} aria-hidden="true">
+          →
+        </span>
+        <div>
+          <span
+            className={clsx(styles.flowIcon, styles.reportIcon)}
+            aria-hidden="true"
+          >
+            ≡
+          </span>
+          <strong>Evidence</strong>
+          <small>Inspect results</small>
+        </div>
+      </div>
+      <div className={styles.runResult}>
+        <div className={styles.resultHeader}>
+          <span>checkout.spec.ts</span>
+          <span className={styles.failed}>1 failed</span>
+        </div>
+        <div className={styles.resultRow}>
+          <span className={styles.passed}>✓</span> Customer can add to cart{' '}
+          <span>passed</span>
+        </div>
+        <div className={styles.resultRow}>
+          <span className={styles.passed}>✓</span> Shipping total is correct{' '}
+          <span>passed</span>
+        </div>
+        <div className={styles.resultRow}>
+          <span className={styles.failed}>×</span> Payment confirmation appears{' '}
+          <span className={styles.failed}>failed</span>
+        </div>
+        <div className={styles.resultFooter}>
+          <span>Logs + Playwright report</span>
+          <span>Ready for review</span>
+        </div>
+      </div>
+      <figcaption>
+        From test execution to evidence your agent can act on.
+      </figcaption>
+    </figure>
+  );
+}
+
+function Hero(): ReactNode {
+  return (
+    <header className={styles.hero}>
+      <div className={clsx(styles.container, styles.heroGrid)}>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>
+            <span className={styles.statusDot} /> Testing for the age of AI
+            agents
+          </p>
+          <Heading as="h1">
+            Build with AI.
+            <br />
+            <span>
+              Ship with
+              <br className={styles.desktopBreak} /> confidence.
+            </span>
+          </Heading>
+          <p className={styles.heroDescription}>
+            Give Codex and Claude the power to run real Playwright tests,
+            inspect failures, and bring back the evidence. Know what works
+            before your users do.
+          </p>
+          <div className={styles.actions}>
+            <Link
+              className={clsx('button', styles.primaryButton)}
+              to="/docs/mcp/connect"
+            >
+              Connect your AI agent <Arrow />
+            </Link>
+            <Link
+              className={clsx('button', styles.secondaryButton)}
+              to="#cli-in-action"
+            >
+              Watch the CLI in action <span aria-hidden="true">↓</span>
+            </Link>
+          </div>
+          <p className={styles.heroNote}>
+            Your tests. Your agent. Cloud or your own compute.
+          </p>
+          <div className={styles.agentSupport}>
+            <span>Works with</span>
+            <span>
+              <AgentMark agent="Codex" /> Codex
+            </span>
+            <span>
+              <AgentMark agent="Claude" /> Claude
+            </span>
+            <Link className={styles.moreClients} to="/docs/cli">
+              + command line
+            </Link>
+          </div>
+        </div>
+        <RunPreview />
+      </div>
+      <div className={clsx(styles.container, styles.foundationStrip)}>
+        <span>Built around your existing stack</span>
+        <span>
+          <PlaywrightLogo /> Playwright
+        </span>
+        <span>
+          <GithubIcon /> GitHub
+        </span>
+        <span>
+          <SlackLogo /> Slack
+        </span>
+        <span>
+          <JiraLogo /> Jira
+        </span>
+        <Link to="/docs/integration-packages">
+          Explore integrations <Arrow />
+        </Link>
       </div>
     </header>
   );
 }
 
-function CanvasShowcase(): ReactNode {
-  return (
-    <section className={styles.showcase}>
-      <div className="container">
-        <Heading as="h2" className={styles.showcaseTitle}>
-          Your tests stay. Your CI stays. The glue goes.
-        </Heading>
-        <figure className={styles.showcaseFigure}>
-          <img
-            className={styles.showcaseImage}
-            src={useBaseUrl('/img/workflow-canvas.webp')}
-            alt="A Playrunner workflow mid-run: a smoke test branches on failure into an OpenAI analysis and a Jira bug, and on success through Slack, a regression suite, a report, and a deploy webhook. Individual nodes carry amber warning markers showing their own execution status."
-            width={2400}
-            height={1185}
-            // Sits directly below the hero and is the LCP element on desktop.
-            // Lazy-loading it would delay the fetch until layout completes.
-            fetchPriority="high"
-          />
-          <figcaption className={styles.showcaseCaption}>
-            Live run state on the canvas. Every node reports its own outcome,
-            and the branch the run actually took is drawn between them.
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-  );
-}
+const steps = [
+  {
+    number: '01',
+    title: 'Bring your agent',
+    description:
+      'Connect your assistant through MCP. Give it access to your Playrunner projects, environments, and saved workflows.',
+  },
+  {
+    number: '02',
+    title: 'Run the real thing',
+    description:
+      'Use your existing Playwright suite against the environment that matters. Run on Cloud or a connected machine.',
+  },
+  {
+    number: '03',
+    title: 'Close the loop',
+    description:
+      'Review failures and reports with your agent. Make the fix, run the relevant tests again, and decide when to ship.',
+  },
+];
 
-function MissionSection(): ReactNode {
+function HowItWorks(): ReactNode {
   return (
     <section className={styles.section}>
-      <div className={clsx('container', styles.sectionGrid)}>
-        <div>
-          <p className={styles.eyebrow}>The problem</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Playwright runs the tests. Your team runs everything around them.
+      <div className={styles.container}>
+        <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}>
+            From generated code to tested software
+          </p>
+          <Heading as="h2" id="how-it-works">
+            Your agent writes the code.
+            <br />
+            <span>Give it a way to prove it works.</span>
           </Heading>
-        </div>
-        <div>
-          <p className={styles.leadText}>
-            A reliable run needs more than a command. It needs compute, state,
-            conditions, schedules, credentials, artefacts, and reporting, and
-            teams end up building that themselves, one script at a time.
+          <p>
+            A conversation starts the run. Real tests tell you what happened.
           </p>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function AutoShardingSection(): ReactNode {
-  return (
-    <section className={clsx(styles.section, styles.sectionTint)}>
-      <div className={clsx('container', styles.shardingLayout)}>
-        <div>
-          <p className={styles.eyebrow}>Automatic Playwright sharding</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Set the limits. Playrunner chooses the plan.
-          </Heading>
-          <p className={styles.bodyText}>
-            Auto mode discovers the suite before it runs, fits the useful
-            parallelism to your runner capacity, and turns one Playwright node
-            into a complete sharded execution.
-          </p>
-          <ul className={styles.shardingList}>
-            <li>
-              <strong>Discover the real workload</strong>
-              <span>Plan from the current tests, files, and projects.</span>
-            </li>
-            <li>
-              <strong>Use capacity safely</strong>
-              <span>Bound shards, workers, CPU, and memory with maximums.</span>
-            </li>
-            <li>
-              <strong>Keep one result</strong>
-              <span>Run every shard concurrently, then merge the reports.</span>
-            </li>
-          </ul>
-          <div className={styles.shardingActions}>
-            <Link
-              className="button button--primary"
-              to="/docs/integration-packages/playwright#suite-sharding"
-            >
-              Explore Auto sharding
-            </Link>
-            <Link
-              className="button button--secondary"
-              to="/blog/automatic-playwright-sharding"
-            >
-              Read the launch post
-            </Link>
-          </div>
-        </div>
-        <figure className={styles.shardingFigure}>
-          <img
-            className={styles.shardingImage}
-            src={useBaseUrl('/img/playwright-auto-sharding-plan.webp')}
-            alt="An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge."
-            width={1380}
-            height={1140}
-            loading="lazy"
-          />
-          <figcaption className={styles.shardingCaption}>
-            Four shards, two workers each, and one merged report—even when a
-            shard fails.
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-  );
-}
-
-function JourneySection(): ReactNode {
-  return (
-    <section className={styles.section}>
-      <div className="container">
-        <div className={styles.sectionHeader}>
-          <p className={styles.eyebrow}>How it fits</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Keep your suite. Change how it runs.
-          </Heading>
-          <p className={styles.bodyText}>
-            Start with one workflow and move only the execution you no longer
-            want to own.
-          </p>
-        </div>
-        <div className={styles.reasonGrid}>
-          {journeySteps.map((step) => (
-            <article className={styles.reasonCard} key={step.title}>
-              <Heading as="h3" className={styles.cardTitle}>
-                {step.title}
-              </Heading>
-              <p className={styles.cardText}>{step.description}</p>
+        <div className={styles.steps}>
+          {steps.map((step) => (
+            <article key={step.number}>
+              <span className={styles.stepNumber}>{step.number}</span>
+              <Heading as="h3">{step.title}</Heading>
+              <p>{step.description}</p>
             </article>
           ))}
         </div>
-        <figure className={clsx(styles.showcaseFigure, styles.showcaseInline)}>
-          <img
-            className={styles.showcaseImage}
-            src={useBaseUrl('/img/workflow-canvas-branch.webp')}
-            alt="A regression test node on the canvas splitting into two paths: a red failure branch into an OpenAI analysis and a Jira bug, and a green success branch into a Slack alert and a deploy webhook."
-            width={2400}
-            height={1428}
-            loading="lazy"
-          />
-          <figcaption className={styles.showcaseCaption}>
-            One result, two paths. Failures go to triage, passes go to deploy,
-            and the condition lives on the connection rather than in a script.
-          </figcaption>
-        </figure>
       </div>
     </section>
   );
 }
 
-function ValidationSection(): ReactNode {
+function AgentConnections(): ReactNode {
   return (
-    <section className={clsx(styles.section, styles.sectionTint)}>
-      <div className={clsx('container', styles.validationLayout)}>
-        <div>
-          <p className={styles.eyebrow}>Early teams wanted</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Already running Playwright? Help us remove the hard parts.
-          </Heading>
-        </div>
-        <div>
-          <p className={styles.bodyText}>
-            We want a few teams already maintaining runner infrastructure or CI
-            glue. Run one real workflow, tell us where it is still too hard, and
-            shape what we build next.
-          </p>
-          <div className={styles.validationActions}>
-            <Link
-              className="button button--primary button--lg"
-              to="https://playrunner.cloud"
-            >
-              Try it with your suite
-            </Link>
-            <Link
-              className="button button--secondary button--lg"
-              to="https://discord.gg/4zPdBy3DwU"
-            >
-              Talk to us about your setup
-            </Link>
+    <section className={clsx(styles.section, styles.connectionsSection)}>
+      <div className={styles.container}>
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.eyebrow}>Stay in your flow</p>
+            <Heading as="h2">
+              Your favourite agent.
+              <br />
+              <span>Now with a testing team.</span>
+            </Heading>
           </div>
+          <p>
+            Keep working where you already build. Playrunner connects your AI
+            assistant to test execution and the results behind every run.
+          </p>
+        </div>
+        <div className={styles.connections}>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <AgentMark agent="Codex" />
+              <span>MCP + skill</span>
+            </div>
+            <Heading as="h3">Codex</Heading>
+            <p>
+              Go from a coding task to a real test run. Create workflows, run
+              your suite, and inspect the outcome from the same conversation.
+            </p>
+            <Link to="/docs/mcp/connect">
+              Connect Codex <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <AgentMark agent="Claude" />
+              <span>MCP connection</span>
+            </div>
+            <Heading as="h3">Claude</Heading>
+            <p>
+              Bring test execution into your Claude workflow. Connect
+              Playrunner’s remote MCP server to run tests and review the
+              evidence.
+            </p>
+            <Link to="/docs/mcp/connect">
+              Connect Claude <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <span className={styles.codeMark} aria-hidden="true">
+                ⌘
+              </span>
+              <span>Your tools, too</span>
+            </div>
+            <Heading as="h3">MCP & CLI</Heading>
+            <p>
+              Use another compatible MCP client, work from your terminal, or
+              make test runs part of your existing development pipeline.
+            </p>
+            <Link to="/docs/mcp">
+              Explore the developer tools <Arrow />
+            </Link>
+          </article>
         </div>
       </div>
     </section>
   );
 }
 
-function GettingStartedSection(): ReactNode {
+function Evidence(): ReactNode {
   return (
     <section className={styles.section}>
-      <div className="container">
-        <div className={styles.sectionHeader}>
-          <p className={styles.eyebrow}>Go deeper</p>
-          <Heading as="h2" className={styles.sectionTitle}>
-            Evaluate the parts that matter to your team.
+      <div className={clsx(styles.container, styles.evidenceGrid)}>
+        <div className={styles.evidenceCopy}>
+          <p className={styles.eyebrow}>Confidence comes from evidence</p>
+          <Heading as="h2">
+            “Done” is a claim.
+            <br />
+            <span>Test results are proof.</span>
+          </Heading>
+          <p>
+            Make real execution part of your agent’s development loop. Keep the
+            context you need to understand a failure and verify the next fix.
+          </p>
+          <Link className={styles.textLink} to="/docs/mcp/tools">
+            See what your agent can do <Arrow />
+          </Link>
+        </div>
+        <div className={styles.evidenceList}>
+          <article>
+            <span aria-hidden="true">01 /</span>
+            <div>
+              <Heading as="h3">See what actually ran</Heading>
+              <p>
+                Execution state, test events, and logs show what happened beyond
+                the agent’s response.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span aria-hidden="true">02 /</span>
+            <div>
+              <Heading as="h3">Investigate with context</Heading>
+              <p>
+                Playwright reports and captured artefacts stay attached to the
+                run, ready for inspection.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span aria-hidden="true">03 /</span>
+            <div>
+              <Heading as="h3">Keep the release decision yours</Heading>
+              <p>
+                Review the results, coverage, and remaining failures before
+                deciding what is ready to ship.
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Infrastructure(): ReactNode {
+  return (
+    <section className={clsx(styles.section, styles.infrastructureSection)}>
+      <div className={styles.container}>
+        <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}>Serious testing. Less setup.</p>
+          <Heading as="h2">
+            The execution layer
+            <br />
+            <span>your agent was missing.</span>
           </Heading>
         </div>
-        <div className={styles.startList}>
-          {gettingStartedLinks.map((item) => (
-            <Link className={styles.startLink} key={item.title} to={item.to}>
-              <span>
-                <strong>{item.title}</strong>
-                <span>{item.description}</span>
-              </span>
-              <span aria-hidden="true">→</span>
-            </Link>
-          ))}
+        <div className={styles.infrastructureGrid}>
+          <Link to="/docs/integration-packages/playwright#suite-sharding">
+            <span className={styles.featureSymbol} aria-hidden="true">
+              ⤨
+            </span>
+            <Heading as="h3">Scale the run</Heading>
+            <p>
+              Automatic sharding distributes your suite across runners and
+              brings the results back into one report.
+            </p>
+            <span className={styles.featureLink}>
+              Explore sharding <Arrow />
+            </span>
+          </Link>
+          <Link to="/docs/cli/local-workers">
+            <span className={styles.featureSymbol} aria-hidden="true">
+              ⌁
+            </span>
+            <Heading as="h3">Run where it matters</Heading>
+            <p>
+              Use managed Cloud compute or connect your own machine. Keep
+              execution history and reports together.
+            </p>
+            <span className={styles.featureLink}>
+              Choose your compute <Arrow />
+            </span>
+          </Link>
+          <Link to="/docs/tutorials/authentication-profiles">
+            <span className={styles.featureSymbol} aria-hidden="true">
+              ◎
+            </span>
+            <Heading as="h3">Test beyond the login</Heading>
+            <p>
+              Reuse Authentication Profiles to test signed-in journeys, with
+              browser sign-in handled on your device.
+            </p>
+            <span className={styles.featureLink}>
+              Explore authentication <Arrow />
+            </span>
+          </Link>
         </div>
+        <div className={styles.canvasNote}>
+          <Logo />
+          <p>
+            Need more control? The visual workflow editor is there when you want
+            to connect steps, inspect a run, or refine the flow.
+          </p>
+          <Link to="/docs/overview">
+            Explore the platform <Arrow />
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCallToAction(): ReactNode {
+  return (
+    <section className={styles.finalCta}>
+      <div className={styles.container}>
+        <p className={styles.eyebrow}>Build faster. Verify before you ship.</p>
+        <Heading as="h2">
+          Give your next release
+          <br />
+          <span>a little more confidence.</span>
+        </Heading>
+        <p>Connect your agent. Run your tests. See the evidence.</p>
+        <div className={styles.actions}>
+          <Link
+            className={clsx('button', styles.primaryButton)}
+            to="/docs/mcp/connect"
+          >
+            Connect your AI agent <Arrow />
+          </Link>
+          <Link
+            className={clsx('button', styles.secondaryButton)}
+            to="https://playrunner.cloud"
+          >
+            Explore Playrunner Cloud <Arrow />
+          </Link>
+        </div>
+        <Link
+          className={styles.selfHostLink}
+          to="/docs/tutorials/getting-started"
+        >
+          Prefer to self-host? Start locally →
+        </Link>
       </div>
     </section>
   );
@@ -338,21 +501,17 @@ function GettingStartedSection(): ReactNode {
 
 export default function Home(): ReactNode {
   const { siteConfig } = useDocusaurusContext();
-  const customFields = siteConfig.customFields as DocsCustomFields | undefined;
+  const customFields = siteConfig.customFields as
+    | { localDocsLandingPath?: string }
+    | undefined;
   const localDocsLandingPath =
     customFields?.localDocsLandingPath?.trim() || '/';
   const localDocsLandingUrl = useBaseUrl(localDocsLandingPath);
   const shouldRedirectToSetupDocs =
     localDocsLandingPath !== '/' && localDocsLandingPath !== '/playrunner/';
-
   useEffect(() => {
-    if (!shouldRedirectToSetupDocs) {
-      return;
-    }
-
-    window.location.replace(localDocsLandingUrl);
+    if (shouldRedirectToSetupDocs) window.location.replace(localDocsLandingUrl);
   }, [localDocsLandingUrl, shouldRedirectToSetupDocs]);
-
   if (shouldRedirectToSetupDocs) {
     return (
       <Layout
@@ -365,16 +524,14 @@ export default function Home(): ReactNode {
       </Layout>
     );
   }
-
-  // The /search route only exists when Algolia DocSearch is configured.
   const hasSearch = Boolean(
     (siteConfig.themeConfig as { algolia?: unknown } | undefined)?.algolia,
   );
-
   return (
     <Layout
-      title="Run Playwright at scale without the platform glue"
-      description="Bring Playwright runners, environments, credentials, reports, integrations, and automatic sharding into one workflow on your infrastructure or ours."
+      title="Build with AI. Ship with confidence."
+      description="Connect Codex, Claude, and your AI agents to real Playwright test runs. Inspect failures, review the evidence, and ship with confidence using Playrunner."
+      wrapperClassName={styles.landing}
     >
       <JsonLd
         data={{
@@ -382,15 +539,14 @@ export default function Home(): ReactNode {
           '@graph': [organization, website(hasSearch), softwareApplication],
         }}
       />
-      <HomepageHeader />
       <main>
-        <CanvasShowcase />
-        <MissionSection />
-        <HomepageFeatures />
-        <AutoShardingSection />
-        <JourneySection />
-        <ValidationSection />
-        <GettingStartedSection />
+        <Hero />
+        <HowItWorks />
+        <CliShowcase />
+        <AgentConnections />
+        <Evidence />
+        <Infrastructure />
+        <FinalCallToAction />
       </main>
     </Layout>
   );

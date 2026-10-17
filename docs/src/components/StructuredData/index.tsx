@@ -32,7 +32,7 @@ export const organization = {
   url: `${SITE_URL}/`,
   logo: `${SITE_URL}/img/icons/icon-512.png`,
   description:
-    'Playrunner is a visual orchestration layer for Playwright test suites.',
+    'Playrunner connects AI agents and development teams to Playwright test execution and results.',
   sameAs: [
     'https://github.com/playrunner/playrunner',
     'https://www.npmjs.com/org/playrunner',
@@ -52,7 +52,7 @@ export const website = (hasSearch: boolean) => ({
   url: `${SITE_URL}/`,
   name: 'Playrunner',
   description:
-    'Run Playwright at scale, without building the platform around it.',
+    'Build with AI. Ship with confidence. Connect your AI assistant to real Playwright test runs.',
   publisher: { '@id': ORGANIZATION_ID },
   inLanguage: 'en',
   ...(hasSearch
@@ -83,7 +83,7 @@ export const softwareApplication = {
   operatingSystem: 'Linux, macOS, Windows (via Docker)',
   url: `${SITE_URL}/`,
   description:
-    'Visual orchestration for Playwright test suites. Build workflows on a canvas instead of writing CI YAML, and run them locally, on managed cloud runners, or on your own infrastructure.',
+    'Connect Codex, Claude, and compatible MCP clients to Playwright test execution. Run suites, inspect failures, and review reports on managed cloud runners or your own compute.',
   publisher: { '@id': ORGANIZATION_ID },
   offers: {
     '@type': 'Offer',
