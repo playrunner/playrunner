@@ -295,6 +295,19 @@ seconds between polls. Reuse the same `requestKey` only to recover an ambiguous
 start response for the same intended run. Starting a run does not install an
 automatic chat notification; the agent must poll or revisit its execution.
 
+If the start response has `status: "dispatch_unknown"`, the execution ID is
+reserved but dispatch is unconfirmed. This is not proof that tests started.
+Preserve both `requestKey` and `executionId`, then check feedback and recent run
+history for a bounded period, such as up to one minute with several seconds
+between reads. Feedback can return `404` while no execution record is visible
+for that identity; that does not prove that no work was dispatched.
+
+If the execution appears, inspect its actual status and evidence. If it remains
+absent, stop polling and report that dispatch could not be confirmed, including
+the IDs for investigation. Retrying the same key will not dispatch another run;
+it does not guarantee eventual execution or completion. Do not automatically
+switch to a new key, start another run or report a passing result.
+
 ## Use the standalone MCP server
 
 After [connecting the standalone server](../mcp/self-hosted.md), read

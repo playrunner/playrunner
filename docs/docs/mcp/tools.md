@@ -92,6 +92,17 @@ selected machine for browser compute; Cloud access and coordination
 requirements still apply.
 Stopping a client’s wait does not cancel the workflow.
 
+A hosted start can return `status: "dispatch_unknown"` with a reserved
+`executionId` when dispatch could not be confirmed. Preserve that ID and the
+request key. Check `get_run_feedback` and recent run history for a bounded
+period, for example up to one minute with several seconds between reads.
+Feedback can return `404` if no execution record is visible; this does not
+prove that no work was dispatched. If the execution appears, inspect its actual
+status. Otherwise, stop polling and report the unresolved dispatch with its
+IDs. Reusing the same key prevents duplicate dispatch but does not promise
+eventual execution or completion. Do not automatically start another run with
+a fresh key, or treat this state as running or passing tests.
+
 ## Change-aware testing
 
 Follow [Focused regression](../cli/focused-regression.md#use-playrunner-cloud-mcp)
