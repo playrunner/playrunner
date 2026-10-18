@@ -6,67 +6,50 @@ import { JsonLd, faqPage } from '@site/src/components/StructuredData';
 
 import styles from './pricing.module.css';
 
-/**
- * Every answer below is also rendered on the page, in the FAQ section at the
- * bottom. Markup that is not visible to the reader is a violation.
- *
- * Scope: licensing and availability only. Anything that states or implies a
- * price, a billing model, or a compute allocation is parked in PARKED_FAQ
- * below until those decisions are actually made.
- */
+// Keep visible FAQ answers and FAQPage structured data in sync.
+// Rates verified against Cloud credit-pricing.ts and billingData.ts, 2026-10-18.
 const FAQ = [
+  {
+    question: 'How much does Playrunner Cloud cost?',
+    answer:
+      'The Hosted plan is US$30 per workspace per month, before tax, with 2,000 credits each paid billing period. Credits are shared by the workspace for hosted orchestration and Cloud runners. Additional credits cost US$10 for 1,000 credits.',
+  },
+  {
+    question: 'How does the free trial work?',
+    answer:
+      'Eligible new subscribers receive a 14-day trial with 200 credits. A payment method is required. After the trial, the subscription is US$30 per month, before tax. Cancel through Stripe before the trial ends to avoid the subscription charge. A workspace that has already used its trial does not receive another one.',
+  },
+  {
+    question: 'What uses credits?',
+    answer:
+      'Hosted orchestration uses 0.25 credits per active workflow minute, charged once per workflow. Cloud runners use 1 credit per minute at 2 vCPU and 4 GiB of memory, with resource-adjusted rates for other sizes. Each hosted node, shard, child runner and retry adds its own compute usage. Orchestration and runner charges are added together.',
+  },
+  {
+    question: 'Can I use my own runners?',
+    answer:
+      'Yes. Your own runners have no Playrunner compute charge, but hosted orchestration still uses 0.25 credits per active workflow minute. You pay your own infrastructure costs. Fully self-hosting Playrunner has no Playrunner subscription or credit charges for uses permitted by the Sustainable Use License.',
+  },
+  {
+    question: 'Do unused credits carry forward?',
+    answer:
+      'Trial credits expire at the end of the trial. Included monthly credits reset each paid billing period and are used before purchased credits. Purchased credits carry forward. Starting Cloud runs still requires an eligible subscription and enough available credits.',
+  },
+  {
+    question: 'What happens when I run low on credits?',
+    answer:
+      'Buy 1,000 credits for US$10, or enable optional automatic top-ups with a spending limit. Credits are added after payment succeeds. Credits are reserved before work starts, and unused reservations are released. Without enough credits, new work is blocked and existing runs remain limited to their funded budget.',
+  },
   {
     question: 'Is Playrunner open source?',
     answer:
-      'Playrunner is source-available, not open source. It is distributed under the Playrunner Sustainable Use License, which is not an OSI-approved license. You can read, modify, and self-host the code; you cannot resell it or offer it as a hosted service.',
+      'Playrunner is source-available, not open source. It is distributed under the Playrunner Sustainable Use License, which is not an OSI-approved license. You can read, modify and self-host the code for permitted uses; selling it or offering a service substantially based on it requires separate written permission.',
   },
   {
-    question: 'What am I allowed to do under the Sustainable Use License?',
+    question: 'Are infrastructure and third-party services included?',
     answer:
-      "The license permits two categories of use: supporting your own organization's internal operations; and personal, educational, evaluation, or other non-commercial purposes. You cannot sell Playrunner, monetize access to it, or offer a service substantially based on it to third parties without separate written permission.",
-  },
-  {
-    question: 'Can I use Playrunner today?',
-    answer:
-      'Yes, two ways. Run it yourself with Docker or in your own cloud account, with no license fee for any use the Sustainable Use License permits. Or use the managed Playrunner Cloud beta, which you can sign in to with GitHub or Google.',
-  },
-  {
-    question: 'Do I need Playrunner Cloud to use the integrations?',
-    answer:
-      'No. Every integration node runs the same way on a self-hosted Playrunner deployment as it does on Playrunner Cloud, because integrations are bundled into the build rather than fetched at runtime. You connect your own Slack, Jira, GitHub, or OpenAI credentials either way.',
+      'Self-hosted infrastructure and compute on your own runners are your responsibility. Provider charges for services connected through your own accounts, such as AI model APIs, are separate from Playrunner Cloud pricing. All listed Cloud prices are in US dollars, before applicable tax.',
   },
 ];
-
-/*
- * TODO(pricing): parked until the Playrunner Cloud pricing structure is
- * decided. Do NOT publish any of these as-is — each one states or implies a
- * commitment that has not been made:
- *
- *   - "How much does Playrunner cost?"
- *       Needs a settled answer for Cloud. The self-hosted half (no license fee
- *       for permitted use) is already covered by the license section.
- *
- *   - "Do I need a credit card to join the Playrunner Cloud beta?"
- *       Reads as a promise about billing during and after the beta.
- *
- *   - "Why is there no Playrunner Cloud pricing yet?"
- *       Good trust-building answer, but it commits publicly to the reasoning
- *       and to a rough timeline. Revisit once the model is chosen.
- *
- *   - "Are there limits during the beta?"
- *       Previously named a specific vCPU/memory allocation. That number is not
- *       settled and must not be published until it is.
- *
- *   - "Will self-hosting stay free when Cloud pricing launches?"
- *       Safe in substance, but presumes a launch shape that is undecided.
- *
- *   - "What happens to my beta account when pricing launches?"
- *       Describes migration and billing behaviour that has not been designed.
- *
- * When pricing firms up, rewrite these against the real model and move them
- * into FAQ above. They will flow into the FAQPage JSON-LD automatically, so
- * they must be rendered visibly on the page at the same time.
- */
 
 type FeatureProps = {
   children: ReactNode;
@@ -93,12 +76,10 @@ export default function Pricing(): ReactNode {
   return (
     <Layout
       title="Pricing"
-      description="Use and self-host Playrunner for free under the Playrunner Sustainable Use License, or join the free Playrunner Cloud beta."
+      description="Self-host Playrunner with no license fee for permitted use, or choose Cloud at US$30/month with 2,000 credits. Eligible new subscribers get a 14-day trial."
     >
-      {/* Layout only forwards title and description to PageMetadata, so the
-          page-specific image and keywords have to be set directly. */}
+      {/* Use the shared brand image; the old pricing card advertised a free beta. */}
       <PageMetadata
-        image="/img/og/og-pricing.png"
         keywords={[
           'playrunner pricing',
           'playwright orchestration pricing',
@@ -112,11 +93,12 @@ export default function Pricing(): ReactNode {
           <div className="container">
             <div className={styles.heroContent}>
               <span className={styles.eyebrow}>Simple from the start</span>
-              <h1>Run Playrunner your way, for free.</h1>
+              <h1>Your tests. Your compute. Your plan.</h1>
               <p>
-                Run Playrunner on your own infrastructure, or use the managed
-                Playrunner Cloud beta. There are no license fees for uses
-                permitted by the Playrunner Sustainable Use License.
+                Self-host with no license fee for permitted use, or let
+                Playrunner Cloud manage your workflows. One workspace
+                subscription, with credits for the orchestration and compute you
+                use.
               </p>
               <div className={styles.heroActions}>
                 <a
@@ -148,13 +130,13 @@ export default function Pricing(): ReactNode {
               <span className={styles.eyebrow}>Choose how you run</span>
               <h2>Start self-hosted or use Playrunner Cloud.</h2>
               <p>
-                Run Playrunner on your own infrastructure, or use the managed
-                Playrunner Cloud beta free as a beta tester.
+                Keep everything on your infrastructure, or connect your team to
+                managed orchestration with Cloud or your own runners.
               </p>
             </div>
 
             <div className={styles.planGrid}>
-              <article className={`${styles.planCard} ${styles.featuredCard}`}>
+              <article className={styles.planCard}>
                 <div className={styles.planHeader}>
                   <div>
                     <span className={styles.status}>Available now</span>
@@ -181,6 +163,9 @@ export default function Pricing(): ReactNode {
                   <Feature>
                     Keep control of your infrastructure and data
                   </Feature>
+                  <Feature>
+                    Your infrastructure and provider costs are separate
+                  </Feature>
                 </ul>
 
                 <Link
@@ -191,47 +176,144 @@ export default function Pricing(): ReactNode {
                 </Link>
               </article>
 
-              <article className={`${styles.planCard} ${styles.cloudCard}`}>
+              <article
+                className={`${styles.planCard} ${styles.cloudCard} ${styles.featuredCard}`}
+              >
                 <div className={styles.cloudGlow} aria-hidden="true" />
                 <div className={styles.planHeader}>
                   <div>
-                    <span className={`${styles.status} ${styles.betaStatus}`}>
-                      Free beta
+                    <span className={`${styles.status} ${styles.cloudStatus}`}>
+                      Hosted plan
                     </span>
                     <h2>Playrunner Cloud</h2>
                     <p className={styles.planSummary}>
-                      The convenience of Playrunner, hosted and managed by us.
+                      Managed workflows for your whole workspace.
                     </p>
                   </div>
-                  <div className={styles.cloudMark} aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M7 18h10a4 4 0 0 0 .7-7.94A6 6 0 0 0 6.2 8.4 4.8 4.8 0 0 0 7 18Z" />
-                    </svg>
+                  <div className={styles.price}>
+                    <span className={styles.currency}>US$</span>
+                    <strong>30</strong>
+                    <span className={styles.priceNote}>
+                      per workspace / month
+                    </span>
+                    <span className={styles.taxNote}>before tax</span>
                   </div>
                 </div>
 
                 <ul className={styles.featureList}>
-                  <Feature>Managed Playrunner hosting</Feature>
-                  <Feature>Less infrastructure to operate yourself</Feature>
+                  <Feature>2,000 shared credits each paid month</Feature>
                   <Feature>
-                    A faster path from setup to running workflows
+                    14-day trial with 200 credits for eligible new subscribers
                   </Feature>
-                  {/* TODO(pricing): no cost, billing, or compute-allocation
-                      claims here until the Cloud pricing structure is
-                      decided. */}
                   <Feature>
-                    Free access for beta testers during the beta
+                    Hosted orchestration with Cloud or your own runners
                   </Feature>
+                  <Feature>
+                    US$10 for 1,000 extra credits, with optional auto top-up
+                  </Feature>
+                  <Feature>Usage reporting and billing management</Feature>
                 </ul>
 
                 <a
                   className={`button button--primary button--block button--lg ${styles.planAction}`}
                   href="https://playrunner.cloud"
                 >
-                  Open Playrunner Cloud
+                  Start your Cloud trial
                 </a>
+                <p className={styles.trialNote}>
+                  Payment method required. Then US$30/month before tax. Cancel
+                  before your trial ends to avoid the subscription charge.
+                </p>
               </article>
             </div>
+          </div>
+        </section>
+
+        <section className={styles.usageSection} aria-labelledby="credit-rates">
+          <div className="container">
+            <div className={styles.sectionHeading}>
+              <span className={styles.eyebrow}>How credits work</span>
+              <h2 id="credit-rates">Pay for the work your workflows do.</h2>
+              <p>
+                Cloud usage combines hosted orchestration and any Cloud runner
+                compute. Bringing your own runners removes the Playrunner
+                compute charge; hosted orchestration still applies.
+              </p>
+            </div>
+            <div className={styles.rateGrid}>
+              <article className={styles.rateCard}>
+                <span className={styles.eyebrow}>Coordinate the workflow</span>
+                <h3>Hosted orchestration</h3>
+                <p className={styles.rate}>
+                  <strong>0.25</strong> credits / minute
+                </p>
+                <p>
+                  Charged once per workflow while hosted orchestration is
+                  active, including workflows using your own runners.
+                </p>
+                <small>Rounded up to 0.1 seconds. No minimum duration.</small>
+              </article>
+              <article className={styles.rateCard}>
+                <span className={styles.eyebrow}>Run the tests</span>
+                <h3>Cloud runner compute</h3>
+                <p className={styles.rate}>
+                  <strong>1</strong> credit / minute
+                </p>
+                <p>
+                  Per runner at 2 vCPU / 4 GiB. Usage adds up across hosted
+                  nodes, shards, child runners and retries.
+                </p>
+                <small>
+                  Rounded up to 0.1 seconds, with a one-minute minimum per
+                  started task. Other sizes have adjusted rates.
+                </small>
+              </article>
+              <article className={styles.rateCard}>
+                <span className={styles.eyebrow}>Keep running</span>
+                <h3>Extra credits</h3>
+                <p className={styles.rate}>
+                  <strong>US$10</strong> / 1,000 credits
+                </p>
+                <p>
+                  Top up when you need more. Purchased credits carry forward;
+                  trial and included monthly credits expire.
+                </p>
+                <small>
+                  Before tax. Optional auto top-up lets you set a spending
+                  limit. An eligible subscription is still required.
+                </small>
+              </article>
+            </div>
+            <div className={styles.example}>
+              <div>
+                <span className={styles.eyebrow}>A practical example</span>
+                <h3>A ten-minute workflow. Four standard runners.</h3>
+                <p>
+                  If the workflow is active for ten minutes and each 2 vCPU / 4
+                  GiB runner runs for ten minutes, you use:
+                </p>
+              </div>
+              <dl>
+                <div>
+                  <dt>Orchestration · 10 × 0.25</dt>
+                  <dd>2.5 credits</dd>
+                </div>
+                <div>
+                  <dt>Runner compute · 4 × 10 × 1</dt>
+                  <dd>40 credits</dd>
+                </div>
+                <div className={styles.exampleTotal}>
+                  <dt>Total</dt>
+                  <dd>42.5 credits</dd>
+                </div>
+              </dl>
+            </div>
+            <p className={styles.usageNote}>
+              Using your own runners for the same ten-minute workflow uses 2.5
+              orchestration credits, plus your own infrastructure costs. Custom
+              Cloud runner sizes use (9 × vCPU + memory GiB) ÷ 22 credits per
+              billable minute.
+            </p>
           </div>
         </section>
 
@@ -290,15 +372,15 @@ export default function Pricing(): ReactNode {
               <div>
                 <h2>Ready to run Playrunner?</h2>
                 <p>
-                  Start free on our cloud, or run it yourself. No subscription
-                  or license fee required for permitted use.
+                  Try Cloud with 200 credits for 14 days, or self-host on your
+                  own infrastructure.
                 </p>
               </div>
               <a
                 className="button button--primary button--lg"
                 href="https://playrunner.cloud"
               >
-                Start free on Playrunner Cloud
+                Explore Playrunner Cloud
               </a>
             </div>
           </div>

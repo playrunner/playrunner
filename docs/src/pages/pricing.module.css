@@ -50,7 +50,7 @@
   font-size: clamp(2.8rem, 6vw, 4.7rem);
   line-height: 1.02;
   letter-spacing: -0.045em;
-  white-space: nowrap;
+  max-width: 1100px;
 }
 
 .hero p {
@@ -165,7 +165,7 @@
   text-transform: uppercase;
 }
 
-.betaStatus {
+.cloudStatus {
   color: var(--ifm-color-primary);
 }
 
@@ -209,19 +209,6 @@
   text-align: right;
 }
 
-.cloudMark {
-  display: grid;
-  width: 3.5rem;
-  height: 3.5rem;
-  place-items: center;
-  flex: 0 0 auto;
-  border: 1px solid var(--pricing-border);
-  border-radius: 0.9rem;
-  background: var(--ifm-background-surface-color);
-  color: var(--ifm-color-primary);
-}
-
-.cloudMark svg,
 .licenseIcon svg {
   width: 1.7rem;
   height: 1.7rem;
@@ -415,8 +402,13 @@
     min-height: 0;
   }
 
-  .price {
-    display: none;
+  .planHeader {
+    flex-wrap: wrap;
+  }
+
+  .priceNote,
+  .taxNote {
+    text-align: left;
   }
 
   .licenseCard {
@@ -426,5 +418,119 @@
   .bottomCtaInner {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+.taxNote {
+  grid-column: 1 / -1;
+  color: var(--pricing-muted);
+  font-size: 0.75rem;
+  text-align: right;
+  margin-top: 0.25rem;
+}
+.trialNote {
+  color: var(--pricing-muted);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin: 1rem 0 0;
+}
+.usageSection {
+  padding: 0 0 5rem;
+}
+.rateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+.rateCard {
+  padding: 1.6rem;
+  border: 1px solid var(--pricing-border);
+  border-radius: 1rem;
+  background: var(--ifm-card-background-color);
+}
+.rateCard h3 {
+  font-size: 1.25rem;
+  margin-bottom: 1.4rem;
+}
+.rateCard p:not(.rate),
+.rateCard small {
+  color: var(--pricing-muted);
+  line-height: 1.7;
+}
+.rateCard small {
+  display: block;
+}
+.rate {
+  color: var(--ifm-color-primary);
+  font-size: 0.9rem;
+}
+.rate strong {
+  font-size: 2.35rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.example {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 3rem;
+  margin-top: 1.5rem;
+  padding: 2rem;
+  border: 1px solid var(--pricing-border);
+  border-radius: 1rem;
+  background: var(--ifm-background-surface-color);
+}
+.example h3 {
+  font-size: 1.3rem;
+}
+.example p {
+  margin: 0;
+  color: var(--pricing-muted);
+  line-height: 1.7;
+}
+.example dl {
+  margin: 0;
+  align-self: center;
+}
+.example dl > div {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+}
+.example dt {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+.example dd {
+  margin: 0;
+  font-weight: 600;
+}
+.exampleTotal {
+  border-top: 1px solid var(--pricing-border);
+  color: var(--ifm-color-primary);
+}
+.usageNote {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--pricing-muted);
+  max-width: 900px;
+}
+@media (max-width: 996px) {
+  .rateGrid {
+    grid-template-columns: 1fr;
+  }
+  .example {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+@media (max-width: 620px) {
+  .taxNote {
+    text-align: left;
+  }
+  .rateCard,
+  .example {
+    padding: 1.4rem;
   }
 }
