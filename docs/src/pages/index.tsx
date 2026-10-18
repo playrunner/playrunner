@@ -28,16 +28,18 @@ function Arrow(): ReactNode {
 }
 
 function AgentMark({ agent }: { agent: string }): ReactNode {
-  // Official client marks: geminicli.com/icon.png and antigravity.google/favicon.svg.
-  const clientIcon = useBaseUrl(
-    agent === 'Gemini CLI'
-      ? '/img/clients/gemini-cli.png'
-      : '/img/clients/antigravity.svg',
-  );
+  // Client marks are saved locally from each provider's official website.
+  const clientIcons: Record<string, string> = {
+    'Gemini CLI': '/img/clients/gemini-cli.png',
+    Antigravity: '/img/clients/antigravity.svg',
+    Cursor: '/img/clients/cursor.svg',
+    Grok: '/img/clients/grok.svg',
+  };
+  const clientIcon = useBaseUrl(clientIcons[agent] || '/');
   if (agent === 'Codex') {
     return <OpenAIIcon className={styles.agentIcon} />;
   }
-  if (agent === 'Gemini CLI' || agent === 'Antigravity') {
+  if (clientIcons[agent]) {
     return <img className={styles.agentIcon} src={clientIcon} alt="" />;
   }
   return (
@@ -98,11 +100,17 @@ function Hero(): ReactNode {
             <span>
               <AgentMark agent="Claude" /> Claude
             </span>
+            <Link to="/docs/mcp/connect#add-the-hosted-server">
+              <AgentMark agent="Cursor" /> Cursor
+            </Link>
             <Link to="/docs/mcp/connect#gemini-cli">
               <AgentMark agent="Gemini CLI" /> Gemini CLI
             </Link>
             <Link to="/docs/mcp/connect#google-antigravity">
               <AgentMark agent="Antigravity" /> Antigravity
+            </Link>
+            <Link to="/docs/mcp/connect#add-the-hosted-server">
+              <AgentMark agent="Grok" /> Grok
             </Link>
             <Link className={styles.moreClients} to="/docs/cli">
               + command line
@@ -130,6 +138,77 @@ function Hero(): ReactNode {
         </Link>
       </div>
     </header>
+  );
+}
+
+function VibeCoders(): ReactNode {
+  return (
+    <section className={styles.section} aria-labelledby="vibe-coders">
+      <div className={clsx(styles.container, styles.evidenceGrid)}>
+        <div className={styles.evidenceCopy}>
+          <p className={styles.eyebrow}>Vibe Coders</p>
+          <Heading as="h2" id="vibe-coders">
+            Keep the vibe.
+            <br />
+            <span>Check the result.</span>
+          </Heading>
+          <p>
+            You bring the idea. Your AI agent helps build it. Playrunner gives
+            you a way to check that the important parts still work as your app
+            changes—from signing in to saving a customer’s details.
+          </p>
+          <p>
+            Start with one journey that matters. Ask your agent to help write a
+            Playwright test, run it with Playrunner, and show you the result.
+            Save the workflow so you can check it again after the next change.
+          </p>
+          <div className={styles.actions}>
+            <ConnectAgentButton
+              className={clsx('button', styles.primaryButton)}
+            />
+            <Link
+              className={clsx('button', styles.secondaryButton)}
+              to="/docs/tutorials/run-your-first-test"
+            >
+              Run your first test <Arrow />
+            </Link>
+          </div>
+        </div>
+        <div className={styles.evidenceList}>
+          <article>
+            <span aria-hidden="true">01 /</span>
+            <div>
+              <Heading as="h3">Describe what should work</Heading>
+              <p>
+                “A new customer can sign up, log in, and save their profile.”
+                Give your agent a clear outcome to turn into a repeatable test.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span aria-hidden="true">02 /</span>
+            <div>
+              <Heading as="h3">Make checking part of building</Heading>
+              <p>
+                Ask your connected agent to run the saved workflow after a
+                change. Review failures together and rerun the check after a
+                fix.
+              </p>
+            </div>
+          </article>
+          <article>
+            <span aria-hidden="true">03 /</span>
+            <div>
+              <Heading as="h3">See the evidence before you ship</Heading>
+              <p>
+                Review what passed, what failed, and what wasn’t tested. Open
+                the report and captured traces to decide what needs attention.
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -207,8 +286,9 @@ function AgentConnections(): ReactNode {
             </Heading>
           </div>
           <p>
-            Bring testing to Codex, Claude, Gemini CLI, Antigravity, or another
-            compatible MCP client. The same saved workflows. The same evidence.
+            Bring testing to Codex, Claude, Cursor, Gemini CLI, Antigravity,
+            Grok, or another compatible MCP client. The same saved workflows.
+            The same evidence.
           </p>
         </div>
         <div className={styles.connections}>
@@ -243,6 +323,21 @@ function AgentConnections(): ReactNode {
           </article>
           <article className={styles.connectionCard}>
             <div className={styles.connectionTop}>
+              <AgentMark agent="Cursor" />
+              <span>Remote MCP</span>
+            </div>
+            <Heading as="h3">Cursor</Heading>
+            <p>
+              Bring testing into your editor. Add Playrunner’s remote MCP server
+              to Cursor and authorise access to your saved workflows and test
+              reports.
+            </p>
+            <Link to="/docs/mcp/connect#add-the-hosted-server">
+              Connect Cursor <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
               <AgentMark agent="Gemini CLI" />
               <span>Remote MCP</span>
             </div>
@@ -267,6 +362,21 @@ function AgentConnections(): ReactNode {
             </p>
             <Link to="/docs/mcp/connect#google-antigravity">
               Set up Antigravity <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <AgentMark agent="Grok" />
+              <span>Custom MCP</span>
+            </div>
+            <Heading as="h3">Grok</Heading>
+            <p>
+              Add Playrunner as a custom connector in Grok, or a remote MCP
+              server in Grok Build. Use the connection to request test runs and
+              inspect their results.
+            </p>
+            <Link to="/docs/mcp/connect#add-the-hosted-server">
+              Connect Grok <Arrow />
             </Link>
           </article>
           <article className={styles.connectionCard}>
@@ -619,6 +729,7 @@ export default function Home(): ReactNode {
       />
       <main>
         <Hero />
+        <VibeCoders />
         <HowItWorks />
         <TokenEfficiency />
         <CliShowcase />

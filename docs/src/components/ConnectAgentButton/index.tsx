@@ -100,9 +100,9 @@ export default function ConnectAgentButton({
           Start with a prompt.
         </h2>
         <p id={`${id}-description`} className={styles.description}>
-          Paste this into Codex, Claude, Gemini CLI or Antigravity. Your agent
-          will guide you through installing the Playrunner CLI, connecting
-          Playrunner and preparing a first test run.
+          Paste this into Codex, Claude, Cursor, Gemini CLI, Antigravity or Grok
+          Build. Your agent will guide you through installing the Playrunner
+          CLI, connecting Playrunner and preparing a first test run.
         </p>
         <div className={styles.promptPanel}>
           <div className={styles.promptHeader}>
