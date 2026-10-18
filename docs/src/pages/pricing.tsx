@@ -12,12 +12,12 @@ const FAQ = [
   {
     question: 'How much does Playrunner Cloud cost?',
     answer:
-      'The Hosted plan is US$30 per workspace per month, before tax, with 2,000 credits each paid billing period. Credits are shared by the workspace for hosted orchestration and Cloud runners. Additional credits cost US$10 for 1,000 credits.',
+      'The Hosted plan is $30 per month, before tax, with 2,000 credits each paid billing period. Credits are shared across the account for hosted orchestration and Cloud runners. Additional credits cost $10 for 1,000 credits.',
   },
   {
     question: 'How does the free trial work?',
     answer:
-      'Eligible new subscribers receive a 14-day trial with 200 credits. A payment method is required. After the trial, the subscription is US$30 per month, before tax. Cancel through Stripe before the trial ends to avoid the subscription charge. A workspace that has already used its trial does not receive another one.',
+      'Eligible new subscribers receive a 14-day trial with 200 credits. A payment method is required. After the trial, the subscription is $30 per month, before tax. Cancel through Stripe before the trial ends to avoid the subscription charge. An account that has already used its trial does not receive another one.',
   },
   {
     question: 'What uses credits?',
@@ -37,7 +37,7 @@ const FAQ = [
   {
     question: 'What happens when I run low on credits?',
     answer:
-      'Buy 1,000 credits for US$10, or enable optional automatic top-ups with a spending limit. Credits are added after payment succeeds. Credits are reserved before work starts, and unused reservations are released. Without enough credits, new work is blocked and existing runs remain limited to their funded budget.',
+      'Buy 1,000 credits for $10, or enable optional automatic top-ups with a spending limit. Credits are added after payment succeeds. Credits are reserved before work starts, and unused reservations are released. Without enough credits, new work is blocked and existing runs remain limited to their funded budget.',
   },
   {
     question: 'Is Playrunner open source?',
@@ -76,7 +76,7 @@ export default function Pricing(): ReactNode {
   return (
     <Layout
       title="Pricing"
-      description="Self-host Playrunner with no license fee for permitted use, or choose Cloud at US$30/month with 2,000 credits. Eligible new subscribers get a 14-day trial."
+      description="Self-host Playrunner with no license fee for permitted use, or choose Cloud at $30/month with 2,000 credits. Eligible new subscribers get a 14-day trial."
     >
       {/* Use the shared brand image; the old pricing card advertised a free beta. */}
       <PageMetadata
@@ -96,7 +96,7 @@ export default function Pricing(): ReactNode {
               <h1>Your tests. Your compute. Your plan.</h1>
               <p>
                 Self-host with no license fee for permitted use, or let
-                Playrunner Cloud manage your workflows. One workspace
+                Playrunner Cloud manage your workflows. One monthly
                 subscription, with credits for the orchestration and compute you
                 use.
               </p>
@@ -187,15 +187,13 @@ export default function Pricing(): ReactNode {
                     </span>
                     <h2>Playrunner Cloud</h2>
                     <p className={styles.planSummary}>
-                      Managed workflows for your whole workspace.
+                      Managed workflows for your account.
                     </p>
                   </div>
                   <div className={styles.price}>
-                    <span className={styles.currency}>US$</span>
+                    <span className={styles.currency}>$</span>
                     <strong>30</strong>
-                    <span className={styles.priceNote}>
-                      per workspace / month
-                    </span>
+                    <span className={styles.priceNote}>per month</span>
                     <span className={styles.taxNote}>before tax</span>
                   </div>
                 </div>
@@ -209,7 +207,7 @@ export default function Pricing(): ReactNode {
                     Hosted orchestration with Cloud or your own runners
                   </Feature>
                   <Feature>
-                    US$10 for 1,000 extra credits, with optional auto top-up
+                    $10 for 1,000 extra credits, with optional auto top-up
                   </Feature>
                   <Feature>Usage reporting and billing management</Feature>
                 </ul>
@@ -221,7 +219,7 @@ export default function Pricing(): ReactNode {
                   Start your Cloud trial
                 </a>
                 <p className={styles.trialNote}>
-                  Payment method required. Then US$30/month before tax. Cancel
+                  Payment method required. Then $30/month before tax. Cancel
                   before your trial ends to avoid the subscription charge.
                 </p>
               </article>
@@ -272,7 +270,7 @@ export default function Pricing(): ReactNode {
                 <span className={styles.eyebrow}>Keep running</span>
                 <h3>Extra credits</h3>
                 <p className={styles.rate}>
-                  <strong>US$10</strong> / 1,000 credits
+                  <strong>$10</strong> / 1,000 credits
                 </p>
                 <p>
                   Top up when you need more. Purchased credits carry forward;
