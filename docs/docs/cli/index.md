@@ -23,12 +23,13 @@ provide Node.js and network access to Playrunner.
 
 ## Choose a task
 
-| Task                                               | Guide                                                                 |
-| -------------------------------------------------- | --------------------------------------------------------------------- |
-| Start a saved workflow and wait for its result     | [Run a workflow](./run-workflow.md)                                   |
-| Use Playrunner as a CI/CD quality gate             | [Run a workflow](./run-workflow.md#run-in-cicd)                       |
-| Create or update a workflow from JSON              | [Create a workflow](./create-workflow.md)                             |
-| Capture a Cloud Authentication Profile with Chrome | [Connect the authentication companion](./authentication-companion.md) |
+| Task                                                 | Guide                                                                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------- |
+| Start a saved workflow and wait for its result       | [Run a workflow](./run-workflow.md)                                   |
+| Select tests from changes and inspect agent feedback | [Focused regression](./focused-regression.md)                         |
+| Use Playrunner as a CI/CD quality gate               | [Run a workflow](./run-workflow.md#run-in-cicd)                       |
+| Create or update a workflow from JSON                | [Create a workflow](./create-workflow.md)                             |
+| Capture a Cloud Authentication Profile with Chrome   | [Connect the authentication companion](./authentication-companion.md) |
 
 Use [Run Cloud tests on your own machine](./local-workers.md) to connect a
 laptop, server or VM and select it from the editor’s **Your machines** menu.
@@ -67,6 +68,11 @@ npx --yes playrunner@0.3.0 --help
 ```
 
 Pinning the version in automation makes CLI upgrades deliberate.
+
+The new `--regression` option and `feedback` command require the source build
+described in [Focused regression](./focused-regression.md#availability-and-prerequisites).
+They are not included in the published `playrunner@0.3.0` package. The guide also
+explains the required server and runner support.
 
 For the Authentication Profile companion, install the CLI globally on the
 computer where Chrome will open:

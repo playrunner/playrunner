@@ -9,7 +9,8 @@ description: Connect an MCP client to a local or self-hosted Playrunner installa
 
 The repository includes a standalone MCP server in `apps/mcp`. It connects an
 AI assistant to an existing Playrunner installation's machine API. It provides
-nine tools for discovering, saving, deleting and executing workflows.
+tools for discovering, authoring and executing workflows, then reading their
+test evidence.
 GitHub setup and profile management are available through the broader
 [Cloud MCP interface](./index.md).
 
@@ -63,18 +64,23 @@ tokens out of source control and chat messages.
 
 ## Tools
 
-| Tool             | Required inputs             | Optional inputs                                                   | Purpose                                                        |
-| ---------------- | --------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------- |
-| `list_workflows` | None                        | `limit`                                                           | Discover workflows this token may run.                         |
-| `run_workflow`   | `workflowId`                | `inputs`, `idempotencyKey`, `acceptanceCriteria`, `changeContext` | Start a saved workflow and return an execution ID immediately. |
-| `get_run_status` | `workflowId`, `executionId` | None                                                              | Read the current status of one execution.                      |
-| `list_runs`      | `workflowId`                | `limit`                                                           | List recent runs, newest first.                                |
-
-| `list_projects` | None | `limit` | List owned projects and workflow counts. Requires a management key. |
-| `save_workflow` | `definition` | None | Save a project and workflow by stable keys. Requires a management key. |
-| `delete_workflow` | `workflowId` | None | Delete an owned workflow after schedule cleanup. Rejects active executions. |
-| `delete_project` | `projectId` | None | Delete an owned empty project. Non-empty projects are rejected. |
-| `get_run_events` | `workflowId`, `executionId` | `after` | Read execution events using a cursor. |
+| Tool                   | Required inputs                                           | Optional inputs                                                                            | Purpose                                                                                                          |
+| ---------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `list_workflows`       | None                                                      | `limit`                                                                                    | Discover workflows this token may run.                                                                           |
+| `run_workflow`         | `workflowId`                                              | `inputs`, `idempotencyKey`, `acceptanceCriteria`, `changeContext`, `regression`, `release` | Start a saved workflow and return an execution ID immediately.                                                   |
+| `get_run_status`       | `workflowId`, `executionId`                               | None                                                                                       | Read the current status of one execution.                                                                        |
+| `list_runs`            | `workflowId`                                              | `limit`                                                                                    | List recent runs, newest first.                                                                                  |
+| `get_authoring_guide`  | None                                                      | None                                                                                       | Read saved regression mappings, immutable run requests and feedback conventions before authoring.                |
+| `open_workflow_editor` | `workflowId`                                              | None                                                                                       | Open the saved graph in clients supporting the workflow editor. Requires management access.                      |
+| `get_workflow_editor`  | `workflowId`                                              | None                                                                                       | Read the current saved graph through the editor integration. Requires management access.                         |
+| `list_projects`        | None                                                      | `limit`                                                                                    | List owned projects and workflow counts. Requires a management key.                                              |
+| `save_workflow`        | `definition`                                              | None                                                                                       | Save a project and workflow by stable keys. Requires a management key.                                           |
+| `delete_workflow`      | `workflowId`                                              | None                                                                                       | Delete an owned workflow after schedule cleanup. Rejects active executions.                                      |
+| `delete_project`       | `projectId`                                               | None                                                                                       | Delete an owned empty project. Non-empty projects are rejected.                                                  |
+| `get_run_events`       | `workflowId`, `executionId`                               | `after`                                                                                    | Read execution events using a cursor.                                                                            |
+| `get_run_feedback`     | `workflowId`, `executionId`                               | `after`                                                                                    | Read compact progress, selected journeys, failure identities and authenticated report paths. Never starts a run. |
+| `get_release_policy`   | `workflowId`                                              | None                                                                                       | Read saved release requirements and the policy hash for review.                                                  |
+| `get_release_verdict`  | `workflowId`, `executionId`, `candidate`, `policyVersion` | `maxAgeSeconds`                                                                            | Evaluate evidence for an exact candidate and reviewed policy. Never starts or deploys a run.                     |
 
 Deletion requires an unrestricted `workflow:write` key. Workflow deletion
 retains historical execution records. Project deletion does not cascade into
@@ -99,6 +105,29 @@ fresh key for a new run.
 The standalone `run_workflow` uses `idempotencyKey`, while Cloud uses the
 required `requestKey`. Standalone `get_run_status` requires both workflow and
 execution IDs; Cloud requires the execution ID and supports event pagination.
+
+## Change-aware regression and agent feedback
+
+Follow [Focused regression](../cli/focused-regression.md) to save source-to-journey
+mappings on Playwright nodes, then pass a versioned `regression` request with
+exact base/head commit SHAs to `run_workflow`. This requires an updated API,
+orchestrator, Playwright runner and MCP server; a server connection alone does
+not establish feature availability.
+
+The call returns immediately. Continue other work and read `get_run_feedback`
+for that execution, passing its `nextCursor` as `after` on subsequent reads.
+Drain pages while `hasMore` is true. `after` is a non-negative integer string
+and defaults to `"0"`.
+
+Check the actual selected scope, full-suite fallback reasons, final failures,
+expected failures and any incomplete or truncated evidence. The tool does not
+compare a baseline test run or independently verify the deployed application
+revision. A completed workflow or an empty failure list is not release approval.
+
+`regression` cannot be combined with `changeContext` or `release`. Use a fresh
+`idempotencyKey` for each intended run and reuse it only to recover an ambiguous
+start response for that same run. Once the execution ID is known, inspect it
+instead of launching another execution.
 
 ## Troubleshooting
 

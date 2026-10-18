@@ -9,7 +9,7 @@ description: Reference for Playrunner Cloud MCP discovery, workflow authoring, a
 
 These tools are available through the [Cloud connection](./connect.md). Your
 assistant reads each tool's input schema from the server. The standalone
-server's [nine tools](./self-hosted.md#tools) have a separate contract.
+server's [tools](./self-hosted.md#tools) have a separate contract.
 
 ## Account and discovery
 
@@ -55,13 +55,14 @@ to capture a session. Pairing a device alone does not make a profile ready.
 
 ## Execution and results
 
-| Tool                 | Required inputs            | Optional inputs                         | Purpose                                                               |
-| -------------------- | -------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
-| `run_workflow`       | `workflowId`, `requestKey` | `executionTarget`, `deviceId`, `source` | Start the saved workflow on Playrunner servers or a selected machine. |
-| `list_runs`          | `workflowId`               | `limit` (1–100, default 20)             | List your recent executions of a workflow, newest first.              |
-| `get_run_status`     | `executionId`              | `after`                                 | Read execution status and up to 100 events.                           |
-| `list_local_workers` | None                       | None                                    | List machines, online status, versions and resource limits.           |
-| `cancel_local_step`  | `executionId`, `nodeId`    | None                                    | Cancel an assigned local test step.                                   |
+| Tool                 | Required inputs             | Optional inputs                                       | Purpose                                                                                                                                 |
+| -------------------- | --------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_workflow`       | `workflowId`, `requestKey`  | `executionTarget`, `deviceId`, `source`, `regression` | Start the saved workflow on Playrunner servers or a selected machine. Regression requires hosted execution and an updated deployment.   |
+| `list_runs`          | `workflowId`                | `limit` (1–100, default 20)                           | List your recent executions of a workflow, newest first.                                                                                |
+| `get_run_status`     | `executionId`               | `after`                                               | Read execution status and up to 100 events.                                                                                             |
+| `get_run_feedback`   | `workflowId`, `executionId` | `after`                                               | Read compact progress, selected journeys, failures and authenticated report paths. Requires the regression rollout. Never starts a run. |
+| `list_local_workers` | None                        | None                                                  | List machines, online status, versions and resource limits.                                                                             |
+| `cancel_local_step`  | `executionId`, `nodeId`     | None                                                  | Cancel an assigned local test step.                                                                                                     |
 
 A typical run on Playrunner servers uses this sequence:
 
@@ -90,6 +91,32 @@ starting another. Hosted runs are subject to any enabled Cloud workflow-run
 allowance; local execution does not consume hosted-run allowance. This is
 separate from the future execution-time billing notice in the editor.
 Stopping a client’s wait does not cancel the workflow.
+
+## Change-aware testing
+
+Follow [Focused regression](../cli/focused-regression.md#use-playrunner-cloud-mcp)
+to save journey mappings and start a hosted run with `regression`. Check the
+live tool schemas first: `run_workflow` must advertise the argument and
+`get_run_feedback` must be available. These require the corresponding Cloud
+API, orchestrator and Playwright runner rollout, not just a client update.
+
+The request contains `version: 1`, `mode: "affected"` or `"full"`, and `sources`
+with repository `owner/name` plus complete, distinct `baseSha` and `headSha`
+commit hashes. Continue using a fresh `requestKey` for each intended run.
+Do not combine regression with local execution, `deviceId` or `source`.
+
+The regression start response returns `executionId`. Read `get_run_feedback`
+using both workflow and execution IDs, then pass
+`nextCursor` as `after` and drain pages while `hasMore`. Its compact response
+includes actual scope, full-suite fallback reasons, terminal-attempt outcomes,
+expected-failure counts and authenticated report paths. Inspect final evidence
+and any `truncated` or `evidenceIncomplete` flags before reporting a result.
+The agent must poll or revisit the run; no automatic chat notification is
+installed by starting it.
+
+A failing head run is not a confirmed new regression without comparable
+baseline test evidence. Source commit pinning also does not verify the build
+deployed at the target URL. Workflow completion alone is not release approval.
 
 ## Run on a connected machine
 

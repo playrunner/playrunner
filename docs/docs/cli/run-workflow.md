@@ -74,6 +74,19 @@ request errors, timeouts, cancelled runs, and failed workflows return a
 non-zero exit code. Keep the default waiting behavior when the command is a
 quality gate.
 
+## Run focused tests and inspect them later
+
+[Focused regression](./focused-regression.md) adds a versioned commit comparison
+to a saved workflow and returns compact feedback for an agent. Configure the
+saved journey mappings first, then use the source-built CLI's `--regression`
+option with `--no-wait`. Read the existing execution with `feedback` while the
+agent continues its work. These commands are not included in the published
+`playrunner@0.3.0` package; follow the guide's availability and build steps.
+
+`feedback` never starts a run. Its successful exit code means feedback was
+retrieved, not that tests passed. Keep the execution ID and inspect actual test
+evidence before making a release decision.
+
 ## Pass workflow inputs
 
 Repeat `--input` to provide named values to the workflow run:
@@ -118,6 +131,11 @@ be supplied with the `PLAYRUNNER_REPOSITORY`, `PLAYRUNNER_BASE_SHA`,
 `PLAYRUNNER_EVENT_TYPE`, and `PLAYRUNNER_PULL_REQUEST_NUMBER` environment
 variables. In GitHub Actions, the CLI also reads the corresponding standard
 GitHub environment variables where available.
+
+These flags attach CI context; they do not activate
+[change-aware test selection](./focused-regression.md). The new `--regression`
+file cannot be combined with explicit legacy change-context flags and takes
+precedence over ambient CI change-context variables.
 
 ## Run in CI/CD
 
