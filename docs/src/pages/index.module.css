@@ -419,6 +419,142 @@
   border-block: 1px solid #282230;
 }
 
+.tokenSection {
+  background: #15121e;
+  border-block: 1px solid var(--home-border);
+}
+
+.tokenHandoff {
+  display: grid;
+  grid-template-columns: 1fr 52px 1fr;
+  align-items: center;
+  margin: 46px 0;
+}
+
+.savedContext,
+.agentHandoff {
+  align-self: stretch;
+  padding: 28px;
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  background: #1d1927;
+}
+
+.agentHandoff {
+  border-color: #9edab744;
+  background: #1b1c25;
+}
+
+.tokenPanelLabel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--home-text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-bottom: 24px;
+}
+
+.tokenPanelLabel svg {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+}
+
+.tokenPanelLabel > span {
+  margin-left: auto;
+  color: var(--home-muted);
+  font-size: 0.6rem;
+  font-weight: 400;
+}
+
+.savedContext h3 {
+  margin-bottom: 18px;
+}
+
+.savedItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.savedItems > span {
+  padding: 6px 10px;
+  border: 1px solid #51404a;
+  border-radius: 6px;
+  color: #d1cbd9;
+  background: #15121e;
+  font-size: 0.72rem;
+}
+
+.savedContext p {
+  margin: 18px 0 0;
+  color: var(--home-muted);
+  font-size: 0.8rem;
+}
+
+.handoffArrow {
+  justify-self: center;
+  color: var(--home-accent);
+  font-size: 1.5rem;
+}
+
+.handoffSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.handoffSteps li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--home-border);
+  color: var(--home-text);
+  font-size: 0.85rem;
+}
+
+.handoffSteps span {
+  color: var(--home-green);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.65rem;
+}
+
+.tokenReasons {
+  gap: 30px;
+}
+
+.tokenReasons h3 {
+  font-size: 1.1rem;
+}
+
+.tokenMeasurement {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+  gap: 52px;
+  margin-top: 38px;
+  padding-top: 24px;
+  border-top: 1px solid var(--home-border);
+  color: var(--home-muted);
+  font-size: 0.75rem;
+}
+
+.tokenMeasurement p {
+  margin: 0;
+}
+
+.tokenMeasurement summary {
+  color: var(--home-accent);
+  cursor: pointer;
+}
+
+.tokenMeasurement details[open] summary {
+  margin-bottom: 12px;
+}
+
 .sectionHeading {
   display: flex;
   justify-content: space-between;
@@ -700,6 +836,18 @@
   .evidenceGrid {
     grid-template-columns: 1fr;
     gap: 42px;
+  }
+  .tokenHandoff,
+  .tokenMeasurement {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .savedContext,
+  .agentHandoff {
+    padding: 22px;
+  }
+  .handoffArrow {
+    transform: rotate(90deg);
   }
   .heroCopy h1 {
     font-size: clamp(3rem, 10vw, 4.6rem);

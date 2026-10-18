@@ -4,6 +4,8 @@ import styles from './styles.module.css';
 
 const setupPrompt = `Connect Playrunner so you can run tests in the background and use the results to verify your work.
 
+First, set up the Playrunner CLI on my computer. Check that Node.js 20 or later and npm are available. If the CLI is missing, install it with npm install --global playrunner@latest. Verify the installation with playrunner --version and playrunner --help. If prerequisites are missing or you cannot run local commands, guide me through the steps in https://playrunner.dev/docs/cli/ and wait for me to complete them.
+
 Check for Playrunner tools. If unavailable, follow https://playrunner.dev/docs/mcp/connect/ to add https://playrunner.cloud/mcp using Streamable HTTP and OAuth. Preserve existing settings and follow the client-specific instructions. If you cannot configure this client, show me the setup steps and wait for connection. Keep sign-in, consent and secrets in the browser, never this chat.
 
 Once connected, call get_account first and help me complete any returned onboarding handoff. Discover existing projects and workflows. Use this project's context and ask only for missing choices: repository, environment, test scope and compute. Reuse a suitable workflow, or read get_authoring_guide before helping create one.
@@ -99,8 +101,8 @@ export default function ConnectAgentButton({
         </h2>
         <p id={`${id}-description`} className={styles.description}>
           Paste this into Codex, Claude, Gemini CLI or Antigravity. Your agent
-          will guide you through connecting Playrunner and preparing a first
-          test run.
+          will guide you through installing the Playrunner CLI, connecting
+          Playrunner and preparing a first test run.
         </p>
         <div className={styles.promptPanel}>
           <div className={styles.promptHeader}>

@@ -68,9 +68,9 @@ function Hero(): ReactNode {
             Catch what your change breaks elsewhere.
           </p>
           <p className={styles.heroDescription}>
-            Your agent fixes a dropdown in checkout. The same change breaks
-            account settings. Playrunner runs focused regression checks and
-            provides real-time feedback to your agent.
+            A change can work perfectly in one place and break another.
+            Playrunner checks the wider impact with focused regression tests,
+            giving your agent real-time feedback while it keeps working.
           </p>
           <p className={styles.nextStep}>
             <span>Where we’re going</span> Follow the change. Find the affected
@@ -136,9 +136,9 @@ function Hero(): ReactNode {
 const steps = [
   {
     number: '01',
-    title: 'Follow the shared code',
+    title: 'Follow the change',
     description:
-      'A dropdown changes in checkout. The plan: trace where else that component is used, including the account form your agent never opened.',
+      'The plan: trace a change through shared components, dependencies and connected projects to find the journeys it could affect.',
   },
   {
     number: '02',
@@ -150,7 +150,7 @@ const steps = [
     number: '03',
     title: 'Tell the agent what broke',
     description:
-      '“Checkout passes. Account settings can’t save a country.” Give the agent the failing step and evidence from before and after the change, so it can investigate and verify a fix.',
+      'Show your agent where a regression happened, with the failing step and evidence from before and after the change, so it can investigate and verify a fix.',
   },
 ];
 
@@ -168,10 +168,10 @@ function HowItWorks(): ReactNode {
             <span>More than one place to break.</span>
           </Heading>
           <p>
-            A shared component can break a journey your agent never opened.
-            We’re building towards checks that follow your changes, so you can
-            catch that breakage without running the whole suite for every small
-            fix.
+            A fix can affect journeys your agent never touched—even in another
+            project. We’re building towards checks that follow those
+            connections, so you can catch that breakage without running the
+            whole suite for every small fix.
           </p>
         </div>
         <div className={styles.steps}>
@@ -299,6 +299,121 @@ function AgentConnections(): ReactNode {
               Explore the CLI <Arrow />
             </Link>
           </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TokenEfficiency(): ReactNode {
+  return (
+    <section
+      className={clsx(styles.section, styles.tokenSection)}
+      aria-labelledby="agent-token-cost"
+    >
+      <div className={styles.container}>
+        <div className={styles.sectionHeading}>
+          <div>
+            <p className={styles.eyebrow}>
+              Make your agent’s token budget go further
+            </p>
+            <Heading as="h2" id="agent-token-cost">
+              Less repeated setup.
+              <br />
+              <span>More room for the fix.</span>
+            </Heading>
+          </div>
+          <p>
+            Every instruction and tool response your agent processes adds to its
+            context. Playrunner can reduce repeated work by keeping test setup,
+            execution history and reports ready to reuse.
+          </p>
+        </div>
+
+        <div className={styles.tokenHandoff}>
+          <div className={styles.savedContext}>
+            <div className={styles.tokenPanelLabel}>
+              <Logo aria-hidden="true" /> Saved in Playrunner
+            </div>
+            <h3>The testing context carries over.</h3>
+            <div className={styles.savedItems}>
+              <span>Workflow</span>
+              <span>Environment</span>
+              <span>Authentication Profile</span>
+              <span>Reports &amp; traces</span>
+            </div>
+            <p>Set it up once. Reuse it in the next run or conversation.</p>
+          </div>
+          <span className={styles.handoffArrow} aria-hidden="true">
+            →
+          </span>
+          <div className={styles.agentHandoff}>
+            <div className={styles.tokenPanelLabel}>
+              <OpenAIIcon aria-hidden="true" /> Your agent’s next run
+              <span>Illustrative handoff</span>
+            </div>
+            <ol className={styles.handoffSteps}>
+              <li>
+                <span>01</span> Start the saved workflow.
+              </li>
+              <li>
+                <span>02</span> Read new run events.
+              </li>
+              <li>
+                <span>03</span> Open the evidence to investigate.
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <div className={clsx(styles.steps, styles.tokenReasons)}>
+          <article>
+            <span className={styles.stepNumber}>01 / Reuse the setup</span>
+            <Heading as="h3">Replay established checks.</Heading>
+            <p>
+              Start a saved workflow by its ID. Reuse the setup and run
+              established tests without asking the model to reason through every
+              browser step again.
+            </p>
+          </article>
+          <article>
+            <span className={styles.stepNumber}>02 / Read new information</span>
+            <Heading as="h3">Avoid reading the same log twice.</Heading>
+            <p>
+              Cloud run updates let your agent pick up where its last check
+              ended, without fetching earlier events again. Choose when to check
+              back; every poll still has a cost.
+            </p>
+          </article>
+          <article>
+            <span className={styles.stepNumber}>
+              03 / Keep evidence available
+            </span>
+            <Heading as="h3">Open reports when they help.</Heading>
+            <p>
+              Reports and captured traces stay attached to the run. Your agent
+              can follow those links when investigating, rather than copying
+              whole report files into every conversation.
+            </p>
+          </article>
+        </div>
+
+        <div className={styles.tokenMeasurement}>
+          <p>
+            Actual token savings depend on your agent and workflow. Run updates
+            can include logs. Test execution and any AI analysis steps have
+            their own costs.
+          </p>
+          <details>
+            <summary>How to measure the saving</summary>
+            <p>
+              Compare the same task, tests and failure using the same model:
+              your current testing approach versus Playrunner. Record actual
+              input, output and cached-token usage, including setup, polling and
+              diagnosis. Compare first-run and repeat-run costs separately, and
+              include Playrunner compute and any AI-step costs in the total.
+            </p>
+          </details>
         </div>
       </div>
     </section>
@@ -505,6 +620,7 @@ export default function Home(): ReactNode {
       <main>
         <Hero />
         <HowItWorks />
+        <TokenEfficiency />
         <CliShowcase />
         <AgentConnections />
         <Evidence />

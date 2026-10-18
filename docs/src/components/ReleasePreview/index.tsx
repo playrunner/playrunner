@@ -6,15 +6,15 @@ import { OpenAIIcon } from '../../../../packages/openai/src/frontend/OpenAIIcon'
 import styles from './styles.module.css';
 
 const checks = [
-  { name: 'Checkout → Delivery country', focused: true },
+  { name: 'Admin → Edit customer', focused: true },
   {
-    name: 'Account settings → Save country',
+    name: 'Portal → Account settings',
     focused: true,
     failure: true,
   },
-  { name: 'Sign-up → Select country', focused: true },
-  { name: 'Sign in with email', focused: false },
-  { name: 'Download an invoice', focused: false },
+  { name: 'Portal → Sign-up', focused: true },
+  { name: 'Admin → Sign in', focused: false },
+  { name: 'Portal → Download invoice', focused: false },
 ];
 
 export default function ReleasePreview(): ReactNode {
@@ -36,7 +36,7 @@ export default function ReleasePreview(): ReactNode {
         <span>Change-aware regression testing</span>
       </div>
       <p className={styles.availability}>
-        Planned: select tests from your code changes and their dependencies.
+        Planned: follow shared library changes across projects and select tests.
       </p>
       <div className={styles.frame}>
         <div className={styles.topline}>
@@ -58,12 +58,12 @@ export default function ReleasePreview(): ReactNode {
               ±
             </span>
             <div>
-              <code>shared/Dropdown.tsx</code>
-              <span>Used in checkout, account settings and sign-up</span>
+              <code>ui-library/Dropdown.tsx</code>
+              <span>Shared by two projects: Admin and Customer Portal</span>
             </div>
           </div>
           <div className={styles.scopeHeader}>
-            <span>02 / Check the journeys that use it</span>
+            <span>02 / Check affected projects and journeys</span>
           </div>
           <div
             className={styles.scopePicker}
@@ -102,7 +102,7 @@ export default function ReleasePreview(): ReactNode {
                 <Logo aria-hidden="true" />
                 <div>
                   <strong>Playrunner checks</strong>
-                  <span>Other paths, in parallel</span>
+                  <span>Other projects, in parallel</span>
                 </div>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function ReleasePreview(): ReactNode {
                 <span>
                   {full
                     ? 'All 5 journeys in this example'
-                    : '3 journeys use the changed component'}
+                    : '3 journeys across Admin and Portal'}
                 </span>
               </div>
               <span
@@ -202,15 +202,15 @@ export default function ReleasePreview(): ReactNode {
               </div>
               <strong>
                 {verified
-                  ? 'Account settings works again.'
-                  : 'Checkout works. Account settings broke.'}
+                  ? 'The portal saves the country again.'
+                  : 'Admin passes. Portal account settings broke.'}
               </strong>
               <p>
                 {verified
                   ? full
                     ? 'All five journeys passed on the rerun in this example.'
                     : 'All three dropdown journeys passed on the rerun. The other two journeys were not checked.'
-                  : 'The country saves in checkout, but account settings loses the selected value after Save. Both forms use the dropdown you changed.'}
+                  : 'Saving a customer works in Admin. In the separate Portal project, account settings loses the country after Save. Both projects use the updated component library.'}
               </p>
               <div className={styles.comparison}>
                 <span>
