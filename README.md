@@ -2,127 +2,119 @@
   <img src="docs/static/img/playrunner-icon.svg" alt="Playrunner" width="112" />
 </p>
 
-<h1 align="center">Playrunner</h1>
+<h1 align="center">Build with AI. Ship with evidence.</h1>
 
 <p align="center">
-  <strong>Run Playwright at scale—without building the platform around it.</strong>
+  <strong>Playrunner turns your Playwright tests into reusable workflows<br />
+  your team, your CI, and your coding agent can run.</strong>
 </p>
 
 <p align="center">
-  Keep the tests and CI you already use. Bring runners, environments,
-  credentials, reports, integrations, and automatic sharding into one visual
-  workflow.
-</p>
-
-<p align="center">
-  <a href="https://github.com/playrunner/playrunner">Please ⭐ <strong>star Playrunner if you find it useful</strong></a>
+  Go from “the code is done” to “here is what passed”.<br />
+  Run real browser checks. Follow the execution. Open the report, trace, or video.
 </p>
 
 <p align="center">
   <a href="https://playrunner.cloud"><strong>Try Playrunner Cloud →</strong></a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="https://playrunner.dev/docs/tutorials/getting-started">Run it locally</a>
+  <a href="#quick-start">Run locally</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://playrunner.dev/docs/mcp/connect">Connect your agent</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://playrunner.dev/docs/overview/">Read the docs</a>
 </p>
 
 <p align="center">
-  <a href="https://playrunner.dev/docs/overview/"><img src="https://img.shields.io/badge/Docs-playrunner.dev-0F766E?style=for-the-badge&logo=docusaurus&logoColor=white" alt="Documentation" /></a>
-  <a href="https://discord.gg/4zPdBy3DwU"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord" /></a>
-  <a href="https://www.youtube.com/@playrunnerdev"><img src="https://img.shields.io/badge/YouTube-Watch%20Playrunner-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Playrunner on YouTube" /></a>
-  <a href="https://www.npmjs.com/org/playrunner"><img src="https://img.shields.io/badge/npm-%40playrunner-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm packages" /></a>
+  <a href="https://discord.gg/4zPdBy3DwU"><img src="https://img.shields.io/badge/Discord-Join%20the%20community-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord" /></a>
+  <a href="https://www.youtube.com/@playrunnerdev"><img src="https://img.shields.io/badge/YouTube-Watch%20Playrunner-FF0000?style=flat-square&logo=youtube&logoColor=white" alt="Playrunner on YouTube" /></a>
+  <a href="https://www.npmjs.com/org/playrunner"><img src="https://img.shields.io/badge/npm-%40playrunner-CB3837?style=flat-square&logo=npm&logoColor=white" alt="npm packages" /></a>
 </p>
 
-<br />
+## See Playrunner in a minute
 
-![An Environment node connected to a Playwright node using an Auto plan with four shards, one failed shard, and a successful report merge.](docs/static/img/playwright-auto-sharding-plan.webp)
+| Product overview · 61 seconds                                                                                                       | Workflow & evidence · 51 seconds                                                                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [![Watch the narrated Playrunner overview](docs/static/videos/playrunner-overview.png)](docs/static/videos/playrunner-overview.mp4) | [![Watch a real workflow and its test evidence](docs/static/videos/playrunner-workflow-demo.png)](docs/static/videos/playrunner-workflow-demo.mp4) |
+| A narrated tour of reusable workflows, agent connections, and sharding.                                                             | A fresh local workflow: two passing checks, the report, and screenshot evidence.                                                                   |
 
-<p align="center">
-  <em>One Playwright node. Four concurrent shards. One merged report—even when a shard fails.</em>
-</p>
+Recorded with OBS and narrated with AI on 19 October 2026. The overview shows
+product examples; the workflow video tours a real local run’s saved configuration,
+passing report, and screenshot evidence. [Video notes and transcripts →](docs/static/videos/README.md)
 
-## Your tests stay. The platform glue goes.
+## Your agent wrote it. Now check it.
 
-Playwright runs your tests brilliantly. The hard part is everything around the
-command: compute, environments, credentials, schedules, conditions, artefacts,
-reporting, and the CI scripts that connect them.
+A working-looking screen is a good start. A repeatable test with an inspectable
+result is something your team can build on.
 
-Playrunner turns those moving parts into a workflow your whole team can see,
-run, and evolve.
+Playrunner gives AI-assisted developers and test teams a shared place to run
+Playwright, reuse environments and browser sign-ins, and investigate failures.
+Keep your existing tests. Give them a workflow you can run again after the next
+change.
 
-|                                      |                                                                                                                                       |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **🎨 Build visually**                | Connect tests, triggers, conditions, branches, and downstream systems on a live workflow canvas.                                      |
-| **🤖 Code with confidence**          | Ask AI to generate a Playrunner workflow alongside your app, then create or update it from the CLI in your development pipeline.      |
-| **⚡ Shard automatically**           | Discover the real suite, fit useful parallelism to runner capacity, and merge every shard into one report.                            |
-| **🏃 Run where you want**            | Use local Docker, managed cloud runners, or your own infrastructure without changing the suite.                                       |
-| **🔎 See the complete run**          | Follow node state and logs live, with Playwright reports, screenshots, videos, and traces attached to the run.                        |
-| **🔐 Keep secrets out of workflows** | Reuse managed environments and credentials instead of copying sensitive values into scripts.                                          |
-| **🪪 Reuse browser sign-ins**        | Capture authenticated browser sessions interactively and attach them to Playwright nodes without storing identity-provider passwords. |
-| **🧩 Extend with integrations**      | Wire source control, schedules, messaging, AI analysis, issue tracking, webhooks, and more into the same DAG.                         |
+## For vibe coders and their favourite agents
 
-## From suite to signal
+Connect a compatible MCP client to Playrunner Cloud, then ask:
+
+> Run my checkout smoke workflow once. Wait for it to finish, tell me which
+> tests passed or failed, and include the report links.
+
+The agent can discover projects, create workflows, start runs, and inspect the
+returned evidence from the same conversation. Your saved workflows remain
+available to your teammates and CI.
+
+**Codex · Claude · Cursor · Gemini CLI · Antigravity · Grok**
+
+Connection steps and capabilities vary by client. Use a client with remote
+Streamable HTTP and OAuth support, or the CLI from a shell-capable agent.
+[Choose your connection →](https://playrunner.dev/#agent-connections)
+[Read the MCP guide →](docs/docs/mcp/index.md)
+
+## From a test suite to a repeatable check
+
+1. **Bring a test.** Use your existing Playwright repository or start with an
+   inline script.
+2. **Give it a home.** Choose an environment, an optional Authentication Profile,
+   and where the workflow runs.
+3. **Run it your way.** Use the visual editor, your agent, the CLI, or a schedule.
+4. **Follow the evidence.** Inspect test results, logs, and the report and
+   artefacts produced by the run. A started job is not a passing test.
 
 ```text
-Trigger → Environment → Playwright → Condition → Slack / Jira / AI / Webhook
-                              │
-                              └── reports · traces · screenshots · video
+Your agent / CI / schedule
+           ↓
+      Environment → Playwright → Pass or fail → Your next action
+                         ↓
+              Report · traces · screenshots · video
 ```
 
-1. **Bring your existing tests.** Your repository, Playwright configuration,
-   and CI can stay as they are.
-2. **Choose where they run.** Start with local Docker, then move execution to
-   managed or self-hosted runners when you are ready.
-3. **Draw the workflow.** Add schedules, branches, notifications, failure
-   analysis, tickets, and downstream actions without another CI matrix.
-4. **Inspect one complete result.** Follow execution live and keep every log,
-   report, and artefact attached to the run that produced it.
+![A visual Playrunner workflow connects browser tests to failure analysis, issue tracking, and notifications.](docs/static/img/workflow-canvas-branch.webp)
 
 <p align="center">
-  <img src="docs/static/img/workflow-canvas-branch.webp" alt="A Playrunner workflow branching after a regression test: failures flow into OpenAI analysis and Jira, while successful runs flow into Slack and a deploy webhook." width="100%" />
+  <em>Your tests, environments, runners, and next steps. One visible workflow.</em>
 </p>
 
-## Reuse authenticated browser sessions
+## Less test infrastructure. More useful feedback.
 
-Authentication Profiles let tests start from a real signed-in browser session
-without storing identity-provider passwords in Playrunner. Create a profile for
-an Environment and authenticate manually in a visible browser. Local
-Playrunner opens the browser through its API; Playrunner Cloud uses a paired
-computer running the outbound-only CLI authentication companion.
+| What you need                          | What Playrunner brings                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------- |
+| **A workflow the team can understand** | A visual canvas for tests, conditions, branches, and follow-up actions.   |
+| **Faster feedback from larger suites** | Automatic sharding with capacity-aware planning and one merged report.    |
+| **A choice of where tests run**        | Local Docker, managed cloud runners, and self-hosted execution.           |
+| **A way to investigate a failure**     | Live node state and logs, plus Playwright reports and captured artefacts. |
+| **Tests that start signed in**         | Reusable Authentication Profiles, isolated by environment.                |
+| **Less secret copying**                | Managed environments and credentials, referenced by your workflows.       |
+| **A useful next step**                 | Integrations for GitHub, Slack, Jira, AI analysis, webhooks, and more.    |
+
+![A Playwright node splits a suite into four shards and merges the report, including a failed shard.](docs/static/img/playwright-auto-sharding-plan.webp)
 
 <p align="center">
-  <img src="docs/static/img/authentication-profiles.png" alt="The Authentication Profiles page showing an online paired device and an authenticated profile." width="100%" />
+  <em>Four shards. One merged report. Failed tests stay visible.</em>
 </p>
 
-```bash
-npm install --global playrunner@latest
-playrunner login
-playrunner auth connect
-```
+## Give your CI the same workflow
 
-Keep the companion terminal open, select the online device under
-**Authentication Profiles**, and start authentication. After signing in to the
-Chrome window, return to the terminal and press **Enter** to encrypt and upload
-the captured session state.
-
-Select the profile on any Playwright node that needs it. Playrunner restores
-the session for that execution while keeping profiles isolated by Environment.
-The CLI is needed only while capturing or refreshing the profile. Cloud
-**Test session** checks and Hosted Runner workflows restore the encrypted
-stored state remotely and do not require the companion to remain connected.
-Each profile records its application, role, authentication status, last sign-in,
-and known expiry, and can be reauthenticated, revoked, or removed when access
-changes. Follow the
-[Authentication Profiles tutorial](https://playrunner.dev/docs/tutorials/authentication-profiles/)
-and [CLI companion guide](https://playrunner.dev/docs/cli/authentication-companion/)
-for pairing, capture, hosted testing, and security.
-
-## Playrunner from the command line
-
-The Playrunner CLI brings the same workflows to your terminal and CI/CD
-pipeline—without a global install. Use a revocable machine token to start a
-saved workflow, stream its progress, and turn its final status into a quality
-gate:
+Start a saved workflow, stream its progress, and return a failing exit code when
+the workflow fails, is cancelled, or times out:
 
 ```bash
 export PLAYRUNNER_URL='https://playrunner.cloud'
@@ -131,22 +123,37 @@ export PLAYRUNNER_API_KEY='<your-api-token>'
 npx playrunner WORKFLOW_ID
 ```
 
-By default, the command waits for completion and exits non-zero when the
-workflow fails, is cancelled, or times out. Pass inputs and acceptance criteria
-to a run, attach pull-request context, emit newline-delimited JSON, or use
-`--no-wait` when another system will monitor the result.
-
-The CLI also supports **workflow as code**. Keep a project and workflow
-definition in source control, then create or update it idempotently from JSON:
+Prefer workflows as code? Keep the definition alongside your application:
 
 ```bash
 npx playrunner workflow create --file playrunner-workflow.json
 ```
 
-Use `npx playrunner --help` for every option. See the
-[CLI overview](docs/docs/cli/index.md), [run guide](docs/docs/cli/run-workflow.md),
-and [workflow creation guide](docs/docs/cli/create-workflow.md) for token scopes,
-CI examples, inputs, source-change context, and the complete definition format.
+[CLI run guide →](docs/docs/cli/run-workflow.md) ·
+[Workflow definitions →](docs/docs/cli/create-workflow.md)
+
+<details>
+<summary><strong>Need a signed-in browser? Reuse an Authentication Profile.</strong></summary>
+
+Capture a browser session interactively, then select the profile on your
+Playwright node. Playrunner restores the stored session for the execution
+without storing your identity-provider password.
+
+For Playrunner Cloud, pair your computer with the authentication companion:
+
+```bash
+npm install --global playrunner@latest
+playrunner login
+playrunner auth connect
+```
+
+Keep the companion open while capturing or refreshing the session. Hosted
+workflow runs can restore the encrypted stored state without the companion
+remaining connected.
+
+[Authentication Profiles tutorial →](https://playrunner.dev/docs/tutorials/authentication-profiles/)
+
+</details>
 
 ## Quick start
 
@@ -159,8 +166,9 @@ CI examples, inputs, source-change context, and the complete definition format.
 ### Start the full local stack
 
 ```bash
+git clone https://github.com/playrunner/playrunner.git
+cd playrunner
 ./install-local.sh
-cp .env.local.example .env.local
 ./start-local.sh
 ```
 
@@ -182,8 +190,7 @@ the complete walkthrough, see the
 To reopen the setup wizard:
 
 ```bash
-rm apps/api/.env
-./start-local.sh
+./start-local.sh --setup
 ```
 
 Remove `.env.local` as well if you want Playrunner to regenerate the local port
@@ -213,7 +220,8 @@ Then open `http://127.0.0.1:3104/playrunner/`.
 | [Workflow execution](docs/docs/local-dev/07-workflow-execution.md)         | How the API, orchestrator, and ephemeral runners coordinate      |
 | [Contributing](docs/docs/contributing.md)                                  | Ways to extend runners, integrations, reporting, and the product |
 
-## Package end-to-end tests
+<details>
+<summary><strong>Contributing? Run the package end-to-end tests.</strong></summary>
 
 Package E2E tests run the real Vite frontend and Playrunner API against the
 isolated `playrunner_e2e` PostgreSQL schema. Complete local setup first so
@@ -251,6 +259,17 @@ Set `PLAYRUNNER_E2E_DATABASE_URL` to use another PostgreSQL server. Open the
 latest report with `npx playwright show-report`, or read the
 [Testing guide](docs/docs/testing/index.md) for architecture and package
 authoring details.
+
+</details>
+
+## Help shape Playrunner
+
+Try it on one workflow that matters to you. Tell us what worked, what failed,
+and what would make it useful every day.
+
+[Join the Discord](https://discord.gg/4zPdBy3DwU) ·
+[Report an issue](https://github.com/playrunner/playrunner/issues) ·
+[Star the project](https://github.com/playrunner/playrunner)
 
 ## License
 

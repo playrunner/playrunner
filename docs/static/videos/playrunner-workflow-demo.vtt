@@ -1,0 +1,13 @@
+WEBVTT
+
+00:00:00.450 --> 00:00:10.176
+Your code is ready. Now give it a check you can run again. This is a real Playrunner workflow, executed locally in Docker against the public Playrunner website.
+
+00:00:11.450 --> 00:00:23.641
+An environment supplies the website address. The Playwright node runs two browser checks: the homepage message, and the Cursor and Grok connections. These are the same checks we just executed successfully.
+
+00:00:25.450 --> 00:00:35.431
+Open the report to see exactly what ran. Each test has its own result, timing, and steps. You can inspect the assertions, rather than relying on a summary alone.
+
+00:00:40.450 --> 00:00:49.707
+Screenshots captured by the tests show the page they checked. Save the workflow and repeat it after your next change. Build with AI. Ship with evidence.

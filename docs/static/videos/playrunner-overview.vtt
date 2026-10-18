@@ -1,0 +1,16 @@
+WEBVTT
+
+00:00:00.450 --> 00:00:11.189
+Your coding agent says the change is done. What happens next? Playrunner gives your team, your C I, and your agent a reusable way to run browser checks and inspect the evidence.
+
+00:00:12.450 --> 00:00:23.307
+Connect your tests, environments, and follow up actions on a visual canvas. This example routes failed tests into analysis and issue tracking, and sends successful runs to the next step.
+
+00:00:24.950 --> 00:00:36.273
+Working with an AI agent? Connect a compatible M C P client. Ask it to run a saved workflow, wait for the results, and return the report links. Keep checking as you keep building.
+
+00:00:37.450 --> 00:00:50.645
+As the suite grows, automatic sharding distributes the work across runners. Bring the results back into one report, with failures still visible. Choose managed cloud compute, local Docker, or self hosted execution.
+
+00:00:52.450 --> 00:01:00.089
+Start with one journey that matters to you. Try Playrunner Cloud, or run it locally. Build with AI. Ship with evidence.
