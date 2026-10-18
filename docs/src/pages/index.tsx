@@ -20,6 +20,7 @@ import {
 import CliShowcase from '@site/src/components/CliShowcase';
 import WorkflowShowcase from '@site/src/components/WorkflowShowcase';
 import ReleasePreview from '@site/src/components/ReleasePreview';
+import ConnectAgentButton from '@site/src/components/ConnectAgentButton';
 import styles from './index.module.css';
 
 function Arrow(): ReactNode {
@@ -52,7 +53,7 @@ function Hero(): ReactNode {
       <div className={clsx(styles.container, styles.heroGrid)}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span className={styles.statusDot} /> Testing infrastructure for AI
+            <span className={styles.statusDot} /> Regression testing for AI
             agents
           </p>
           <Heading as="h1">
@@ -64,20 +65,21 @@ function Hero(): ReactNode {
             </span>
           </Heading>
           <p className={styles.heroPromise}>
-            Your agent keeps building. Playrunner keeps testing.
+            Catch what your change breaks elsewhere.
           </p>
           <p className={styles.heroDescription}>
-            Let your AI agent start a focused check or full regression, continue
-            working, then retrieve the results to investigate failures and
-            verify fixes.
+            Your agent fixes a dropdown in checkout. The same change breaks
+            account settings. Playrunner runs focused regression checks and
+            provides real-time feedback to your agent.
+          </p>
+          <p className={styles.nextStep}>
+            <span>Where we’re going</span> Follow the change. Find the affected
+            journeys. Give your agent the failure it needs to fix.
           </p>
           <div className={styles.actions}>
-            <Link
+            <ConnectAgentButton
               className={clsx('button', styles.primaryButton)}
-              to="/docs/mcp/connect"
-            >
-              Connect your AI agent <Arrow />
-            </Link>
+            />
             <Link
               className={clsx('button', styles.secondaryButton)}
               to="#cli-in-action"
@@ -134,21 +136,21 @@ function Hero(): ReactNode {
 const steps = [
   {
     number: '01',
-    title: 'Delegate the tests',
+    title: 'Follow the shared code',
     description:
-      'Your agent starts a saved workflow through MCP or the CLI. Reuse configured environments and Authentication Profiles instead of rebuilding the setup for every task.',
+      'A dropdown changes in checkout. The plan: trace where else that component is used, including the account form your agent never opened.',
   },
   {
     number: '02',
-    title: 'Keep the agent moving',
+    title: 'Check the paths it touches',
     description:
-      'Playrunner runs the tests on Cloud or your connected machine. Your agent can continue other work while execution status, logs and results are recorded.',
+      'Select regressions for the affected journeys and run them in parallel with your agent’s work. Widen the run when impact is unclear; keep full regression available when the release needs it.',
   },
   {
     number: '03',
-    title: 'Return to the evidence',
+    title: 'Tell the agent what broke',
     description:
-      'The agent checks the run for results and report links, investigates failures, then reruns the workflow to verify its fix. Evidence stays attached to each execution.',
+      '“Checkout passes. Account settings can’t save a country.” Give the agent the failing step and evidence from before and after the change, so it can investigate and verify a fix.',
   },
 ];
 
@@ -157,15 +159,19 @@ function HowItWorks(): ReactNode {
     <section className={styles.section}>
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}>Delegate. Continue. Verify.</p>
+          <p className={styles.eyebrow}>
+            Where we’re taking Playrunner · Product direction
+          </p>
           <Heading as="h2" id="how-it-works">
-            Testing that outlives a tool call.
+            One small change.
             <br />
-            <span>Evidence your agent can come back to.</span>
+            <span>More than one place to break.</span>
           </Heading>
           <p>
-            Start the run, keep working, then check the result. Playrunner keeps
-            the testing context and evidence outside the conversation.
+            A shared component can break a journey your agent never opened.
+            We’re building towards checks that follow your changes, so you can
+            catch that breakage without running the whole suite for every small
+            fix.
           </p>
         </div>
         <div className={styles.steps}>
@@ -433,14 +439,11 @@ function FinalCallToAction(): ReactNode {
           <br />
           <span>a little more confidence.</span>
         </Heading>
-        <p>Connect your agent. Run your tests. See the evidence.</p>
+        <p>Help your agent check beyond the screen it’s working on.</p>
         <div className={styles.actions}>
-          <Link
+          <ConnectAgentButton
             className={clsx('button', styles.primaryButton)}
-            to="/docs/mcp/connect"
-          >
-            Connect your AI agent <Arrow />
-          </Link>
+          />
           <Link
             className={clsx('button', styles.secondaryButton)}
             to="https://playrunner.cloud"
@@ -490,7 +493,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Build with AI. Ship with confidence."
-      description="Testing infrastructure for AI agents. Connect Codex, Claude, Gemini CLI, Antigravity, and compatible MCP clients to saved Playwright workflows and test evidence."
+      description="Catch what your change breaks elsewhere. Run saved regression workflows with your AI agent, and explore Playrunner’s direction for change-aware testing."
       wrapperClassName={styles.landing}
     >
       <JsonLd

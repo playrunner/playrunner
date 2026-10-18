@@ -1,0 +1,189 @@
+.dialog {
+  box-sizing: border-box;
+  width: min(680px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 32px;
+  overflow: auto;
+  border: 1px solid var(--home-border);
+  border-radius: 20px;
+  background: #1b1723;
+  color: var(--home-text);
+  box-shadow: 0 28px 100px #0008;
+  text-align: left;
+  color-scheme: dark;
+}
+
+.dialog::backdrop {
+  background: #0e0b16cc;
+  backdrop-filter: blur(6px);
+}
+
+.dialog .eyebrow {
+  margin: 0 48px 10px 0;
+  color: var(--home-accent);
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.dialog .title {
+  margin: 0 36px 12px 0;
+  color: var(--home-text);
+  font-size: 1.9rem;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+
+.dialog .description {
+  margin: 0 0 24px;
+  color: var(--home-muted);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.closeButton,
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--home-muted);
+  cursor: pointer;
+}
+
+.closeButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.closeButton:hover,
+.copyButton:hover {
+  background: #ffffff0a;
+  color: var(--home-text);
+}
+
+.closeButton svg,
+.copyButton svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.dialog :focus-visible {
+  outline: 2px solid var(--home-accent);
+  outline-offset: 3px;
+}
+
+.promptPanel {
+  border: 1px solid var(--home-border);
+  border-radius: 12px;
+  background: #110e18;
+  overflow: hidden;
+}
+
+.promptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px 8px 18px;
+  border-bottom: 1px solid var(--home-border);
+  color: var(--home-muted);
+  font-size: 0.75rem;
+}
+
+.copyButton {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-color: var(--home-border);
+  color: var(--home-text);
+}
+
+.copyButton.copied {
+  color: var(--home-green);
+}
+
+.prompt {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 300px;
+  margin: 0;
+  padding: 18px;
+  resize: vertical;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--home-text);
+  font-family: inherit;
+  font-size: 0.83rem;
+  line-height: 1.7;
+  scrollbar-width: thin;
+}
+
+.dialog .prompt:focus-visible {
+  outline-offset: -3px;
+}
+
+.dialog .copyStatus {
+  min-height: 1.5em;
+  margin: 12px 0 22px;
+  color: var(--home-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.footer {
+  border-top: 1px solid var(--home-border);
+  padding-top: 20px;
+}
+
+.dialog .footer p {
+  margin: 0 0 10px;
+  color: var(--home-muted);
+  font-size: 0.8rem;
+  line-height: 1.65;
+}
+
+.footer strong {
+  color: var(--home-text);
+  font-weight: 600;
+}
+
+.footer a {
+  color: var(--home-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .dialog {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .dialog .title {
+    font-size: 1.6rem;
+  }
+
+  .prompt {
+    height: 240px;
+    padding: 14px;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+}

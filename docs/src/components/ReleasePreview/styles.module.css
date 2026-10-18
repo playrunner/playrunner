@@ -6,6 +6,33 @@
   line-height: 1.4;
 }
 
+.previewLabel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+  color: var(--home-text);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.previewLabel > span:first-child {
+  padding: 4px 8px;
+  border: 1px solid #ff967e55;
+  border-radius: 5px;
+  color: var(--home-accent);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.preview .availability {
+  margin: 0 0 15px;
+  color: var(--home-muted);
+  font-size: 0.7rem;
+}
+
 .frame {
   border: 1px solid #75616a;
   border-radius: 18px;
@@ -75,6 +102,44 @@
   margin-bottom: 10px;
 }
 
+.changedComponent {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 20px;
+  padding: 12px;
+  border: 1px solid #514655;
+  border-radius: 9px;
+  background: #211b29;
+}
+
+.changeIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #ff967e44;
+  border-radius: 7px;
+  color: var(--home-accent);
+  font-size: 1.2rem;
+}
+
+.changedComponent code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--home-text);
+  font-size: 0.73rem;
+}
+
+.changedComponent div > span {
+  display: block;
+  margin-top: 5px;
+  color: var(--home-muted);
+  font-size: 0.62rem;
+}
+
 .environment {
   display: inline-flex;
   align-items: center;
@@ -142,13 +207,6 @@
   padding: 15px 0;
   margin: 0 0 3px;
   border-bottom: 1px solid var(--home-border);
-}
-
-.parallelLabel {
-  display: block;
-  font-size: 0.59rem;
-  color: var(--home-muted);
-  margin-bottom: 10px;
 }
 
 .parallelLanes {
@@ -341,6 +399,26 @@
 .evidenceLinks {
   gap: 7px;
   font-size: 0.57rem;
+}
+
+.comparison {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  color: var(--home-muted);
+  font-size: 0.58rem;
+}
+
+.comparison b {
+  margin-left: 4px;
+  color: var(--home-green);
+  font-weight: 500;
+}
+
+.comparison b.comparisonFailure {
+  color: var(--home-accent);
 }
 
 .evidenceLinks > * {

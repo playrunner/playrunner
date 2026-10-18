@@ -6,11 +6,15 @@ import { OpenAIIcon } from '../../../../packages/openai/src/frontend/OpenAIIcon'
 import styles from './styles.module.css';
 
 const checks = [
-  { name: 'Customer can add to cart', focused: true },
-  { name: 'Payment confirmation appears', focused: true, failure: true },
-  { name: 'User can sign in', focused: false },
-  { name: 'Invoice can be downloaded', focused: false },
-  { name: 'Profile changes are saved', focused: false },
+  { name: 'Checkout → Delivery country', focused: true },
+  {
+    name: 'Account settings → Save country',
+    focused: true,
+    failure: true,
+  },
+  { name: 'Sign-up → Select country', focused: true },
+  { name: 'Sign in with email', focused: false },
+  { name: 'Download an invoice', focused: false },
 ];
 
 export default function ReleasePreview(): ReactNode {
@@ -25,22 +29,41 @@ export default function ReleasePreview(): ReactNode {
   return (
     <figure
       className={styles.preview}
-      aria-label="Interactive release check example"
+      aria-label="Change-aware regression testing product preview"
     >
+      <div className={styles.previewLabel}>
+        <span>Product preview</span>
+        <span>Change-aware regression testing</span>
+      </div>
+      <p className={styles.availability}>
+        Planned: select tests from your code changes and their dependencies.
+      </p>
       <div className={styles.frame}>
         <div className={styles.topline}>
           <span className={styles.brand}>
             <Logo aria-hidden="true" /> Playrunner
             <span className={styles.separator}>/</span>
-            <span>Release checks</span>
+            <span>Change impact</span>
           </span>
-          <span className={styles.example}>Interactive example</span>
+          <span className={styles.example}>Example data</span>
         </div>
 
         <div className={styles.body}>
           <div className={styles.scopeHeader}>
-            <span>01 / Agent starts a saved workflow</span>
+            <span>01 / Your agent changes a shared dropdown</span>
             <span className={styles.environment}>Staging</span>
+          </div>
+          <div className={styles.changedComponent}>
+            <span className={styles.changeIcon} aria-hidden="true">
+              ±
+            </span>
+            <div>
+              <code>shared/Dropdown.tsx</code>
+              <span>Used in checkout, account settings and sign-up</span>
+            </div>
+          </div>
+          <div className={styles.scopeHeader}>
+            <span>02 / Check the journeys that use it</span>
           </div>
           <div
             className={styles.scopePicker}
@@ -61,13 +84,12 @@ export default function ReleasePreview(): ReactNode {
                 <span aria-hidden="true">
                   {value === 'focused' ? '◎' : '▦'}
                 </span>
-                {value === 'focused' ? 'Focused checks' : 'Full regression'}
+                {value === 'focused' ? 'Affected journeys' : 'Full regression'}
               </button>
             ))}
           </div>
 
           <div className={styles.parallelWork}>
-            <span className={styles.parallelLabel}>02 / Work in parallel</span>
             <div className={styles.parallelLanes}>
               <div>
                 <OpenAIIcon aria-hidden="true" />
@@ -79,8 +101,8 @@ export default function ReleasePreview(): ReactNode {
               <div>
                 <Logo aria-hidden="true" />
                 <div>
-                  <strong>Playrunner tests</strong>
-                  <span>Records the evidence</span>
+                  <strong>Playrunner checks</strong>
+                  <span>Other paths, in parallel</span>
                 </div>
               </div>
             </div>
@@ -94,11 +116,12 @@ export default function ReleasePreview(): ReactNode {
             <div className={styles.workflowHeading}>
               <div>
                 <strong>
-                  {full ? 'Release regression' : 'Checkout checks'}
+                  {full ? 'Full example suite' : 'Shared dropdown checks'}
                 </strong>
                 <span>
-                  Saved workflow ·{' '}
-                  {full ? 'Your complete suite' : 'Your selected tests'}
+                  {full
+                    ? 'All 5 journeys in this example'
+                    : '3 journeys use the changed component'}
                 </span>
               </div>
               <span
@@ -123,7 +146,8 @@ export default function ReleasePreview(): ReactNode {
               )}
               {!full && (
                 <span>
-                  <i className={styles.idleDot} />3 not run
+                  <i className={styles.idleDot} />
+                  {checks.length - runCount} not run
                 </span>
               )}
             </div>
@@ -171,23 +195,35 @@ export default function ReleasePreview(): ReactNode {
               <div className={styles.evidenceTitle}>
                 <span>
                   {verified
-                    ? '04 / Agent verifies the fix'
-                    : '03 / Agent retrieves the results'}
+                    ? '04 / The agent checks its fix'
+                    : '03 / The finding your agent comes back to'}
                 </span>
                 <span aria-hidden="true">{verified ? '✓' : '↳'}</span>
               </div>
               <strong>
                 {verified
-                  ? 'Payment confirmation now passes.'
-                  : 'Checkout needs attention.'}
+                  ? 'Account settings works again.'
+                  : 'Checkout works. Account settings broke.'}
               </strong>
               <p>
                 {verified
                   ? full
-                    ? 'All five checks in this example suite passed on the rerun.'
-                    : 'Both checkout checks passed. The wider suite is still untested.'
-                  : 'The confirmation did not appear after payment. The failed step and captured trace show where to investigate.'}
+                    ? 'All five journeys passed on the rerun in this example.'
+                    : 'All three dropdown journeys passed on the rerun. The other two journeys were not checked.'
+                  : 'The country saves in checkout, but account settings loses the selected value after Save. Both forms use the dropdown you changed.'}
               </p>
+              <div className={styles.comparison}>
+                <span>
+                  Before the change <b>Passed</b>
+                </span>
+                <span aria-hidden="true">→</span>
+                <span>
+                  {verified ? 'After the fix' : 'After the change'}{' '}
+                  <b className={clsx(!verified && styles.comparisonFailure)}>
+                    {verified ? 'Passed' : 'Failed'}
+                  </b>
+                </span>
+              </div>
               <div className={styles.evidenceLinks}>
                 <Link to="/docs/tutorials/understanding-reports">
                   Report guide <span aria-hidden="true">↗</span>
@@ -204,7 +240,7 @@ export default function ReleasePreview(): ReactNode {
             aria-controls="release-example-results"
             onClick={() => setVerified(!verified)}
           >
-            {verified ? 'Replay the example' : 'Preview a verified fix'}
+            {verified ? 'Replay the example' : 'See the agent verify a fix'}
             <span aria-hidden="true">{verified ? '↺' : '→'}</span>
           </button>
         </div>
@@ -212,11 +248,12 @@ export default function ReleasePreview(): ReactNode {
           <span className={styles.footerIcon} aria-hidden="true">
             ≡
           </span>
-          <span>Execution history and evidence, ready for your agent.</span>
+          <span>Uncertain impact? Widen the checks or run the full suite.</span>
         </div>
       </div>
       <figcaption>
-        Illustrative workflow. The agent checks back to retrieve the results.
+        Illustrative results. Today, your agent selects a saved workflow and
+        checks back for its report.
       </figcaption>
     </figure>
   );
