@@ -27,9 +27,19 @@ function Arrow(): ReactNode {
 }
 
 function AgentMark({ agent }: { agent: string }): ReactNode {
-  return agent === 'Codex' ? (
-    <OpenAIIcon className={styles.agentIcon} />
-  ) : (
+  // Official client marks: geminicli.com/icon.png and antigravity.google/favicon.svg.
+  const clientIcon = useBaseUrl(
+    agent === 'Gemini CLI'
+      ? '/img/clients/gemini-cli.png'
+      : '/img/clients/antigravity.svg',
+  );
+  if (agent === 'Codex') {
+    return <OpenAIIcon className={styles.agentIcon} />;
+  }
+  if (agent === 'Gemini CLI' || agent === 'Antigravity') {
+    return <img className={styles.agentIcon} src={clientIcon} alt="" />;
+  }
+  return (
     <span className={styles.claudeMark} aria-hidden="true">
       ✳
     </span>
@@ -57,9 +67,9 @@ function Hero(): ReactNode {
             Your agent keeps building. Playrunner keeps testing.
           </p>
           <p className={styles.heroDescription}>
-            Let Codex or Claude start a focused check or full regression,
-            continue working, then retrieve the results to investigate failures
-            and verify fixes.
+            Let your AI agent start a focused check or full regression, continue
+            working, then retrieve the results to investigate failures and
+            verify fixes.
           </p>
           <div className={styles.actions}>
             <Link
@@ -79,13 +89,19 @@ function Hero(): ReactNode {
             Your Playwright tests. Saved workflows. Cloud or your own compute.
           </p>
           <div className={styles.agentSupport}>
-            <span>Works with</span>
+            <span>Connect via MCP</span>
             <span>
               <AgentMark agent="Codex" /> Codex
             </span>
             <span>
               <AgentMark agent="Claude" /> Claude
             </span>
+            <Link to="/docs/mcp/connect#gemini-cli">
+              <AgentMark agent="Gemini CLI" /> Gemini CLI
+            </Link>
+            <Link to="/docs/mcp/connect#google-antigravity">
+              <AgentMark agent="Antigravity" /> Antigravity
+            </Link>
             <Link className={styles.moreClients} to="/docs/cli">
               + command line
             </Link>
@@ -168,20 +184,25 @@ function HowItWorks(): ReactNode {
 
 function AgentConnections(): ReactNode {
   return (
-    <section className={clsx(styles.section, styles.connectionsSection)}>
+    <section
+      className={clsx(styles.section, styles.connectionsSection)}
+      aria-labelledby="agent-connections"
+    >
       <div className={styles.container}>
         <div className={styles.sectionHeading}>
           <div>
-            <p className={styles.eyebrow}>Stay in your flow</p>
-            <Heading as="h2">
+            <p className={styles.eyebrow}>
+              One MCP connection. Your choice of agent.
+            </p>
+            <Heading as="h2" id="agent-connections">
               Your favourite agent.
               <br />
               <span>A testing workflow it can reuse.</span>
             </Heading>
           </div>
           <p>
-            Keep working where you already build. Playrunner connects your AI
-            assistant to test execution and the results behind every run.
+            Bring testing to Codex, Claude, Gemini CLI, Antigravity, or another
+            compatible MCP client. The same saved workflows. The same evidence.
           </p>
         </div>
         <div className={styles.connections}>
@@ -216,18 +237,60 @@ function AgentConnections(): ReactNode {
           </article>
           <article className={styles.connectionCard}>
             <div className={styles.connectionTop}>
+              <AgentMark agent="Gemini CLI" />
+              <span>Remote MCP</span>
+            </div>
+            <Heading as="h3">Gemini CLI</Heading>
+            <p>
+              Bring Playrunner’s testing tools to Google’s terminal agent.
+              Configure the remote server and browser sign-in to get started.
+            </p>
+            <Link to="/docs/mcp/connect#gemini-cli">
+              Set up Gemini CLI <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <AgentMark agent="Antigravity" />
+              <span>Remote MCP</span>
+            </div>
+            <Heading as="h3">Antigravity</Heading>
+            <p>
+              Add Playrunner as a custom MCP server in Google Antigravity. Give
+              your agent access to saved workflows and test evidence.
+            </p>
+            <Link to="/docs/mcp/connect#google-antigravity">
+              Set up Antigravity <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
               <span className={styles.codeMark} aria-hidden="true">
                 ⌘
               </span>
-              <span>Your tools, too</span>
+              <span>An open protocol</span>
             </div>
-            <Heading as="h3">MCP & CLI</Heading>
+            <Heading as="h3">More MCP clients</Heading>
             <p>
-              Use another compatible MCP client, work from your terminal, or
-              make test runs part of your existing development pipeline.
+              Use a client with remote Streamable HTTP and OAuth support.
+              Connect once and give it the same Playrunner tools.
             </p>
-            <Link to="/docs/mcp">
-              Explore the developer tools <Arrow />
+            <Link to="/docs/mcp/connect#add-the-hosted-server">
+              See connection requirements <Arrow />
+            </Link>
+          </article>
+          <article className={styles.connectionCard}>
+            <div className={styles.connectionTop}>
+              <Logo className={styles.agentIcon} aria-hidden="true" />
+              <span>Terminal & automation</span>
+            </div>
+            <Heading as="h3">Playrunner CLI</Heading>
+            <p>
+              Give shell-capable agents a command-line route to Playrunner.
+              Start workflows, check execution status, and retrieve reports.
+            </p>
+            <Link to="/docs/cli">
+              Explore the CLI <Arrow />
             </Link>
           </article>
         </div>
@@ -427,7 +490,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Build with AI. Ship with confidence."
-      description="Testing infrastructure for AI agents. Let Codex and Claude start focused checks or full Playwright regressions, continue working, then retrieve evidence and verify fixes."
+      description="Testing infrastructure for AI agents. Connect Codex, Claude, Gemini CLI, Antigravity, and compatible MCP clients to saved Playwright workflows and test evidence."
       wrapperClassName={styles.landing}
     >
       <JsonLd

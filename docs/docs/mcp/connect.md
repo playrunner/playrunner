@@ -33,6 +33,74 @@ Cloud MCP uses the browser authorization flow. A machine API token from
 **Settings → API tokens** is for the [CLI](../cli/index.md) or
 [standalone MCP server](./self-hosted.md); it does not replace Cloud OAuth.
 
+## Gemini CLI
+
+Merge this entry into `mcpServers` in your user-level
+`~/.gemini/settings.json`, preserving your other settings:
+
+```json
+{
+  "mcpServers": {
+    "playrunner": {
+      "httpUrl": "https://playrunner.cloud/mcp",
+      "oauth": {
+        "enabled": true,
+        "redirectUri": "http://127.0.0.1:7777/oauth/callback"
+      }
+    }
+  }
+}
+```
+
+Restart Gemini CLI, then enter `/mcp auth playrunner` in its interactive prompt.
+Complete the browser sign-in and consent flow. Use `/mcp` to inspect the
+connection, then ask the agent to call `get_account`.
+
+The explicit callback uses an IP loopback address accepted by Playrunner Cloud;
+Gemini CLI's default `localhost` callback is not accepted. If port `7777` is
+busy, choose another unused port in `redirectUri`. Run authorization on a
+computer with browser access. Tool confirmations remain enabled by default.
+
+This setup is for **Gemini CLI**, not the consumer Gemini chat application.
+See the official [Gemini CLI MCP guide](https://geminicli.com/docs/tools/mcp-server/)
+for OAuth discovery and configuration options.
+
+## Google Antigravity
+
+In Antigravity IDE, open **MCP Servers → Manage MCP Servers → View raw config**.
+Merge the following entry into the existing `mcpServers` object:
+
+```json
+{
+  "mcpServers": {
+    "playrunner": {
+      "serverUrl": "https://playrunner.cloud/mcp"
+    }
+  }
+}
+```
+
+Refresh the server list and use **Authenticate** for Playrunner in
+**Agent Settings → Customizations**. Complete the browser authorization and
+follow Antigravity's return-to-client instructions. Keep authorization codes in
+that authentication flow, not in an agent conversation. Then ask the agent to
+call `get_account`.
+
+Antigravity documents remote Streamable HTTP and automatic OAuth with dynamic
+client registration, which Playrunner Cloud provides. A manually configured
+client secret or Google Application Default Credentials is not needed for this
+connection. The exact settings location varies between Antigravity surfaces;
+see Google's [Antigravity MCP guide](https://antigravity.google/docs/mcp).
+
+### Connection verification
+
+These Gemini CLI and Antigravity examples are based on their documented MCP
+capabilities and Playrunner's Cloud protocol implementation. They have not yet
+been verified through a complete sign-in and workflow run in those clients.
+Confirm `get_account`, workflow discovery, and a test run before relying on a
+new connection. MCP support alone does not guarantee every client version or
+authentication flow is compatible.
+
 ## Access permissions
 
 | Permission                | Allows the assistant to                                                           |
