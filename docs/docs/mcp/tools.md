@@ -68,8 +68,8 @@ A typical run on Playrunner servers uses this sequence:
 
 1. Call `list_workflows` and select the intended workflow's actual ID.
 2. Call `run_workflow` with a new UUID as `requestKey` for this intended run.
-3. Keep the returned execution ID (`testId` in the start response) and pass it
-   as `executionId` to `get_run_status`, leaving a few seconds between requests.
+3. Keep the returned `executionId` (`testId` is retained for compatibility)
+   and pass it to `get_run_status`, leaving a few seconds between requests.
 4. When `hasMore` is true, pass the returned `nextCursor` as `after` to read
    the next page of events.
 5. Report the final workflow status and actual test evidence. Include test
@@ -87,9 +87,9 @@ workflow ID and generate a fresh UUID for each intended execution:
 
 Reuse that `requestKey` only when retrying an ambiguous response for the same
 run. After receiving an execution ID, inspect that execution instead of
-starting another. Hosted runs are subject to any enabled Cloud workflow-run
-allowance; local execution does not consume hosted-run allowance. This is
-separate from the future execution-time billing notice in the editor.
+starting another. Hosted runs use your Cloud credits. Local runs use your
+selected machine for browser compute; Cloud access and coordination
+requirements still apply.
 Stopping a client’s wait does not cancel the workflow.
 
 ## Change-aware testing
