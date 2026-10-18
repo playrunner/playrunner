@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
@@ -19,6 +19,7 @@ import {
 } from '@site/src/components/StructuredData';
 import CliShowcase from '@site/src/components/CliShowcase';
 import WorkflowShowcase from '@site/src/components/WorkflowShowcase';
+import ReleasePreview from '@site/src/components/ReleasePreview';
 import styles from './index.module.css';
 
 function Arrow(): ReactNode {
@@ -35,120 +36,13 @@ function AgentMark({ agent }: { agent: string }): ReactNode {
   );
 }
 
-function RunPreview(): ReactNode {
-  const [agent, setAgent] = useState('Codex');
-  return (
-    <figure className={styles.runPreview}>
-      <div className={styles.previewTopline}>
-        <span>
-          <span className={styles.statusDot} /> Agent → Playrunner
-        </span>
-        <span className={styles.exampleLabel}>Example workflow</span>
-      </div>
-      <div
-        className={styles.agentPicker}
-        role="group"
-        aria-label="Preview an AI assistant"
-      >
-        {['Codex', 'Claude'].map((name) => (
-          <button
-            key={name}
-            type="button"
-            aria-pressed={agent === name}
-            onClick={() => setAgent(name)}
-          >
-            <AgentMark agent={name} /> {name}
-          </button>
-        ))}
-        <span className={styles.mcpLabel}>Connected via MCP</span>
-      </div>
-      <div className={styles.conversation} aria-live="polite">
-        <p className={styles.prompt}>
-          “Run the checkout tests on staging. Show me what failed before we
-          ship.”
-        </p>
-        <div className={styles.agentReply}>
-          <AgentMark agent={agent} />
-          <div>
-            <strong>{agent}</strong>
-            <p>
-              I’ll run the suite with Playrunner, then inspect the results and
-              report.
-            </p>
-          </div>
-        </div>
-      </div>
-      <div
-        className={styles.executionFlow}
-        aria-label="Playrunner runs the tests and returns evidence"
-      >
-        <div>
-          <span className={styles.flowIcon}>
-            <Logo />
-          </span>
-          <strong>Playrunner</strong>
-          <small>Orchestrate</small>
-        </div>
-        <span className={styles.connector} aria-hidden="true">
-          →
-        </span>
-        <div>
-          <span className={styles.flowIcon}>
-            <PlaywrightLogo />
-          </span>
-          <strong>Playwright</strong>
-          <small>Run real tests</small>
-        </div>
-        <span className={styles.connector} aria-hidden="true">
-          →
-        </span>
-        <div>
-          <span
-            className={clsx(styles.flowIcon, styles.reportIcon)}
-            aria-hidden="true"
-          >
-            ≡
-          </span>
-          <strong>Evidence</strong>
-          <small>Inspect results</small>
-        </div>
-      </div>
-      <div className={styles.runResult}>
-        <div className={styles.resultHeader}>
-          <span>checkout.spec.ts</span>
-          <span className={styles.failed}>1 failed</span>
-        </div>
-        <div className={styles.resultRow}>
-          <span className={styles.passed}>✓</span> Customer can add to cart{' '}
-          <span>passed</span>
-        </div>
-        <div className={styles.resultRow}>
-          <span className={styles.passed}>✓</span> Shipping total is correct{' '}
-          <span>passed</span>
-        </div>
-        <div className={styles.resultRow}>
-          <span className={styles.failed}>×</span> Payment confirmation appears{' '}
-          <span className={styles.failed}>failed</span>
-        </div>
-        <div className={styles.resultFooter}>
-          <span>Logs + Playwright report</span>
-          <span>Ready for review</span>
-        </div>
-      </div>
-      <figcaption>
-        From test execution to evidence your agent can act on.
-      </figcaption>
-    </figure>
-  );
-}
-
 function Hero(): ReactNode {
   return (
     <header className={styles.hero}>
       <div className={clsx(styles.container, styles.heroGrid)}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span className={styles.statusDot} /> Testing for the age of AI
+            <span className={styles.statusDot} /> Testing infrastructure for AI
             agents
           </p>
           <Heading as="h1">
@@ -156,13 +50,16 @@ function Hero(): ReactNode {
             <br />
             <span>
               Ship with
-              <br className={styles.desktopBreak} /> confidence.
+              <br /> confidence.
             </span>
           </Heading>
+          <p className={styles.heroPromise}>
+            Your agent keeps building. Playrunner keeps testing.
+          </p>
           <p className={styles.heroDescription}>
-            Give Codex and Claude the power to run real Playwright tests,
-            inspect failures, and bring back the evidence. Know what works
-            before your users do.
+            Let Codex or Claude start a focused check or full regression,
+            continue working, then retrieve the results to investigate failures
+            and verify fixes.
           </p>
           <div className={styles.actions}>
             <Link
@@ -179,7 +76,7 @@ function Hero(): ReactNode {
             </Link>
           </div>
           <p className={styles.heroNote}>
-            Your tests. Your agent. Cloud or your own compute.
+            Your Playwright tests. Saved workflows. Cloud or your own compute.
           </p>
           <div className={styles.agentSupport}>
             <span>Works with</span>
@@ -194,7 +91,7 @@ function Hero(): ReactNode {
             </Link>
           </div>
         </div>
-        <RunPreview />
+        <ReleasePreview />
       </div>
       <div className={clsx(styles.container, styles.foundationStrip)}>
         <span>Built around your existing stack</span>
@@ -221,21 +118,21 @@ function Hero(): ReactNode {
 const steps = [
   {
     number: '01',
-    title: 'Bring your agent',
+    title: 'Delegate the tests',
     description:
-      'Connect your assistant through MCP. Give it access to your Playrunner projects, environments, and saved workflows.',
+      'Your agent starts a saved workflow through MCP or the CLI. Reuse configured environments and Authentication Profiles instead of rebuilding the setup for every task.',
   },
   {
     number: '02',
-    title: 'Run the real thing',
+    title: 'Keep the agent moving',
     description:
-      'Use your existing Playwright suite against the environment that matters. Run on Cloud or a connected machine.',
+      'Playrunner runs the tests on Cloud or your connected machine. Your agent can continue other work while execution status, logs and results are recorded.',
   },
   {
     number: '03',
-    title: 'Close the loop',
+    title: 'Return to the evidence',
     description:
-      'Review failures and reports with your agent. Make the fix, run the relevant tests again, and decide when to ship.',
+      'The agent checks the run for results and report links, investigates failures, then reruns the workflow to verify its fix. Evidence stays attached to each execution.',
   },
 ];
 
@@ -244,16 +141,15 @@ function HowItWorks(): ReactNode {
     <section className={styles.section}>
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
-          <p className={styles.eyebrow}>
-            From generated code to tested software
-          </p>
+          <p className={styles.eyebrow}>Delegate. Continue. Verify.</p>
           <Heading as="h2" id="how-it-works">
-            Your agent writes the code.
+            Testing that outlives a tool call.
             <br />
-            <span>Give it a way to prove it works.</span>
+            <span>Evidence your agent can come back to.</span>
           </Heading>
           <p>
-            A conversation starts the run. Real tests tell you what happened.
+            Start the run, keep working, then check the result. Playrunner keeps
+            the testing context and evidence outside the conversation.
           </p>
         </div>
         <div className={styles.steps}>
@@ -280,7 +176,7 @@ function AgentConnections(): ReactNode {
             <Heading as="h2">
               Your favourite agent.
               <br />
-              <span>Now with a testing team.</span>
+              <span>A testing workflow it can reuse.</span>
             </Heading>
           </div>
           <p>
@@ -531,7 +427,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Build with AI. Ship with confidence."
-      description="Connect Codex, Claude, and your AI agents to real Playwright test runs. Inspect failures, review the evidence, and ship with confidence using Playrunner."
+      description="Testing infrastructure for AI agents. Let Codex and Claude start focused checks or full Playwright regressions, continue working, then retrieve evidence and verify fixes."
       wrapperClassName={styles.landing}
     >
       <JsonLd

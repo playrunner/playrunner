@@ -131,12 +131,21 @@
   background: var(--home-bg);
 }
 
-/* Keep the electricity decorative and behind both the copy and the panel. */
+/* Generated light artwork stays decorative, level, and behind the content. */
 .hero::before {
   content: '';
   position: absolute;
   z-index: -1;
-  inset: 0;
+  inset: 0 auto 0 50%;
+  width: min(1800px, 100%);
+  transform: translateX(-50%);
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
   pointer-events: none;
   background-image:
     linear-gradient(
@@ -146,22 +155,28 @@
       #100e1900 55%,
       #100e19 100%
     ),
-    linear-gradient(90deg, #100e19b3 0%, #100e194d 48%, #100e1900 80%),
-    url('../../static/img/hero-electricity.webp');
-  background-size: cover;
-  background-position: center;
+    linear-gradient(90deg, #100e19ed 10%, #100e19c9 43%, #100e1926 72%),
+    url('../../static/img/release-signal-hero.webp');
+  background-size:
+    cover,
+    cover,
+    1800px auto;
+  background-position:
+    center,
+    center,
+    center 60%;
   background-repeat: no-repeat;
 }
 
 .heroGrid {
   display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 64px;
+  grid-template-columns: 1fr 1fr;
+  gap: 70px;
   align-items: center;
 }
 
 .heroCopy h1 {
-  font-size: clamp(3.4rem, 5.1vw, 4.65rem);
+  font-size: clamp(3.7rem, 5.8vw, 5.6rem);
   line-height: 1.04;
   margin-bottom: 1.7rem;
   letter-spacing: -0.065em;
@@ -171,8 +186,16 @@
   color: var(--home-accent);
 }
 
+.heroPromise {
+  color: var(--home-text);
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  margin-bottom: 14px;
+}
+
 .heroDescription {
-  max-width: 510px;
+  max-width: 475px;
   color: var(--home-muted);
   font-size: 1.08rem;
   margin-bottom: 1.7rem;
@@ -270,218 +293,6 @@
   border-radius: 50%;
   background: var(--home-green);
   margin-right: 4px;
-}
-
-.runPreview {
-  min-width: 0;
-  margin: 0;
-  border: 1px solid #52404a;
-  border-radius: 16px;
-  background: linear-gradient(145deg, #27212d, #191621 65%);
-  box-shadow:
-    0 32px 100px #00000035,
-    0 0 70px #f6796410;
-  overflow: hidden;
-}
-
-.previewTopline {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 22px;
-  border-bottom: 1px solid var(--home-border);
-  font-size: 0.7rem;
-  color: var(--home-muted);
-}
-
-.exampleLabel {
-  text-transform: uppercase;
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-}
-
-.agentPicker {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 20px 22px 0;
-}
-
-.agentPicker button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 10px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: var(--home-muted);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-}
-
-.agentPicker button[aria-pressed='true'] {
-  color: var(--home-text);
-  background: #38313e;
-  border-color: #625469;
-}
-
-.agentPicker button:hover {
-  color: var(--home-text);
-  background: #302937;
-}
-
-.agentPicker .agentIcon {
-  height: 17px;
-  width: 17px;
-}
-
-.agentPicker .claudeMark {
-  font-size: 22px;
-  width: 19px;
-}
-
-.mcpLabel {
-  margin-left: auto;
-  color: var(--home-muted);
-  font-size: 0.61rem;
-}
-
-.conversation {
-  padding: 22px 24px 10px;
-}
-
-.prompt {
-  margin-bottom: 20px;
-  color: #e9e3ec;
-  font-size: 0.95rem;
-}
-
-.agentReply {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 0.76rem;
-}
-
-.agentReply p {
-  color: var(--home-muted);
-  margin: 5px 0 0;
-}
-
-.executionFlow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 23px 26px;
-  background-image: radial-gradient(#51415c60 0.8px, transparent 0.8px);
-  background-size: 14px 14px;
-  margin: 5px 16px;
-}
-
-.executionFlow > div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100px;
-}
-
-.flowIcon {
-  width: 50px;
-  height: 50px;
-  display: grid;
-  place-items: center;
-  background: #26222e;
-  border: 1px solid #655266;
-  border-radius: 12px;
-}
-
-.flowIcon svg {
-  width: 30px;
-  height: 30px;
-}
-
-.flowIcon.reportIcon {
-  color: var(--home-green);
-  font-size: 35px;
-  line-height: 1;
-}
-
-.executionFlow strong {
-  font-size: 0.68rem;
-  font-weight: 500;
-}
-
-.executionFlow small {
-  font-size: 0.59rem;
-  color: var(--home-muted);
-}
-
-.connector {
-  flex: 1;
-  text-align: center;
-  color: var(--home-accent);
-  margin-top: -37px;
-}
-
-.runResult {
-  border: 1px solid var(--home-border);
-  border-radius: 9px;
-  background: #121019;
-  margin: 8px 22px 0;
-  font-size: 0.66rem;
-}
-
-.resultHeader,
-.resultFooter {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 11px 14px;
-}
-
-.resultHeader {
-  font-family: var(--ifm-font-family-monospace);
-  border-bottom: 1px solid var(--home-border);
-  margin-bottom: 6px;
-}
-
-.resultRow {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  padding: 6px 14px;
-  color: #ddd5e6;
-}
-
-.resultRow > span:last-child {
-  margin-left: auto;
-  font-size: 0.59rem;
-}
-
-.passed {
-  color: var(--home-green);
-}
-
-.failed {
-  color: var(--home-accent);
-}
-
-.resultFooter {
-  border-top: 1px solid var(--home-border);
-  color: var(--home-muted);
-  margin-top: 6px;
-  font-size: 0.6rem;
-}
-
-.runPreview figcaption {
-  text-align: center;
-  padding: 13px 20px;
-  color: var(--home-muted);
-  font-size: 0.65rem;
 }
 
 .foundationStrip {
@@ -796,13 +607,13 @@
     gap: 32px;
   }
   .heroCopy h1 {
-    font-size: 3.2rem;
+    font-size: clamp(3rem, 5.8vw, 4rem);
+  }
+  .heroPromise {
+    font-size: 1.03rem;
   }
   .heroDescription {
     font-size: 0.97rem;
-  }
-  .mcpLabel {
-    display: none;
   }
   .agentSupport {
     gap: 14px;
@@ -840,6 +651,9 @@
     margin-top: 10px;
     border-radius: 12px;
   }
+  :global(body):has(.landing) :global(.header-github-star) {
+    display: none;
+  }
   .hero {
     padding-top: 48px;
   }
@@ -847,11 +661,11 @@
     background-size:
       cover,
       cover,
-      auto 900px;
+      auto 1000px;
     background-position:
       center,
       center,
-      60% top;
+      60% 520px;
     opacity: 0.75;
   }
   .heroGrid,
@@ -861,9 +675,6 @@
   }
   .heroCopy h1 {
     font-size: clamp(3rem, 10vw, 4.6rem);
-  }
-  .desktopBreak {
-    display: none;
   }
   .heroCopy {
     max-width: 560px;

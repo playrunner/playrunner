@@ -1,0 +1,494 @@
+.preview {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.frame {
+  border: 1px solid #75616a;
+  border-radius: 18px;
+  background: linear-gradient(140deg, #2a2430f5, #17141ffb 70%);
+  box-shadow:
+    0 28px 100px #00000055,
+    0 0 70px #ff967e14;
+  overflow: hidden;
+}
+
+.topline,
+.brand,
+.scopeHeader,
+.workflowHeading,
+.summary,
+.evidenceTitle,
+.evidenceLinks,
+.footer {
+  display: flex;
+  align-items: center;
+}
+
+.topline {
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 22px;
+  border-bottom: 1px solid var(--home-border);
+}
+
+.brand {
+  gap: 8px;
+  font-size: 0.73rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.brand svg {
+  width: 23px;
+  height: 23px;
+}
+
+.brand > span:last-child {
+  color: var(--home-muted);
+  font-weight: 400;
+}
+
+.separator {
+  color: #756c81;
+  margin: 0 3px;
+}
+
+.example {
+  font-size: 0.54rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--home-muted);
+}
+
+.body {
+  padding: 20px 24px;
+}
+
+.scopeHeader {
+  justify-content: space-between;
+  color: var(--home-muted);
+  font-size: 0.65rem;
+  margin-bottom: 10px;
+}
+
+.environment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid #514655;
+  border-radius: 5px;
+}
+
+.environment::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: var(--home-green);
+  border-radius: 50%;
+}
+
+.scopePicker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 5px;
+  background: #110e18;
+  border: 1px solid #483c4d;
+  border-radius: 10px;
+}
+
+.scopePicker button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 9px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  color: var(--home-muted);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.scopePicker button > span {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.scopePicker button:hover {
+  color: var(--home-text);
+  background: #2c2535;
+}
+
+.scopePicker button[aria-pressed='true'] {
+  background: var(--home-accent);
+  color: #211318;
+  border-color: #ffb39e;
+  box-shadow: 0 2px 12px #ff967e18;
+}
+
+.parallelWork {
+  padding: 15px 0;
+  margin: 0 0 3px;
+  border-bottom: 1px solid var(--home-border);
+}
+
+.parallelLabel {
+  display: block;
+  font-size: 0.59rem;
+  color: var(--home-muted);
+  margin-bottom: 10px;
+}
+
+.parallelLanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.parallelLanes > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-left: 2px solid #ff967e85;
+  padding-left: 10px;
+}
+
+.parallelLanes > div:last-child {
+  border-color: #9edab785;
+}
+
+.parallelLanes svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.parallelLanes strong {
+  display: block;
+  font-size: 0.67rem;
+  font-weight: 500;
+}
+
+.parallelLanes div > span {
+  display: block;
+  color: var(--home-muted);
+  font-size: 0.58rem;
+  margin-top: 3px;
+}
+
+.workflowHeading {
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 0 12px;
+}
+
+.workflowHeading strong {
+  display: block;
+  font-size: 1.12rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin-bottom: 3px;
+}
+
+.workflowHeading div > span {
+  display: block;
+  color: var(--home-muted);
+  font-size: 0.64rem;
+}
+
+.runBadge {
+  border: 1px solid #514655;
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--home-muted);
+  font-size: 0.6rem;
+  white-space: nowrap;
+}
+
+.verifiedBadge {
+  border-color: #456451;
+  color: var(--home-green);
+}
+
+.summary {
+  gap: 18px;
+  padding-bottom: 11px;
+  font-size: 0.66rem;
+  color: #d1cbd9;
+}
+
+.summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.passDot {
+  background: var(--home-green);
+}
+.failDot {
+  background: var(--home-accent);
+}
+.idleDot {
+  background: #8d829a;
+}
+
+.checks {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px;
+  border-top: 1px solid var(--home-border);
+}
+
+.checks li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 35px;
+  padding: 7px 2px;
+  border-bottom: 1px solid #36313f99;
+  font-size: 0.69rem;
+}
+
+.checkIcon {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  border: 1px solid #514655;
+  border-radius: 50%;
+  color: var(--home-muted);
+  font-size: 0.64rem;
+}
+
+.passIcon {
+  background: #9edab714;
+  border-color: #9edab740;
+  color: var(--home-green);
+}
+
+.failIcon {
+  background: #ff967e14;
+  border-color: #ff967e55;
+  color: var(--home-accent);
+}
+
+.checkStatus {
+  margin-left: auto;
+  padding-left: 4px;
+  flex-shrink: 0;
+  font-size: 0.58rem;
+  color: var(--home-green);
+}
+
+.failedRow .checkStatus {
+  color: var(--home-accent);
+}
+
+.outOfScope,
+.outOfScope .checkStatus {
+  color: var(--home-muted);
+}
+
+.evidence {
+  padding: 12px 14px;
+  border: 1px solid #ff967e3b;
+  border-radius: 9px;
+  background: linear-gradient(110deg, #ff967e0b, #14111c);
+  min-height: 128px;
+}
+
+.evidenceTitle {
+  justify-content: space-between;
+  color: var(--home-accent);
+  font-size: 0.59rem;
+  margin-bottom: 8px;
+}
+
+.evidence strong {
+  display: block;
+  font-size: 0.79rem;
+  font-weight: 500;
+}
+
+.evidence p {
+  margin: 5px 0 9px;
+  font-size: 0.66rem;
+  color: var(--home-muted);
+  line-height: 1.6;
+  min-height: 2.9em;
+}
+
+.evidenceLinks {
+  gap: 7px;
+  font-size: 0.57rem;
+}
+
+.evidenceLinks > * {
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: #332b3b;
+  color: #d1cbd9;
+}
+
+.evidenceLinks a {
+  color: var(--home-text);
+}
+
+.evidenceLinks a:hover {
+  color: var(--home-accent);
+}
+
+.verifiedEvidence {
+  border-color: #9edab73b;
+  background: linear-gradient(110deg, #9edab70b, #14111c);
+}
+
+.verifiedEvidence .evidenceTitle {
+  color: var(--home-green);
+}
+
+.verifyButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--home-text);
+  font: inherit;
+  font-size: 0.69rem;
+  padding: 11px 2px 0;
+  cursor: pointer;
+}
+
+.verifyButton:hover {
+  color: var(--home-accent);
+}
+
+.verifyButton > span {
+  font-size: 1rem;
+  color: var(--home-accent);
+}
+
+.footer {
+  justify-content: center;
+  gap: 9px;
+  background: #15121d;
+  color: var(--home-muted);
+  border-top: 1px solid var(--home-border);
+  padding: 10px 16px;
+  font-size: 0.62rem;
+}
+
+.footerIcon {
+  color: var(--home-green);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.preview figcaption {
+  color: #c4bacd;
+  font-size: 0.59rem;
+  text-align: center;
+  margin-top: 13px;
+}
+
+@media (min-width: 761px) and (max-width: 1050px) {
+  .example {
+    display: none;
+  }
+  .body {
+    padding: 18px;
+  }
+  .checkStatus {
+    font-size: 0.55rem;
+  }
+  .checks li {
+    font-size: 0.64rem;
+  }
+  .workflowHeading strong {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 440px) {
+  .parallelLanes {
+    gap: 10px;
+  }
+  .parallelLanes > div {
+    gap: 6px;
+    padding-left: 7px;
+  }
+  .parallelLanes svg {
+    width: 18px;
+    height: 18px;
+  }
+  .parallelLanes strong {
+    font-size: 0.59rem;
+  }
+  .parallelLanes div > span {
+    font-size: 0.52rem;
+  }
+  .topline {
+    padding: 14px 16px;
+  }
+  .brand {
+    font-size: 0.65rem;
+    gap: 6px;
+  }
+  .example {
+    font-size: 0.47rem;
+    max-width: 62px;
+    text-align: right;
+  }
+  .body {
+    padding: 17px;
+  }
+  .scopePicker button {
+    font-size: 0.69rem;
+    gap: 6px;
+  }
+  .workflowHeading strong {
+    font-size: 1rem;
+  }
+  .runBadge {
+    font-size: 0.52rem;
+  }
+  .checks li {
+    font-size: 0.63rem;
+    gap: 7px;
+  }
+  .checkStatus {
+    font-size: 0.53rem;
+  }
+  .preview figcaption {
+    font-size: 0.56rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scopePicker button {
+    transition: none;
+  }
+}
