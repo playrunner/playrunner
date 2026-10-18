@@ -111,8 +111,10 @@ function pollingExecutionBucket(req: Request, tokenKey: string) {
   const routerPath = req.path;
   const originalPath = req.originalUrl?.split('?', 1)[0] ?? '';
   const match =
-    /^\/([^/]+)\/executions\/([^/]+)(?:\/events)?\/?$/.exec(routerPath) ??
-    /^\/api\/v1\/workflows\/([^/]+)\/executions\/([^/]+)(?:\/events)?\/?$/.exec(
+    /^\/([^/]+)\/executions\/([^/]+)(?:\/(?:events|feedback))?\/?$/.exec(
+      routerPath,
+    ) ??
+    /^\/api\/v1\/workflows\/([^/]+)\/executions\/([^/]+)(?:\/(?:events|feedback))?\/?$/.exec(
       originalPath,
     );
   if (!match) return null;

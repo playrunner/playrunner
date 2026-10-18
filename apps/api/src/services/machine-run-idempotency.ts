@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma';
 import type { Prisma } from '../generated/prisma/client.cts';
 import type { ReleaseRequest } from './release-contract';
+import type { RegressionRequest } from '../../../runners/shared/regression';
 
 type RunResponse = { status: number; body: Record<string, unknown> };
 
@@ -18,6 +19,7 @@ export function machineRunRequestHash(
   inputs: Record<string, string>,
   acceptanceCriteria: string[],
   release?: ReleaseRequest,
+  regression?: RegressionRequest,
 ) {
   return crypto
     .createHash('sha256')
@@ -28,6 +30,16 @@ export function machineRunRequestHash(
         ),
         acceptanceCriteria,
         ...(release ? { release } : {}),
+        ...(regression
+          ? {
+              regression: {
+                ...regression,
+                sources: [...regression.sources].sort((a, b) =>
+                  a.repository.localeCompare(b.repository),
+                ),
+              },
+            }
+          : {}),
       }),
     )
     .digest('hex');
@@ -73,7 +85,7 @@ export async function executeIdempotentMachineRun(
         status: 409,
         body: {
           error:
-            'This idempotency key already uses different workflow inputs or release context.',
+            'This idempotency key already uses different workflow inputs, release or regression context.',
         },
       };
     const execution = await database.workflowExecution.findUnique({

@@ -1,11 +1,49 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type { RegressionRequest } from '../../../runners/shared/regression';
 import { prisma } from '../lib/prisma';
 import {
   executeIdempotentMachineRun as executeRun,
   machineRunRequestHash,
   parseMachineIdempotencyKey,
 } from './machine-run-idempotency';
+
+test('regression fingerprints distinguish focused/full scopes and source revisions', () => {
+  const request: RegressionRequest = {
+    version: 1,
+    mode: 'affected',
+    sources: [
+      {
+        repository: 'example/ui',
+        baseSha: 'a'.repeat(40),
+        headSha: 'b'.repeat(40),
+      },
+      {
+        repository: 'example/portal',
+        baseSha: 'c'.repeat(40),
+        headSha: 'd'.repeat(40),
+      },
+    ],
+  };
+  const hash = (regression: RegressionRequest) =>
+    machineRunRequestHash({}, [], undefined, regression);
+  assert.equal(
+    hash(request),
+    hash({ ...request, sources: [...request.sources].reverse() }),
+  );
+  assert.notEqual(hash(request), hash({ ...request, mode: 'full' }));
+  assert.notEqual(
+    hash(request),
+    hash({
+      ...request,
+      sources: [
+        { ...request.sources[0], headSha: 'e'.repeat(40) },
+        request.sources[1],
+      ],
+    }),
+  );
+  assert.notEqual(hash(request), machineRunRequestHash({}, []));
+});
 
 test('keys are bounded and fingerprints ignore input field order', () => {
   assert.equal(parseMachineIdempotencyKey(undefined), undefined);

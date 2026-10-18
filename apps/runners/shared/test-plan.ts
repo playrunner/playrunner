@@ -100,6 +100,7 @@ export type ReportTest = {
   project: string;
   status: PlanStatus;
   evidenceId: string;
+  expectedFailure?: true;
 };
 export function readTests(report: any): ReportTest[] {
   const tests: ReportTest[] = [];
@@ -130,6 +131,11 @@ export function readTests(report: any): ReportTest[] {
           project: test.projectName ?? '',
           status,
           evidenceId: String(spec.id ?? ''),
+          ...(test.status === 'expected' &&
+          test.expectedStatus === 'failed' &&
+          last?.status === 'failed'
+            ? { expectedFailure: true as const }
+            : {}),
         });
       }
     }

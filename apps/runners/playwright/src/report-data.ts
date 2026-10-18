@@ -1,10 +1,14 @@
 import { readTests, type ReportTest } from '../../shared/test-plan';
+import type { RegressionPlan } from '../../shared/regression';
+import type { RegressionDiscovery } from './regression-runtime';
 import fs from 'fs';
 import path from 'path';
 
 type JsonRecord = Record<string, any>;
 
 export type PlaywrightReportData = {
+  regressionPlan?: RegressionPlan;
+  regressionDiscovery?: RegressionDiscovery;
   planTests?: ReportTest[];
   errorContexts: Array<{
     path: string;
@@ -20,6 +24,7 @@ export type PlaywrightReportData = {
       url?: string;
     }>;
     duration?: number;
+    evidenceId: string;
     errors: unknown[];
     location?: unknown;
     projectName?: string;
@@ -334,7 +339,28 @@ export function readPlaywrightReportData(args: {
               }))
           : [];
 
+        const reportRoot =
+          typeof report.config?.rootDir === 'string'
+            ? report.config.rootDir
+            : args.workingDir;
+        const workingRoot = fs.realpathSync(args.workingDir);
+        const absoluteFile =
+          typeof spec.file === 'string'
+            ? path.resolve(reportRoot, spec.file)
+            : undefined;
+        const file = absoluteFile
+          ? path
+              .relative(
+                workingRoot,
+                fs.existsSync(absoluteFile)
+                  ? fs.realpathSync(absoluteFile)
+                  : absoluteFile,
+              )
+              .split(path.sep)
+              .join('/')
+          : undefined;
         failures.push({
+          evidenceId: String(spec.id ?? ''),
           title: [spec.title, test.projectName]
             .filter((value) => typeof value === 'string' && value.trim())
             .join(' — ')
@@ -342,7 +368,10 @@ export function readPlaywrightReportData(args: {
           ...(spec.file || spec.line || spec.column
             ? {
                 location: {
-                  file: spec.file,
+                  file:
+                    file && !file.startsWith('../') && !path.isAbsolute(file)
+                      ? file
+                      : spec.file,
                   line: spec.line,
                   column: spec.column,
                 },

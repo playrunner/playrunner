@@ -42,6 +42,7 @@ import {
 } from './runtime/playwright-sharding';
 import { createPubSubAuthorizationHeaders } from './runtime/pubsub-runner-control';
 import { resolveReleaseSourceRevision } from './runtime/release-source';
+import { resolveRegressionSourceRevision } from './runtime/regression-source';
 import {
   publishTerminalWorkflowEvent,
   type TerminalWorkflowEventPayload,
@@ -1246,10 +1247,14 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
         const envKeys = config.envVars || [];
         const cloudProvider = reqBody.cloudProvider || 'LOCAL_RUNNER';
         const runtimeNodeId = overrides.runtimeNodeId || node.id;
-        const sourceRevision = resolveReleaseSourceRevision(
+        const sourceRevision = resolveRegressionSourceRevision(
           config,
-          reqBody.release !== undefined,
-          overrides.sourceRevision,
+          reqBody.regression,
+          resolveReleaseSourceRevision(
+            config,
+            reqBody.release !== undefined,
+            overrides.sourceRevision,
+          ),
         );
         const payloadData = {
           data: {
@@ -1260,6 +1265,12 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
             executionAuthToken: reqBody.executionAuthToken,
             testScript: config.testScript,
             testPlan: config.testPlan,
+            ...(reqBody.regression !== undefined
+              ? {
+                  regressionRequest: reqBody.regression,
+                  regressionPolicy: config.regression,
+                }
+              : {}),
             testSuite: config.testSuite,
             nodeId: runtimeNodeId,
             logicalNodeId: node.id,
@@ -1601,7 +1612,8 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
       const prewarmPlaywrightNodes = playwrightNodes.filter(
         (node: any) =>
           !reqBody.localWorker &&
-          resolvePlaywrightShardingMode(getRecord(node.config)) === 'off',
+          (reqBody.regression !== undefined ||
+            resolvePlaywrightShardingMode(getRecord(node.config)) === 'off'),
       );
 
       if (prewarmPlaywrightNodes.length > 0) {
@@ -2149,9 +2161,21 @@ async function executeControlledWorkflow(reqBody: any, signal: AbortSignal) {
           } else if (type === 'playwright') {
             const { cpu, injectedEnv, memory, request, workers } =
               createPlaywrightExecutionRequest(node);
-            const shardingMode = resolvePlaywrightShardingMode(
+            const configuredShardingMode = resolvePlaywrightShardingMode(
               getRecord(node.config),
             );
+            const shardingMode =
+              reqBody.regression !== undefined ? 'off' : configuredShardingMode;
+            if (
+              reqBody.regression !== undefined &&
+              configuredShardingMode !== 'off'
+            ) {
+              await publishLog(
+                'Regression runs use one planned selection with normal Playwright workers; distributed sharding is disabled for this run.',
+                'info',
+                { nodeId: node.id },
+              );
+            }
 
             await publishLog(
               `Processing node: ${node.label} (${node.id})`,

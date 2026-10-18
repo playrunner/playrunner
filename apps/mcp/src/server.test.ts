@@ -3,6 +3,72 @@ import test from "node:test";
 import { callTool } from "./server";
 import { MCP_TOOLS } from "./protocol";
 
+test("regression dispatch and read-only feedback preserve caller identity, request and cursor", async (t) => {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    calls.push({ url, init });
+    return {
+      status: init.method === "POST" ? 202 : 200,
+      json: async () => ({
+        executionId: "run",
+        status: "running",
+        nextCursor: "101",
+        hasMore: false,
+      }),
+    };
+  });
+  const regression = {
+    version: 1,
+    mode: "affected",
+    sources: [
+      {
+        repository: "example/shop",
+        baseSha: "a".repeat(40),
+        headSha: "b".repeat(40),
+      },
+    ],
+  };
+  await callTool("Bearer test-key", {
+    name: "run_workflow",
+    arguments: { workflowId: "w", idempotencyKey: "request-key", regression },
+  });
+  assert.deepEqual(JSON.parse(String(calls[0].init.body)), { regression });
+  assert.equal(
+    (calls[0].init.headers as Record<string, string>)["idempotency-key"],
+    "request-key",
+  );
+  const feedback = await callTool("Bearer test-key", {
+    name: "get_run_feedback",
+    arguments: { workflowId: "w", executionId: "run", after: "100" },
+  });
+  assert.equal(feedback.isError, false);
+  assert.equal(calls[1].init.method, "GET");
+  assert.equal(calls[1].init.body, undefined);
+  assert.match(calls[1].url, /\/w\/executions\/run\/feedback\?after=100$/);
+  assert.equal(
+    (calls[1].init.headers as Record<string, string>).authorization,
+    "Bearer test-key",
+  );
+  for (const after of ["-1", "1.1", "9223372036854775808"]) {
+    assert.equal(
+      (
+        await callTool("Bearer test-key", {
+          name: "get_run_feedback",
+          arguments: { workflowId: "w", executionId: "run", after },
+        })
+      ).isError,
+      true,
+    );
+  }
+  assert.equal(calls.length, 2);
+  const guide = await callTool("Bearer test-key", {
+    name: "get_authoring_guide",
+  });
+  assert.match(JSON.stringify(guide), /config.regression/);
+  assert.match(JSON.stringify(guide), /get_run_feedback/);
+  assert.equal(calls.length, 2);
+});
+
 test("MCP management and event tools forward the caller key to machine API routes", async (t) => {
   const calls: Array<{ url: string; init: RequestInit }> = [];
   let status = 204;

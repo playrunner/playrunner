@@ -39,6 +39,13 @@ import {
   type ReleaseRequest,
 } from '../services/release-contract';
 import { resolveReleasePolicy } from '../services/release-policy';
+import {
+  parseRegressionRequest,
+  RegressionValidationError,
+  type RegressionRequest,
+} from '../../../runners/shared/regression';
+import { validateRegressionExecution } from '../services/regression-execution';
+import { registerMachineFeedbackRoutes } from './machine-feedback';
 import { buildReleaseVerdict } from '../services/release-gate';
 import {
   MAX_WORKFLOW_RUN_BODY_BYTES,
@@ -63,6 +70,7 @@ machineExecutionsRouter.use(
     ),
   }),
 );
+registerMachineFeedbackRoutes(machineExecutionsRouter);
 
 function canAccess(
   req: Parameters<typeof requireApiToken>[0],
@@ -203,6 +211,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
 
   let ci: ReturnType<typeof parseCiChangeContext> | undefined;
   let release: ReleaseRequest | undefined;
+  let regression: RegressionRequest | undefined;
   let runInputs;
   try {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
@@ -210,9 +219,18 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
       inputs: _inputs,
       acceptanceCriteria: _criteria,
       release: releaseBody,
+      regression: regressionBody,
       ...ciBody
     } = body;
     if (releaseBody !== undefined) release = parseReleaseRequest(releaseBody);
+    if (regressionBody !== undefined) {
+      regression = parseRegressionRequest(regressionBody);
+      if (release || Object.keys(ciBody).length) {
+        throw new RegressionValidationError(
+          'Regression runs cannot be combined with release verification or legacy CI context.',
+        );
+      }
+    }
     if (release && Object.keys(ciBody).length)
       throw new ReleaseValidationError(
         'Release verification cannot use legacy CI change context. Pass the candidate in release instead.',
@@ -245,6 +263,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     res.status(400).json({
       error:
         error instanceof CiChangeContextValidationError ||
+        error instanceof RegressionValidationError ||
         error instanceof ReleaseValidationError
           ? error.message
           : error instanceof WorkflowRunInputValidationError
@@ -268,6 +287,20 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   if (!workflow) {
     res.status(404).json({ error: 'Workflow not found.' });
     return;
+  }
+
+  if (regression) {
+    try {
+      validateRegressionExecution({ regression }, workflow.nodes);
+    } catch (error) {
+      res.status(400).json({
+        error:
+          error instanceof RegressionValidationError
+            ? error.message
+            : 'Invalid regression configuration.',
+      });
+      return;
+    }
   }
 
   if (release) {
@@ -306,6 +339,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
         runInputs.inputs,
         runInputs.acceptanceCriteria,
         release,
+        regression,
       ),
       start: async (executionId) => {
         const runner = await apiRuntime.runnerProvisioner.start(
@@ -320,6 +354,7 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
           const started = await executeSavedWorkflow({
             body: {
               ...(release ? { release } : {}),
+              ...(regression ? { regression } : {}),
               ...(Object.keys(runInputs.inputs).length
                 ? { inputs: runInputs.inputs }
                 : {}),
@@ -367,7 +402,10 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
             },
           };
         } catch (error) {
-          if (error instanceof ReleaseValidationError)
+          if (
+            error instanceof ReleaseValidationError ||
+            error instanceof RegressionValidationError
+          )
             return { status: 400, body: { error: error.message } };
           console.error('Failed to start CLI workflow execution:', error);
           return {

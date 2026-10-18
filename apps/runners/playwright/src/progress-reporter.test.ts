@@ -84,3 +84,78 @@ test('interrupted runs retain unfinished tests and reject impossible telemetry',
     snapshot!,
   );
 });
+
+test('publishes a bounded pathway result only after its final retry', () => {
+  const results: import('../../shared/test-progress').TestResultEvent[] = [];
+  const reporter = new ProgressReporter({
+    emit: () => {},
+    emitResult: (result) => results.push(result),
+  });
+  const parent = {
+    type: 'describe',
+    title: 'Account settings',
+    project: () => ({ name: 'chromium' }),
+  } as unknown as Suite;
+  const item = {
+    id: 'country-test',
+    title: 'saves country',
+    parent,
+    location: { file: `${process.cwd()}/tests/account.spec.ts` },
+    expectedStatus: 'passed',
+    retries: 1,
+  } as TestCase;
+  reporter.onBegin({}, { allTests: () => [item] } as Suite);
+  reporter.onTestEnd(item, {
+    status: 'failed',
+    retry: 0,
+    duration: 10,
+  } as TestResult);
+  assert.equal(results.length, 0);
+  reporter.onTestEnd(item, {
+    status: 'failed',
+    retry: 1,
+    duration: 12,
+    errors: [{ message: 'never forward raw secrets' }],
+  } as TestResult);
+  reporter.onEnd();
+  assert.deepEqual(results, [
+    {
+      evidenceId: 'country-test',
+      title: 'Account settings › saves country',
+      project: 'chromium',
+      file: 'tests/account.spec.ts',
+      status: 'failed',
+      retry: 1,
+      duration: 12,
+    },
+  ]);
+});
+
+test('live expected failures remain explicit known issues in result metadata', () => {
+  const results: import('../../shared/test-progress').TestResultEvent[] = [];
+  const reporter = new ProgressReporter({
+    emit: () => {},
+    emitResult: (result) => results.push(result),
+  });
+  const parent = {
+    type: 'file',
+    project: () => ({ name: 'chromium' }),
+  } as unknown as Suite;
+  const item = {
+    id: 'known-country-test',
+    title: 'saves country',
+    parent,
+    location: { file: `${process.cwd()}/tests/account.spec.ts` },
+    expectedStatus: 'failed',
+    retries: 0,
+  } as TestCase;
+  reporter.onBegin({}, { allTests: () => [item] } as Suite);
+  reporter.onTestEnd(item, {
+    status: 'failed',
+    retry: 0,
+    duration: 12,
+  } as TestResult);
+  reporter.onEnd();
+  assert.equal(results[0].status, 'passed');
+  assert.equal(results[0].expectedFailure, true);
+});

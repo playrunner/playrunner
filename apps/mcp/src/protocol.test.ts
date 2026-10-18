@@ -92,6 +92,7 @@ test("tools cover discovery, execution, event inspection and management", () => 
   assert.deepEqual(
     MCP_TOOLS.map((tool) => tool.name),
     [
+      "get_authoring_guide",
       "open_workflow_editor",
       "get_workflow_editor",
       "list_projects",
@@ -103,9 +104,50 @@ test("tools cover discovery, execution, event inspection and management", () => 
       "run_workflow",
       "get_release_policy",
       "get_release_verdict",
+      "get_run_feedback",
       "get_run_status",
       "list_runs",
     ],
+  );
+});
+
+test("regression requests preserve immutable sources and cannot weaken release verification", () => {
+  const regression = {
+    version: 1,
+    mode: "affected",
+    sources: [
+      {
+        repository: "example/shop",
+        baseSha: "a".repeat(40),
+        headSha: "b".repeat(40),
+      },
+    ],
+  };
+  const parsed = parseRunWorkflowArguments({ workflowId: "w", regression });
+  assert.ok(!("error" in parsed));
+  assert.deepEqual(parsed.regression, regression);
+  for (const request of [
+    null,
+    [],
+    { ...regression, version: 2 },
+    { ...regression, sources: [] },
+    { ...regression, sources: [{ ...regression.sources[0], headSha: "main" }] },
+  ])
+    assert.ok(
+      "error" in
+        parseRunWorkflowArguments({ workflowId: "w", regression: request }),
+    );
+  assert.ok(
+    "error" in
+      parseRunWorkflowArguments({ workflowId: "w", regression, release: {} }),
+  );
+  assert.ok(
+    "error" in
+      parseRunWorkflowArguments({
+        workflowId: "w",
+        regression,
+        changeContext: {},
+      }),
   );
 });
 

@@ -3,6 +3,7 @@ import {
   readWorkflowEditorResource,
 } from "./workflow-editor";
 import express, { type Request, type Response } from "express";
+import { authoringGuide } from "./authoring-guide";
 import {
   callMachineApi,
   interpretListResponse,
@@ -26,6 +27,7 @@ import {
   parseRunWorkflowArguments,
   parseWorkflowId,
   toolFailure,
+  toolSuccess,
 } from "./protocol";
 
 export function bearerAuthorization(req: Request) {
@@ -46,6 +48,7 @@ export async function callTool(
     !Array.isArray(params.arguments)
       ? (params.arguments as Record<string, unknown>)
       : {};
+  if (name === "get_authoring_guide") return toolSuccess(authoringGuide);
 
   if (name === "open_workflow_editor" || name === "get_workflow_editor") {
     const parsed = parseWorkflowId(args);
@@ -115,18 +118,22 @@ export async function callTool(
       ),
     );
   }
-  if (name === "get_run_events") {
+  if (name === "get_run_events" || name === "get_run_feedback") {
     const parsed = parseGetRunStatusArguments(args);
     if ("error" in parsed) return toolFailure(parsed.error);
     const after = args.after ?? "0";
-    if (typeof after !== "string" || !/^\d+$/.test(after))
+    if (
+      typeof after !== "string" ||
+      !/^\d{1,19}$/.test(after) ||
+      BigInt(after) > 9223372036854775807n
+    )
       return toolFailure("after must be a non-negative integer string.");
     return interpretListResponse(
       await callMachineApi(
         machineRequest({
           authorization,
           method: "GET",
-          path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/executions/${encodeURIComponent(parsed.executionId)}/events`,
+          path: `/api/v1/workflows/${encodeURIComponent(parsed.workflowId)}/executions/${encodeURIComponent(parsed.executionId)}/${name === "get_run_feedback" ? "feedback" : "events"}`,
           query: { after },
         }),
       ),
@@ -168,6 +175,9 @@ export async function callTool(
             ? {}
             : { acceptanceCriteria: parsed.acceptanceCriteria }),
           ...(parsed.release === undefined ? {} : { release: parsed.release }),
+          ...(parsed.regression === undefined
+            ? {}
+            : { regression: parsed.regression }),
         },
       }),
     );

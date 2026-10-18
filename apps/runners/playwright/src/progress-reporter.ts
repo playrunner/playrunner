@@ -1,11 +1,16 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import type {
   Reporter,
   Suite,
   TestCase,
   TestResult,
 } from '@playwright/test/reporter';
-import type { TestProgress } from '../../shared/test-progress';
+import {
+  readTestResultEvent,
+  type TestProgress,
+  type TestResultEvent,
+} from '../../shared/test-progress';
 
 // Dedicated child-process pipe: never infer test results from console output.
 export default class ProgressReporter implements Reporter {
@@ -14,7 +19,10 @@ export default class ProgressReporter implements Reporter {
   private running = new Set<string>();
   private heartbeat?: ReturnType<typeof setInterval>;
   constructor(
-    private options: { emit?: (progress: TestProgress) => void } = {},
+    private options: {
+      emit?: (progress: TestProgress) => void;
+      emitResult?: (result: TestResultEvent) => void;
+    } = {},
   ) {}
   onBegin(_config: unknown, suite: Suite) {
     this.total = suite.allTests().length;
@@ -36,6 +44,51 @@ export default class ProgressReporter implements Reporter {
     else if (expected) this.completed.set(test.id, 'passed');
     else if (result.retry >= test.retries)
       this.completed.set(test.id, 'failed');
+    if (
+      expected ||
+      result.status === 'skipped' ||
+      result.status === 'interrupted' ||
+      result.retry >= test.retries
+    ) {
+      const parents: string[] = [];
+      let parent = test.parent;
+      while (parent) {
+        if (parent.type === 'describe') parents.unshift(parent.title);
+        parent = parent.parent;
+      }
+      const outcome = readTestResultEvent({
+        evidenceId: test.id,
+        title: [...parents, test.title].join(' › ').slice(0, 2000),
+        project: test.parent?.project()?.name || '',
+        file: test.location?.file
+          ? path
+              .relative(process.cwd(), test.location.file)
+              .split(path.sep)
+              .join('/')
+          : '',
+        status:
+          result.status === 'skipped'
+            ? 'skipped'
+            : expected
+              ? 'passed'
+              : result.status === 'interrupted'
+                ? 'blocked'
+                : 'failed',
+        retry: result.retry,
+        duration: result.duration || 0,
+        ...(expected && result.status === 'failed'
+          ? { expectedFailure: true as const }
+          : {}),
+      });
+      if (outcome) {
+        if (this.options.emitResult) this.options.emitResult(outcome);
+        else if (!this.options.emit)
+          fs.writeSync(
+            3,
+            JSON.stringify({ type: 'test_result', test: outcome }) + '\n',
+          );
+      }
+    }
     this.publish();
   }
   onEnd() {

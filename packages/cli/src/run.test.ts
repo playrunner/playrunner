@@ -5,6 +5,77 @@ import { runCli } from './run.js';
 const BASE_SHA = '1'.repeat(40);
 const HEAD_SHA = '2'.repeat(40);
 
+test('regression file dispatch overrides ambient CI context and returns an inspectable execution immediately', async () => {
+  const run = harness([
+    jsonResponse({ executionId: 'focused-run', status: 'running' }, 202),
+  ]);
+  const regression = {
+    version: 1,
+    mode: 'affected',
+    sources: [
+      { repository: 'example/shop', baseSha: BASE_SHA, headSha: HEAD_SHA },
+    ],
+  };
+  assert.equal(
+    await runCli(
+      [
+        'workflow',
+        '--regression',
+        'request.json',
+        '--idempotency-key',
+        'same-run',
+        '--no-wait',
+        '--json',
+      ],
+      { ...run.dependencies, readFile: async () => JSON.stringify(regression) },
+    ),
+    0,
+  );
+  assert.equal(run.calls.length, 1);
+  assert.deepEqual(JSON.parse(String(run.calls[0].init?.body)), { regression });
+  assert.equal(
+    (run.calls[0].init?.headers as Record<string, string>)['Idempotency-Key'],
+    'same-run',
+  );
+  assert.equal(JSON.parse(run.stdout[0]).executionId, 'focused-run');
+  assert.equal(JSON.parse(run.stdout[0]).idempotencyKey, 'same-run');
+});
+
+test('malformed regression files and explicit legacy context are rejected before dispatch', async () => {
+  for (const source of [
+    'null',
+    '{}',
+    '{',
+    JSON.stringify({ version: 1, mode: 'affected', sources: [] }),
+    'x'.repeat(32769),
+  ]) {
+    const run = harness([]);
+    assert.equal(
+      await runCli(['workflow', '--regression', 'request.json'], {
+        ...run.dependencies,
+        readFile: async () => source,
+      }),
+      2,
+    );
+    assert.equal(run.calls.length, 0);
+  }
+  const run = harness([]);
+  assert.equal(
+    await runCli(
+      [
+        'workflow',
+        '--regression',
+        'request.json',
+        '--repository',
+        'example/shop',
+      ],
+      run.dependencies,
+    ),
+    2,
+  );
+  assert.equal(run.calls.length, 0);
+});
+
 function jsonResponse(body: unknown, status = 200, headers?: HeadersInit) {
   return new Response(JSON.stringify(body), {
     headers: { 'Content-Type': 'application/json', ...headers },
@@ -368,4 +439,29 @@ test('returns a network error code', async () => {
   assert.equal(exitCode, 2);
   assert.match(stderr[0], /network unavailable/);
   assert.doesNotMatch(stderr[0], /pr_live_secret/);
+});
+
+test('an ambiguous dispatch exposes its generated request key for safe recovery without retrying', async () => {
+  let calls = 0;
+  let sentKey = '';
+  const stderr: string[] = [];
+  assert.equal(
+    await runCli(['workflow', '--no-wait', '--json'], {
+      env: {
+        PLAYRUNNER_API_KEY: 'secret',
+        PLAYRUNNER_URL: 'https://example.com',
+      },
+      fetch: async (_url, init) => {
+        calls++;
+        sentKey = (init?.headers as Record<string, string>)['Idempotency-Key'];
+        throw new Error('response lost');
+      },
+      stderr: (line) => stderr.push(line),
+    }),
+    2,
+  );
+  assert.equal(calls, 1);
+  assert.match(sentKey, /^[a-f0-9-]{36}$/);
+  assert.equal(JSON.parse(stderr[0]).idempotencyKey, sentKey);
+  assert.match(JSON.parse(stderr[0]).message, /outcome is unknown/);
 });

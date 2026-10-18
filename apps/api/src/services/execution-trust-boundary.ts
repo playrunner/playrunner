@@ -9,6 +9,8 @@ export function sanitizeInteractiveExecutionBody(
         key !== 'authenticationStatesByNodeId' &&
         key !== 'authenticationProfileNodeIds' &&
         key !== 'release' &&
+        key !== 'regression' &&
+        key !== 'regressionPlan' &&
         key !== 'ci',
     ),
   );

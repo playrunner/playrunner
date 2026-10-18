@@ -2,6 +2,9 @@ import { runReleaseCli } from './release.js';
 import { runWorkerCommand } from './worker.js';
 import { runWorkflowCreateCli } from './workflow-create.js';
 import { runCompanionCommand } from './companion.js';
+import { runFeedbackCli } from './feedback.js';
+import { readFile as nodeReadFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 
 import { VERSION } from './version.js';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -42,6 +45,8 @@ type Options = {
   url: string;
   wait: boolean;
   workflowId: string;
+  regressionFile?: string;
+  idempotencyKey: string;
 };
 
 function usage() {
@@ -49,6 +54,7 @@ function usage() {
        playrunner workflow create --file <path> [options]
 
 Commands:
+  feedback             Inspect a prior execution without starting another run
   workflow create      Create or update a workflow from a JSON definition
   release policy       Read required release checks and policy version
   release verify       Verify a release candidate and wait for its verdict
@@ -72,6 +78,8 @@ Options:
   --pull-request <n>   Source pull request number, when applicable
   --input <name=value> Workflow input; repeat for multiple values
   --acceptance-criteria <text> Acceptance criterion; repeat as needed
+  --regression <file>  Versioned regression request JSON with exact base/head SHAs
+  --idempotency-key <key> Reuse only when retrying the same intended run
   --no-wait            Return after the workflow starts
   --timeout <duration> Wait timeout, for example 30s, 10m, or 1h
   --json               Emit newline-delimited JSON
@@ -139,6 +147,9 @@ function parseOptions(
   let pullRequest = env.PLAYRUNNER_PULL_REQUEST_NUMBER?.trim() || '';
   const inputs: Record<string, string> = {};
   const acceptanceCriteria: string[] = [];
+  let regressionFile: string | undefined;
+  let idempotencyKey: string = randomUUID();
+  let explicitChangeContext = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -157,12 +168,28 @@ function parseOptions(
         '--url',
         '--input',
         '--acceptance-criteria',
+        '--regression',
+        '--idempotency-key',
       ].includes(arg)
     ) {
       const value = args[index + 1];
       if (!value) throw new Error(`${arg} requires a value.`);
       index += 1;
+      if (
+        [
+          '--base-ref',
+          '--base-sha',
+          '--event-type',
+          '--head-ref',
+          '--head-sha',
+          '--pull-request',
+          '--repository',
+        ].includes(arg)
+      )
+        explicitChangeContext = true;
       if (arg === '--url') url = value;
+      else if (arg === '--regression') regressionFile = value;
+      else if (arg === '--idempotency-key') idempotencyKey = value;
       else if (arg === '--acceptance-criteria') acceptanceCriteria.push(value);
       else if (arg === '--input') {
         const separator = value.indexOf('=');
@@ -192,6 +219,12 @@ function parseOptions(
   }
 
   const apiKey = env.PLAYRUNNER_API_KEY?.trim() ?? '';
+  if (!idempotencyKey.trim() || idempotencyKey.length > 200)
+    throw new Error('--idempotency-key must contain 1–200 characters.');
+  if (regressionFile && explicitChangeContext)
+    throw new Error(
+      '--regression cannot be combined with legacy CI change flags. Put exact sources in the regression request.',
+    );
   if (!workflowId) throw new Error('A workflow ID is required.');
   if (!url) throw new Error('PLAYRUNNER_URL or --url is required.');
   if (!apiKey) throw new Error('PLAYRUNNER_API_KEY is required.');
@@ -206,15 +239,17 @@ function parseOptions(
     );
   }
 
-  const hasChangeContext = Boolean(
-    repository ||
-    baseSha ||
-    headSha ||
-    baseRef ||
-    headRef ||
-    pullRequest ||
-    eventType !== 'manual',
-  );
+  const hasChangeContext =
+    !regressionFile &&
+    Boolean(
+      repository ||
+      baseSha ||
+      headSha ||
+      baseRef ||
+      headRef ||
+      pullRequest ||
+      eventType !== 'manual',
+    );
   if (!hasChangeContext) {
     let parsedUrl: URL;
     try {
@@ -238,6 +273,8 @@ function parseOptions(
       url: parsedUrl.toString().replace(/\/$/, ''),
       wait,
       workflowId,
+      regressionFile,
+      idempotencyKey,
     };
   }
 
@@ -347,6 +384,8 @@ function parseOptions(
     url: parsedUrl.toString().replace(/\/$/, ''),
     wait,
     workflowId,
+    regressionFile,
+    idempotencyKey,
   };
 }
 
@@ -396,6 +435,8 @@ export async function runCli(
   dependencies: CliDependencies = {},
 ): Promise<number> {
   if (args[0] === 'release') return runReleaseCli(args.slice(1), dependencies);
+  if (args[0] === 'feedback')
+    return runFeedbackCli(args.slice(1), dependencies);
 
   const env = dependencies.env ?? process.env;
   const output = dependencies.stdout ?? ((line) => console.log(line));
@@ -470,6 +511,7 @@ export async function runCli(
   const headers = {
     Authorization: `Bearer ${options.apiKey}`,
     'Content-Type': 'application/json',
+    'Idempotency-Key': options.idempotencyKey,
   };
   const emit = (kind: string, payload: JsonRecord) => {
     const safePayload = Object.fromEntries(
@@ -488,21 +530,63 @@ export async function runCli(
           : JSON.stringify(safePayload),
       );
   };
-  const emitError = (message: string) => {
+  const emitError = (message: string, ambiguousStart = false) => {
+    if (ambiguousStart)
+      message += ` The start outcome is unknown. Inspect run history or retry this same intended run using --idempotency-key ${options.idempotencyKey}; do not use a fresh key.`;
     const safeMessage = redactApiKey(message, options.apiKey);
     outputError(
       options.json
-        ? JSON.stringify({ type: 'error', message: safeMessage })
+        ? JSON.stringify({
+            type: 'error',
+            message: safeMessage,
+            ...(ambiguousStart
+              ? {
+                  idempotencyKey: redactApiKey(
+                    options.idempotencyKey,
+                    options.apiKey,
+                  ),
+                  workflowId: options.workflowId,
+                }
+              : {}),
+          })
         : safeMessage,
     );
   };
 
+  let dispatchPending = false;
   try {
+    let regression: Record<string, unknown> | undefined;
+    if (options.regressionFile) {
+      const source = await (dependencies.readFile ?? nodeReadFile)(
+        options.regressionFile,
+        'utf8',
+      );
+      if (Buffer.byteLength(source) > 32 * 1024)
+        throw new Error('The regression request must be at most 32 KiB.');
+      const parsed: unknown = JSON.parse(source);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
+        throw new Error('The regression request must be a JSON object.');
+      regression = parsed as Record<string, unknown>;
+      if (
+        regression.version !== 1 ||
+        !['affected', 'full'].includes(String(regression.mode)) ||
+        !Array.isArray(regression.sources) ||
+        !regression.sources.length ||
+        regression.sources.length > 16
+      )
+        throw new Error(
+          'The regression request requires version 1, mode affected or full, and 1–16 sources.',
+        );
+      // The server owns full schema and repository validation; the CLI preserves
+      // the request rather than silently dropping fields or changing identity.
+    }
+    dispatchPending = true;
     const response = await fetchImpl(basePath, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         ...(options.changeContext ?? {}),
+        ...(regression ? { regression } : {}),
         ...(Object.keys(options.inputs).length
           ? { inputs: options.inputs }
           : {}),
@@ -514,19 +598,23 @@ export async function runCli(
     });
     const started = await responseJson(response);
     if (!response.ok) {
+      dispatchPending = false;
       emitError(
         messageFrom(started, `Request failed with status ${response.status}.`),
+        response.status >= 500,
       );
       return 2;
     }
     const executionId =
       typeof started.executionId === 'string' ? started.executionId : '';
     if (!executionId) {
-      emitError('Playrunner returned an invalid start response.');
+      emitError('Playrunner returned an invalid start response.', true);
       return 2;
     }
+    dispatchPending = false;
     emit('started', {
       executionId,
+      idempotencyKey: options.idempotencyKey,
       message: `Workflow started: ${executionId}`,
       workflowId: options.workflowId,
     });
@@ -627,8 +715,18 @@ export async function runCli(
     emitError(`Workflow timed out after ${options.timeoutMs}ms.`);
     return 124;
   } catch (error) {
-    if (controller.signal.aborted) return 130;
-    emitError(`Playrunner request failed: ${(error as Error).message}`);
+    if (controller.signal.aborted) {
+      if (dispatchPending)
+        emitError(
+          'The client stopped while the workflow start was pending.',
+          true,
+        );
+      return 130;
+    }
+    emitError(
+      `Playrunner request failed: ${(error as Error).message}`,
+      dispatchPending,
+    );
     return 2;
   }
 }

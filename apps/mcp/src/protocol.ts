@@ -108,6 +108,23 @@ const releaseProperties = {
 } as const;
 
 export const MCP_TOOLS = [
+  {
+    name: "get_authoring_guide",
+    title: "Get workflow authoring guide",
+    description:
+      "Read the saved Playwright regression mapping, immutable run request and feedback contract before authoring change-aware test workflows.",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
   ...["open_workflow_editor", "get_workflow_editor"].map((name) => ({
     name,
     title:
@@ -153,7 +170,7 @@ export const MCP_TOOLS = [
     name: "save_workflow",
     title: "Save a workflow",
     description:
-      "After the first save call open_workflow_editor, then save incremental node additions to show progress. Create or update a workflow using a machine API definition with project and workflow keys, nodes, connections, cloudProvider, optional concurrency and testPlan. Requires unrestricted workflow:write. Keep secrets in environment references.",
+      "Read get_authoring_guide before configuring regression mappings. After the first save call open_workflow_editor, then save incremental node additions to show progress. Create or update a workflow using a machine API definition with project and workflow keys, nodes, connections, cloudProvider, optional concurrency and testPlan. Requires unrestricted workflow:write. Keep secrets in environment references.",
     inputSchema: {
       type: "object",
       properties: {
@@ -246,6 +263,32 @@ export const MCP_TOOLS = [
           description:
             "Optional CI context: repository {owner,name}, baseSha, headSha, baseRef, headRef, eventType and optional pullRequestNumber. Validated by the machine API.",
         },
+        regression: {
+          type: "object",
+          description:
+            "Change-aware run request for saved Playwright config.regression. Provide version 1, mode affected or full, and sources with repository owner/name plus immutable baseSha/headSha. Cannot be combined with legacy changeContext or release. The runner computes changes and falls back to full testing when impact is uncertain.",
+          properties: {
+            version: { type: "integer", const: 1 },
+            mode: { type: "string", enum: ["affected", "full"] },
+            sources: {
+              type: "array",
+              minItems: 1,
+              maxItems: 16,
+              items: {
+                type: "object",
+                properties: {
+                  repository: { type: "string" },
+                  baseSha: { type: "string", pattern: "^[a-fA-F0-9]{40}$" },
+                  headSha: { type: "string", pattern: "^[a-fA-F0-9]{40}$" },
+                },
+                required: ["repository", "baseSha", "headSha"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["version", "mode", "sources"],
+          additionalProperties: false,
+        },
         release: {
           type: "object",
           description:
@@ -296,6 +339,28 @@ export const MCP_TOOLS = [
         ...releaseProperties,
       },
       required: ["workflowId", "executionId", "candidate", "policyVersion"],
+      additionalProperties: false,
+    },
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    name: "get_run_feedback",
+    title: "Get run feedback",
+    description:
+      "Read compact progress, selected journeys, final failures and authenticated report paths for an existing execution. Never starts another run. Pass nextCursor as after; drain while hasMore. Truncated or incomplete evidence is not a passing result. A failing head run alone is not a confirmed regression against baseline.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        workflowId: { type: "string", minLength: 1 },
+        executionId: { type: "string", minLength: 1 },
+        after: { type: "string", pattern: "^[0-9]{1,19}$" },
+      },
+      required: ["workflowId", "executionId"],
       additionalProperties: false,
     },
     annotations: {
@@ -478,6 +543,7 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
       inputs: Record<string, unknown>;
       acceptanceCriteria?: string | string[];
       changeContext?: Record<string, unknown>;
+      regression?: Record<string, unknown>;
       release?: ReleaseArguments;
     } {
   const workflow = parseWorkflowId(args);
@@ -510,6 +576,54 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
   )
     return { error: "acceptanceCriteria exceeds 4096 characters." };
   const changeContext = args.changeContext;
+  const regression = args.regression;
+  if (regression !== undefined) {
+    if (args.release !== undefined || changeContext !== undefined)
+      return {
+        error: "regression cannot be combined with release or changeContext.",
+      };
+    if (
+      !regression ||
+      typeof regression !== "object" ||
+      Array.isArray(regression)
+    )
+      return { error: "regression must be an object." };
+    const value = regression as Record<string, unknown>;
+    if (
+      Object.keys(value).some(
+        (key) => !["version", "mode", "sources"].includes(key),
+      ) ||
+      value.version !== 1 ||
+      !["affected", "full"].includes(String(value.mode)) ||
+      !Array.isArray(value.sources) ||
+      value.sources.length < 1 ||
+      value.sources.length > 16
+    )
+      return {
+        error:
+          "regression requires version 1, mode affected or full, and 1–16 sources.",
+      };
+    if (
+      value.sources.some(
+        (source) =>
+          !source ||
+          typeof source !== "object" ||
+          Array.isArray(source) ||
+          Object.keys(source).some(
+            (key) => !["repository", "baseSha", "headSha"].includes(key),
+          ) ||
+          typeof source.repository !== "string" ||
+          source.repository.length > 200 ||
+          !/^[a-fA-F0-9]{40}$/.test(source.baseSha) ||
+          !/^[a-fA-F0-9]{40}$/.test(source.headSha),
+      )
+    )
+      return {
+        error:
+          "Each regression source requires repository and immutable 40-character baseSha/headSha.",
+      };
+    // Full repository/policy validation remains authoritative in the API.
+  }
   if (args.release !== undefined && changeContext !== undefined)
     return { error: "release cannot be combined with changeContext." };
   if (
@@ -556,6 +670,9 @@ export function parseRunWorkflowArguments(args: Record<string, unknown>):
       : parseReleaseArguments(args.release);
   if (release && "error" in release) return release;
   return {
+    ...(regression === undefined
+      ? {}
+      : { regression: regression as Record<string, unknown> }),
     ...(release === undefined ? {} : { release }),
     ...(acceptanceCriteria === undefined ? {} : { acceptanceCriteria }),
     ...(changeContext === undefined

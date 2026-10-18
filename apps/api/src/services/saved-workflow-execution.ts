@@ -6,6 +6,7 @@ import { state } from '../state';
 import { buildSavedWorkflowExecutionBody } from './saved-workflow-payload';
 import { machineExecutionCiPolicyError } from './execution-trust-boundary';
 import { loadAgentMemoryByNodeId } from './agent-memory';
+import { validateRegressionExecution } from './regression-execution';
 
 type SavedWorkflowTrigger = {
   data?: Record<string, unknown>;
@@ -51,6 +52,10 @@ export async function executeSavedWorkflow(
         where: { id: params.workflowId, userId: params.userId },
       }));
   if (!workflow) return null;
+
+  // Revalidate the exact saved graph being dispatched, in case it changed
+  // after the route's preflight check. The caller cannot supply a test list.
+  validateRegressionExecution(params.body ?? {}, workflow.nodes);
 
   const executionId = params.executionId ?? crypto.randomUUID();
   const cloudProvider = workflow.cloudProvider || 'LOCAL_RUNNER';

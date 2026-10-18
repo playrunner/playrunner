@@ -2,7 +2,10 @@ import { fetchArtifactWithRetry } from './artifact-upload';
 import { prepareLocalWorkspace } from './local-workspace';
 import { materializeAuthenticationState } from './totp-login';
 import { createInterface } from 'node:readline';
-import { readTestProgress } from '../../shared/test-progress';
+import {
+  readTestProgress,
+  readTestResultEvent,
+} from '../../shared/test-progress';
 import { writeTestPlanReport } from './test-plan-report';
 import { prepareUploadedSuite } from './uploaded-suite';
 import { spawn } from 'child_process';
@@ -11,6 +14,17 @@ import crypto from 'crypto';
 
 import fs from 'fs';
 import { readPlaywrightReportData } from './report-data';
+import { prepareRegressionPlan } from './regression-repository';
+import {
+  normalizeRegressionRepository,
+  parseRegressionRequest,
+} from '../../shared/regression';
+import {
+  readRegressionDiscovery,
+  validateRegressionRun,
+  writeRegressionArtifacts,
+  type ValidatedRegressionRun,
+} from './regression-runtime';
 import {
   createBlobArtifact,
   readPlaywrightDiscoveryReport,
@@ -68,6 +82,8 @@ type RunnerEventContext = {
 };
 
 type PreparedWorkingDirectory = {
+  repository?: string;
+  repositoryRoot?: string;
   sourceRevision?: string;
   testLanguage: string;
   workingDir: string;
@@ -266,11 +282,12 @@ async function runTypescriptTest(
   workers: number,
   shard?: { index: number; total: number },
   authentication?: PreparedAuthenticationState,
+  selectors: string[] = [],
 ): Promise<void> {
   await publishLog(`Executing TypeScript Playwright flow in ${workingDir}...`);
 
   const command = resolvePlaywrightCommand(workingDir);
-  const args = [...command.args];
+  const args = [...command.args, ...selectors];
   let configMsg = 'default config';
   if (authentication?.configPath) {
     args.push('--config', authentication.configPath);
@@ -317,13 +334,28 @@ async function runTypescriptTest(
         ),
       },
     });
+    const pendingTelemetry = new Set<Promise<void>>();
+    const emitTelemetry = (event: Record<string, unknown>) => {
+      const pending = publishEvent(event)
+        .catch(() => {
+          console.error('[playwright] Could not publish test telemetry.');
+        })
+        .finally(() => pendingTelemetry.delete(pending));
+      pendingTelemetry.add(pending);
+    };
     const progressLines = createInterface({
       input: testProc.stdio[3] as NodeJS.ReadableStream,
     });
     progressLines.on('line', (line) => {
       try {
-        const progress = readTestProgress(JSON.parse(line));
-        if (progress) void publishEvent({ type: 'test_progress', progress });
+        const event = JSON.parse(line);
+        if (event?.type === 'test_result') {
+          const result = readTestResultEvent(event.test);
+          if (result) emitTelemetry({ type: 'test_result', test: result });
+          return;
+        }
+        const progress = readTestProgress(event);
+        if (progress) emitTelemetry({ type: 'test_progress', progress });
       } catch {
         /* Ignore malformed telemetry without affecting test outcomes. */
       }
@@ -335,33 +367,41 @@ async function runTypescriptTest(
     testProc.stderr.on('data', (data) =>
       console.error(`[playwright error]: ${data.toString().trim()}`),
     );
-    testProc.on('close', (code, signal) =>
-      code === 0
-        ? resolve()
-        : reject(
-            new Error(
-              describePlaywrightProcessExit({
-                code,
-                sharded: Boolean(shard),
-                signal,
-              }),
-            ),
+    testProc.on('close', async (code, signal) => {
+      await Promise.allSettled([...pendingTelemetry]);
+      if (code === 0) resolve();
+      else
+        reject(
+          new Error(
+            describePlaywrightProcessExit({
+              code,
+              sharded: Boolean(shard),
+              signal,
+            }),
           ),
-    );
+        );
+    });
   });
 }
 
 async function discoverTypescriptTests(
   workingDir: string,
   sourceRevision?: string,
+  selectors: string[] = [],
+  authentication?: PreparedAuthenticationState,
+  regression = false,
 ) {
   const discoveryDirectory = path.join(workingDir, 'playwright-discovery');
   fs.rmSync(discoveryDirectory, { force: true, recursive: true });
   fs.mkdirSync(discoveryDirectory, { recursive: true });
   const reportPath = path.join(discoveryDirectory, 'report.json');
   const command = resolvePlaywrightCommand(workingDir);
-  const args = [...command.args];
-  if (fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))) {
+  const args = [...command.args, ...selectors];
+  if (authentication?.configPath) {
+    args.push('--config', authentication.configPath);
+  } else if (
+    fs.existsSync(path.join(workingDir, 'playwright.service.config.ts'))
+  ) {
     args.push('--config', 'playwright.service.config.ts');
   }
   args.push('--list', '--reporter=json');
@@ -372,6 +412,7 @@ async function discoverTypescriptTests(
       cwd: workingDir,
       env: {
         ...repositoryProcessEnvironment(),
+        ...(authentication?.environment || {}),
         PLAYWRIGHT_JSON_OUTPUT_FILE: reportPath,
       },
     });
@@ -381,6 +422,7 @@ async function discoverTypescriptTests(
     discoveryProcess.stderr.on('data', (data) =>
       console.error(`[playwright discovery error]: ${data.toString().trim()}`),
     );
+    discoveryProcess.once('error', reject);
     discoveryProcess.on('close', (code) =>
       code === 0
         ? resolve()
@@ -388,7 +430,9 @@ async function discoverTypescriptTests(
     );
   });
 
-  return readPlaywrightDiscoveryReport({ reportPath, sourceRevision });
+  return regression
+    ? readRegressionDiscovery(reportPath, workingDir)
+    : readPlaywrightDiscoveryReport({ reportPath, sourceRevision });
 }
 
 async function runPythonTest(
@@ -481,6 +525,7 @@ async function uploadOutputs(
   cloudProvider: string = 'LOCAL_RUNNER',
   blobArtifact?: PlaywrightBlobArtifact,
   testPlan?: unknown,
+  regression?: ValidatedRegressionRun,
 ): Promise<Record<string, unknown>> {
   if (!nodeId || !testId) {
     await publishLog('Missing nodeId or testId, skipping output upload.');
@@ -489,6 +534,7 @@ async function uploadOutputs(
 
   await publishLog(`Preparing test outputs for node ${nodeId}...`);
 
+  if (regression) writeRegressionArtifacts(workingDir, regression);
   let planResult: ReturnType<typeof writeTestPlanReport> | undefined;
   if (testPlan && !blobArtifact) {
     planResult = writeTestPlanReport(
@@ -519,6 +565,13 @@ async function uploadOutputs(
     );
     const reportOutput: Record<string, unknown> = {
       ...(blobArtifact ? { blobArtifact } : {}),
+      ...(regression
+        ? {
+            regressionPlan: regression.plan,
+            regressionDiscovery: regression.discovery,
+            regressionPlanUrl: `/outputs/${testId}/${nodeId}/playwright-report/regression-plan.json`,
+          }
+        : {}),
       ...(planResult ? { testPlan: planResult } : {}),
     };
     if (hasPlaywrightReport && fs.existsSync(reportPath)) {
@@ -529,6 +582,10 @@ async function uploadOutputs(
         workingDir,
       });
       reportOutput.reportDataUrl = `/outputs/${testId}/${nodeId}/playwright-report/report.json`;
+      if (report && regression) {
+        report.regressionPlan = regression.plan;
+        report.regressionDiscovery = regression.discovery;
+      }
       reportOutput.report = report;
       if (report) {
         fs.writeFileSync(
@@ -541,7 +598,9 @@ async function uploadOutputs(
     if (cloudProvider === 'GCP' && bucketName && accessToken && gcpProject) {
       const outputData: Record<string, unknown> = { ...reportOutput };
 
-      if (hasPlaywrightReport) {
+      if (
+        fs.existsSync(path.join(workingDir, 'playwright-report', 'index.html'))
+      ) {
         outputData.reportUrl = `/outputs/${testId}/${nodeId}/playwright-report/index.html`;
       }
 
@@ -689,6 +748,24 @@ async function uploadOutputs(
 async function prepareWorkingDirectory(
   payload: any,
 ): Promise<PreparedWorkingDirectory> {
+  if (payload?.data?.regressionRequest !== undefined) {
+    parseRegressionRequest(payload.data.regressionRequest);
+    if (
+      !(
+        payload.data.action === 'clone' ||
+        (!payload.data.action && payload.data.repository)
+      )
+    ) {
+      throw new Error(
+        'Change-aware regression runs currently require a GitHub test repository checkout.',
+      );
+    }
+    if (payload.data.executionMode && payload.data.executionMode !== 'test') {
+      throw new Error(
+        'Regression selection must be planned once without distributed sharding.',
+      );
+    }
+  }
   if (payload?.data?.executionMode === 'aggregate') {
     const workingDir = path.join(
       process.cwd(),
@@ -724,6 +801,20 @@ async function prepareWorkingDirectory(
     if (payload?.data?.repository) {
       const repo = normalizeGitHubRepository(payload.data.repository);
       const branch = payload.data.branch || 'main';
+      if (payload.data.regressionRequest !== undefined) {
+        const source = parseRegressionRequest(
+          payload.data.regressionRequest,
+        ).sources.find(
+          (item) => item.repository === normalizeRegressionRepository(repo),
+        );
+        if (source) {
+          if (sourceRevision && sourceRevision !== source.headSha)
+            throw new Error(
+              'Regression head does not match the pinned test repository revision.',
+            );
+          sourceRevision = source.headSha;
+        }
+      }
       const token = payload?.github?.accessToken;
 
       await publishLog(`Cloning repository ${repo} on branch ${branch}...`);
@@ -880,6 +971,14 @@ async function prepareWorkingDirectory(
 
   return {
     ...(sourceRevision ? { sourceRevision } : {}),
+    ...(isCloned
+      ? {
+          repository: normalizeRegressionRepository(
+            normalizeGitHubRepository(payload.data.repository),
+          ),
+          repositoryRoot: '/app/repo',
+        }
+      : {}),
     testLanguage,
     workingDir,
   };
@@ -1169,7 +1268,48 @@ async function run() {
       })
     : undefined;
   let testFailed = false;
+  let regression: ValidatedRegressionRun | undefined;
   try {
+    if (payload?.data?.regressionRequest !== undefined) {
+      if (prepared.testLanguage !== 'typescript')
+        throw new Error(
+          'Change-aware regression currently requires TypeScript Playwright tests.',
+        );
+      const plan = await prepareRegressionPlan({
+        request: payload.data.regressionRequest,
+        policy: payload.data.regressionPolicy,
+        workspaceDirectory: path.join(process.cwd(), 'regression-sources'),
+        githubToken: payload?.github?.accessToken,
+        testRepository: prepared.repository,
+        testFolder: payload.data.folder || '/',
+        repositoryDirectories:
+          prepared.repository && prepared.repositoryRoot
+            ? { [prepared.repository]: prepared.repositoryRoot }
+            : undefined,
+      });
+      regression = await validateRegressionRun({
+        plan,
+        workingDir: prepared.workingDir,
+        discover: async (selectors) =>
+          (await discoverTypescriptTests(
+            prepared.workingDir,
+            prepared.sourceRevision,
+            selectors,
+            authentication,
+            true,
+          )) as import('./regression-runtime').RegressionDiscovery,
+      });
+      await publishEvent({
+        type: 'regression_plan',
+        plan: regression.plan,
+        discovery: regression.discovery,
+      });
+      await publishLog(
+        `Regression plan: ${regression.plan.mode}; ${regression.discovery.testCount} discovered tests. ${regression.plan.fallbackReasons.join(' ')}`,
+      );
+      if (regression.discovery.status === 'blocked')
+        throw new Error(regression.discovery.blockReason);
+    }
     if (prepared.testLanguage === 'python') {
       await runPythonTest(prepared.workingDir, authentication);
     } else {
@@ -1183,6 +1323,7 @@ async function run() {
             }
           : undefined,
         authentication,
+        regression?.selectors,
       );
     }
 
@@ -1225,7 +1366,14 @@ async function run() {
     cloudProvider,
     blobArtifact,
     payload?.data?.testPlan,
+    regression,
   );
+  if (regression && !output.regressionPlan) {
+    output.regressionPlan = regression.plan;
+    output.regressionDiscovery = regression.discovery;
+    output.artifactUploadFailed = true;
+    await publishEvent({ type: 'node_output', output });
+  }
   await publishNodeState(testFailed ? 'error' : 'success');
   await publishRunnerStatus(
     runnerControl,

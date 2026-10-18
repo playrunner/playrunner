@@ -144,6 +144,22 @@ test('global token budget prevents execution-id bucket bypass', async () => {
   assert.equal((await poll('execution-d')).status, 429);
 });
 
+test('feedback and events share the same execution polling budget', async () => {
+  const middleware = createRequireApiToken({
+    authenticate: async () => authenticatedToken('feedback-token'),
+    limits: { authenticatedGlobal: 20, authenticatedPoll: 2 },
+  });
+  const poll = (suffix: string) =>
+    invoke(middleware, {
+      authorization: 'Bearer test-feedback',
+      method: 'GET',
+      path: `/workflow-1/executions/run-1/${suffix}`,
+    });
+  assert.equal((await poll('feedback')).nextCalled, true);
+  assert.equal((await poll('events')).nextCalled, true);
+  assert.equal((await poll('feedback')).status, 429);
+});
+
 test('blocked unauthenticated clients are rejected before another token lookup', async () => {
   let authenticationCalls = 0;
   const middleware = createRequireApiToken({

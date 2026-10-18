@@ -3,6 +3,11 @@ import {
   type TestPlan,
 } from '../../../runners/shared/test-plan';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { validateRegressionExecution } from './regression-execution';
+import type {
+  RegressionPolicy,
+  RegressionRequest,
+} from '../../../runners/shared/regression';
 import {
   parseReleaseRequest,
   ReleaseValidationError,
@@ -16,6 +21,7 @@ import {
 export type ExecutionDefinition = {
   title: string;
   testPlan?: TestPlan;
+  regression?: RegressionRequest;
   release?: ReleaseRequest & {
     criteriaVersion: string;
     identityNodeId: string;
@@ -26,6 +32,7 @@ export type ExecutionDefinition = {
     type: string;
     suiteId?: string;
     testPlan?: TestPlan;
+    regressionPolicy?: RegressionPolicy;
   }>;
 };
 
@@ -37,6 +44,7 @@ export function captureExecutionDefinition(
   body: Record<string, any>,
   secretVersions: ReleaseSecretVersion[] = [],
 ): ExecutionDefinition {
+  const regression = validateRegressionExecution(body, body.nodes);
   let release: ExecutionDefinition['release'];
   if (body.release !== undefined) {
     const requested = parseReleaseRequest(body.release);
@@ -61,6 +69,7 @@ export function captureExecutionDefinition(
     };
   }
   return {
+    ...(regression ? { regression: regression.request } : {}),
     ...(release ? { release } : {}),
     title: String(body.workflow?.definition?.name || 'Workflow'),
     ...(body.workflow?.definition?.testPlan
@@ -70,6 +79,9 @@ export function captureExecutionDefinition(
       id: String(node.id),
       title: String(node.title || node.label || node.nodeType || node.id),
       type: String(node.nodeType || ''),
+      ...(regression?.policies[String(node.id)]
+        ? { regressionPolicy: regression.policies[String(node.id)] }
+        : {}),
       ...(node.config?.testSuite?.id
         ? { suiteId: String(node.config.testSuite.id) }
         : {}),

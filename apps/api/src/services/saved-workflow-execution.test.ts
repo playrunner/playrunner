@@ -3,6 +3,59 @@ import test from 'node:test';
 import type { Request } from 'express';
 import { executeSavedWorkflow } from './saved-workflow-execution';
 
+test('regression sources are revalidated against the exact saved graph before dispatch', async () => {
+  let executed = false;
+  await assert.rejects(
+    () =>
+      executeSavedWorkflow(
+        {
+          body: {
+            regression: {
+              version: 1,
+              mode: 'affected',
+              sources: [
+                {
+                  repository: 'example/ui',
+                  baseSha: 'a'.repeat(40),
+                  headSha: 'b'.repeat(40),
+                },
+              ],
+            },
+          },
+          executionId: 'execution-focused',
+          req: {} as Request,
+          trigger: { data: {}, name: 'cli' },
+          userId: 'user-1',
+          workflowId: 'workflow-1',
+        },
+        {
+          executeWorkflow: async () => {
+            executed = true;
+            return { body: {}, status: 202 };
+          },
+          findWorkflow: async () => ({
+            cloudProvider: 'LOCAL_RUNNER',
+            concurrency: null,
+            connections: [],
+            id: 'workflow-1',
+            nodes: [
+              {
+                id: 'checks',
+                nodeType: 'playwright',
+                config: { repository: 'example/changed' },
+              },
+            ],
+            title: 'Changed mapping',
+            userId: 'user-1',
+          }),
+          loadAgentMemoryByNodeId: async () => ({}),
+        },
+      ),
+    /not configured/,
+  );
+  assert.equal(executed, false);
+});
+
 test('rechecks the trusted-push policy on the exact workflow row being executed', async () => {
   let executed = false;
   const started = await executeSavedWorkflow(
