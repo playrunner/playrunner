@@ -55,9 +55,9 @@ export default function ReleasePreview(): ReactNode {
       aria-label="From chat to test results: an illustrative Playrunner demo"
     >
       <div className={styles.topline}>
-        <Logo aria-hidden="true" />
-        <span>Playrunner</span>
-        <span className={styles.connection}>Connected</span>
+        <OpenAIIcon aria-hidden="true" />
+        <span>Codex</span>
+        <span className={styles.connection}>Playrunner connected</span>
       </div>
       <div className={styles.stage} aria-live={playing ? 'off' : 'polite'}>
         <div key={scene} className={styles.scene}>
@@ -77,7 +77,7 @@ export default function ReleasePreview(): ReactNode {
               </div>
               <div className={styles.agentMessage}>
                 <span>
-                  <OpenAIIcon aria-hidden="true" /> Your AI agent
+                  <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>On it. I’ll start your saved workflow in Playrunner.</p>
               </div>
@@ -93,7 +93,7 @@ export default function ReleasePreview(): ReactNode {
               <div className={styles.node}>
                 <OpenAIIcon aria-hidden="true" />
                 <div>
-                  <strong>Agent starts workflow</strong>
+                  <strong>Codex starts workflow</strong>
                   <span>Request received</span>
                 </div>
                 <span className={styles.complete} aria-hidden="true">
@@ -142,7 +142,7 @@ export default function ReleasePreview(): ReactNode {
               </div>
               <div className={styles.agentMessage}>
                 <span>
-                  <OpenAIIcon aria-hidden="true" /> Your AI agent
+                  <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>I’ll inspect the trace, fix the regression, then rerun.</p>
               </div>
