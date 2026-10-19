@@ -52,7 +52,7 @@ export default function ReleasePreview(): ReactNode {
     <figure
       ref={previewRef}
       className={clsx(styles.preview, !playing && styles.paused)}
-      aria-label="From chat to test results: an illustrative Playrunner demo"
+      aria-label="Product direction: discover affected projects and test a shared component with Playrunner"
     >
       <div className={styles.topline}>
         <OpenAIIcon aria-hidden="true" />
@@ -62,10 +62,12 @@ export default function ReleasePreview(): ReactNode {
       <div className={styles.stage} aria-live={playing ? 'off' : 'polite'}>
         <div key={scene} className={styles.scene}>
           <div className={styles.sceneHeading}>
-            <span className={styles.eyebrow}>Your agent. Real test runs.</span>
+            <span className={styles.eyebrow}>
+              Product direction · Illustrative demo
+            </span>
             <h2>
               {scene === 0 && 'Start with a conversation.'}
-              {scene === 1 && 'Let Playrunner run it.'}
+              {scene === 1 && 'Codex keeps building.'}
               {scene === 2 && 'Turn results into action.'}
             </h2>
           </div>
@@ -73,28 +75,36 @@ export default function ReleasePreview(): ReactNode {
             <div className={styles.conversation}>
               <div className={styles.userMessage}>
                 <span>You</span>
-                <p>I’ve updated checkout. Run the smoke tests.</p>
+                <p>
+                  Add flags to the country selector and let users choose their
+                  account timezone.
+                </p>
               </div>
               <div className={styles.agentMessage}>
                 <span>
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
-                <p>On it. I’ll start your saved workflow in Playrunner.</p>
+                <p>
+                  Flags added. I’ll use Playrunner to find affected projects and
+                  test the selector while I build the timezone setting.
+                </p>
               </div>
               <div className={styles.handoff}>
-                <Logo aria-hidden="true" /> Sending to Playrunner{' '}
+                <Logo aria-hidden="true" /> Playrunner: find affected projects{' '}
                 <span aria-hidden="true">↗</span>
               </div>
             </div>
           )}
           {scene === 1 && (
             <div className={styles.workflow}>
-              <div className={styles.workflowName}>Checkout smoke tests</div>
+              <div className={styles.workflowName}>
+                Country selector · Focused regressions
+              </div>
               <div className={styles.node}>
-                <OpenAIIcon aria-hidden="true" />
+                <Logo aria-hidden="true" />
                 <div>
-                  <strong>Codex starts workflow</strong>
-                  <span>Request received</span>
+                  <strong>Playrunner discovers affected projects</strong>
+                  <span>5 projects use the country selector</span>
                 </div>
                 <span className={styles.complete} aria-hidden="true">
                   ✓
@@ -106,26 +116,21 @@ export default function ReleasePreview(): ReactNode {
               <div className={clsx(styles.node, styles.running)}>
                 <PlaywrightLogo aria-hidden="true" />
                 <div>
-                  <strong>Playwright runs tests</strong>
-                  <span>Checking checkout…</span>
+                  <strong>Runs country-selector tests</strong>
+                  <span>18 focused tests across all 5 projects</span>
                 </div>
                 <span className={styles.spinner} aria-hidden="true" />
               </div>
-              <div className={styles.connector} aria-hidden="true">
-                <i />
+              <p className={styles.workflowNote}>Meanwhile, in the same chat</p>
+              <div className={styles.agentMessage}>
+                <span>
+                  <OpenAIIcon aria-hidden="true" /> Codex · Working
+                </span>
+                <p>
+                  While those tests run, I’m building the account timezone
+                  setting.
+                </p>
               </div>
-              <div className={styles.node}>
-                <Logo aria-hidden="true" />
-                <div>
-                  <strong>Results back to chat</strong>
-                  <span>Report and trace included</span>
-                </div>
-              </div>
-              <p className={styles.workflowNote}>
-                Your agent keeps working.
-                <br />
-                Playrunner handles the run.
-              </p>
             </div>
           )}
           {scene === 2 && (
@@ -135,16 +140,23 @@ export default function ReleasePreview(): ReactNode {
                   <Logo aria-hidden="true" /> Playrunner
                 </span>
                 <strong>
-                  <b>2 passed</b> · 1 failed
+                  <b>17 passed</b> · 1 failed
                 </strong>
-                <p>Checkout loses the delivery address.</p>
-                <small>Report + trace ready</small>
+                <p>
+                  Customer Portal: editing an address resets the saved country.
+                </p>
+                <small>
+                  Country selector · 5 projects · Report + trace ready
+                </small>
               </div>
               <div className={styles.agentMessage}>
                 <span>
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
-                <p>I’ll inspect the trace, fix the regression, then rerun.</p>
+                <p>
+                  I’ll inspect the trace, fix the country reset, then rerun the
+                  failed test.
+                </p>
               </div>
               <div className={styles.handoff}>
                 <span aria-hidden="true">↻</span> Evidence. A fix. Another
@@ -183,7 +195,9 @@ export default function ReleasePreview(): ReactNode {
           </button>
         )}
       </div>
-      <figcaption>Illustrative demo · Your tests, your agent.</figcaption>
+      <figcaption>
+        Planned discovery and test selection · Sample results.
+      </figcaption>
     </figure>
   );
 }
