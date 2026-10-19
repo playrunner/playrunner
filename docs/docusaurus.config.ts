@@ -408,7 +408,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Concept AI PTY LTD. Playrunner is distributed under the <a href="https://github.com/playrunner/playrunner/blob/main/LICENSE">Playrunner Sustainable Use License</a>.`,
+      copyright: `Copyright © ${new Date().getFullYear()} <a href="https://conceptai.dev">Concept AI PTY LTD</a>. Playrunner is distributed under the <a href="https://github.com/playrunner/playrunner/blob/main/LICENSE">Playrunner Sustainable Use License</a>.`,
     },
     prism: {
       theme: prismThemes.github,
