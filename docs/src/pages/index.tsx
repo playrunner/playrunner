@@ -117,7 +117,9 @@ function Hero(): ReactNode {
             </Link>
           </div>
         </div>
-        <ReleasePreview />
+        <div className={styles.heroVisual}>
+          <ReleasePreview />
+        </div>
       </div>
       <div className={clsx(styles.container, styles.foundationStrip)}>
         <span>Built around your existing stack</span>
