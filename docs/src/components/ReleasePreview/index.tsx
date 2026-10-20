@@ -5,22 +5,158 @@ import { OpenAIIcon } from '../../../../packages/openai/src/frontend/OpenAIIcon'
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import styles from './styles.module.css';
 
-const scenes = ['Change', 'Check', 'Catch', 'Verify'];
-const SCENE_MS = 9000;
+type Message = {
+  speaker: 'Codex' | 'Playrunner';
+  text: string;
+  attachment?: 'setup' | 'running' | 'failure' | 'history';
+};
+
+const messages: Message[] = [
+  {
+    speaker: 'Codex',
+    text: 'Billing is added. Run our saved payment and account-access checks on staging.',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Found both checks. They passed before this change. I’ll reuse the saved customer sign-in.',
+    attachment: 'setup',
+  },
+  {
+    speaker: 'Codex',
+    text: 'Great. I’ll update the pricing page while those run.',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Running the same Playwright tests now.',
+    attachment: 'running',
+  },
+  {
+    speaker: 'Codex',
+    text: 'Pricing page updated. How are the checks looking?',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Payments passed. But a paid customer was sent to Subscribe instead of their dashboard.',
+    attachment: 'failure',
+  },
+  {
+    speaker: 'Codex',
+    text: 'I found the access-rule regression. I’ll fix it.',
+  },
+  {
+    speaker: 'Codex',
+    text: 'Access rule fixed. Rerun only the failed account-access check.',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Passed. Paid customers reach their dashboard again. The failure and rerun are both saved.',
+    attachment: 'history',
+  },
+  {
+    speaker: 'Codex',
+    text: 'Pricing is ready too. Both tasks are done.',
+  },
+];
+
+const scenes = [
+  { label: 'Change', lastMessage: 1 },
+  { label: 'Check', lastMessage: 4 },
+  { label: 'Catch', lastMessage: 6 },
+  { label: 'Verify', lastMessage: 9 },
+];
+const CHARACTER_MS = 28;
+
+function Attachment({ kind }: { kind: Message['attachment'] }): ReactNode {
+  if (kind === 'setup') {
+    return (
+      <div className={styles.context}>
+        <span>Staging · Saved customer sign-in</span>
+        <span className={styles.passed}>Previous run · PASS</span>
+      </div>
+    );
+  }
+  if (kind === 'running') {
+    return (
+      <div className={styles.runAttachment}>
+        <PlaywrightLogo aria-hidden="true" />
+        <span>Playwright · Run started</span>
+      </div>
+    );
+  }
+  if (kind === 'failure') {
+    return (
+      <div className={styles.attachment}>
+        <strong className={styles.failed}>FAIL · Account access</strong>
+        <dl className={styles.evidence}>
+          <dt>Expected</dt>
+          <dd>Account dashboard</dd>
+          <dt>Actual</dt>
+          <dd>Redirected to Subscribe</dd>
+        </dl>
+        <span className={styles.report}>
+          <span aria-hidden="true">↳</span> Screenshot + test report attached
+        </span>
+      </div>
+    );
+  }
+  if (kind === 'history') {
+    return (
+      <div className={styles.attachment}>
+        <strong className={styles.passed}>PASS · Account access</strong>
+        <ol className={styles.history} aria-label="Account-access run history">
+          <li>
+            <span>Before</span>
+            <b>PASS</b>
+          </li>
+          <li>
+            <span>Billing change</span>
+            <b className={styles.failed}>FAIL</b>
+          </li>
+          <li>
+            <span>After fix</span>
+            <b>PASS</b>
+          </li>
+        </ol>
+        <span className={styles.report}>Original failed report retained</span>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function ReleasePreview(): ReactNode {
   const previewRef = useRef<HTMLElement>(null);
-  const [scene, setScene] = useState(0);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const [{ messageIndex, characterCount }, setPlayback] = useState({
+    messageIndex: 0,
+    characterCount: 0,
+  });
   const [playing, setPlaying] = useState(true);
   const [visible, setVisible] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const scene = scenes.findIndex(
+    ({ lastMessage }) => messageIndex <= lastMessage,
+  );
+  const nextMessage = messages[messageIndex + 1];
+  const currentMessage = messages[messageIndex];
+  const typingMessage =
+    !reducedMotion && characterCount < currentMessage.text.length;
+  const activeSpeaker = typingMessage
+    ? currentMessage.speaker
+    : nextMessage?.speaker;
 
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const updateMotion = () => {
       setReducedMotion(preference.matches);
-      if (preference.matches) setPlaying(false);
+      if (preference.matches) {
+        setPlaying(false);
+        setPlayback((value) => ({
+          ...value,
+          characterCount: messages[value.messageIndex].text.length,
+        }));
+      }
     };
     updateMotion();
     preference.addEventListener('change', updateMotion);
@@ -41,188 +177,156 @@ export default function ReleasePreview(): ReactNode {
 
   useEffect(() => {
     if (!playing || !visible || !pageVisible || reducedMotion) return;
+    const previousCharacter = currentMessage.text[characterCount - 1];
+    const characterDelay = /[.!?,]/.test(previousCharacter ?? '')
+      ? 160
+      : CHARACTER_MS;
     const timer = window.setTimeout(
-      () => setScene((value) => (value + 1) % scenes.length),
-      SCENE_MS,
+      () => {
+        setPlayback((value) =>
+          typingMessage
+            ? { ...value, characterCount: value.characterCount + 1 }
+            : {
+                messageIndex: (value.messageIndex + 1) % messages.length,
+                characterCount: 0,
+              },
+        );
+      },
+      typingMessage
+        ? characterDelay
+        : nextMessage
+          ? currentMessage.attachment
+            ? 3500
+            : 1800
+          : 7000,
     );
     return () => window.clearTimeout(timer);
-  }, [scene, playing, visible, pageVisible, reducedMotion]);
+  }, [
+    characterCount,
+    currentMessage,
+    typingMessage,
+    playing,
+    visible,
+    pageVisible,
+    reducedMotion,
+    nextMessage,
+  ]);
+
+  useEffect(() => {
+    const transcript = transcriptRef.current;
+    // Keep the conversation moving inside the card, without scrolling the page.
+    if (transcript) transcript.scrollTop = transcript.scrollHeight;
+  }, [messageIndex, characterCount]);
 
   return (
     <figure
       ref={previewRef}
       className={clsx(styles.preview, !playing && styles.paused)}
-      aria-label="Illustrative demo: saved Playrunner checks protect existing customers during a billing change, with failure evidence and retained run history"
+      aria-label="Illustrative conversation between Codex and Playrunner: saved tests catch a regression while Codex keeps working, then verify the fix"
     >
       <div className={styles.topline}>
-        <OpenAIIcon aria-hidden="true" />
-        <span>Codex</span>
-        <span className={styles.connection}>Playrunner connected</span>
-      </div>
-      <div className={styles.stage} aria-live={playing ? 'off' : 'polite'}>
-        <div key={scene} className={styles.scene}>
-          <div className={styles.sceneHeading}>
-            <span className={styles.eyebrow}>
-              Your AI builds. Playrunner checks.
-            </span>
-            <h2>
-              {scene === 0 && 'Keep what works working.'}
-              {scene === 1 && 'Same checks. New change.'}
-              {scene === 2 && 'Show your agent what failed.'}
-              {scene === 3 && 'A fix with proof.'}
-            </h2>
-          </div>
-          {scene === 0 && (
-            <div className={styles.conversation}>
-              <div className={styles.userMessage}>
-                <span>You</span>
-                <p>
-                  Add subscription billing. Keep existing customers’ payments
-                  and account access working. Update the pricing page too.
-                </p>
-              </div>
-              <div className={styles.node}>
-                <Logo aria-hidden="true" />
-                <div>
-                  <strong>Agreed checks, saved in Playrunner</strong>
-                  <span>Payments · Paid-customer access</span>
-                  <span>
-                    Last run: <b className={styles.passed}>PASS</b>
-                  </span>
-                </div>
-              </div>
-              <div className={styles.agentMessage}>
-                <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex
-                </span>
-                <p>
-                  Billing added. I’ll run our saved checks in Playrunner while I
-                  update pricing.
-                </p>
-              </div>
-            </div>
-          )}
-          {scene === 1 && (
-            <div className={styles.workflow}>
-              <div className={styles.workflowName}>
-                Saved workflow · Staging · Customer sign-in
-              </div>
-              <div className={styles.node}>
-                <OpenAIIcon aria-hidden="true" />
-                <div>
-                  <strong>Subscription billing added</strong>
-                  <span>Existing customers should still pay and sign in</span>
-                </div>
-                <span className={styles.complete} aria-hidden="true">
-                  ✓
-                </span>
-              </div>
-              <div className={styles.connector} aria-hidden="true">
-                <i />
-              </div>
-              <div className={clsx(styles.node, styles.running)}>
-                <PlaywrightLogo aria-hidden="true" />
-                <div>
-                  <strong>Playwright checks running</strong>
-                  <span>Reusing saved payments + access checks</span>
-                </div>
-                <span className={styles.spinner} aria-hidden="true" />
-              </div>
-              <p className={styles.workflowNote}>Meanwhile, in the same chat</p>
-              <div className={styles.agentMessage}>
-                <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex · Updating pricing
-                </span>
-                <p>
-                  The checks are running. I’m updating the pricing page now.
-                </p>
-              </div>
-            </div>
-          )}
-          {scene === 2 && (
-            <div className={styles.conversation}>
-              <div className={styles.result}>
-                <span>
-                  <Logo aria-hidden="true" /> Playrunner · Failure evidence
-                </span>
-                <strong>FAIL · Paid-customer access</strong>
-                <dl className={styles.evidence}>
-                  <dt>Customer</dt>
-                  <dd>Existing customer · Already paid</dd>
-                  <dt>Expected</dt>
-                  <dd>Account dashboard</dd>
-                  <dt>Actual</dt>
-                  <dd>Redirected to Subscribe</dd>
-                </dl>
-                <small>Payments passed · Screenshot + report ready</small>
-              </div>
-              <div className={styles.agentMessage}>
-                <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex · Updating pricing
-                </span>
-                <p>The saved check caught this while I was updating pricing.</p>
-              </div>
-            </div>
-          )}
-          {scene === 3 && (
-            <div className={styles.conversation}>
-              <div className={styles.agentMessage}>
-                <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex
-                </span>
-                <p>
-                  Fixed the access rule. I reran only the failed account-access
-                  check.
-                </p>
-              </div>
-              <div className={styles.result}>
-                <span>
-                  <Logo aria-hidden="true" /> Playrunner · Rerun complete
-                </span>
-                <strong>
-                  <b>PASS · Account access</b>
-                </strong>
-                <p>Paid customers reach their dashboard.</p>
-                <ol
-                  className={styles.history}
-                  aria-label="Account-access run history"
-                >
-                  <li>
-                    <span>Before</span>
-                    <b>PASS</b>
-                  </li>
-                  <li>
-                    <span>Billing change</span>
-                    <b className={styles.failed}>FAIL</b>
-                  </li>
-                  <li>
-                    <span>After fix</span>
-                    <b>PASS</b>
-                  </li>
-                </ol>
-                <small>
-                  Same saved check · Original failed report retained
-                </small>
-              </div>
-              <div className={styles.handoff}>
-                <span aria-hidden="true">↻</span> The checks and history stay
-                with your project.
-              </div>
-            </div>
-          )}
+        <div className={styles.participants}>
+          <OpenAIIcon aria-hidden="true" />
+          <span>Codex</span>
+          <span className={styles.exchange} aria-hidden="true">
+            ↔
+          </span>
+          <Logo aria-hidden="true" />
+          <span>Playrunner</span>
         </div>
+        <span className={styles.connection}>Connected</span>
+      </div>
+      <div className={styles.topic}>
+        <span>The task</span>
+        Add billing. Update the pricing page.
+      </div>
+      <div
+        ref={transcriptRef}
+        className={styles.transcript}
+        role="log"
+        aria-label="Codex and Playrunner conversation"
+        aria-live={playing ? 'off' : 'polite'}
+        tabIndex={0}
+        onFocus={() => setPlaying(false)}
+        onWheel={() => setPlaying(false)}
+        onTouchStart={() => setPlaying(false)}
+      >
+        <ol className={styles.messages}>
+          {messages.slice(0, messageIndex + 1).map((message, index) => (
+            <li
+              key={index}
+              className={clsx(
+                styles.message,
+                message.speaker === 'Codex'
+                  ? styles.agentMessage
+                  : styles.runnerMessage,
+              )}
+            >
+              <span className={styles.sender}>
+                {message.speaker === 'Codex' ? (
+                  <OpenAIIcon aria-hidden="true" />
+                ) : (
+                  <Logo aria-hidden="true" />
+                )}
+                {message.speaker}
+              </span>
+              <p aria-busy={index === messageIndex && typingMessage}>
+                {index === messageIndex && typingMessage
+                  ? message.text.slice(0, characterCount)
+                  : message.text}
+                {index === messageIndex && typingMessage && (
+                  <span className={styles.cursor} aria-hidden="true" />
+                )}
+              </p>
+              {(index < messageIndex || !typingMessage) && (
+                <Attachment kind={message.attachment} />
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className={styles.activity} aria-hidden="true">
+        {playing && activeSpeaker ? (
+          <>
+            <span className={styles.typing}>
+              <i />
+              <i />
+              <i />
+            </span>
+            {typingMessage
+              ? `${activeSpeaker} is typing…`
+              : activeSpeaker === 'Codex'
+                ? 'Codex is working…'
+                : 'Playrunner is checking…'}
+          </>
+        ) : typingMessage || nextMessage ? (
+          'Conversation paused · Scroll to read'
+        ) : (
+          'Checks saved. Ready for the next change.'
+        )}
       </div>
       <div className={styles.controls}>
-        <div className={styles.steps} role="group" aria-label="Preview scenes">
-          {scenes.map((label, index) => (
+        <div
+          className={styles.steps}
+          role="group"
+          aria-label="Conversation chapters"
+        >
+          {scenes.map(({ label, lastMessage }, index) => (
             <button
               key={label}
               type="button"
               aria-pressed={scene === index}
               aria-label={`Show ${label.toLowerCase()} scene`}
               onClick={() => {
-                setScene(index);
+                setPlayback({
+                  messageIndex: lastMessage,
+                  characterCount: messages[lastMessage].text.length,
+                });
                 setPlaying(false);
+                const transcript = transcriptRef.current;
+                if (transcript) {
+                  transcript.scrollTop = transcript.scrollHeight;
+                }
               }}
             >
               {label}
@@ -240,7 +344,7 @@ export default function ReleasePreview(): ReactNode {
           </button>
         )}
       </div>
-      <figcaption>Illustrative demo · Sample results.</figcaption>
+      <figcaption>Illustrative conversation · Sample results.</figcaption>
     </figure>
   );
 }
