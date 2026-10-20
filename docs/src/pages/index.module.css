@@ -200,7 +200,7 @@
 }
 
 .heroCopy h1 {
-  font-size: clamp(3.7rem, 5.8vw, 5.6rem);
+  font-size: clamp(3.3rem, 5vw, 4.5rem);
   line-height: 1.04;
   margin-bottom: 1.7rem;
   letter-spacing: -0.065em;
@@ -687,6 +687,160 @@
   margin-bottom: 9px;
 }
 
+.agentWorkflow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) 48px minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: center;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.workflowAgent,
+.workflowPlatform,
+.businessExample {
+  border: 1px solid var(--home-border);
+  border-radius: 16px;
+  background: var(--home-surface);
+  padding: 32px;
+}
+
+.workflowAgent {
+  text-align: center;
+}
+
+.workflowAgent > svg {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 16px;
+}
+
+.workflowAgent p,
+.workflowPlatform > p {
+  color: var(--home-muted);
+  font-size: 0.85rem;
+  margin: 12px 0 0;
+}
+
+.workflowArrow {
+  color: var(--home-accent);
+  font-size: 28px;
+  text-align: center;
+}
+
+.workflowPlatform {
+  border-color: #ff967e55;
+}
+
+.workflowBrand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.workflowBrand svg {
+  width: 30px;
+  height: 30px;
+}
+
+.workflowBrand h3 {
+  margin: 0;
+}
+
+.workflowContext {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+}
+
+.workflowContext span {
+  padding: 7px 10px;
+  border: 1px solid var(--home-border);
+  border-radius: 6px;
+  color: var(--home-muted);
+  font-size: 0.75rem;
+}
+
+.workflowExecutor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--home-bg);
+  font-size: 0.85rem;
+}
+
+.workflowExecutor svg {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.businessExample {
+  margin: 0;
+}
+
+.businessExample figcaption {
+  color: var(--home-muted);
+  font-size: 0.75rem;
+}
+
+.connectedSystems {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  margin: 25px 0 30px;
+}
+
+.connectedSystems > div {
+  display: grid;
+  gap: 10px;
+  padding: 18px 12px;
+  border: 1px solid var(--home-border);
+  border-radius: 8px;
+  background: var(--home-bg);
+}
+
+.connectedSystems > div > span {
+  color: var(--home-accent);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.7rem;
+}
+
+.connectedSystems strong {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.businessChecks {
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+
+.businessChecks li {
+  display: flex;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--home-border);
+  color: var(--home-muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.businessChecks li > span {
+  color: var(--home-green);
+}
+
+.businessExample > p {
+  color: var(--home-green);
+  font-size: 0.75rem;
+  margin: 0;
+}
+
 .infrastructureGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -833,6 +987,21 @@
 }
 
 @media (max-width: 760px) {
+  .agentWorkflow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .agentWorkflow > .workflowArrow {
+    transform: rotate(90deg);
+  }
+  .workflowAgent,
+  .workflowPlatform,
+  .businessExample {
+    padding: 24px;
+  }
+  .connectedSystems {
+    gap: 8px;
+  }
   .container {
     width: calc(100% - 40px);
   }

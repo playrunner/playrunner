@@ -5,7 +5,7 @@ import { OpenAIIcon } from '../../../../packages/openai/src/frontend/OpenAIIcon'
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import styles from './styles.module.css';
 
-const scenes = ['Change', 'Run', 'Catch', 'Fix'];
+const scenes = ['Change', 'Check', 'Catch', 'Verify'];
 const SCENE_MS = 9000;
 
 export default function ReleasePreview(): ReactNode {
@@ -52,7 +52,7 @@ export default function ReleasePreview(): ReactNode {
     <figure
       ref={previewRef}
       className={clsx(styles.preview, !playing && styles.paused)}
-      aria-label="Illustrative demo: Playrunner catches a booking regression while Codex keeps working, then verifies the fix"
+      aria-label="Illustrative demo: saved Playrunner checks protect existing customers during a billing change, with failure evidence and retained run history"
     >
       <div className={styles.topline}>
         <OpenAIIcon aria-hidden="true" />
@@ -63,37 +63,41 @@ export default function ReleasePreview(): ReactNode {
         <div key={scene} className={styles.scene}>
           <div className={styles.sceneHeading}>
             <span className={styles.eyebrow}>
-              Keep building. Catch what breaks.
+              Your AI builds. Playrunner checks.
             </span>
             <h2>
-              {scene === 0 && 'Make your next change.'}
-              {scene === 1 && 'Codex keeps building.'}
-              {scene === 2 && 'Catch what just broke.'}
-              {scene === 3 && 'Fix it. Check it again.'}
+              {scene === 0 && 'Keep what works working.'}
+              {scene === 1 && 'Same checks. New change.'}
+              {scene === 2 && 'Show your agent what failed.'}
+              {scene === 3 && 'A fix with proof.'}
             </h2>
           </div>
           {scene === 0 && (
             <div className={styles.conversation}>
+              <div className={styles.userMessage}>
+                <span>You</span>
+                <p>
+                  Add subscription billing. Keep existing customers’ payments
+                  and account access working. Update the pricing page too.
+                </p>
+              </div>
               <div className={styles.node}>
                 <Logo aria-hidden="true" />
                 <div>
-                  <strong>Saved booking check</strong>
+                  <strong>Agreed checks, saved in Playrunner</strong>
+                  <span>Payments · Paid-customer access</span>
                   <span>
-                    <b className={styles.passed}>PASSED</b> before this change
+                    Last run: <b className={styles.passed}>PASS</b>
                   </span>
                 </div>
-              </div>
-              <div className={styles.userMessage}>
-                <span>You</span>
-                <p>Add a promo-code field to booking. Then update the FAQ.</p>
               </div>
               <div className={styles.agentMessage}>
                 <span>
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>
-                  Field added. I’ll rerun our saved booking check in Playrunner
-                  while I update the FAQ.
+                  Billing added. I’ll run our saved checks in Playrunner while I
+                  update pricing.
                 </p>
               </div>
             </div>
@@ -101,13 +105,13 @@ export default function ReleasePreview(): ReactNode {
           {scene === 1 && (
             <div className={styles.workflow}>
               <div className={styles.workflowName}>
-                Same saved check · New change
+                Saved workflow · Staging · Customer sign-in
               </div>
               <div className={styles.node}>
                 <OpenAIIcon aria-hidden="true" />
                 <div>
-                  <strong>Promo-code field added</strong>
-                  <span>Codex moves on to the FAQ</span>
+                  <strong>Subscription billing added</strong>
+                  <span>Existing customers should still pay and sign in</span>
                 </div>
                 <span className={styles.complete} aria-hidden="true">
                   ✓
@@ -119,17 +123,19 @@ export default function ReleasePreview(): ReactNode {
               <div className={clsx(styles.node, styles.running)}>
                 <PlaywrightLogo aria-hidden="true" />
                 <div>
-                  <strong>Playrunner reruns booking check</strong>
-                  <span>In the background · Desktop + mobile</span>
+                  <strong>Playwright checks running</strong>
+                  <span>Reusing saved payments + access checks</span>
                 </div>
                 <span className={styles.spinner} aria-hidden="true" />
               </div>
               <p className={styles.workflowNote}>Meanwhile, in the same chat</p>
               <div className={styles.agentMessage}>
                 <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex · Updating FAQ
+                  <OpenAIIcon aria-hidden="true" /> Codex · Updating pricing
                 </span>
-                <p>The booking check is running. I’m updating the FAQ now.</p>
+                <p>
+                  The checks are running. I’m updating the pricing page now.
+                </p>
               </div>
             </div>
           )}
@@ -137,25 +143,24 @@ export default function ReleasePreview(): ReactNode {
             <div className={styles.conversation}>
               <div className={styles.result}>
                 <span>
-                  <Logo aria-hidden="true" /> Playrunner · Mobile booking
+                  <Logo aria-hidden="true" /> Playrunner · Failure evidence
                 </span>
-                <strong>
-                  <b>PASSED</b> → FAILED
-                </strong>
-                <p>
-                  The new promo-code field leaves Continue hidden behind the
-                  footer on mobile.
-                </p>
-                <small>Same saved check · Screenshot + report ready</small>
+                <strong>FAIL · Paid-customer access</strong>
+                <dl className={styles.evidence}>
+                  <dt>Customer</dt>
+                  <dd>Existing customer · Already paid</dd>
+                  <dt>Expected</dt>
+                  <dd>Account dashboard</dd>
+                  <dt>Actual</dt>
+                  <dd>Redirected to Subscribe</dd>
+                </dl>
+                <small>Payments passed · Screenshot + report ready</small>
               </div>
               <div className={styles.agentMessage}>
                 <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex · Updating FAQ
+                  <OpenAIIcon aria-hidden="true" /> Codex · Updating pricing
                 </span>
-                <p>
-                  Playrunner caught a booking regression while I was working on
-                  the FAQ.
-                </p>
+                <p>The saved check caught this while I was updating pricing.</p>
               </div>
             </div>
           )}
@@ -166,8 +171,8 @@ export default function ReleasePreview(): ReactNode {
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>
-                  I fixed the mobile layout and reran only the failed mobile
-                  booking check.
+                  Fixed the access rule. I reran only the failed account-access
+                  check.
                 </p>
               </div>
               <div className={styles.result}>
@@ -175,14 +180,33 @@ export default function ReleasePreview(): ReactNode {
                   <Logo aria-hidden="true" /> Playrunner · Rerun complete
                 </span>
                 <strong>
-                  <b>PASSED · Mobile booking</b>
+                  <b>PASS · Account access</b>
                 </strong>
-                <p>Continue is visible. The booking completes.</p>
-                <small>Same saved check · Verified after the fix</small>
+                <p>Paid customers reach their dashboard.</p>
+                <ol
+                  className={styles.history}
+                  aria-label="Account-access run history"
+                >
+                  <li>
+                    <span>Before</span>
+                    <b>PASS</b>
+                  </li>
+                  <li>
+                    <span>Billing change</span>
+                    <b className={styles.failed}>FAIL</b>
+                  </li>
+                  <li>
+                    <span>After fix</span>
+                    <b>PASS</b>
+                  </li>
+                </ol>
+                <small>
+                  Same saved check · Original failed report retained
+                </small>
               </div>
               <div className={styles.handoff}>
-                <span aria-hidden="true">↻</span> Ready to reuse after your next
-                change.
+                <span aria-hidden="true">↻</span> The checks and history stay
+                with your project.
               </div>
             </div>
           )}

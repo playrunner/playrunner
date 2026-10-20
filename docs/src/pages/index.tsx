@@ -55,19 +55,20 @@ function Hero(): ReactNode {
       <div className={clsx(styles.container, styles.heroGrid)}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span className={styles.statusDot} /> Website testing with your AI
-            agent
+            <span className={styles.statusDot} /> A safety net for your AI agent
           </p>
           <Heading as="h1">
-            Keep building.
+            Your AI builds.
             <br />
-            <span>Catch what breaks.</span>
+            <span>Playrunner protects what works.</span>
           </Heading>
-          <p className={styles.heroPromise}>Protect what already works.</p>
+          <p className={styles.heroPromise}>
+            Give your agent the confidence to keep building.
+          </p>
           <p className={styles.heroDescription}>
-            Playrunner reruns your saved website checks while your AI keeps
-            working. When a change breaks a booking, login or sign-up, your
-            agent gets the results it needs to investigate, fix and check again.
+            Connect your agent to saved tests, ready-to-run environments and
+            evidence it can return to. Keep checking the payments, bookings and
+            customer journeys people depend on as your application grows.
           </p>
           <div className={styles.actions}>
             <ConnectAgentButton
@@ -75,13 +76,13 @@ function Hero(): ReactNode {
             />
             <Link
               className={clsx('button', styles.secondaryButton)}
-              to="#vibe-coders"
+              to="#safety-net"
             >
               See how it works <span aria-hidden="true">↓</span>
             </Link>
           </div>
           <p className={styles.heroNote}>
-            Set up your checks once. Reuse them after every change.
+            Repeatable tests. Detailed reports. A lasting test history.
           </p>
           <div className={styles.agentSupport}>
             <span>Works with</span>
@@ -134,26 +135,30 @@ function Hero(): ReactNode {
   );
 }
 
-function VibeCoders(): ReactNode {
+function SafetyNet(): ReactNode {
   return (
-    <section className={styles.section} aria-labelledby="vibe-coders">
+    <section
+      className={styles.section}
+      id="vibe-coders"
+      aria-labelledby="safety-net"
+    >
       <div className={clsx(styles.container, styles.evidenceGrid)}>
         <div className={styles.evidenceCopy}>
-          <p className={styles.eyebrow}>Vibe Coders</p>
-          <Heading as="h2" id="vibe-coders">
-            Keep the vibe.
+          <p className={styles.eyebrow}>The vision · Protection that grows</p>
+          <Heading as="h2" id="safety-net">
+            A new feature today.
             <br />
-            <span>Check the result.</span>
+            <span>A safety net for tomorrow.</span>
           </Heading>
           <p>
-            You bring the idea. Your AI agent helps build it. Playrunner gives
-            you a way to check that the important parts still work as your app
-            changes—from signing in to saving a customer’s details.
+            You’ve built something people depend on. Now you want to improve it
+            without losing customer updates, stopping payments or breaking the
+            booking flow.
           </p>
           <p>
-            Describe what a visitor should be able to do. Your agent helps turn
-            that into a repeatable browser check and runs it with Playrunner.
-            Save the check so you can use it again after the next change.
+            We’re building towards a growing set of agreed checks your agent
+            carries into every change. Protection that lasts beyond one task,
+            one conversation or one developer.
           </p>
           <div className={styles.actions}>
             <ConnectAgentButton
@@ -171,33 +176,87 @@ function VibeCoders(): ReactNode {
           <article>
             <span aria-hidden="true">01 /</span>
             <div>
-              <Heading as="h3">Describe what should work</Heading>
+              <Heading as="h3">Remember what must keep working</Heading>
               <p>
-                “A new customer can sign up, log in, and save their profile.”
-                Give your agent a clear outcome to turn into a repeatable test.
+                Turn important journeys into saved tests. Reuse the same steps
+                and pass/fail criteria as the application changes.
               </p>
             </div>
           </article>
           <article>
             <span aria-hidden="true">02 /</span>
             <div>
-              <Heading as="h3">Make checking part of building</Heading>
+              <Heading as="h3">Give your agent evidence to act on</Heading>
               <p>
-                Ask your connected agent to run the saved workflow after a
-                change. Review failures together and rerun the check after a
-                fix.
+                Run the checks through Playrunner. Return the failing step,
+                expected result and captured evidence so your agent can
+                investigate and verify its fix.
               </p>
             </div>
           </article>
           <article>
             <span aria-hidden="true">03 /</span>
             <div>
-              <Heading as="h3">See the evidence before you ship</Heading>
+              <Heading as="h3">Carry the history forward</Heading>
               <p>
-                Review what passed, what failed, and what wasn’t tested. Open
-                the report and captured traces to decide what needs attention.
+                Keep earlier failures and subsequent runs available. Your next
+                conversation—and the next person on your team—can pick up with
+                the evidence intact.
               </p>
             </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AgentTestingWorkflow(): ReactNode {
+  return (
+    <section className={styles.section} aria-labelledby="agent-testing">
+      <div className={styles.container}>
+        <div className={styles.sectionIntro}>
+          <p className={styles.eyebrow}>
+            Built on Playwright. Ready for your agent.
+          </p>
+          <Heading as="h2" id="agent-testing">
+            Your agent’s testing setup.
+            <br />
+            <span>Ready for the next conversation.</span>
+          </Heading>
+          <p>
+            Playwright executes the tests. Playrunner brings the saved
+            workflows, environments, authentication and run history together so
+            your agent can operate them from one place.
+          </p>
+        </div>
+        <div className={styles.agentWorkflow}>
+          <article className={styles.workflowAgent}>
+            <OpenAIIcon aria-hidden="true" />
+            <Heading as="h3">Your AI agent</Heading>
+            <p>Build. Request checks. Investigate. Fix.</p>
+          </article>
+          <span className={styles.workflowArrow} aria-hidden="true">
+            ↔
+          </span>
+          <article className={styles.workflowPlatform}>
+            <div className={styles.workflowBrand}>
+              <Logo aria-hidden="true" />
+              <Heading as="h3">Playrunner</Heading>
+            </div>
+            <div className={styles.workflowContext}>
+              <span>Saved workflows</span>
+              <span>Environments</span>
+              <span>Authentication</span>
+              <span>Run history</span>
+            </div>
+            <div className={styles.workflowExecutor}>
+              <PlaywrightLogo aria-hidden="true" />
+              <span>
+                <strong>Playwright</strong> executes your tests
+              </span>
+            </div>
+            <p>Results, logs and reports come back to your agent.</p>
           </article>
         </div>
       </div>
@@ -527,57 +586,68 @@ function TokenEfficiency(): ReactNode {
   );
 }
 
-function Evidence(): ReactNode {
+function BusinessCritical(): ReactNode {
   return (
-    <section className={styles.section}>
+    <section className={styles.section} aria-labelledby="business-critical">
       <div className={clsx(styles.container, styles.evidenceGrid)}>
         <div className={styles.evidenceCopy}>
-          <p className={styles.eyebrow}>Confidence comes from evidence</p>
-          <Heading as="h2">
-            “Done” is a claim.
+          <p className={styles.eyebrow}>
+            From your first customer to enterprise
+          </p>
+          <Heading as="h2" id="business-critical">
+            Protect the journeys
             <br />
-            <span>Test results are proof.</span>
+            <span>your business runs on.</span>
           </Heading>
           <p>
-            Make real execution part of your agent’s development loop. Keep the
-            context you need to understand a failure and verify the next fix.
+            A booking flow. A customer payment. Two systems keeping thousands of
+            records in sync. Give your agent repeatable checks for the behaviour
+            your business relies on.
           </p>
-          <Link className={styles.textLink} to="/docs/mcp/tools">
-            See what your agent can do <Arrow />
+          <p>
+            For teams, the evidence is the handover. Developers can investigate
+            failures, QA can review coverage, and release owners can see what
+            passed, what failed and what wasn’t tested.
+          </p>
+          <Link
+            className={styles.textLink}
+            to="/docs/tutorials/understanding-reports"
+          >
+            Explore reports and history <Arrow />
           </Link>
         </div>
-        <div className={styles.evidenceList}>
-          <article>
-            <span aria-hidden="true">01 /</span>
+        <figure className={styles.businessExample}>
+          <figcaption>Example · Two-way customer sync</figcaption>
+          <div className={styles.connectedSystems}>
             <div>
-              <Heading as="h3">See what actually ran</Heading>
-              <p>
-                Execution state, test events, and logs show what happened beyond
-                the agent’s response.
-              </p>
+              <span>01</span>
+              <strong>Your CRM</strong>
             </div>
-          </article>
-          <article>
-            <span aria-hidden="true">02 /</span>
+            <span className={styles.workflowArrow} aria-hidden="true">
+              ↔
+            </span>
             <div>
-              <Heading as="h3">Investigate with context</Heading>
-              <p>
-                Playwright reports and captured artefacts stay attached to the
-                run, ready for inspection.
-              </p>
+              <span>02</span>
+              <strong>Policy platform</strong>
             </div>
-          </article>
-          <article>
-            <span aria-hidden="true">03 /</span>
-            <div>
-              <Heading as="h3">Keep the release decision yours</Heading>
-              <p>
-                Review the results, coverage, and remaining failures before
-                deciding what is ready to ship.
-              </p>
-            </div>
-          </article>
-        </div>
+          </div>
+          <Heading as="h3">Both systems. Same customer.</Heading>
+          <ul className={styles.businessChecks}>
+            <li>
+              <span aria-hidden="true">↗</span> A customer update reaches the
+              other system.
+            </li>
+            <li>
+              <span aria-hidden="true">↔</span> Conflicting edits preserve the
+              right information.
+            </li>
+            <li>
+              <span aria-hidden="true">↻</span> A retried sync creates no
+              duplicate records.
+            </li>
+          </ul>
+          <p>Agreed checks. Inspectable results. A record of every run.</p>
+        </figure>
       </div>
     </section>
   );
@@ -655,14 +725,15 @@ function FinalCallToAction(): ReactNode {
   return (
     <section className={styles.finalCta}>
       <div className={styles.container}>
-        <p className={styles.eyebrow}>Build faster. Verify before you ship.</p>
+        <p className={styles.eyebrow}>Keep building on what works</p>
         <Heading as="h2">
-          Give your next release
+          Give your AI agent
           <br />
-          <span>a little more confidence.</span>
+          <span>a safety net.</span>
         </Heading>
         <p>
-          Check the journeys your visitors rely on, again after every change.
+          Start with one journey your customers depend on. Keep the checks and
+          evidence ready for every change that follows.
         </p>
         <div className={styles.actions}>
           <ConnectAgentButton
@@ -716,8 +787,8 @@ export default function Home(): ReactNode {
   );
   return (
     <Layout
-      title="Keep building. Catch what breaks."
-      description="Playrunner reruns your saved website checks while your AI keeps working. Catch broken bookings, logins and sign-ups, then give your agent the evidence to fix them."
+      title="Your AI builds. Playrunner protects what works."
+      description="Give your AI agent a safety net: saved testing workflows, repeatable Playwright checks, detailed reports and a lasting run history. From your first customer to the systems running your business."
       wrapperClassName={styles.landing}
     >
       <JsonLd
@@ -728,11 +799,12 @@ export default function Home(): ReactNode {
       />
       <main>
         <Hero />
-        <VibeCoders />
+        <SafetyNet />
+        <AgentTestingWorkflow />
+        <BusinessCritical />
         <TokenEfficiency />
         <CliShowcase />
         <AgentConnections />
-        <Evidence />
         <Infrastructure />
         <CrossProjectDiscovery />
         <WorkflowShowcase />

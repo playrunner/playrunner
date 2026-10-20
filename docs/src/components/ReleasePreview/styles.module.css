@@ -232,6 +232,59 @@
   font-size: 9px;
 }
 
+.evidence {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  margin: 12px 0;
+  line-height: 1.4;
+}
+
+.evidence dt {
+  color: var(--home-muted);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.evidence dd {
+  margin: 0;
+  font-size: 11px;
+}
+
+.history {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.history li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--home-border);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.history span {
+  color: var(--home-muted);
+  font-size: 8px;
+}
+
+.history b {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.history .failed {
+  color: var(--home-accent);
+}
+
 .controls {
   display: flex;
   justify-content: space-between;
