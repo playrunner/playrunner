@@ -163,6 +163,13 @@
   margin-right: 28px;
 }
 
+/* Fill more of the frame's opening without enlarging the artwork. */
+.heroVisual > figure {
+  position: absolute;
+  inset: -3% -4%;
+  height: auto;
+}
+
 .heroVisual::before {
   content: '';
   position: absolute;

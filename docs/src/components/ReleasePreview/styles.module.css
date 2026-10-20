@@ -163,6 +163,11 @@
   margin-left: auto;
 }
 
+.passed {
+  color: var(--home-green);
+  font-weight: 500;
+}
+
 .running {
   border-color: #ff967e88;
   box-shadow: 0 0 18px #ff967e10;
@@ -264,10 +269,6 @@
   background: #332b3b;
 }
 
-.steps button[aria-pressed='true'] > span {
-  color: var(--home-accent);
-}
-
 .preview figcaption {
   padding: 7px 8px 10px;
   color: var(--home-muted);
@@ -284,7 +285,7 @@
   animation: none;
 }
 
-@container (max-width: 260px) {
+@container (max-width: 280px) {
   .topline {
     padding: 10px;
   }

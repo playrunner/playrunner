@@ -55,28 +55,19 @@ function Hero(): ReactNode {
       <div className={clsx(styles.container, styles.heroGrid)}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span className={styles.statusDot} /> Regression testing for AI
-            agents
+            <span className={styles.statusDot} /> Website testing with your AI
+            agent
           </p>
           <Heading as="h1">
-            Build with AI.
+            Keep building.
             <br />
-            <span>
-              Ship with
-              <br /> confidence.
-            </span>
+            <span>Catch what breaks.</span>
           </Heading>
-          <p className={styles.heroPromise}>
-            Catch what your change breaks elsewhere.
-          </p>
+          <p className={styles.heroPromise}>Protect what already works.</p>
           <p className={styles.heroDescription}>
-            A change can work perfectly in one place and break another.
-            Playrunner checks the wider impact with focused regression tests,
-            giving your agent real-time feedback while it keeps working.
-          </p>
-          <p className={styles.nextStep}>
-            <span>Where we’re going</span> Follow the change. Find the affected
-            journeys. Give your agent the failure it needs to fix.
+            Playrunner reruns your saved website checks while your AI keeps
+            working. When a change breaks a booking, login or sign-up, your
+            agent gets the results it needs to investigate, fix and check again.
           </p>
           <div className={styles.actions}>
             <ConnectAgentButton
@@ -84,16 +75,16 @@ function Hero(): ReactNode {
             />
             <Link
               className={clsx('button', styles.secondaryButton)}
-              to="#cli-in-action"
+              to="#vibe-coders"
             >
-              Watch the CLI in action <span aria-hidden="true">↓</span>
+              See how it works <span aria-hidden="true">↓</span>
             </Link>
           </div>
           <p className={styles.heroNote}>
-            Your Playwright tests. Saved workflows. Cloud or your own compute.
+            Set up your checks once. Reuse them after every change.
           </p>
           <div className={styles.agentSupport}>
-            <span>Connect via MCP</span>
+            <span>Works with</span>
             <span>
               <AgentMark agent="Codex" /> Codex
             </span>
@@ -160,9 +151,9 @@ function VibeCoders(): ReactNode {
             changes—from signing in to saving a customer’s details.
           </p>
           <p>
-            Start with one journey that matters. Ask your agent to help write a
-            Playwright test, run it with Playrunner, and show you the result.
-            Save the workflow so you can check it again after the next change.
+            Describe what a visitor should be able to do. Your agent helps turn
+            that into a repeatable browser check and runs it with Playrunner.
+            Save the check so you can use it again after the next change.
           </p>
           <div className={styles.actions}>
             <ConnectAgentButton
@@ -214,49 +205,53 @@ function VibeCoders(): ReactNode {
   );
 }
 
-const steps = [
+const discoverySteps = [
   {
     number: '01',
-    title: 'Follow the change',
+    title: 'Discover the affected projects',
     description:
-      'The plan: trace a change through shared components, dependencies and connected projects to find the journeys it could affect.',
+      'Your agent would use Playrunner to find which connected projects use the component it changed.',
   },
   {
     number: '02',
-    title: 'Check the paths it touches',
+    title: 'Test that component across them',
     description:
-      'Select regressions for the affected journeys and run them in parallel with your agent’s work. Widen the run when impact is unclear; keep full regression available when the release needs it.',
+      'Run the component’s relevant checks across those projects while your agent continues another task. Keep the run focused on the change.',
   },
   {
     number: '03',
-    title: 'Tell the agent what broke',
+    title: 'Return the evidence to your agent',
     description:
-      'Show your agent where a regression happened, with the failing step and evidence from before and after the change, so it can investigate and verify a fix.',
+      'Identify the affected project and failing step, with reports and traces to help your agent investigate, fix and check again.',
   },
 ];
 
-function HowItWorks(): ReactNode {
+function CrossProjectDiscovery(): ReactNode {
   return (
-    <section className={styles.section}>
+    <section
+      className={styles.section}
+      id="how-it-works"
+      aria-labelledby="cross-project-discovery"
+    >
       <div className={styles.container}>
         <div className={styles.sectionIntro}>
           <p className={styles.eyebrow}>
-            Where we’re taking Playrunner · Product direction
+            Cross-project discovery · Product direction
           </p>
-          <Heading as="h2" id="how-it-works">
-            One small change.
+          <Heading as="h2" id="cross-project-discovery">
+            One shared component.
             <br />
-            <span>More than one place to break.</span>
+            <span>Every project that uses it.</span>
           </Heading>
           <p>
-            A fix can affect journeys your agent never touched—even in another
-            project. We’re building towards checks that follow those
-            connections, so you can catch that breakage without running the
-            whole suite for every small fix.
+            Working across several projects? We’re building towards Playrunner
+            discovering where a shared component is used and selecting its
+            relevant tests. Change a country selector, discover five projects
+            that use it, and check that control in each one.
           </p>
         </div>
         <div className={styles.steps}>
-          {steps.map((step) => (
+          {discoverySteps.map((step) => (
             <article key={step.number}>
               <span className={styles.stepNumber}>{step.number}</span>
               <Heading as="h3">{step.title}</Heading>
@@ -666,7 +661,9 @@ function FinalCallToAction(): ReactNode {
           <br />
           <span>a little more confidence.</span>
         </Heading>
-        <p>Help your agent check beyond the screen it’s working on.</p>
+        <p>
+          Check the journeys your visitors rely on, again after every change.
+        </p>
         <div className={styles.actions}>
           <ConnectAgentButton
             className={clsx('button', styles.primaryButton)}
@@ -719,8 +716,8 @@ export default function Home(): ReactNode {
   );
   return (
     <Layout
-      title="Build with AI. Ship with confidence."
-      description="Catch what your change breaks elsewhere. Run saved regression workflows with your AI agent, and explore Playrunner’s direction for change-aware testing."
+      title="Keep building. Catch what breaks."
+      description="Playrunner reruns your saved website checks while your AI keeps working. Catch broken bookings, logins and sign-ups, then give your agent the evidence to fix them."
       wrapperClassName={styles.landing}
     >
       <JsonLd
@@ -732,12 +729,12 @@ export default function Home(): ReactNode {
       <main>
         <Hero />
         <VibeCoders />
-        <HowItWorks />
         <TokenEfficiency />
         <CliShowcase />
         <AgentConnections />
         <Evidence />
         <Infrastructure />
+        <CrossProjectDiscovery />
         <WorkflowShowcase />
         <FinalCallToAction />
       </main>

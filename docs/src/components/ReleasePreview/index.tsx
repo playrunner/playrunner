@@ -5,8 +5,8 @@ import { OpenAIIcon } from '../../../../packages/openai/src/frontend/OpenAIIcon'
 import PlaywrightLogo from '../../../../packages/playwright/assets/playwright.svg';
 import styles from './styles.module.css';
 
-const scenes = ['Ask', 'Run', 'Act'];
-const SCENE_MS = 6500;
+const scenes = ['Change', 'Run', 'Catch', 'Fix'];
+const SCENE_MS = 9000;
 
 export default function ReleasePreview(): ReactNode {
   const previewRef = useRef<HTMLElement>(null);
@@ -52,7 +52,7 @@ export default function ReleasePreview(): ReactNode {
     <figure
       ref={previewRef}
       className={clsx(styles.preview, !playing && styles.paused)}
-      aria-label="Product direction: discover affected projects and test a shared component with Playrunner"
+      aria-label="Illustrative demo: Playrunner catches a booking regression while Codex keeps working, then verifies the fix"
     >
       <div className={styles.topline}>
         <OpenAIIcon aria-hidden="true" />
@@ -63,48 +63,51 @@ export default function ReleasePreview(): ReactNode {
         <div key={scene} className={styles.scene}>
           <div className={styles.sceneHeading}>
             <span className={styles.eyebrow}>
-              Product direction · Illustrative demo
+              Keep building. Catch what breaks.
             </span>
             <h2>
-              {scene === 0 && 'Start with a conversation.'}
+              {scene === 0 && 'Make your next change.'}
               {scene === 1 && 'Codex keeps building.'}
-              {scene === 2 && 'Turn results into action.'}
+              {scene === 2 && 'Catch what just broke.'}
+              {scene === 3 && 'Fix it. Check it again.'}
             </h2>
           </div>
           {scene === 0 && (
             <div className={styles.conversation}>
+              <div className={styles.node}>
+                <Logo aria-hidden="true" />
+                <div>
+                  <strong>Saved booking check</strong>
+                  <span>
+                    <b className={styles.passed}>PASSED</b> before this change
+                  </span>
+                </div>
+              </div>
               <div className={styles.userMessage}>
                 <span>You</span>
-                <p>
-                  Add flags to the country selector and let users choose their
-                  account timezone.
-                </p>
+                <p>Add a promo-code field to booking. Then update the FAQ.</p>
               </div>
               <div className={styles.agentMessage}>
                 <span>
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>
-                  Flags added. I’ll use Playrunner to find affected projects and
-                  test the selector while I build the timezone setting.
+                  Field added. I’ll rerun our saved booking check in Playrunner
+                  while I update the FAQ.
                 </p>
-              </div>
-              <div className={styles.handoff}>
-                <Logo aria-hidden="true" /> Playrunner: find affected projects{' '}
-                <span aria-hidden="true">↗</span>
               </div>
             </div>
           )}
           {scene === 1 && (
             <div className={styles.workflow}>
               <div className={styles.workflowName}>
-                Country selector · Focused regressions
+                Same saved check · New change
               </div>
               <div className={styles.node}>
-                <Logo aria-hidden="true" />
+                <OpenAIIcon aria-hidden="true" />
                 <div>
-                  <strong>Playrunner discovers affected projects</strong>
-                  <span>5 projects use the country selector</span>
+                  <strong>Promo-code field added</strong>
+                  <span>Codex moves on to the FAQ</span>
                 </div>
                 <span className={styles.complete} aria-hidden="true">
                   ✓
@@ -116,20 +119,17 @@ export default function ReleasePreview(): ReactNode {
               <div className={clsx(styles.node, styles.running)}>
                 <PlaywrightLogo aria-hidden="true" />
                 <div>
-                  <strong>Runs country-selector tests</strong>
-                  <span>18 focused tests across all 5 projects</span>
+                  <strong>Playrunner reruns booking check</strong>
+                  <span>In the background · Desktop + mobile</span>
                 </div>
                 <span className={styles.spinner} aria-hidden="true" />
               </div>
               <p className={styles.workflowNote}>Meanwhile, in the same chat</p>
               <div className={styles.agentMessage}>
                 <span>
-                  <OpenAIIcon aria-hidden="true" /> Codex · Working
+                  <OpenAIIcon aria-hidden="true" /> Codex · Updating FAQ
                 </span>
-                <p>
-                  While those tests run, I’m building the account timezone
-                  setting.
-                </p>
+                <p>The booking check is running. I’m updating the FAQ now.</p>
               </div>
             </div>
           )}
@@ -137,30 +137,52 @@ export default function ReleasePreview(): ReactNode {
             <div className={styles.conversation}>
               <div className={styles.result}>
                 <span>
-                  <Logo aria-hidden="true" /> Playrunner
+                  <Logo aria-hidden="true" /> Playrunner · Mobile booking
                 </span>
                 <strong>
-                  <b>17 passed</b> · 1 failed
+                  <b>PASSED</b> → FAILED
                 </strong>
                 <p>
-                  Customer Portal: editing an address resets the saved country.
+                  The new promo-code field leaves Continue hidden behind the
+                  footer on mobile.
                 </p>
-                <small>
-                  Country selector · 5 projects · Report + trace ready
-                </small>
+                <small>Same saved check · Screenshot + report ready</small>
               </div>
+              <div className={styles.agentMessage}>
+                <span>
+                  <OpenAIIcon aria-hidden="true" /> Codex · Updating FAQ
+                </span>
+                <p>
+                  Playrunner caught a booking regression while I was working on
+                  the FAQ.
+                </p>
+              </div>
+            </div>
+          )}
+          {scene === 3 && (
+            <div className={styles.conversation}>
               <div className={styles.agentMessage}>
                 <span>
                   <OpenAIIcon aria-hidden="true" /> Codex
                 </span>
                 <p>
-                  I’ll inspect the trace, fix the country reset, then rerun the
-                  failed test.
+                  I fixed the mobile layout and reran only the failed mobile
+                  booking check.
                 </p>
               </div>
+              <div className={styles.result}>
+                <span>
+                  <Logo aria-hidden="true" /> Playrunner · Rerun complete
+                </span>
+                <strong>
+                  <b>PASSED · Mobile booking</b>
+                </strong>
+                <p>Continue is visible. The booking completes.</p>
+                <small>Same saved check · Verified after the fix</small>
+              </div>
               <div className={styles.handoff}>
-                <span aria-hidden="true">↻</span> Evidence. A fix. Another
-                check.
+                <span aria-hidden="true">↻</span> Ready to reuse after your next
+                change.
               </div>
             </div>
           )}
@@ -179,7 +201,6 @@ export default function ReleasePreview(): ReactNode {
                 setPlaying(false);
               }}
             >
-              <span aria-hidden="true">{index + 1}</span>
               {label}
             </button>
           ))}
@@ -195,9 +216,7 @@ export default function ReleasePreview(): ReactNode {
           </button>
         )}
       </div>
-      <figcaption>
-        Planned discovery and test selection · Sample results.
-      </figcaption>
+      <figcaption>Illustrative demo · Sample results.</figcaption>
     </figure>
   );
 }
