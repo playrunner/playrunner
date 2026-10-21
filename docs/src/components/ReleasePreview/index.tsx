@@ -8,7 +8,13 @@ import styles from './styles.module.css';
 type Message = {
   speaker: 'Codex' | 'Playrunner';
   text: string;
-  attachment?: 'setup' | 'authentication' | 'running' | 'failure' | 'history';
+  attachment?:
+    | 'setup'
+    | 'customer-session'
+    | 'admin-session'
+    | 'running'
+    | 'failure'
+    | 'history';
 };
 
 const messages: Message[] = [
@@ -23,16 +29,25 @@ const messages: Message[] = [
   },
   {
     speaker: 'Playrunner',
-    text: 'Accessing your Authentication Profiles. Reusing saved sessions for your passkey-protected account and SSO login.',
-    attachment: 'authentication',
+    text: 'Accessing the customer app’s Authentication Profile. Reusing its saved signed-in session.',
+    attachment: 'customer-session',
   },
   {
     speaker: 'Codex',
-    text: 'Great. I’ll update the pricing page while those run.',
+    text: 'Great. I’ll update the pricing page while you handle the checks.',
   },
   {
     speaker: 'Playrunner',
-    text: 'Running the same Playwright tests now.',
+    text: 'I detected a database migration behind the shared account-access component. I’ll check the admin portal too.',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Accessing the admin portal’s Authentication Profile. Reusing its saved SSO sign-in.',
+    attachment: 'admin-session',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Running the checks across both systems now.',
     attachment: 'running',
   },
   {
@@ -41,7 +56,7 @@ const messages: Message[] = [
   },
   {
     speaker: 'Playrunner',
-    text: 'Payments passed. But a paid customer was sent to Subscribe instead of their dashboard.',
+    text: 'Payments and admin access passed. But a paid customer was sent to Subscribe instead of their dashboard.',
     attachment: 'failure',
   },
   {
@@ -50,7 +65,7 @@ const messages: Message[] = [
   },
   {
     speaker: 'Codex',
-    text: 'Access rule fixed. Rerun only the failed account-access check.',
+    text: 'Access rule fixed. Rerun only the failed customer-access check.',
   },
   {
     speaker: 'Playrunner',
@@ -65,9 +80,9 @@ const messages: Message[] = [
 
 const scenes = [
   { label: 'Change', lastMessage: 2 },
-  { label: 'Check', lastMessage: 5 },
-  { label: 'Catch', lastMessage: 7 },
-  { label: 'Verify', lastMessage: 10 },
+  { label: 'Check', lastMessage: 7 },
+  { label: 'Catch', lastMessage: 9 },
+  { label: 'Verify', lastMessage: 12 },
 ];
 const CHARACTER_MS = 28;
 
@@ -80,26 +95,26 @@ function Attachment({ kind }: { kind: Message['attachment'] }): ReactNode {
       </div>
     );
   }
-  if (kind === 'authentication') {
+  if (kind === 'customer-session' || kind === 'admin-session') {
+    const customerSession = kind === 'customer-session';
     return (
       <div className={styles.context}>
-        {['Passkey-protected account', 'SSO login'].map((label) => (
-          <span key={label} className={styles.authenticationBadge}>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <rect x="4" y="10" width="16" height="11" rx="2" />
-              <path d="M8 10V6a4 4 0 0 1 8 0v4" />
-            </svg>
-            {label}
-          </span>
-        ))}
+        <span>{customerSession ? 'Customer app' : 'Admin portal'}</span>
+        <span className={styles.authenticationBadge}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="4" y="10" width="16" height="11" rx="2" />
+            <path d="M8 10V6a4 4 0 0 1 8 0v4" />
+          </svg>
+          {customerSession ? 'Passkey-protected account' : 'SSO login'}
+        </span>
       </div>
     );
   }
@@ -114,7 +129,9 @@ function Attachment({ kind }: { kind: Message['attachment'] }): ReactNode {
   if (kind === 'failure') {
     return (
       <div className={styles.attachment}>
-        <strong className={styles.failed}>FAIL · Account access</strong>
+        <strong className={styles.failed}>
+          FAIL · Customer account access
+        </strong>
         <dl className={styles.evidence}>
           <dt>Expected</dt>
           <dd>Account dashboard</dd>
@@ -130,8 +147,13 @@ function Attachment({ kind }: { kind: Message['attachment'] }): ReactNode {
   if (kind === 'history') {
     return (
       <div className={styles.attachment}>
-        <strong className={styles.passed}>PASS · Account access</strong>
-        <ol className={styles.history} aria-label="Account-access run history">
+        <strong className={styles.passed}>
+          PASS · Customer account access
+        </strong>
+        <ol
+          className={styles.history}
+          aria-label="Customer account-access run history"
+        >
           <li>
             <span>Before</span>
             <b>PASS</b>
@@ -275,9 +297,6 @@ export default function ReleasePreview(): ReactNode {
         aria-label="Codex and Playrunner conversation"
         aria-live={playing ? 'off' : 'polite'}
         tabIndex={0}
-        onFocus={() => setPlaying(false)}
-        onWheel={() => setPlaying(false)}
-        onTouchStart={() => setPlaying(false)}
       >
         <ol className={styles.messages}>
           {messages.slice(0, messageIndex + 1).map((message, index) => (
@@ -328,7 +347,11 @@ export default function ReleasePreview(): ReactNode {
                 : 'Playrunner is checking…'}
           </>
         ) : typingMessage || nextMessage ? (
-          'Conversation paused · Scroll to read'
+          reducedMotion ? (
+            'Choose a chapter to read the conversation.'
+          ) : (
+            'Paused · Press Play to continue.'
+          )
         ) : (
           'Checks saved. Ready for the next change.'
         )}
@@ -350,7 +373,6 @@ export default function ReleasePreview(): ReactNode {
                   messageIndex: lastMessage,
                   characterCount: messages[lastMessage].text.length,
                 });
-                setPlaying(false);
                 const transcript = transcriptRef.current;
                 if (transcript) {
                   transcript.scrollTop = transcript.scrollHeight;
@@ -368,11 +390,11 @@ export default function ReleasePreview(): ReactNode {
             aria-label={playing ? 'Pause hero demo' : 'Play hero demo'}
             onClick={() => setPlaying((value) => !value)}
           >
-            <span aria-hidden="true">{playing ? 'Ⅱ' : '▶'}</span>
+            {playing ? 'Pause' : 'Play'}
           </button>
         )}
       </div>
-      <figcaption>Illustrative conversation · Sample results.</figcaption>
+      <figcaption>Illustrative conversation · Product direction.</figcaption>
     </figure>
   );
 }
