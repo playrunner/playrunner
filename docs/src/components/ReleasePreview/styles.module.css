@@ -160,6 +160,23 @@
   font-size: 9px;
 }
 
+.authenticationBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  padding: 5px 7px;
+  border: 1px solid var(--home-green);
+  border-radius: 6px;
+  color: var(--home-green);
+  font-weight: 500;
+}
+
+.authenticationBadge svg {
+  width: 13px;
+  height: 13px;
+}
+
 .runAttachment svg {
   width: 16px;
   height: 16px;

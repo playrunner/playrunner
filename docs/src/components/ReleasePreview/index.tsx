@@ -8,7 +8,7 @@ import styles from './styles.module.css';
 type Message = {
   speaker: 'Codex' | 'Playrunner';
   text: string;
-  attachment?: 'setup' | 'running' | 'failure' | 'history';
+  attachment?: 'setup' | 'authentication' | 'running' | 'failure' | 'history';
 };
 
 const messages: Message[] = [
@@ -18,8 +18,13 @@ const messages: Message[] = [
   },
   {
     speaker: 'Playrunner',
-    text: 'Found both checks. They passed before this change. I’ll reuse the saved customer sign-in.',
+    text: 'Found both checks. They passed before this change.',
     attachment: 'setup',
+  },
+  {
+    speaker: 'Playrunner',
+    text: 'Accessing your Authentication Profiles. Reusing saved sessions for your passkey-protected account and SSO login.',
+    attachment: 'authentication',
   },
   {
     speaker: 'Codex',
@@ -59,10 +64,10 @@ const messages: Message[] = [
 ];
 
 const scenes = [
-  { label: 'Change', lastMessage: 1 },
-  { label: 'Check', lastMessage: 4 },
-  { label: 'Catch', lastMessage: 6 },
-  { label: 'Verify', lastMessage: 9 },
+  { label: 'Change', lastMessage: 2 },
+  { label: 'Check', lastMessage: 5 },
+  { label: 'Catch', lastMessage: 7 },
+  { label: 'Verify', lastMessage: 10 },
 ];
 const CHARACTER_MS = 28;
 
@@ -70,8 +75,31 @@ function Attachment({ kind }: { kind: Message['attachment'] }): ReactNode {
   if (kind === 'setup') {
     return (
       <div className={styles.context}>
-        <span>Staging · Saved customer sign-in</span>
+        <span>Staging · Payment + account-access checks</span>
         <span className={styles.passed}>Previous run · PASS</span>
+      </div>
+    );
+  }
+  if (kind === 'authentication') {
+    return (
+      <div className={styles.context}>
+        {['Passkey-protected account', 'SSO login'].map((label) => (
+          <span key={label} className={styles.authenticationBadge}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="4" y="10" width="16" height="11" rx="2" />
+              <path d="M8 10V6a4 4 0 0 1 8 0v4" />
+            </svg>
+            {label}
+          </span>
+        ))}
       </div>
     );
   }
