@@ -1,3 +1,4 @@
+import { serviceFailureBody } from './service-diagnostics';
 import type { RunnerProvisionResult, RunnerProvisioner } from './contracts';
 import { ensureLocalOrchestratorRunning } from './orchestrator-runner';
 
@@ -22,8 +23,8 @@ export class LocalDockerRunnerProvisioner implements RunnerProvisioner {
     }
 
     return {
-      body: { error: result.message },
-      status: 502,
+      body: serviceFailureBody('LOCAL_RUNNER_UNAVAILABLE'),
+      status: 503,
     };
   }
 }

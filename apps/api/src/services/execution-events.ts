@@ -1,3 +1,7 @@
+import {
+  serviceDiagnostic,
+  serviceFailureBody,
+} from '../runtime/service-diagnostics';
 import crypto from 'crypto';
 import { executionDefinitionContext } from './execution-definition';
 import type {
@@ -256,6 +260,13 @@ function toStreamableEvent(event: WorkflowEvent): StreamableWorkflowEvent {
 
 export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
   const rawType = normalizeString(event.payload.type) ?? 'event';
+  const diagnostic =
+    rawType === 'workflow_failed'
+      ? serviceDiagnostic(event.payload.code)
+      : null;
+  const diagnosticBody = diagnostic
+    ? serviceFailureBody(diagnostic.code, event.payload.reason)
+    : null;
   const botPullRequest =
     rawType === 'bot_pull_request'
       ? safeBotPullRequestEvent(event.payload)
@@ -282,8 +293,17 @@ export function toSafeWorkflowEvent(event: StreamableWorkflowEvent) {
     sequence: event.sequence.toString(),
     type,
     level: rawLevel && SAFE_LEVELS.has(rawLevel) ? rawLevel : null,
-    message:
-      type === 'log'
+    ...(diagnostic
+      ? {
+          code: diagnostic.code,
+          service: diagnostic.service,
+          recovery: diagnostic.recovery,
+          ...(diagnosticBody?.reason ? { reason: diagnosticBody.reason } : {}),
+        }
+      : {}),
+    message: diagnosticBody
+      ? diagnosticBody.error
+      : type === 'log'
         ? sanitizeWorkflowLogMessage(event.payload.message)
         : type === 'node_state'
           ? `${nodeId ? `Node ${nodeId}` : 'Node'} is ${state}.`

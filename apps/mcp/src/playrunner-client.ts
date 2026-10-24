@@ -48,9 +48,26 @@ export function machineRequest(params: {
 export async function callMachineApi(
   request: ReturnType<typeof machineRequest>,
 ): Promise<PlayrunnerResponse> {
-  const response = await fetch(request.url, request.init);
-  const body = await response.json().catch(() => ({}));
-  return { body, status: response.status };
+  try {
+    const response = await fetch(request.url, {
+      ...request.init,
+      signal: AbortSignal.timeout(30000),
+    });
+    const body = await response.json().catch(() => ({}));
+    return { body, status: response.status };
+  } catch {
+    // A lost response to a mutation is ambiguous. Never retry it here.
+    return {
+      status: 503,
+      body: {
+        code: "PLAYRUNNER_API_UNREACHABLE",
+        error:
+          request.init.method === "GET"
+            ? "The Playrunner tool service cannot reach the API. Check the API service and its network connection."
+            : "The Playrunner tool service lost contact with the API. The request outcome is unknown. Check run history or saved state before retrying; a workflow may already have started.",
+      },
+    };
+  }
 }
 
 function errorMessage(body: unknown) {

@@ -127,3 +127,40 @@ test("a successful list is passed through as structured content", () => {
     workflows: [{ id: "w1", title: "Smoke" }],
   });
 });
+
+test("network failures identify the API and preserve uncertain mutation outcomes without retries", async (t) => {
+  const { callMachineApi, machineRequest, machineFailure } =
+    await import("./playrunner-client");
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    throw new Error("http://private:secret@internal");
+  });
+  const failed = await callMachineApi(
+    machineRequest({
+      authorization: "Bearer test-token",
+      method: "POST",
+      path: "/api/v1/workflows/example/executions",
+    }),
+  );
+  assert.equal(calls, 1);
+  assert.equal(failed.status, 503);
+  const result = machineFailure(failed, { notFound: "Missing" });
+  assert.match(result.content[0].text, /outcome is unknown/);
+  assert.match(result.content[0].text, /Check run history/);
+  assert.doesNotMatch(
+    JSON.stringify(result),
+    /private|secret|internal|test-token/,
+  );
+  const read = await callMachineApi(
+    machineRequest({
+      authorization: "Bearer test-token",
+      method: "GET",
+      path: "/api/v1/workflows",
+    }),
+  );
+  assert.match(
+    machineFailure(read, { notFound: "Missing" }).content[0].text,
+    /cannot reach the API/,
+  );
+});

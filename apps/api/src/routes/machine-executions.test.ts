@@ -73,3 +73,19 @@ test('machine list endpoints default their page size and reject bad limits', () 
   assert.ok('error' in parseMachinePageSize('all'));
   assert.ok('error' in parseMachinePageSize('1.5'));
 });
+
+test('known service outages survive machine API sanitization without exposing raw errors', async () => {
+  const { publicStartError } = await import('./machine-executions');
+  const message = publicStartError(
+    503,
+    'postgres://private:secret@internal',
+    'LOCAL_EVENT_SERVICE_UNAVAILABLE',
+  );
+  assert.match(message, /message service/);
+  assert.match(message, /workflow has not started/);
+  assert.doesNotMatch(message, /private|secret|internal/);
+  assert.equal(
+    publicStartError(500, 'private details', 'untrusted-code'),
+    'Workflow could not be started.',
+  );
+});

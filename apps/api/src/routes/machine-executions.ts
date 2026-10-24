@@ -1,4 +1,8 @@
 import {
+  serviceDiagnostic,
+  serviceFailureBody,
+} from '../runtime/service-diagnostics';
+import {
   executeIdempotentMachineRun,
   machineRunRequestHash,
   parseMachineIdempotencyKey,
@@ -81,7 +85,14 @@ function canAccess(
   );
 }
 
-function publicStartError(status: number, error: unknown) {
+export function publicStartError(
+  status: number,
+  error: unknown,
+  code?: unknown,
+  reason?: unknown,
+) {
+  const diagnostic = serviceDiagnostic(code);
+  if (diagnostic) return serviceFailureBody(diagnostic.code, reason).error;
   const sanitized = status < 500 ? sanitizeWorkflowLogMessage(error) : null;
   return sanitized?.slice(0, 500) || 'Workflow could not be started.';
 }
@@ -348,7 +359,14 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
         if (runner.status < 200 || runner.status >= 300)
           return {
             status: failureHttpStatus(runner.status),
-            body: { error: publicStartError(runner.status, runner.body.error) },
+            body: {
+              ...serviceDiagnostic(runner.body.code),
+              error: publicStartError(
+                runner.status,
+                runner.body.error,
+                runner.body.code,
+              ),
+            },
           };
         try {
           const started = await executeSavedWorkflow({
@@ -376,7 +394,18 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
             return {
               status,
               body: {
-                error: publicStartError(status, started.result.body.error),
+                ...(serviceDiagnostic(started.result.body.code)
+                  ? serviceFailureBody(
+                      started.result.body.code,
+                      started.result.body.reason,
+                    )
+                  : {}),
+                error: publicStartError(
+                  status,
+                  started.result.body.error,
+                  started.result.body.code,
+                  started.result.body.reason,
+                ),
                 executionId,
                 status: 'failed_to_start',
                 workflowId,
@@ -424,7 +453,12 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
   );
   if (runner.status < 200 || runner.status >= 300) {
     res.status(failureHttpStatus(runner.status)).json({
-      error: publicStartError(runner.status, runner.body.error),
+      ...serviceDiagnostic(runner.body.code),
+      error: publicStartError(
+        runner.status,
+        runner.body.error,
+        runner.body.code,
+      ),
     });
     return;
   }
@@ -515,7 +549,12 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
     }
     if (started.result.status < 200 || started.result.status >= 300) {
       const status = failureHttpStatus(started.result.status);
-      const message = publicStartError(status, started.result.body.error);
+      const message = publicStartError(
+        status,
+        started.result.body.error,
+        started.result.body.code,
+        started.result.body.reason,
+      );
       await markCiWorkflowExecutionStartFailed(
         reservation.id,
         reservation.executionId,
@@ -525,6 +564,12 @@ machineExecutionsRouter.post('/:workflowId/executions', async (req, res) => {
         },
       );
       res.status(status).json({
+        ...(serviceDiagnostic(started.result.body.code)
+          ? serviceFailureBody(
+              started.result.body.code,
+              started.result.body.reason,
+            )
+          : {}),
         error: message,
         executionId: reservation.executionId,
         headSha: ci.headSha,

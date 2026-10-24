@@ -253,3 +253,30 @@ test('machine event output fails closed on mismatched bot pull request metadata'
     assert.equal(Object.hasOwn(event, 'repository'), false);
   }
 });
+
+test('machine event history retains safe service diagnostics but not arbitrary failure text', () => {
+  const event = toSafeWorkflowEvent({
+    sequence: 22n,
+    payload: {
+      type: 'workflow_failed',
+      code: 'LOCAL_EVENT_SERVICE_UNAVAILABLE',
+      message: 'Bearer private-secret',
+      recovery: 'untrusted recovery',
+    },
+  });
+  assert.match(event.message!, /message service/);
+  assert.doesNotMatch(
+    JSON.stringify(event),
+    /private-secret|untrusted recovery/,
+  );
+  assert.equal(event.code, 'LOCAL_EVENT_SERVICE_UNAVAILABLE');
+  const unknown = toSafeWorkflowEvent({
+    sequence: 23n,
+    payload: {
+      type: 'workflow_failed',
+      code: 'UNRECOGNIZED',
+      message: 'private-secret',
+    },
+  });
+  assert.equal(unknown.message, 'Workflow failed.');
+});

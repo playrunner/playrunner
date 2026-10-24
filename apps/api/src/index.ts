@@ -3,7 +3,9 @@ import { createMachineManagementRouter } from './routes/machine-management';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { PORT } from './config';
+import { PORT, LOCAL_PUBSUB_PROJECT_ID } from './config';
+import { prisma } from './lib/prisma';
+import { createReadinessProbe, readinessHandler } from './runtime/readiness';
 import {
   registerIntegrationApiRoutes,
   registerPublicIntegrationApiRoutes,
@@ -40,7 +42,15 @@ app.use('/api/v1/workflows', machineExecutionsRouter);
 app.use('/api/v1', createMachineManagementRouter());
 app.use(express.json({ limit: '100mb' }));
 
-app.get('/health', (_req, res) => {
+const readiness = createReadinessProbe({
+  database: () => prisma.$queryRaw`SELECT 1`,
+  emulatorHost: process.env.PUBSUB_EMULATOR_HOST,
+  projectId: LOCAL_PUBSUB_PROJECT_ID,
+  mcpHealthUrl: process.env.PLAYRUNNER_MCP_HEALTH_URL,
+});
+app.get('/health', readinessHandler(readiness, true));
+app.get('/ready', readinessHandler(readiness));
+app.get('/live', (_req, res) => {
   res.status(200).send('OK');
 });
 

@@ -1,3 +1,7 @@
+import {
+  serviceFailureBody,
+  dependencyFailureReason,
+} from './service-diagnostics';
 import crypto from 'node:crypto';
 import { LOCAL_PUBSUB_PROJECT_ID, ORCHESTRATOR_URL } from '../config';
 import { executionEvents } from '../services/execution-events';
@@ -35,6 +39,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
   constructor(
     private readonly logTransport: LogTransport,
     private readonly pubSubEventStreamManager: GcpPubSubEventStreamManager,
+    private readonly startRunner = ensureLocalOrchestratorRunning,
   ) {}
 
   supports(cloudProvider: string): boolean {
@@ -55,11 +60,11 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       };
     }
 
-    const runnerStart = await ensureLocalOrchestratorRunning();
+    const runnerStart = await this.startRunner();
     if (!runnerStart.ok) {
       return {
-        body: { error: runnerStart.message },
-        status: 502,
+        body: serviceFailureBody('LOCAL_RUNNER_UNAVAILABLE'),
+        status: 503,
       };
     }
 
@@ -92,14 +97,19 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
           projectId: LOCAL_PUBSUB_PROJECT_ID,
         });
       body.eventTransport = eventTransport;
-    } catch (err: any) {
+    } catch (error) {
       const failurePolicy = localStartFailurePolicy(true);
+      const failure = serviceFailureBody(
+        'LOCAL_EVENT_SERVICE_UNAVAILABLE',
+        dependencyFailureReason(error),
+      );
       try {
         await this.logTransport.publish(
           JSON.stringify({
             executionId: testId,
             level: 'error',
-            message: `Failed to configure local Pub/Sub event transport: ${err.message}`,
+            ...failure,
+            message: failure.error,
             testId,
             timestamp: new Date().toISOString(),
             type: failurePolicy.eventType,
@@ -111,10 +121,10 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
       }
       return {
         body: {
-          error: `Failed to configure local Pub/Sub event transport: ${err.message}`,
+          ...failure,
           testId,
         },
-        status: 500,
+        status: 503,
       };
     }
 
@@ -130,7 +140,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
 
       if (!response.ok) {
         const failurePolicy = localStartFailurePolicy(true);
-        const details = await response.text().catch(() => '');
+        const failure = serviceFailureBody('LOCAL_RUNNER_REJECTED');
         if (eventTransport && failurePolicy.cleanupEventTransport) {
           this.pubSubEventStreamManager.stopGcpPubSubEventStream(testId);
         }
@@ -140,7 +150,8 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
               cloudProvider: 'LOCAL_RUNNER',
               executionId: testId,
               level: 'error',
-              message: `Runner failed to process workflow${details ? `: ${details}` : '.'}`,
+              ...failure,
+              message: failure.error,
               testId,
               timestamp: new Date().toISOString(),
               type: failurePolicy.eventType,
@@ -152,7 +163,7 @@ export class LocalWorkflowExecutionBackend implements WorkflowExecutionBackend {
         }
 
         return {
-          body: { error: 'Runner failed to process workflow', testId },
+          body: { ...failure, testId },
           status: 500,
         };
       }
